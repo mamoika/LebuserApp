@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LEBUSER Textilservice Sp. z o.o. – Harmonogram</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #F5F6F8;
+  --bg-card: rgba(255,255,255,0.92);
+  --bg-card-solid: #FFFFFF;
+  --bg-secondary: #EEF1F4;
+  --bg-tertiary: #F6F7F9;
+  --surface-raised: #FFFFFF;
+  --border: rgba(34,43,54,0.1);
+  --border-strong: rgba(34,43,54,0.18);
+  --text-primary: #1C1C1E;
+  --text-secondary: #4B5563;
+  --text-tertiary: #7B8491;
+  --text-quaternary: #A1A8B3;
+  --accent: #1266D6;
+  --accent-light: #EAF2FF;
+  --accent-green: #138A43;
+  --accent-green-light: #E8F6ED;
+  --accent-red: #D9342B;
+  --accent-red-light: #FDEDEC;
+  --accent-orange: #D97706;
+  --accent-orange-light: #FFF3E0;
+  --accent-purple: #8E44AD;
+  --accent-purple-light: #F4EAF8;
+  --accent-teal: #0E7490;
+  --accent-indigo: #4F46E5;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.05), 0 0 0 0.5px rgba(15,23,42,0.04);
+  --shadow-md: 0 10px 28px rgba(15,23,42,0.09), 0 0 0 0.5px rgba(15,23,42,0.04);
+  --font: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171A1F;
+    --bg-card: rgba(38,42,49,0.94);
+    --bg-card-solid: #242832;
+    --bg-secondary: rgba(118,118,128,0.18);
+    --bg-tertiary: rgba(118,118,128,0.12);
+    --surface-raised: #2A2F39;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255,255,255,0.75);
+    --text-tertiary: rgba(255,255,255,0.45);
+    --text-quaternary: rgba(255,255,255,0.28);
+    --accent-light: rgba(0,122,255,0.15);
+    --accent-green-light: rgba(52,199,89,0.12);
+    --accent-red-light: rgba(255,59,48,0.12);
+    --accent-orange-light: rgba(255,149,0,0.12);
+    --accent-purple-light: rgba(175,82,222,0.12);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.3), 0 0 0 0.5px rgba(255,255,255,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.04);
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text-primary);
+  padding:18px 18px 40px;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.app-shell {
+  width:min(100%, 1440px);
+  margin:0 auto;
+}
+
+/* ── HEADER ── */
+.app-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+  padding:2px 2px 0;
+}
+.app-title {
+  font-size:26px;
+  font-weight:750;
+  letter-spacing:0;
+  color:var(--text-primary);
+  line-height:1.1;
+}
+.app-subtitle {
+  font-size:12px;
+  color:var(--text-tertiary);
+  margin-top:3px;
+  font-weight:400;
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display:flex;
+  gap:4px;
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:5px;
+  margin-bottom:18px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  width:100%;
+  max-width:100%;
+  box-shadow:var(--shadow-sm);
+}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:9px 13px;
+  border-radius:var(--radius-sm);
+  border:none;
+  background:transparent;
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:12.5px;
+  font-weight:650;
+  cursor:pointer;
+  transition:all 0.15s ease;
+  white-space:nowrap;
+  flex:1 0 auto;
+  letter-spacing:0;
+  line-height:1.4;
+}
+.tab-btn .tab-icon {
+  font-size:14px;
+  line-height:1;
+  opacity:0.85;
+}
+.tab-btn:hover { color:var(--text-primary); }
+.tab-btn.active {
+  background:var(--accent);
+  color:var(--text-primary);
+  color:#fff;
+  font-weight:750;
+  box-shadow:0 4px 12px rgba(18,102,214,0.22);
+}
+.tab-btn.active .tab-icon { opacity:1; }
+
+/* ── WEEK NAV ── */
+.week-nav {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:16px;
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:8px;
+  box-shadow:var(--shadow-sm);
+}
+.week-nav-btn {
+  width:34px; height:34px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:var(--radius-sm);
+  border:0.5px solid var(--border-strong);
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
+  font-size:18px;
+  cursor:pointer;
+  transition:all 0.15s;
+  font-family:var(--font);
+  line-height:1;
+}
+.week-nav-btn:hover{background:var(--accent);color:#fff;border-color:transparent}
+.week-nav-btn:active{transform:scale(0.92)}
+.week-label {
+  flex:1;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  color:var(--text-primary);
+  letter-spacing:0;
+}
+
+/* ── SECTION HEADING ── */
+.section-heading {
+  font-size:12px;
+  font-weight:750;
+  color:var(--text-tertiary);
+  text-transform:uppercase;
+  letter-spacing:0.6px;
+  margin:18px 0 9px 2px;
+}
+
+/* ── ROUTE GROUP HEADER ── */
+.route-group-header {
+  font-size:11px;
+  font-weight:600;
+  color:var(--text-tertiary);
+  text-transform:uppercase;
+  letter-spacing:0.8px;
+  margin:28px 0 10px 0;
+  padding-bottom:8px;
+  border-bottom:0.5px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  width:100%;
+}
+.route-group-header::before {
+  content:'';
+  display:inline-block;
+  width:3px;
+  height:12px;
+  border-radius:2px;
+  background:var(--text-quaternary);
+  flex-shrink:0;
+}
+
+/* ── KANBAN GRID ── */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(180px,1fr));
+  gap:12px;
+}
+@media(max-width:1120px){.grid{grid-template-columns:repeat(3,minmax(180px,1fr))}}
+@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:380px){.grid{grid-template-columns:1fr}}
+
+.col {
+  background:var(--surface-raised);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:12px;
+  min-height:200px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+}
+.col:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);border-color:var(--border-strong)}
+
+.col-header {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding-bottom:9px;
+  border-bottom:0.5px solid var(--border);
+  margin-bottom:2px;
+}
+.col-day-name {
+  min-width:32px;
+  font-size:14px;
+  font-weight:800;
+  color:var(--text-primary);
+  letter-spacing:0;
+}
+.col-date {
+  font-size:11.5px;
+  color:var(--text-tertiary);
+  font-weight:550;
+  flex:1;
+  letter-spacing:0;
+}
+.today-pill {
+  background:var(--accent);
+  color:#fff;
+  font-size:9px;
+  font-weight:700;
+  padding:2px 7px;
+  border-radius:20px;
+  letter-spacing:0.3px;
+  text-transform:uppercase;
+}
+
+/* ── METRICS ── */
+.metrics-row {
+  display:flex;
+  gap:6px;
+}
+.metric-chip {
+  flex:1;
+  min-width:0;
+  padding:8px 9px;
+  border-radius:8px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  border:0.5px solid transparent;
+}
+.metric-chip.arr { background:var(--accent-green-light); border-color:rgba(19,138,67,0.1); }
+.metric-chip.wash { background:var(--accent-red-light); border-color:rgba(217,52,43,0.1); }
+.metric-chip-label {
+  font-size:9px;
+  font-weight:750;
+  text-transform:uppercase;
+  letter-spacing:0.45px;
+  opacity:0.65;
+}
+.metric-chip.arr .metric-chip-label { color:#1a7a37; }
+.metric-chip.wash .metric-chip-label { color:#c42a22; }
+.metric-chip-val {
+  font-size:14px;
+  font-weight:800;
+  line-height:1;
+  letter-spacing:0;
+  white-space:nowrap;
+}
+.metric-chip.arr .metric-chip-val { color:#1a7a37; }
+.metric-chip.wash .metric-chip-val { color:#c42a22; }
+@media(prefers-color-scheme:dark){
+  .metric-chip.arr .metric-chip-label,.metric-chip.arr .metric-chip-val { color:var(--accent-green); }
+  .metric-chip.wash .metric-chip-label,.metric-chip.wash .metric-chip-val { color:var(--accent-red); }
+}
+
+/* ── SECTION LABELS ── */
+.sec-label {
+  font-size:9.5px;
+  font-weight:750;
+  text-transform:uppercase;
+  letter-spacing:0.6px;
+  color:var(--text-quaternary);
+  margin-top:5px;
+  margin-bottom:0;
+}
+
+/* ── TAGS / CARDS ── */
+.tag {
+  font-size:12px;
+  min-height:33px;
+  padding:7px 8px;
+  border-radius:7px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:4px;
+  cursor:pointer;
+  transition:all 0.12s;
+  font-weight:650;
+  border:0.5px solid transparent;
+  letter-spacing:0;
+}
+.tag:hover{filter:brightness(0.98);transform:translateY(-1px);box-shadow:0 4px 10px rgba(15,23,42,0.08)}
+.tag:active{transform:scale(0.98);filter:brightness(0.92)}
+.tag-arr {
+  background:var(--accent-green-light);
+  color:var(--accent-green);
+  border-color:rgba(19,138,67,0.16);
+}
+.tag-pick {
+  background:var(--accent-light);
+  color:var(--accent);
+  border-color:rgba(18,102,214,0.16);
+}
+.tag-done {
+  background:var(--bg-tertiary);
+  color:var(--text-quaternary);
+  border-color:transparent;
+  text-decoration:line-through;
+  text-decoration-color:var(--text-quaternary);
+}
+@media(prefers-color-scheme:dark){
+  .tag-arr{color:var(--accent-green)}
+  .tag-pick{color:var(--accent-teal)}
+}
+.tag-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag-check{font-size:11px;opacity:0.5;flex-shrink:0}
+.kg-badge {
+  font-size:9.5px;
+  font-weight:750;
+  background:rgba(0,0,0,0.06);
+  padding:2px 6px;
+  border-radius:20px;
+  white-space:nowrap;
+  color:inherit;
+  flex-shrink:0;
+}
+
+/* ── ROUTE BADGES ── */
+.rt-badge {
+  font-size:9.5px;
+  padding:2px 6px;
+  border-radius:7px;
+  font-weight:800;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.rt-1{background:rgba(0,122,255,0.12);color:#007AFF}
+.rt-2{background:rgba(255,149,0,0.12);color:#FF9500}
+.rt-3{background:rgba(175,82,222,0.12);color:#AF52DE}
+.rt-4{background:rgba(255,59,48,0.12);color:#FF3B30}
+.rt-5{background:rgba(90,200,250,0.12);color:#32ADE6}
+.rt-6{background:rgba(52,199,89,0.12);color:#34C759}
+.rt-7{background:rgba(88,86,214,0.12);color:#5856D6}
+.rt-8{background:rgba(255,204,0,0.12);color:#c49500}
+.rt-9{background:rgba(255,59,48,0.08);color:#FF453A}
+.rt-10{background:rgba(142,142,147,0.12);color:#636366}
+
+/* ── ADD BTN ── */
+.add-btn {
+  margin-top:auto;
+  width:100%;
+  min-height:34px;
+  padding:8px;
+  border:1px dashed var(--border-strong);
+  border-radius:7px;
+  background:var(--bg-tertiary);
+  color:var(--text-tertiary);
+  font-family:var(--font);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:all 0.15s;
+  text-align:center;
+  letter-spacing:0;
+}
+.add-btn:hover{background:var(--accent-light);color:var(--accent);border-color:rgba(18,102,214,0.3)}
+
+/* ── DIVIDER ── */
+.divider{height:0.5px;background:var(--border)}
+
+/* ── MODALS ── */
+.overlay {
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:9999;
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+@media(min-width:600px){.overlay{align-items:center}}
+
+.modal {
+  background:var(--bg-card-solid);
+  border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+  padding:20px 20px 32px;
+  width:100%;
+  max-width:420px;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow:var(--shadow-md);
+}
+@media(min-width:600px){
+  .modal{border-radius:var(--radius-xl);padding:24px;max-height:80vh}
+}
+
+.modal-handle {
+  width:36px; height:4px;
+  background:var(--border-strong);
+  border-radius:2px;
+  margin:0 auto 18px;
+  display:block;
+}
+@media(min-width:600px){.modal-handle{display:none}}
+
+.modal h3{
+  font-size:18px;
+  font-weight:800;
+  margin-bottom:18px;
+  letter-spacing:-0.3px;
+}
+
+.modal label {
+  display:block;
+  font-size:12px;
+  font-weight:600;
+  color:var(--text-tertiary);
+  text-transform:uppercase;
+  letter-spacing:0.4px;
+  margin-top:14px;
+  margin-bottom:6px;
+}
+
+.modal select,.modal input[type=text],.modal input[type=date]{
+  width:100%;
+  padding:11px 13px;
+  font-size:15px;
+  font-family:var(--font);
+  border-radius:var(--radius-md);
+  border:1px solid var(--border-strong);
+  background:var(--bg-tertiary);
+  color:var(--text-primary);
+  outline:none;
+  transition:border-color 0.15s;
+  -webkit-appearance:none;
+}
+.modal select:focus,.modal input:focus{border-color:var(--accent)}
+
+.modal-btns{
+  display:flex;
+  gap:8px;
+  margin-top:20px;
+}
+.modal-btns button{
+  flex:1;
+  padding:13px;
+  border-radius:var(--radius-md);
+  border:1px solid var(--border-strong);
+  background:var(--bg-secondary);
+  color:var(--text-primary);
+  font-family:var(--font);
+  font-size:15px;
+  font-weight:750;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.modal-btns button:active{transform:scale(0.98)}
+.modal-btns button.primary{
+  background:var(--accent);
+  color:#fff;
+  border-color:transparent;
+}
+.modal-btns button.primary:hover{background:#0066DD}
+.modal-btns button.danger{
+  background:var(--accent-red-light);
+  color:var(--accent-red);
+  border-color:rgba(255,59,48,0.2);
+}
+
+/* ── ACTION BUTTONS in modal ── */
+.action-row {
+  display:flex;
+  gap:8px;
+  margin-top:16px;
+}
+.action-row button {
+  flex:1;
+  padding:11px;
+  border-radius:var(--radius-md);
+  border:1px solid var(--border);
+  background:var(--bg-secondary);
+  color:var(--text-primary);
+  font-family:var(--font);
+  font-size:14px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.action-row button.done-btn {
+  background:var(--accent-green-light);
+  color:var(--accent-green);
+  border-color:rgba(52,199,89,0.2);
+  font-weight:600;
+}
+.action-row button.danger {
+  background:var(--accent-red-light);
+  color:var(--accent-red);
+  border-color:rgba(255,59,48,0.2);
+}
+
+/* ── HISTORY ── */
+.history{display:none}
+.hw {
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  margin-bottom:10px;
+  box-shadow:var(--shadow-sm);
+}
+.hw-h {
+  padding:12px 16px;
+  font-size:13px;
+  font-weight:700;
+  color:var(--text-secondary);
+  border-bottom:0.5px solid var(--border);
+  background:var(--bg-tertiary);
+}
+.he {
+  padding:10px 16px;
+  font-size:13px;
+  color:var(--text-secondary);
+  border-bottom:0.5px solid var(--border);
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.he:last-child{border-bottom:none}
+.he b{color:var(--text-primary);font-weight:600}
+.loader{
+  text-align:center;
+  padding:42px 20px;
+  color:var(--text-tertiary);
+  font-size:14px;
+  font-weight:600;
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+}
+.grid > .loader{grid-column:1 / -1}
+
+/* ── TOAST ── */
+.toast {
+  position:fixed;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(28,28,30,0.92);
+  color:#fff;
+  padding:10px 18px;
+  border-radius:20px;
+  font-size:14px;
+  font-weight:500;
+  display:none;
+  z-index:99999;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+@media(prefers-color-scheme:dark){
+  .toast{background:rgba(255,255,255,0.15)}
+}
+
+/* ── CLIENTS ── */
+.clients-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+}
+.clients-hint {
+  font-size:12px;
+  color:var(--text-tertiary);
+  margin-bottom:16px;
+  line-height:1.5;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.sortable-list{min-height:50px;display:flex;flex-direction:column;gap:5px}
+.tag-client {
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  padding:8px 10px;
+  border-radius:7px;
+  display:flex;
+  align-items:center;
+  gap:0;
+  cursor:grab;
+  transition:all 0.12s;
+}
+.tag-client:active{cursor:grabbing;box-shadow:var(--shadow-md);transform:scale(1.005)}
+.tag-client:hover{border-color:var(--border-strong);background:var(--bg-secondary)}
+.drag-handle{
+  color:var(--text-quaternary);
+  margin-right:8px;
+  font-size:11px;
+  cursor:grab;
+  flex-shrink:0;
+}
+.client-name{
+  flex:1;
+  font-weight:650;
+  color:var(--text-primary);
+  font-size:13px;
+  letter-spacing:-0.1px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  margin-right:8px;
+}
+.sortable-ghost{opacity:0.35;background:var(--accent-light);border:1px dashed var(--accent);border-radius:10px}
+
+/* ── EDIT ICON ── */
+.edit-icon {
+  cursor:pointer;
+  color:var(--text-quaternary);
+  font-size:10.5px;
+  padding:4px 7px;
+  border-radius:6px;
+  border:0.5px solid var(--border);
+  background:var(--bg-secondary);
+  transition:all 0.12s;
+  font-style:normal;
+  line-height:1.5;
+  user-select:none;
+  flex-shrink:0;
+}
+.edit-icon:hover{color:var(--text-secondary);border-color:var(--border-strong);background:var(--bg-card-solid)}
+
+.route-card {
+  min-height:280px;
+  border-top-width:3px;
+}
+.route-title {
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:0;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.route-id-badge {
+  color:#fff;
+  border-radius:7px;
+  padding:4px 7px;
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:0;
+  line-height:1;
+  flex-shrink:0;
+}
+.client-order {
+  min-width:22px;
+  height:22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:7px;
+  background:var(--bg-secondary);
+  color:var(--text-tertiary);
+  font-size:11px;
+  font-weight:800;
+  margin-right:8px;
+  flex-shrink:0;
+}
+.gps-dot {
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  flex-shrink:0;
+  display:inline-block;
+}
+.gps-dot.ok { background:var(--accent-green); }
+.gps-dot.missing { background:var(--accent-orange); opacity:0.55; }
+
+/* (route-group-header defined above) */
+
+/* ── MAP ── */
+.map-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.map-legend{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;align-items:center}
+.legend-item {
+  display:flex;align-items:center;gap:5px;
+  padding:5px 10px;
+  border-radius:7px;
+  font-weight:750;
+  font-size:11px;
+  cursor:pointer;
+  border:0.5px solid var(--border);
+  background:var(--bg-card-solid);
+  transition:all 0.15s;
+}
+.legend-item:hover{box-shadow:var(--shadow-sm)}
+.legend-item.hidden-route{opacity:0.35}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#interactiveMap{
+  width:100%;height:65vh;
+  min-height:420px;
+  border-radius:var(--radius-lg);
+  border:0.5px solid var(--border);
+  overflow:hidden;
+  box-shadow:var(--shadow-md);
+}
+
+/* ── STAFF ── */
+.staff-container{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-top:10px}
+@media(max-width:750px){.staff-container{grid-template-columns:1fr}}
+.staff-card {
+  background:var(--bg-card-solid);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:16px;
+  box-shadow:var(--shadow-sm);
+}
+.staff-card h3{font-size:14px;font-weight:700;margin-bottom:12px}
+.staff-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;border-bottom:0.5px solid var(--border);
+  font-size:13px;
+}
+.staff-row:last-child{border-bottom:none;padding-bottom:0}
+.staff-name{font-weight:600;color:var(--text-primary)}
+.staff-hours{font-size:11px;color:var(--text-tertiary);margin-top:1px}
+
+.staff-badge{
+  padding:3px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.2px;
+}
+.badge-i{background:var(--accent-green-light);color:var(--accent-green)}
+.badge-w{background:var(--bg-secondary);color:var(--text-tertiary)}
+.badge-uw{background:var(--accent-light);color:var(--accent)}
+.badge-l4{background:var(--accent-red-light);color:var(--accent-red)}
+
+.stat-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px;
+}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--text-secondary)}
+.stat-val{font-weight:700;color:var(--text-primary)}
+
+/* ── DATE INPUT ── */
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.date-row label{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.date-row input[type=date]{
+  padding:9px 12px;
+  border-radius:var(--radius-md);
+  border:1px solid var(--border-strong);
+  background:var(--bg-card-solid);
+  color:var(--text-primary);
+  font-family:var(--font);
+  font-size:14px;
+  outline:none;
+}
+
+/* ── COL TITLE with route badge ── */
+.col-route-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;
+  padding:5px 8px;
+  border-radius:var(--radius-sm);
+  margin-bottom:4px;
+}
+
+/* ── BUTTONS (generic) ── */
+button.add-route-btn {
+  padding:9px 14px;
+  border-radius:var(--radius-sm);
+  border:0.5px solid var(--border-strong);
+  background:var(--bg-card-solid);
+  color:var(--text-primary);
+  font-family:var(--font);
+  font-size:13px;
+  font-weight:750;
+  cursor:pointer;
+  transition:all 0.15s;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+button.add-route-btn:hover{background:var(--bg-secondary);border-color:var(--border-strong)}
+
+.refresh-btn {
+  margin-left:auto;
+  font-size:12px;
+  padding:8px 12px;
+  border-radius:var(--radius-md);
+  border:0.5px solid var(--border);
+  background:var(--bg-card-solid);
+  cursor:pointer;
+  font-family:var(--font);
+  font-weight:750;
+  color:var(--text-primary);
+  box-shadow:var(--shadow-sm);
+}
+.refresh-btn:hover{background:var(--bg-secondary)}
+
+@media(max-width:720px){
+  body{padding:12px 12px 32px}
+  .app-header{align-items:flex-start}
+  .app-title{font-size:23px}
+  .tab-bar{padding:4px;margin-left:-2px;margin-right:-2px;width:calc(100% + 4px)}
+  .tab-btn{flex:0 0 auto;padding:8px 10px;font-size:12px}
+  .week-nav{position:sticky;top:8px;z-index:10}
+  .col{min-height:180px}
+  .metric-chip{padding:7px}
+  .metric-chip-val{font-size:13px}
+  #interactiveMap{height:62vh;min-height:360px}
+}
+
+html.phone-layout body{
+  padding:12px 10px 28px;
+}
+html.phone-layout .app-header{
+  margin-bottom:12px;
+}
+html.phone-layout .app-title{
+  font-size:30px;
+  line-height:1;
+}
+html.phone-layout .app-subtitle{
+  max-width:94vw;
+  font-size:12px;
+  line-height:1.3;
+}
+html.phone-layout .tab-bar{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  padding:8px;
+}
+html.phone-layout .tab-btn{
+  min-width:0;
+  width:100%;
+  min-height:46px;
+  padding:12px 10px;
+  font-size:14px;
+  gap:8px;
+}
+html.phone-layout .tab-btn .tab-icon{
+  font-size:16px;
+}
+html.phone-layout #btnViewStaff{
+  grid-column:1 / -1;
+}
+html.phone-layout .week-nav{
+  position:sticky;
+  top:6px;
+  z-index:10;
+  margin-bottom:16px;
+  padding:10px;
+}
+html.phone-layout .week-nav-btn{
+  width:44px;
+  height:44px;
+  font-size:24px;
+}
+html.phone-layout .week-label{
+  font-size:15px;
+}
+html.phone-layout .section-heading{
+  font-size:17px;
+  margin:22px 0 12px 2px;
+}
+html.phone-layout .grid{
+  grid-template-columns:1fr;
+  gap:12px;
+}
+html.phone-layout .col{
+  min-height:0;
+  padding:14px;
+  gap:11px;
+}
+html.phone-layout .col-header{
+  padding-bottom:12px;
+}
+html.phone-layout .col-day-name{
+  font-size:18px;
+  min-width:38px;
+}
+html.phone-layout .col-date{
+  font-size:16px;
+}
+html.phone-layout .today-pill{
+  font-size:11px;
+  padding:4px 9px;
+}
+html.phone-layout .metrics-row{
+  gap:8px;
+}
+html.phone-layout .metric-chip{
+  padding:12px;
+}
+html.phone-layout .metric-chip-label{
+  font-size:11px;
+}
+html.phone-layout .metric-chip-val{
+  font-size:18px;
+}
+html.phone-layout .sec-label{
+  font-size:12px;
+  margin-top:8px;
+}
+html.phone-layout .tag,
+html.phone-layout .tag-client{
+  min-height:48px;
+  padding:10px 11px;
+  font-size:17px;
+}
+html.phone-layout .tag-name,
+html.phone-layout .client-name{
+  font-size:17px;
+}
+html.phone-layout .kg-badge,
+html.phone-layout .rt-badge{
+  font-size:12px;
+  padding:3px 7px;
+}
+html.phone-layout .tag-check{
+  font-size:14px;
+}
+html.phone-layout .add-btn{
+  min-height:48px;
+  font-size:16px;
+}
+html.phone-layout .clients-hint{
+  font-size:13px;
+}
+html.phone-layout .route-id-badge{
+  font-size:13px;
+  padding:5px 8px;
+}
+html.phone-layout .route-title{
+  font-size:16px;
+}
+html.phone-layout .client-order{
+  min-width:28px;
+  height:28px;
+  font-size:13px;
+}
+html.phone-layout #interactiveMap{
+  height:64vh;
+  min-height:360px;
+}
+
+@media(max-width:600px), (max-device-width:600px){
+  body{padding:12px 10px 28px}
+  .app-header{margin-bottom:12px}
+  .app-title{font-size:30px;line-height:1}
+  .app-subtitle{max-width:94vw;font-size:12px;line-height:1.3}
+  .tab-bar{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    padding:8px;
+  }
+  .tab-btn{min-width:0;width:100%;min-height:46px;padding:12px 10px;font-size:14px;gap:8px}
+  .tab-btn .tab-icon{font-size:16px}
+  #btnViewStaff{grid-column:1 / -1}
+  .week-nav{position:sticky;top:6px;z-index:10;margin-bottom:16px;padding:10px}
+  .week-nav-btn{width:44px;height:44px;font-size:24px}
+  .week-label{font-size:15px}
+  .section-heading{font-size:17px;margin:22px 0 12px 2px}
+  .grid{grid-template-columns:1fr;gap:12px}
+  .col{min-height:0;padding:14px;gap:11px}
+  .col-header{padding-bottom:12px}
+  .col-day-name{font-size:18px;min-width:38px}
+  .col-date{font-size:16px}
+  .today-pill{font-size:11px;padding:4px 9px}
+  .metrics-row{gap:8px}
+  .metric-chip{padding:12px}
+  .metric-chip-label{font-size:11px}
+  .metric-chip-val{font-size:18px}
+  .sec-label{font-size:12px;margin-top:8px}
+  .tag,.tag-client{min-height:48px;padding:10px 11px;font-size:17px}
+  .tag-name,.client-name{font-size:17px}
+  .kg-badge,.rt-badge{font-size:12px;padding:3px 7px}
+  .tag-check{font-size:14px}
+  .add-btn{min-height:48px;font-size:16px}
+  .clients-hint{font-size:13px}
+  .route-id-badge{font-size:13px;padding:5px 8px}
+  .route-title{font-size:16px}
+  .client-order{min-width:28px;height:28px;font-size:13px}
+  #interactiveMap{height:64vh;min-height:360px}
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.col{animation:fadeUp 0.22s ease both}
+.col:nth-child(1){animation-delay:0ms}
+.col:nth-child(2){animation-delay:30ms}
+.col:nth-child(3){animation-delay:60ms}
+.col:nth-child(4){animation-delay:90ms}
+.col:nth-child(5){animation-delay:120ms}
+.hw,.staff-card{animation:fadeUp 0.2s ease both}
+
+/* ── SCROLLBAR ── */
+*::-webkit-scrollbar{width:5px;height:5px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+</style>
+</head>
+<body>
+
+<main class="app-shell">
+<div class="app-header">
+  <div>
+    <div class="app-title">Harmonogram</div>
+    <div class="app-subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" id="btnViewMain" onclick="switchView('main')"><span class="tab-icon">📅</span>Harmonogram</button>
+  <button class="tab-btn" id="btnViewHist" onclick="switchView('history')"><span class="tab-icon">📋</span>Historia</button>
+  <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span>Klienci i Trasy</button>
+  <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span>Mapa</button>
+  <button class="tab-btn" id="btnViewStaff" onclick="switchView('staff')"><span class="tab-icon">👷</span>Grafik Załogi</button>
+</div>
+
+<!-- ── MAIN VIEW ── -->
+<div id="mainView">
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
+    <div class="week-label" id="weekLabel">Widok 2 tygodni</div>
+    <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
+  </div>
+
+  <div class="section-heading" id="titleWk1">📅 Tydzień 1</div>
+  <div id="grid1" class="grid"><div class="loader">Ładowanie danych…</div></div>
+
+  <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
+  <div id="grid2" class="grid"></div>
+</div>
+
+<!-- ── HISTORY VIEW ── -->
+<div class="history" id="histView">
+  <div id="histContent" class="loader">Ładowanie historii…</div>
+</div>
+
+<!-- ── CLIENTS VIEW ── -->
+<div id="clientsView" style="display:none">
+  <div class="clients-header">
+    <button class="add-route-btn" onclick="openAddRouteModal()">＋ Nowa trasa</button>
+  </div>
+  <div class="clients-hint">
+    ☰ Przeciągaj klientów między trasami &nbsp;·&nbsp;
+    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-green);vertical-align:middle;margin:0 2px"></span> ma GPS &nbsp;·&nbsp;
+    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-orange);vertical-align:middle;margin:0 2px;opacity:0.6"></span> brak GPS
+  </div>
+  <div id="clientsListContent" class="loader">Ładowanie…</div>
+</div>
+
+<!-- ── MAP VIEW ── -->
+<div id="mapView" style="display:none">
+  <div class="map-controls">
+    <div class="map-legend" id="mapLegend"></div>
+    <button class="refresh-btn" onclick="initMap()">🔄 Odśwież</button>
+  </div>
+  <div id="interactiveMap"></div>
+  <div style="font-size:11px;color:var(--text-quaternary);margin-top:8px;padding:0 4px">
+    Kliknij trasę w legendzie, aby ją ukryć/pokazać. Klienci bez GPS nie pojawiają się na mapie.
+  </div>
+</div>
+
+<!-- ── STAFF VIEW ── -->
+<div id="staffView" style="display:none">
+  <div class="date-row">
+    <label>Data podglądu:</label>
+    <input type="date" id="staffDateInput" onchange="loadStaffData(this.value)">
+  </div>
+  <div id="staffContent"><div class="loader">Wybierz datę…</div></div>
+</div>
+</main>
+
+<!-- ═══════════ MODALS ═══════════ -->
+
+<!-- Add Route -->
+<div class="overlay" id="addRouteModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Nowa trasa</h3>
+    <label>Nazwa trasy</label>
+    <input type="text" id="rAddName" placeholder="np. Trasa Północna">
+    <div class="modal-btns">
+      <button onclick="closeAddRouteModal()">Anuluj</button>
+      <button class="primary" onclick="doAddRoute()">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Route -->
+<div class="overlay" id="routeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Edytuj trasę</h3>
+    <input type="hidden" id="rEditId">
+    <label>Nazwa trasy</label>
+    <input type="text" id="rEditName" placeholder="Wpisz nazwę…">
+    <div class="action-row">
+      <button class="danger" onclick="deleteRoute()">Usuń trasę</button>
+    </div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button onclick="closeRouteModal()">Anuluj</button>
+      <button class="primary" onclick="saveRouteEdit()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Entry -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Dodaj przyjazd</h3>
+    <label>Klient</label>
+    <select id="mClient"></select>
+    <label>Waga (kg) — opcjonalnie</label>
+    <input type="text" id="mWeight" placeholder="np. 150.5">
+    <label>Dzień przyjazdu</label>
+    <select id="mArrDay" onchange="updateDefaultPickup('add')">
+      <option value="0">Poniedziałek</option><option value="1">Wtorek</option><option value="2">Środa</option><option value="3">Czwartek</option><option value="4">Piątek</option>
+    </select>
+    <label>Dzień odbioru</label>
+    <select id="mPickDay">
+      <option value="0">Poniedziałek</option><option value="1">Wtorek</option><option value="2">Środa</option><option value="3">Czwartek</option><option value="4">Piątek</option>
+    </select>
+    <label>Tydzień odbioru</label>
+    <select id="mPickWeek">
+      <option value="0">Ten sam tydzień</option><option value="1">Następny tydzień</option>
+    </select>
+    <div class="modal-btns">
+      <button onclick="closeAdd()">Anuluj</button>
+      <button class="primary" onclick="confirmAdd()">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Entry -->
+<div class="overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Edytuj wpis</h3>
+    <div id="eClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:4px"></div>
+    <label>Waga (kg) — opcjonalnie</label>
+    <input type="text" id="eWeight" placeholder="np. 150.5">
+    <label>Dzień przyjazdu</label>
+    <select id="eArrDay" onchange="updateDefaultPickup('edit')">
+      <option value="0">Poniedziałek</option><option value="1">Wtorek</option><option value="2">Środa</option><option value="3">Czwartek</option><option value="4">Piątek</option>
+    </select>
+    <label>Dzień odbioru</label>
+    <select id="ePickDay">
+      <option value="0">Poniedziałek</option><option value="1">Wtorek</option><option value="2">Środa</option><option value="3">Czwartek</option><option value="4">Piątek</option>
+    </select>
+    <label>Tydzień odbioru</label>
+    <select id="ePickWeek">
+      <option value="0">Ten sam tydzień</option><option value="1">Następny tydzień</option>
+    </select>
+    <div class="action-row">
+      <button class="done-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()">Oznacz jako odebrane</button>
+      <button class="danger" onclick="deleteFromEdit()">Usuń</button>
+    </div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button onclick="closeEdit()">Anuluj</button>
+      <button class="primary" onclick="saveEdit()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Client -->
+<div class="overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Nowy klient</h3>
+    <label>Nazwa hotelu / firmy</label>
+    <input type="text" id="newClientInput" placeholder="np. Hotel Gorzów">
+    <label>Stała trasa logistyczna</label>
+    <select id="newClientRoute"></select>
+    <div class="modal-btns">
+      <button onclick="closeClientModal()">Anuluj</button>
+      <button class="primary" onclick="saveClient()">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Client -->
+<div class="overlay" id="editClientModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Edytuj klienta</h3>
+    <label>Nazwa klienta</label>
+    <input type="text" id="ecName" placeholder="Zmień nazwę…">
+    <label>Trasa logistyczna</label>
+    <select id="ecRoute"></select>
+    <input type="hidden" id="ecOldName">
+    <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px">Współrzędne GPS</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1"><label style="margin-top:0">Szerokość (Lat)</label><input type="text" id="ecLat" placeholder="52.7350"></div>
+        <div style="flex:1"><label style="margin-top:0">Długość (Lng)</label><input type="text" id="ecLng" placeholder="15.2280"></div>
+      </div>
+    </div>
+    <div class="action-row">
+      <button class="danger" onclick="doDeleteClient()">Usuń z bazy</button>
+    </div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button onclick="closeEditClientModal()">Anuluj</button>
+      <button class="primary" onclick="doSaveClientEdit()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DAY_NAMES=['Poniedziałek','Wtorek','Środa','Czwartek','Piątek'];
+const DAY_SHORT=['Pn','Wt','Śr','Cz','Pt'];
+let weekOffset=0,clients=[],routeMap={},entries=[],pendingTargetOffset=0,editingId=null;
+let myMap=null,baseMarker=null,mapLayers={},hiddenRoutes=new Set();
+const D_BASE_LAT=52.7229319,D_BASE_LNG=15.2520164;
+const ROUTE_COLORS={1:'#007AFF',2:'#FF9500',3:'#AF52DE',4:'#FF3B30',5:'#32ADE6',6:'#34C759',7:'#5856D6',8:'#c49500',9:'#FF453A',10:'#636366'};
+
+function applyDeviceLayout(){
+  const screenInfo=window.screen||{};
+  const width=screenInfo.width||window.innerWidth||document.documentElement.clientWidth||0;
+  const height=screenInfo.height||window.innerHeight||document.documentElement.clientHeight||width;
+  const shortestSide=Math.min(width,height);
+  document.documentElement.classList.toggle('phone-layout',shortestSide<=600);
+}
+applyDeviceLayout();
+window.addEventListener('resize',applyDeviceLayout);
+window.addEventListener('orientationchange',applyDeviceLayout);
+
+function getMonday(offset){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day)+offset*7);d.setHours(0,0,0,0);return d;}
+function weekKey(offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtDate(d){return d.toLocaleDateString('pl-PL',{day:'numeric',month:'short'});}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
+function getRouteName(id){return routeMap[id]||('Trasa '+id);}
+function getRouteColorIdx(routeId){return((Number(routeId)-1)%10)+1;}
+function getRouteColor(routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
+function esc(value){
+  return String(value ?? '').replace(/[&<>"']/g,function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+function jsArg(value){return esc(JSON.stringify(String(value ?? '')));}
+
+function updateRouteDropdowns(){
+  const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
+  const optionsHTML=routeIds.map(id=>'<option value="'+id+'">'+esc(getRouteName(id))+'</option>').join('');
+  document.getElementById('newClientRoute').innerHTML=optionsHTML;
+  document.getElementById('ecRoute').innerHTML=optionsHTML;
+}
+
+function switchView(v){
+  ['mainView','histView','mapView','clientsView','staffView'].forEach(id=>document.getElementById(id).style.display='none');
+  ['btnViewMain','btnViewHist','btnViewMap','btnViewClients','btnViewStaff'].forEach(id=>document.getElementById(id).className='tab-btn');
+  const map={main:'mainView',history:'histView',map:'mapView',clients:'clientsView',staff:'staffView'};
+  const btnMap={main:'btnViewMain',history:'btnViewHist',map:'btnViewMap',clients:'btnViewClients',staff:'btnViewStaff'};
+  document.getElementById(map[v]).style.display='block';
+  if(map[v]==='histView')document.getElementById(map[v]).style.display='block';
+  document.getElementById(btnMap[v]).className='tab-btn active';
+  if(v==='main')loadWeek();
+  else if(v==='history')loadHistory();
+  else if(v==='map')initMap();
+  else if(v==='clients')renderClientsList();
+  else if(v==='staff')loadStaffData();
+}
+
+function loadStaffData(dateStr){
+  if(!dateStr){const today=new Date();let y=today.getFullYear();let m=String(today.getMonth()+1).padStart(2,'0');let d=String(today.getDate()).padStart(2,'0');dateStr=y+'-'+m+'-'+d;document.getElementById('staffDateInput').value=dateStr;}
+  document.getElementById('staffContent').innerHTML='<div class="loader">Łączenie z plikiem grafiku…</div>';
+  google.script.run.withFailureHandler(function(err){document.getElementById('staffContent').innerHTML='<div class="loader" style="color:var(--accent-red)"><b>Błąd:</b> '+err.message+'</div>';}).withSuccessHandler(function(res){if(res.error){document.getElementById('staffContent').innerHTML='<div class="loader" style="color:var(--accent-red)">'+res.error+'</div>';return;}renderStaffView(res);}).getGrafikDataForDate(dateStr);
+}
+
+function renderStaffView(data){
+  const buildBadge=(s)=>{let cls='badge-w';if(s==='I')cls='badge-i';if(s==='UW')cls='badge-uw';if(s==='L4')cls='badge-l4';return'<span class="staff-badge '+cls+'">'+s+'</span>';};
+  const buildList=(list)=>{if(!list.length)return'<div style="padding:8px 0;font-size:13px;color:var(--text-tertiary)">Brak pracowników</div>';return list.map(p=>'<div class="staff-row"><div><div class="staff-name">'+esc(p.name)+'</div><div class="staff-hours">'+(p.status==='I'?esc(p.defaultHours):'')+'</div></div>'+buildBadge(p.status)+'</div>').join('');};
+  const countPresent=(list)=>list.filter(p=>p.status==='I').length;
+  document.getElementById('staffContent').innerHTML=
+    '<div class="staff-container">'+
+    '<div class="staff-card"><h3>📊 Statystyka dnia</h3>'+
+    '<div class="stat-row"><span class="stat-label">🚚 Kierowcy obecni</span><span class="stat-val">'+countPresent(data.kierowcy)+' / '+data.kierowcy.length+'</span></div>'+
+    '<div class="stat-row"><span class="stat-label">🟢 Produkcja ZD 1</span><span class="stat-val">'+countPresent(data.zd1)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-label">🔴 Produkcja ZD 2</span><span class="stat-val">'+countPresent(data.zd2)+'</span></div>'+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;gap:12px">'+
+    '<div class="staff-card"><h3>🚚 Kierowcy</h3>'+buildList(data.kierowcy)+'</div>'+
+    '<div class="staff-card"><h3>🟢 ZD 1</h3>'+buildList(data.zd1)+'</div>'+
+    '<div class="staff-card"><h3>🔴 ZD 2</h3>'+buildList(data.zd2)+'</div>'+
+    '</div></div>';
+}
+
+function changeWeek(d){weekOffset+=d;loadWeek();}
+function loadWeek(){
+  document.getElementById('grid1').innerHTML='<div class="loader">Ładowanie…</div>';
+  document.getElementById('grid2').innerHTML='';
+  google.script.run.withFailureHandler(function(err){alert('BŁĄD: '+err.message);}).withSuccessHandler(function(data){entries=data;renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
+}
+
+function renderGrid(){
+  const d1s=getMonday(weekOffset);const d1e=new Date(d1s);d1e.setDate(d1s.getDate()+4);
+  const d2s=getMonday(weekOffset+1);const d2e=new Date(d2s);d2e.setDate(d2s.getDate()+4);
+  document.getElementById('titleWk1').textContent=fmtDate(d1s)+' – '+fmtDate(d1e);
+  document.getElementById('titleWk2').textContent='Następny: '+fmtDate(d2s)+' – '+fmtDate(d2e);
+  document.getElementById('grid1').innerHTML=buildGridHTML(weekOffset,weekKey(weekOffset));
+  document.getElementById('grid2').innerHTML=buildGridHTML(weekOffset+1,weekKey(weekOffset+1));
+}
+
+function buildGridHTML(offset,targetWkKey){
+  const monday=getMonday(offset);const prevWkKey=weekKey(offset-1);
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=Array.from({length:5},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
+  return days.map((d,i)=>{
+    const isToday=d.getTime()===today.getTime();
+    const arrived=entries.filter(e=>e.weekKey===targetWkKey&&e.arrDay===i);
+    const sumArr=arrived.reduce((s,e)=>s+e.weight,0);
+    let washToday=i===0?entries.filter(e=>e.weekKey===prevWkKey&&e.arrDay===4):entries.filter(e=>e.weekKey===targetWkKey&&e.arrDay===i-1);
+    const sumWash=washToday.reduce((s,e)=>s+e.weight,0);
+    const pickups=entries.filter(e=>e.pickWeekKey===targetWkKey&&e.pickDay===i&&!(e.weekKey===targetWkKey&&e.arrDay===i));
+    const arrTags=arrived.map(e=>{const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';return'<div class="tag tag-arr" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+kg+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span></div>';}).join('');
+    const pickTags=pickups.map(e=>{const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+kg+'<span class="tag-check">'+(e.done?'✓':'◯')+'</span><span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span></div>';}).join('');
+    return'<div class="col">'+
+      '<div class="col-header"><span class="col-day-name">'+DAY_SHORT[i]+'</span><span class="col-date">'+fmtDate(d)+'</span>'+(isToday?'<span class="today-pill">Dziś</span>':'')+'</div>'+
+      '<div class="metrics-row">'+
+        '<div class="metric-chip arr"><div class="metric-chip-label">Przyjazd</div><div class="metric-chip-val">'+(sumArr>0?sumArr.toFixed(1):0)+' kg</div></div>'+
+        '<div class="metric-chip wash"><div class="metric-chip-label">Do prania</div><div class="metric-chip-val">'+(sumWash>0?sumWash.toFixed(1):0)+' kg</div></div>'+
+      '</div>'+
+      '<div class="sec-label">↓ Przyjechało</div>'+arrTags+
+      (pickTags?'<div class="divider"></div><div class="sec-label">↑ Do odbioru</div>'+pickTags:'')+
+      '<button class="add-btn" onclick="openAdd('+i+','+offset+')">+ dodaj zamówienie</button>'+
+    '</div>';
+  }).join('');
+}
+
+function updateDefaultPickup(mode){
+  const pfx=mode==='add'?'m':'e';const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
+  let p=0,w=0;if(arr===0){p=2;w=0;}else if(arr===1){p=3;w=0;}else if(arr===2){p=4;w=0;}else if(arr===3){p=1;w=1;}else if(arr===4){p=0;w=1;}
+  document.getElementById(pfx+'PickDay').value=p;document.getElementById(pfx+'PickWeek').value=w;
+}
+
+function openAdd(dayIdx,offset){
+  pendingTargetOffset=offset;
+  let optionsHTML='';
+  const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
+  routeIds.forEach(rId=>{const rc=clients.filter(c=>c.route===rId);if(rc.length>0){optionsHTML+='<optgroup label="'+esc(getRouteName(rId))+'">';rc.forEach(c=>{optionsHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});optionsHTML+='</optgroup>';}});
+  document.getElementById('mClient').innerHTML=optionsHTML;
+  if(!optionsHTML){toast('Najpierw dodaj klienta');return;}
+  document.getElementById('mArrDay').value=dayIdx;document.getElementById('mWeight').value='';
+  updateDefaultPickup('add');document.getElementById('addModal').style.display='flex';
+}
+function closeAdd(){document.getElementById('addModal').style.display='none';}
+function confirmAdd(){
+  const cName=document.getElementById('mClient').value;const arrDay=parseInt(document.getElementById('mArrDay').value);const pickDay=parseInt(document.getElementById('mPickDay').value);
+  const isNextWk=document.getElementById('mPickWeek').value==='1';const wt=document.getElementById('mWeight').value;
+  const cObj=clients.find(c=>c.name===cName);let arrWk=weekKey(pendingTargetOffset);let pickWk=isNextWk?weekKey(pendingTargetOffset+1):arrWk;
+  closeAdd();
+  google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Dodano: '+cName);loadWeek();}}).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,cObj?cObj.route:1);
+}
+
+function openEdit(id){
+  const entry=entries.find(e=>e.id===id);if(!entry)return;editingId=id;
+  document.getElementById('eClientName').textContent=entry.client+' — '+getRouteName(entry.route);
+  document.getElementById('eArrDay').value=entry.arrDay;document.getElementById('ePickDay').value=entry.pickDay;
+  document.getElementById('ePickWeek').value=(entry.weekKey!==entry.pickWeekKey)?'1':'0';
+  document.getElementById('eWeight').value=entry.weight>0?entry.weight:'';
+  const tBtn=document.getElementById('eToggleBtn');tBtn.textContent=entry.done?'Cofnij odbiór':'Oznacz jako odebrane';
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;}
+function saveEdit(){
+  if(!editingId)return;const arrDay=parseInt(document.getElementById('eArrDay').value);const pickDay=parseInt(document.getElementById('ePickDay').value);
+  const id=editingId;
+  const isNextWk=document.getElementById('ePickWeek').value==='1';const wt=document.getElementById('eWeight').value;closeEdit();
+  const original=entries.find(e=>e.id===id);
+  const fallback=original?{client:original.client,weekKey:original.weekKey,pickWeekKey:original.pickWeekKey,arrDay:original.arrDay,pickDay:original.pickDay}:null;
+  google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Zapisano');loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback);
+}
+function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(){loadWeek();}).toggleDone(id);}
+function deleteFromEdit(){if(!editingId)return;if(!confirm('Usunąć wpis?'))return;const id=editingId;closeEdit();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(){toast('Usunięto');loadWeek();}).removeEntry(id);}
+
+function loadHistory(){
+  document.getElementById('histContent').innerHTML='<div class="loader">Ładowanie…</div>';
+  google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(all){
+    const grouped={};all.forEach(e=>{if(!grouped[e.weekKey])grouped[e.weekKey]=[];grouped[e.weekKey].push(e);});
+    const keys=Object.keys(grouped).sort().reverse();
+    if(!keys.length){document.getElementById('histContent').innerHTML='<div class="loader">Brak historii</div>';return;}
+    document.getElementById('histContent').innerHTML=keys.map(k=>{
+      const rows=grouped[k].map(e=>'<div class="he"><b>'+esc(e.client)+(e.weight>0?' ('+esc(e.weight)+'kg)':'')+' ['+esc(getRouteName(e.route))+']</b> → przyj.: '+esc(DAY_NAMES[e.arrDay])+' | odbiór: '+esc(DAY_NAMES[e.pickDay])+(e.done?' ✓':'')+'</div>').join('');
+      return'<div class="hw"><div class="hw-h">Tydzień od '+fmtDate(new Date(k))+'</div>'+rows+'</div>';
+    }).join('');
+  }).getAllEntries();
+}
+
+function renderClientsList(){
+  let html='';
+  const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
+  const groups=[
+    {title:'🗓 Trasy codzienne (Pn–Pt)',keywords:['codzien','pn-pt'],ids:[]},
+    {title:'🗓 Trasy Pn – Śr – Pt',keywords:['pn','śr','sr','pt'],ids:[]},
+    {title:'🗓 Trasy Wt – Czw',keywords:['wt','cz'],ids:[]},
+    {title:'📦 Pozostałe trasy',keywords:[],ids:[]}
+  ];
+  routeIds.forEach(id=>{let name=getRouteName(id).toLowerCase();let matched=false;for(let j=0;j<3;j++){if(groups[j].keywords.some(kw=>name.includes(kw))){groups[j].ids.push(id);matched=true;break;}}if(!matched)groups[3].ids.push(id);});
+  groups.forEach(g=>{
+    if(!g.ids.length)return;
+    html+='<div style="width:100%">';
+    html+='<div class="route-group-header">'+g.title+'</div>';
+    html+='<div class="grid" style="margin-bottom:8px">';
+    g.ids.forEach(i=>{
+      let rc=clients.filter(c=>c.route===i);
+      const routeColor = getRouteColor(i);
+      html+='<div class="col route-card" style="border-top-color:'+routeColor+'">';
+      html+='<div class="col-header" style="padding-bottom:10px;margin-bottom:4px"><span class="route-id-badge" style="background:'+routeColor+'">T'+i+'</span><span class="route-title" style="color:'+routeColor+'">'+esc(getRouteName(i))+'</span><span class="edit-icon" onclick="openRouteModal('+i+','+jsArg(getRouteName(i))+')">•••</span></div>';
+      html+='<div class="sortable-list" data-route="'+i+'">';
+      rc.forEach((c,idx)=>{
+        const dot = c.lat&&c.lng
+          ? '<span class="gps-dot ok" title="Ma GPS"></span>'
+          : '<span class="gps-dot missing" title="Brak GPS"></span>';
+        html+='<div class="tag-client" data-name="'+esc(c.name)+'">'
+          +'<span class="drag-handle">⠿</span>'
+          +'<span class="client-order">'+(idx+1)+'</span>'
+          +'<span class="client-name">'+esc(c.name)+'</span>'
+          +dot
+          +'<span class="edit-icon" style="margin-left:8px" onclick="openEditClientModal('+jsArg(c.name)+','+Number(c.route)+','+jsArg(c.lat||'')+','+jsArg(c.lng||'')+')">Edytuj</span>'
+          +'</div>';
+      });
+      html+='</div><div style="flex:1"></div><div class="divider" style="margin:8px 0"></div><button class="add-btn" onclick="openNewClient('+i+')">+ dodaj klienta</button></div>';
+    });
+    html+='</div></div>';
+  });
+  const clientsContent=document.getElementById('clientsListContent');
+  clientsContent.className='';
+  clientsContent.innerHTML=html;
+  document.querySelectorAll('.sortable-list').forEach(el=>{
+    new Sortable(el,{group:'routes',animation:150,handle:'.drag-handle',ghostClass:'sortable-ghost',onEnd:function(evt){
+      const fromRouteId=Number(evt.from.getAttribute('data-route'));const toRouteId=Number(evt.to.getAttribute('data-route'));
+      const fromNames=Array.from(evt.from.children).map(c=>c.getAttribute('data-name'));const toNames=Array.from(evt.to.children).map(c=>c.getAttribute('data-name'));
+      toast('Zapisywanie kolejności…');
+      google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message);renderClientsList();}).withSuccessHandler(function(){loadAppData(function(){renderClientsList();toast('Kolejność zapisana');});}).updateRoutesOrder(fromRouteId,fromNames,toRouteId,toNames);
+    }});
+  });
+}
+
+function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';}
+function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';}
+function doAddRoute(){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast('Tworzenie…');google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Dodano trasę');loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name);}
+
+function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';}
+function closeRouteModal(){document.getElementById('routeModal').style.display='none';}
+function saveRouteEdit(){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Zapisano');loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName);}
+function deleteRoute(){const id=document.getElementById('rEditId').value;if(!confirm('Usunąć trasę?'))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Usunięto');loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id);}
+
+function openNewClient(routeId=1){document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';}
+function closeClientModal(){document.getElementById('clientModal').style.display='none';}
+function saveClient(){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast('Błąd: '+res.error);else{toast('Dodano: '+name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route);}
+
+function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';}
+function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';}
+function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Zapisano');loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng);}
+function doDeleteClient(){const name=document.getElementById('ecOldName').value;if(!confirm('Usunąć "'+name+'"?'))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert('Błąd: '+res.error);else{toast('Usunięto');loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name);}
+
+function loadAppData(callback){
+  google.script.run.withFailureHandler(function(e){alert('Błąd łączenia: '+e.message)}).withSuccessHandler(function(data){
+    clients=data.clients||[];const rts=data.routes||[];routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
+    updateRouteDropdowns();if(callback)callback();
+  }).getAppData();
+}
+
+function buildMapLegend(routeIds){
+  const legend=document.getElementById('mapLegend');legend.innerHTML='';
+  routeIds.forEach(id=>{const color=getRouteColor(id);const div=document.createElement('div');div.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');div.setAttribute('data-route',id);div.innerHTML='<div class="legend-dot" style="background:'+color+'"></div>'+esc(getRouteName(id));div.onclick=function(){toggleRouteVisibility(id);};legend.appendChild(div);});
+}
+
+function toggleRouteVisibility(routeId){
+  if(hiddenRoutes.has(routeId))hiddenRoutes.delete(routeId);else hiddenRoutes.add(routeId);
+  if(mapLayers[routeId]){const vis=!hiddenRoutes.has(routeId);mapLayers[routeId].markers.forEach(m=>vis?m.addTo(myMap):myMap.removeLayer(m));if(mapLayers[routeId].polyline){if(vis)mapLayers[routeId].polyline.addTo(myMap);else myMap.removeLayer(mapLayers[routeId].polyline);}}
+  document.querySelectorAll('.legend-item').forEach(el=>{const id=Number(el.getAttribute('data-route'));el.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');});
+}
+
+function initMap(){
+  if(!myMap){myMap=L.map('interactiveMap').setView([D_BASE_LAT,D_BASE_LNG],10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(myMap);}
+  else{Object.values(mapLayers).forEach(layer=>{layer.markers.forEach(m=>myMap.removeLayer(m));if(layer.polyline)myMap.removeLayer(layer.polyline);});mapLayers={};}
+  const baseIcon=L.divIcon({html:'<div style="background:#1C1C1E;color:#fff;padding:5px 10px;border-radius:10px;font-weight:700;font-size:11px;border:2px solid #fff;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 4px 12px rgba(0,0,0,0.4)">🏢 Baza</div>',className:''});
+  if(baseMarker)myMap.removeLayer(baseMarker);
+  baseMarker=L.marker([D_BASE_LAT,D_BASE_LNG],{icon:baseIcon,zIndexOffset:1000}).addTo(myMap).bindPopup('<b>Baza LEBUSER Textilservice Sp. z o.o.</b>');
+  const ids=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);buildMapLegend(ids);
+  ids.forEach(routeId=>{
+    const color=getRouteColor(routeId);const rc=clients.filter(c=>c.route===routeId&&c.lat&&c.lng);mapLayers[routeId]={markers:[],polyline:null};
+    rc.forEach((c,idx)=>{
+      const icon=L.divIcon({html:'<div style="background:'+color+';color:#fff;padding:4px 9px;border-radius:8px;font-weight:700;font-size:11px;border:2px solid rgba(255,255,255,0.8);white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,0.25)"><span style="opacity:0.7;margin-right:3px;">'+(idx+1)+'.</span>'+esc(c.name)+'</div>',className:''});
+      const marker=L.marker([c.lat,c.lng],{icon:icon});marker.bindPopup('<b>'+esc(c.name)+'</b><br><span style="color:'+color+';font-weight:600">'+esc(getRouteName(routeId))+'</span><br><small>Kolejność: '+(idx+1)+'</small>');
+      if(!hiddenRoutes.has(routeId))marker.addTo(myMap);mapLayers[routeId].markers.push(marker);
+    });
+    if(rc.length>0){const pts=[[D_BASE_LAT,D_BASE_LNG],...rc.map(c=>[c.lat,c.lng]),[D_BASE_LAT,D_BASE_LNG]];const poly=L.polyline(pts,{color:color,weight:2.5,opacity:0.65,dashArray:'6,4'});if(!hiddenRoutes.has(routeId))poly.addTo(myMap);mapLayers[routeId].polyline=poly;}
+  });
+  setTimeout(()=>myMap.invalidateSize(),100);
+}
+
+// Start
+google.script.run
+  .withFailureHandler(function(err){alert('Błąd: Uruchom funkcję TEST_ZgodyGoogle w edytorze! '+err.message);})
+  .withSuccessHandler(function(data){
+    clients=data.clients||[];const rts=data.routes||[];routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
+    if(!clients||!clients.length||!rts.length){
+      google.script.run.withFailureHandler(function(e){alert('Błąd: '+e.message)}).withSuccessHandler(function(){loadAppData(function(){switchView('main');});}).initSheets();
+    }else{updateRouteDropdowns();switchView('main');}
+  }).getAppData();
+</script>
+</body>
+</html>
