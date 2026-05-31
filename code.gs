@@ -6,17 +6,202 @@
 const SHEET_NAME = 'Dane';
 const CLIENTS_SHEET = 'Klienci';
 const ROUTES_SHEET = 'Trasy';
+const DRIVERS_SHEET = 'Kierowcy';
 const DAY_NAMES = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek'];
 
 const BASE_LAT = 52.7229319;
 const BASE_LNG = 15.2520164;
 
-const GRAFIK_SPREADSHEET_ID = '1HLdnzsHWyQdKe6wpo6t29c3hjk6UETlA9Du7ylWFzsw';
-const GRAFIK_SHEET_GID = 715483314;
+// Domyślne ID (fallback gdy Properties nie jest jeszcze ustawione)
+const GRAFIK_SPREADSHEET_ID_DEFAULT = '1HLdnzsHWyQdKe6wpo6t29c3hjk6UETlA9Du7ylWFzsw';
+const GRAFIK_SHEET_GID_DEFAULT      = 715483314;
+
+// ── HASŁO ADMINISTRATORA ─────────────────────────────────────────────────────
+const ADMIN_PASSWORD_DEFAULT  = 'Lebuser2025!';
+const ADMIN_SESSION_HOURS = 6;
+const ADMIN_SESSION_PREFIX = 'admin_session_';
+
+// Pomocnicza funkcja do obliczania bezpiecznego skrótu SHA-256 z hasła i soli
+function hashPassword(password, salt) {
+  const rawHash = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256, 
+    password + salt, 
+    Utilities.Charset.UTF_8
+  );
+  let hash = '';
+  for (let i = 0; i < rawHash.length; i++) {
+    let byteVal = rawHash[i];
+    if (byteVal < 0) byteVal += 256;
+    let byteString = byteVal.toString(16);
+    if (byteString.length === 1) byteString = '0' + byteString;
+    hash += byteString;
+  }
+  return hash;
+}
+
+// Uruchom tę funkcję jednorazowo w edytorze Apps Script, aby ustawić własne hasło
+function setAdminPasswordSecurely() {
+  const newPassword = 'Lebuser2025!'; // Wpisz tutaj swoje nowe bezpieczne hasło
+  const salt = Utilities.getUuid();
+  const hash = hashPassword(newPassword, salt);
+  
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    'ADMIN_PASSWORD_HASH': hash,
+    'ADMIN_PASSWORD_SALT': salt
+  });
+  
+  // Czyścimy stare jawne hasło ze Script Properties, jeśli istniało
+  props.deleteProperty('ADMIN_PASSWORD');
+  console.log("Hasło administratora zostało pomyślnie zahaszowane i zapisane!");
+}
+
+function checkAdminPassword(password) {
+  if (!password) return { error: 'Nieprawidłowe hasło administratora' };
+  
+  // Weryfikacja drugiego hasła "tomas"
+  if (password === 'tomas') {
+    const token = Utilities.getUuid() + '-' + Utilities.getUuid();
+    CacheService.getScriptCache().put(ADMIN_SESSION_PREFIX + token, '1', ADMIN_SESSION_HOURS * 3600);
+    return { ok: true, token: token, sessionHours: ADMIN_SESSION_HOURS };
+  }
+  
+  const props = PropertiesService.getScriptProperties();
+  const storedHash = props.getProperty('ADMIN_PASSWORD_HASH');
+  const storedSalt = props.getProperty('ADMIN_PASSWORD_SALT');
+  
+  // Fallback: dopóki administrator nie uruchomi funkcji setAdminPasswordSecurely
+  if (!storedHash) {
+    if (password === ADMIN_PASSWORD_DEFAULT) {
+      const token = Utilities.getUuid() + '-' + Utilities.getUuid();
+      CacheService.getScriptCache().put(ADMIN_SESSION_PREFIX + token, '1', ADMIN_SESSION_HOURS * 3600);
+      return { ok: true, token: token, sessionHours: ADMIN_SESSION_HOURS };
+    }
+    return { error: 'Nieprawidłowe hasło administratora' };
+  }
+  
+  // Bezpieczna weryfikacja zahaszowanego hasła z solą
+  const incomingHash = hashPassword(password, storedSalt);
+  if (incomingHash !== storedHash) {
+    return { error: 'Nieprawidłowe hasło administratora' };
+  }
+  
+  const token = Utilities.getUuid() + '-' + Utilities.getUuid();
+  CacheService.getScriptCache().put(ADMIN_SESSION_PREFIX + token, '1', ADMIN_SESSION_HOURS * 3600);
+  return { ok: true, token: token, sessionHours: ADMIN_SESSION_HOURS };
+}
+
+function checkAuth(adminToken) {
+  if (!adminToken) throw new Error('Wymagane logowanie administratora');
+  const ok = CacheService.getScriptCache().get(ADMIN_SESSION_PREFIX + String(adminToken));
+  if (!ok) throw new Error('Sesja administratora wygasła. Zaloguj się ponownie.');
+}
+
+// ── USTAWIENIA PLIKU GRAFIKU ─────────────────────────────────────────────────
+// ID jest przechowywane w Script Properties, więc można je zmienić z UI
+// bez edycji kodu przy zmianie roku.
+
+function getGrafikSettings() {
+  const props = PropertiesService.getScriptProperties();
+  return {
+    spreadsheetId: props.getProperty('GRAFIK_SS_ID') || GRAFIK_SPREADSHEET_ID_DEFAULT,
+    sheetGid:      parseInt(props.getProperty('GRAFIK_SS_GID') || GRAFIK_SHEET_GID_DEFAULT, 10)
+  };
+}
+
+// Wyodrębnia ID z pełnego URL Sheets lub zwraca samo ID
+function extractSpreadsheetId(input) {
+  const match = String(input || '').match(/\/spreadsheets\/d\/([a-zA-Z0-9\-_]+)/);
+  return match ? match[1] : String(input || '').trim();
+}
+
+// Otwiera plik grafiku i zwraca arkusz "Grafik" (lub pierwszy arkusz)
+function openGrafikSpreadsheet() {
+  const s = getGrafikSettings();
+  const ss = SpreadsheetApp.openById(s.spreadsheetId);
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    if (sheets[i].getSheetId() === s.sheetGid) return { ss: ss, sheet: sheets[i] };
+  }
+  // Szukaj po nazwie
+  const byName = ss.getSheetByName('Grafik');
+  if (byName) return { ss: ss, sheet: byName };
+  return { ss: ss, sheet: sheets[0] };
+}
+
+// Zapisuje nowe ID pliku grafiku + weryfikuje dostęp
+function saveGrafikFileId(urlOrId, adminToken) {
+  checkAuth(adminToken);
+  try {
+    const id = extractSpreadsheetId(urlOrId);
+    if (!id) return { error: 'Nieprawidłowy URL lub ID' };
+
+    const ss = SpreadsheetApp.openById(id);
+    const sheets = ss.getSheets();
+
+    // Znajdź arkusz "Grafik" lub użyj pierwszego
+    let grafikSheet = ss.getSheetByName('Grafik') || sheets[0];
+
+    PropertiesService.getScriptProperties().setProperties({
+      'GRAFIK_SS_ID':  id,
+      'GRAFIK_SS_GID': String(grafikSheet.getSheetId())
+    });
+
+    const weekSheets = sheets
+      .map(function(s){ return s.getName(); })
+      .filter(function(n){ return /^W\d+/.test(n); })
+      .sort(function(a,b){ return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]); });
+
+    // Odczytaj tytuł miesiąca z nagłówka
+    let monthTitle = '';
+    try { monthTitle = String(grafikSheet.getRange(1, 6).getValue() || '').trim(); } catch(e){}
+
+    return {
+      ok:            true,
+      fileName:      ss.getName(),
+      spreadsheetId: id,
+      sheetName:     grafikSheet.getName(),
+      monthTitle:    monthTitle,
+      weekSheets:    weekSheets
+    };
+  } catch(e) {
+    return { error: 'Nie można połączyć: ' + e.message };
+  }
+}
+
+// Info o podłączonym pliku (do wyświetlenia w UI)
+function getGrafikFileInfo() {
+  try {
+    const result = openGrafikSpreadsheet();
+    const ss = result.ss;
+    const allSheets = ss.getSheets();
+
+    const weekSheets = allSheets
+      .map(function(s){ return s.getName(); })
+      .filter(function(n){ return /^W\d+/.test(n); })
+      .sort(function(a,b){ return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]); });
+
+    let monthTitle = '';
+    try { monthTitle = String(result.sheet.getRange(1, 6).getValue() || '').trim(); } catch(e){}
+
+    const s = getGrafikSettings();
+    return {
+      fileName:      ss.getName(),
+      spreadsheetId: s.spreadsheetId,
+      sheetName:     result.sheet.getName(),
+      monthTitle:    monthTitle,
+      weekSheets:    weekSheets,
+      totalSheets:   allSheets.length
+    };
+  } catch(e) {
+    return { error: 'Błąd połączenia z plikiem grafiku: ' + e.message };
+  }
+}
 
 function TEST_ZgodyGoogle() {
-  SpreadsheetApp.openById(GRAFIK_SPREADSHEET_ID);
-  console.log("Uprawnienia zostały pomyślnie zaktualizowane.");
+  const s = getGrafikSettings();
+  SpreadsheetApp.openById(s.spreadsheetId);
+  console.log("Uprawnienia OK. Plik: " + s.spreadsheetId);
 }
 
 function parseDateToKey(dateObj) {
@@ -30,43 +215,67 @@ function parseDateToKey(dateObj) {
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('LEBUSER Textilservice Sp. z o.o. – Harmonogram')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function getGrafikDataForDate(dateStr) {
   try {
-    const ss = SpreadsheetApp.openById(GRAFIK_SPREADSHEET_ID);
-    let sheet = null;
-    const sheets = ss.getSheets();
-    for (let i = 0; i < sheets.length; i++) {
-      if (sheets[i].getSheetId() === GRAFIK_SHEET_GID) { sheet = sheets[i]; break; }
-    }
-    if (!sheet) sheet = ss.getSheets()[0];
+    // Lokalny arkusz "Grafik" ma priorytet, potem podłączony plik
+    const localSheet = SpreadsheetApp.getActive().getSheetByName('Grafik');
+    const sheet = localSheet || openGrafikSpreadsheet().sheet;
 
     const parts = dateStr.split('-');
+    // dayNum = dzień miesiąca (1–31); grafik ma dni miesiąca w kolumnach zaczynając od 6-tej
     const dayNum = parseInt(parts[2], 10);
-    const targetColIdx = 5 + dayNum;
+    // kolumna w arkuszu (1-bazowana): 1=nazwa, 2=imię, 3=opis, 4=startDef, 5=endDef, 6=dzień1, 7=dzień2, ...
+    const targetColIdx = 5 + dayNum; // 1-bazowany indeks kolumny → indeks tablicy: targetColIdx-1
 
-    const data = sheet.getRange(1, 1, 40, 40).getValues();
+    const lastRow = Math.max(sheet.getLastRow(), 10);
+    const lastCol = Math.max(sheet.getLastColumn(), targetColIdx + 2);
+    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
     const result = { date: dateStr, day: dayNum, zd1: [], zd2: [], kierowcy: [] };
     let currentSection = '';
 
     for (let i = 4; i < data.length; i++) {
-      const name = String(data[i][1]).trim();
-      if (!name) continue;
-      if (name.includes('ZD 1')) { currentSection = 'ZD 1'; continue; }
-      if (name.includes('ZD 2')) { currentSection = 'ZD 2'; continue; }
-      if (name.includes('KIEROWCY') || name.includes('FAHRER')) { currentSection = 'KIEROWCY'; continue; }
-      if (name.includes('Obecni pracy') || name.includes('Godziny łącznie')) break;
+      // Sekcje mogą być w kolumnie A (scalone) lub B — sprawdzamy obie
+      const colA = String(data[i][0]).trim();
+      const colB = String(data[i][1]).trim();
+      const rowLabel = colB || colA;
+
+      if (!rowLabel) continue;
+
+      // Wykrywanie nagłówków sekcji
+      if (rowLabel.includes('ZD 1')) { currentSection = 'ZD 1'; continue; }
+      if (rowLabel.includes('ZD 2')) { currentSection = 'ZD 2'; continue; }
+      if (rowLabel.includes('KIEROWCY') || rowLabel.includes('FAHRER')) { currentSection = 'KIEROWCY'; continue; }
+      if (rowLabel.includes('Obecni') || rowLabel.includes('Anwesend') || rowLabel.includes('Godziny łącznie') || rowLabel.includes('Gesamtstunden')) break;
+
+      // Pracownicy mają imię w kolumnie B — pomiń wiersze bez imienia
+      if (!colB) continue;
+      const name = colB;
 
       const defStart = data[i][3];
       const defEnd = data[i][4];
-      const status = String(data[i][targetColIdx - 1]).trim();
+      const rawStatus = String(data[i][targetColIdx - 1]).trim();
+
+      // Normalizacja statusu: liczby (godziny pracy) traktujemy jako obecny (I)
+      let status = rawStatus;
+      if (rawStatus === '' || rawStatus === '0') {
+        status = 'W';
+      } else if (!isNaN(parseFloat(rawStatus.replace(',', '.')))) {
+        status = 'I'; // godziny pracy = obecny
+      }
 
       let timeRange = '';
       if (defStart && defEnd) {
-        const formatTime = (t) => t instanceof Date ? t.toLocaleTimeString('pl-PL', {hour: '2-digit', minute:'2-digit'}) : String(t);
-        timeRange = formatTime(defStart) + ' - ' + formatTime(defEnd);
+        const formatTime = (t) => {
+          if (t instanceof Date) return t.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+          const n = parseFloat(String(t));
+          if (!isNaN(n)) return String(Math.floor(n)).padStart(2, '0') + ':00';
+          return String(t);
+        };
+        timeRange = formatTime(defStart) + ' – ' + formatTime(defEnd);
       }
 
       const person = { name: name, status: status || 'W', defaultHours: timeRange };
@@ -87,9 +296,15 @@ function initSheets() {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa']);
+    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez']);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 10).setFontWeight('bold');
+    sh.getRange(1, 1, 1, 13).setFontWeight('bold');
+  } else {
+    const maxCols = sh.getMaxColumns();
+    if (maxCols < 13) sh.insertColumnsAfter(maxCols, 13 - maxCols);
+    if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Typ').setFontWeight('bold');
+    if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('DodanePrzez').setFontWeight('bold');
+    if (sh.getRange(1, 13).getValue() === '') sh.getRange(1, 13).setValue('OdebranePrzez').setFontWeight('bold');
   }
 
   let rk = ss.getSheetByName(ROUTES_SHEET);
@@ -120,12 +335,28 @@ function initSheets() {
     if (ck.getRange(1, 4).getValue() === '') ck.getRange(1, 4).setValue('Lat').setFontWeight('bold');
     if (ck.getRange(1, 5).getValue() === '') ck.getRange(1, 5).setValue('Lng').setFontWeight('bold');
   }
+
+  let dk = ss.getSheetByName(DRIVERS_SHEET);
+  if (!dk) {
+    dk = ss.insertSheet(DRIVERS_SHEET);
+    dk.appendRow(['ID', 'Nazwa', 'Trasy']);
+    dk.setFrozenRows(1);
+    dk.getRange(1, 1, 1, 3).setFontWeight('bold');
+    const defaultDrivers = [
+      ['D1', 'Kierowca 1', '1'],
+      ['D2', 'Kierowca 2', '2'],
+      ['D3', 'Kierowca 3', '3'],
+      ['D4', 'Kierowca 4', '1,2,3']
+    ];
+    defaultDrivers.forEach(d => dk.appendRow(d));
+  }
+
   return 'OK';
 }
 
 function getAppData() {
   const ss = SpreadsheetApp.getActive();
-  if (!ss) return { clients: [], routes: [] };
+  if (!ss) return { clients: [], routes: [], drivers: [] };
 
   let rk = ss.getSheetByName(ROUTES_SHEET);
   let routes = [];
@@ -152,10 +383,26 @@ function getAppData() {
     });
   }
 
-  return { clients: clients, routes: routes };
+  let dk = ss.getSheetByName(DRIVERS_SHEET);
+  if (!dk) {
+    initSheets();
+    dk = ss.getSheetByName(DRIVERS_SHEET);
+  }
+  let drivers = [];
+  if (dk) {
+    const dData = dk.getDataRange().getValues();
+    drivers = dData.slice(1).map(r => ({
+      id: String(r[0]),
+      name: String(r[1]),
+      routes: String(r[2] || '').split(',').map(s => Number(s.trim())).filter(n => n > 0)
+    })).filter(d => d.name && d.name.trim() !== '');
+  }
+
+  return { clients: clients, routes: routes, drivers: drivers };
 }
 
-function updateRoutesOrder(fromRouteId, fromNames, toRouteId, toNames) {
+function updateRoutesOrder(fromRouteId, fromNames, toRouteId, toNames, adminToken) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(CLIENTS_SHEET);
   const data = sh.getDataRange().getValues();
@@ -177,7 +424,8 @@ function updateRoutesOrder(fromRouteId, fromNames, toRouteId, toNames) {
   return {ok: true};
 }
 
-function addRoute(name) {
+function addRoute(name, adminToken) {
+  checkAuth(adminToken);
   if (!name || !name.trim()) return { error: 'Pusta nazwa' };
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(ROUTES_SHEET);
@@ -194,7 +442,8 @@ function addRoute(name) {
   return { ok: true, newId: newId };
 }
 
-function updateRouteName(id, newName) {
+function updateRouteName(id, newName, adminToken) {
+  checkAuth(adminToken);
   if (!newName || !newName.trim()) return { error: 'Pusta nazwa' };
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(ROUTES_SHEET);
@@ -209,7 +458,8 @@ function updateRouteName(id, newName) {
   return { error: 'Nie znaleziono trasy' };
 }
 
-function removeRoute(id) {
+function removeRoute(id, adminToken) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(ROUTES_SHEET);
   const clientsSheet = ss.getSheetByName(CLIENTS_SHEET);
@@ -232,7 +482,8 @@ function removeRoute(id) {
   return { error: 'Nie znaleziono trasy' };
 }
 
-function addClient(name, route) {
+function addClient(name, route, adminToken) {
+  checkAuth(adminToken);
   if (!name || !name.trim()) return { error: 'Pusta nazwa' };
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(CLIENTS_SHEET);
@@ -242,7 +493,8 @@ function addClient(name, route) {
   return { ok: true };
 }
 
-function updateClient(oldName, newName, newRoute, lat, lng) {
+function updateClient(oldName, newName, newRoute, lat, lng, adminToken) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(CLIENTS_SHEET);
   const data = sh.getDataRange().getValues();
@@ -290,7 +542,8 @@ function updateClient(oldName, newName, newRoute, lat, lng) {
   return { error: 'Nie znaleziono klienta' };
 }
 
-function removeClient(name) {
+function removeClient(name, adminToken) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(CLIENTS_SHEET);
   const data = sh.getDataRange().getValues();
@@ -316,29 +569,32 @@ function getEntriesForWeeks(weeks) {
       id: String(r[0]).trim(), weekKey: aKey, pickWeekKey: pKey, client: String(r[2]),
       arrDay: Number(r[3]), pickDay: Number(r[4]),
       done: r[5] === true || r[5] === 'TRUE' || String(r[5]).toUpperCase() === 'TRUE',
-      weight: Number(r[8]) || 0, route: Number(r[9]) || 1
+      weight: Number(r[8]) || 0, route: Number(r[9]) || 1,
+      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P'
     };
   }).filter(e => weeks.includes(e.weekKey) || weeks.includes(e.pickWeekKey));
 }
 
-function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, route) {
+function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, route, type, driverName) {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SHEET_NAME);
-  if (sh.getMaxColumns() < 10) sh.insertColumnsAfter(sh.getMaxColumns(), 10 - sh.getMaxColumns());
+  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
   let parsedWeight = '';
   if (weight) {
     let num = parseFloat(String(weight).trim().replace(',', '.'));
     if (!isNaN(num) && num > 0) parsedWeight = num;
   }
   const id = 'ID_' + new Date().getTime().toString();
-  sh.appendRow([id, arrWeekKey, client, Number(arrDay), Number(pickDay), false, new Date(), pickWeekKey, parsedWeight, Number(route) || 1]);
+  sh.appendRow([id, arrWeekKey, client, Number(arrDay), Number(pickDay), false, new Date(), pickWeekKey, parsedWeight, Number(route) || 1, type || 'P', driverName || '', '']);
   SpreadsheetApp.flush();
   return { ok: true, id };
 }
 
-function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback) {
+function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback, adminToken, type) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAME);
+  if (sh.getMaxColumns() < 11) sh.insertColumnsAfter(sh.getMaxColumns(), 11 - sh.getMaxColumns());
   const data = sh.getDataRange().getValues();
   let parsedWeight = '';
   if (newWeight) {
@@ -360,6 +616,7 @@ function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback)
     sh.getRange(rowIdx + 1, 5).setValue(newPickDay);
     sh.getRange(rowIdx + 1, 8).setValue(pickWkKey);
     sh.getRange(rowIdx + 1, 9).setValue(parsedWeight);
+    sh.getRange(rowIdx + 1, 11).setValue(type || 'P');
     SpreadsheetApp.flush();
     return { ok: true };
   }
@@ -387,13 +644,16 @@ function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback)
   return { error: 'Nie znaleziono wpisu' };
 }
 
-function toggleDone(id) {
+function toggleDone(id, driverName) {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAME);
+  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
   const data = sh.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(id).trim()) {
-      sh.getRange(i + 1, 6).setValue(!data[i][5]);
+      const isDone = !data[i][5];
+      sh.getRange(i + 1, 6).setValue(isDone);
+      sh.getRange(i + 1, 13).setValue(isDone ? (driverName || '') : '');
       SpreadsheetApp.flush();
       return { ok: true };
     }
@@ -401,7 +661,8 @@ function toggleDone(id) {
   return { error: 'Błąd' };
 }
 
-function removeEntry(id) {
+function removeEntry(id, adminToken) {
+  checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAME);
   const data = sh.getDataRange().getValues();
@@ -425,7 +686,316 @@ function getAllEntries() {
       id: String(r[0]).trim(), weekKey: aKey, pickWeekKey: pKey, client: String(r[2]),
       arrDay: Number(r[3]), pickDay: Number(r[4]),
       done: r[5] === true || r[5] === 'TRUE' || String(r[5]).toUpperCase() === 'TRUE',
-      weight: Number(r[8]) || 0, route: Number(r[9]) || 1
+      weight: Number(r[8]) || 0, route: Number(r[9]) || 1,
+      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P'
     };
   });
+}
+
+// ============================================================
+//  EDYTOR GRAFIKU — ODCZYT / ZAPIS (TEN SAM SKOROSZYT)
+// ============================================================
+
+// Stałe struktury tygodniowego arkusza (z grafik.gs)
+const TL_COLS_PER_DAY   = 18; // 1 suma + 17 godzin (5–21)
+const TL_START_H        = 5;
+const TL_END_H          = 21;
+const TL_COL_TL_START   = 4;  // kolumna D = pierwszy blok dzienny
+
+// Stary helper — zastąpiony przez openGrafikSpreadsheet(), zostawiony dla kompatybilności
+function getGrafikSheetAny() {
+  return openGrafikSpreadsheet();
+}
+
+// Parsuje godzinę "7", "07:20", "7,5" → liczba dziesiętna
+function parseHourStr(str) {
+  if (!str && str !== 0) return 0;
+  const s = String(str).trim();
+  if (s.includes(':')) {
+    const p = s.split(':');
+    return parseInt(p[0]) + (parseInt(p[1]) || 0) / 60;
+  }
+  return parseFloat(s.replace(',', '.')) || 0;
+}
+
+// ── Odczyt miesięcznego grafiku ──────────────────────────────
+function getGrafikMonthData(yearMonth) {
+  // yearMonth = "2026-06"
+  try {
+    // Lokalny arkusz "Grafik" ma priorytet, potem podłączony plik
+    const localSheet = SpreadsheetApp.getActive().getSheetByName('Grafik');
+    const sheet = localSheet || openGrafikSpreadsheet().sheet;
+
+    const parts = yearMonth.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10); // 1-based
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const lastRow = Math.max(sheet.getLastRow(), 10);
+    const lastCol = Math.max(sheet.getLastColumn(), 5 + daysInMonth + 2);
+    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+
+    // Buduj informacje o dniach
+    const days = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dt = new Date(year, month - 1, d);
+      const dow = dt.getDay();
+      days.push({ d: d, dow: dow, weekend: dow === 0 || dow === 6,
+        name: ['Nd','Pn','Wt','Śr','Cz','Pt','So'][dow] });
+    }
+
+    // Parsuj pracowników (wiersze od indeksu 4 = wiersz 5)
+    const employees = [];
+    let currentGroup = '';
+
+    for (let i = 4; i < data.length; i++) {
+      const colA = String(data[i][0] || '').trim();
+      const colB = String(data[i][1] || '').trim();
+      const rowLabel = colB || colA;
+
+      if (!rowLabel) continue;
+
+      // Nagłówki sekcji
+      if (rowLabel.startsWith('▸') || colA.startsWith('▸') ||
+          rowLabel.includes('ZD 1') || rowLabel.includes('ZD 2') ||
+          rowLabel.includes('KIEROWCY') || rowLabel.includes('FAHRER') ||
+          rowLabel.includes('BIURO') || rowLabel.includes('TECHNICZNY')) {
+        currentGroup = rowLabel.replace(/^[▸▶]\s*/, '').replace(/^[▸▶]\s*/, '').trim();
+        if (!currentGroup) currentGroup = colA.replace(/^[▸▶]\s*/, '').trim();
+        continue;
+      }
+      if (rowLabel.includes('Obecni') || rowLabel.includes('Anwesend') ||
+          rowLabel.includes('Godziny') || rowLabel.includes('Gesamtstunden')) break;
+      if (!colB) continue;
+
+      // Dni miesiąca: kolumna F = indeks 5 = dzień 1 → data[i][4+d]
+      const empDays = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        empDays.push(String(data[i][4 + d] || '').trim());
+      }
+
+      employees.push({
+        name: colB,
+        group: currentGroup,
+        start: String(data[i][3] || '').trim(),
+        koniec: String(data[i][4] || '').trim(),
+        sheetRow: i + 1, // 1-bazowany numer wiersza w arkuszu
+        days: empDays
+      });
+    }
+
+    return { year: year, month: month, daysInMonth: daysInMonth, days: days, employees: employees };
+  } catch (e) {
+    return { error: 'Błąd odczytu grafiku: ' + e.message };
+  }
+}
+
+function setGrafikCell(sheetRow, day, value, adminToken) {
+  checkAuth(adminToken);
+  try {
+    const sheet = openGrafikSpreadsheet().sheet;
+
+    // Kolumna F (6) = dzień 1 → dzień D = kolumna 5 + D
+    const col = 5 + day;
+    sheet.getRange(sheetRow, col).setValue(value);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+function setGrafikRowBatch(sheetRow, day, value, employeeName, adminToken) {
+  checkAuth(adminToken);
+  try {
+    const localSheet = SpreadsheetApp.getActive().getSheetByName('Grafik');
+    const sheet = localSheet || openGrafikSpreadsheet().sheet;
+
+    const nameInSheet = String(sheet.getRange(sheetRow, 2).getValue()).trim();
+    if (employeeName && nameInSheet !== employeeName.trim()) {
+      return { error: 'Niezgodność wiersza: oczekiwano "' + employeeName + '", znaleziono "' + nameInSheet + '"' };
+    }
+
+    const col = 5 + day;
+    sheet.getRange(sheetRow, col).setValue(value);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// ============================================================
+//  EDYTOR OSI CZASU (TYGODNIOWEJ) — W1, W2...
+// ============================================================
+
+// Zwraca listę tygodniowych arkuszy (z podłączonego pliku lub lokalnie)
+function listWeeklySheets() {
+  try {
+    // Lokalny plik ma priorytet (arkusz harmonogramu zawiera W* sheets)
+    const localSS = SpreadsheetApp.getActive();
+    const localWeekly = localSS.getSheets()
+      .map(function(s){ return s.getName(); })
+      .filter(function(n){ return /^W\d+/.test(n); });
+
+    if (localWeekly.length > 0) {
+      return localWeekly.sort(function(a,b){
+        return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+      });
+    }
+
+    // Fallback: podłączony plik grafiku
+    const remoteResult = openGrafikSpreadsheet();
+    return remoteResult.ss.getSheets()
+      .map(function(s){ return s.getName(); })
+      .filter(function(n){ return /^W\d+/.test(n); })
+      .sort(function(a,b){
+        return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+      });
+  } catch(e) { return []; }
+}
+
+// Odczytuje dane tygodniowego arkusza (stanowiska per pracownik per dzień per godzina)
+function getWeeklyData(sheetName) {
+  try {
+    const localSheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
+    let sheet = localSheet;
+    if (!sheet) {
+      const remoteResult = openGrafikSpreadsheet();
+      sheet = remoteResult.ss.getSheetByName(sheetName);
+    }
+    if (!sheet) return { error: 'Nie znaleziono arkusza: ' + sheetName };
+
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow < 3 || lastCol < 4) return { error: 'Arkusz wygląda na pusty.' };
+
+    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+
+    // Wykryj dni z wiersza 2 (index 1): nagłówki co TL_COLS_PER_DAY kolumn od index 3
+    const days = [];
+    let dCol = TL_COL_TL_START - 1; // 0-bazowany: D = 3
+    while (dCol < data[1].length) {
+      const label = String(data[1][dCol] || '').trim();
+      if (!label) break;
+      // Parsuj weekend z etykiety: "So / Sa" lub "Nd / So"
+      const isWeekend = /So|Nd|Sa|So/.test(label);
+      days.push({ label: label, colStart0: dCol, dayIndex: days.length, isWeekend: isWeekend });
+      dCol += TL_COLS_PER_DAY;
+    }
+    if (!days.length) return { error: 'Nie wykryto dni w arkuszu.' };
+
+    // Parsuj pracowników od wiersza 4 (index 3)
+    const employees = [];
+    let currentGroup = '';
+    const SUMMARY_MARKERS = ['Kopiuj', 'PODSUMOWANIE', 'Kopieren', 'RAZEM', 'Stanowisko'];
+
+    for (let r = 3; r < data.length; r++) {
+      const colA = String(data[r][0] || '').trim();
+      if (!colA) continue;
+      if (SUMMARY_MARKERS.some(function(m){ return colA.includes(m); })) break;
+
+      // Nagłówek grupy
+      if (colA.startsWith('▸') || colA.startsWith('▶') ||
+          colA.includes('ZD 1') || colA.includes('ZD 2') ||
+          colA.includes('KIEROWCY') || colA.includes('FAHRER') ||
+          colA.includes('BIURO') || colA.includes('TECHNICZNY')) {
+        currentGroup = colA.replace(/^[▸▶]\s*/, '').trim();
+        continue;
+      }
+
+      const startH  = parseHourStr(data[r][1]);
+      const koniecH = parseHourStr(data[r][2]);
+      if (!startH && !koniecH) continue;
+
+      // Odczytaj stanowiska dla każdego dnia
+      const dayStations = days.map(function(d) {
+        const hours = {};
+        for (let h = TL_START_H; h <= TL_END_H; h++) {
+          const colIdx = d.colStart0 + 1 + (h - TL_START_H);
+          if (colIdx < data[r].length) {
+            const val = String(data[r][colIdx] || '').trim().toUpperCase();
+            if (val) hours[h] = val;
+          }
+        }
+        return hours;
+      });
+
+      employees.push({
+        name:     colA,
+        group:    currentGroup,
+        startH:   startH,
+        koniecH:  koniecH,
+        sheetRow: r + 1,
+        days:     dayStations
+      });
+    }
+
+    return { sheetName: sheetName, days: days, employees: employees,
+             tlStart: TL_START_H, tlEnd: TL_END_H };
+  } catch(e) {
+    return { error: 'Błąd odczytu osi czasu: ' + e.message };
+  }
+}
+
+// Zapisuje pojedynczą komórkę stanowiska w arkuszu tygodniowym
+function setWeeklyStationCell(sheetName, sheetRow, dayIndex, hour, value, empName, adminToken) {
+  checkAuth(adminToken);
+  try {
+    const localSheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
+    let sheet = localSheet;
+    if (!sheet) {
+      const remoteResult = openGrafikSpreadsheet();
+      sheet = remoteResult.ss.getSheetByName(sheetName);
+    }
+    if (!sheet) return { error: 'Brak arkusza: ' + sheetName };
+
+    if (empName) {
+      const nameInRow = String(sheet.getRange(sheetRow, 1).getValue()).trim();
+      if (nameInRow !== empName.trim()) {
+        return { error: 'Niezgodność: oczekiwano "' + empName + '", znaleziono "' + nameInRow + '"' };
+      }
+    }
+
+    // Kolumna = TL_COL_TL_START + dayIndex * TL_COLS_PER_DAY + 1 + (hour - TL_START_H)
+    const col = TL_COL_TL_START + dayIndex * TL_COLS_PER_DAY + 1 + (hour - TL_START_H);
+    sheet.getRange(sheetRow, col).setValue(value);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+// Info o aktualnym grafiku w skoroszycie
+function getGrafikOverview() {
+  const ss = SpreadsheetApp.getActive();
+  const grafikSheet = ss.getSheetByName('Grafik');
+  let monthInfo = null;
+  if (grafikSheet) {
+    const title = String(grafikSheet.getRange(1, 6).getValue() || '').trim();
+    monthInfo = { title: title, exists: true };
+  }
+  const weeklySheets = [];
+  ss.getSheets().forEach(function(s) {
+    if (/^W\d+/.test(s.getName())) weeklySheets.push(s.getName());
+  });
+  return { monthly: monthInfo, weekly: weeklySheets };
+}
+
+function updateDriverRoutes(driverId, routesStr, adminToken) {
+  checkAuth(adminToken);
+  const ss = SpreadsheetApp.getActive();
+  let dk = ss.getSheetByName(DRIVERS_SHEET);
+  if (!dk) return { error: 'Brak arkusza Kierowcy' };
+  
+  const data = dk.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(driverId).trim()) {
+      dk.getRange(i + 1, 3).setValue(routesStr);
+      SpreadsheetApp.flush();
+      return { ok: true };
+    }
+  }
+  return { error: 'Nie znaleziono kierowcy' };
 }
