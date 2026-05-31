@@ -4188,8 +4188,34 @@ function confirmAdd(){
   const type=document.getElementById('mType').value;
   if(wt!==''){const wtNum=parseFloat(wt.replace(',','.'));if(isNaN(wtNum)||wtNum<=0){toast(t('toast_weight_error'));return;}}
   const cObj=clients.find(c=>c.name===cName);let arrWk=weekKey(pendingTargetOffset);let pickWk=isNextWk?weekKey(pendingTargetOffset+1):arrWk;
+  const parsedWeight=wt?parseFloat(String(wt).replace(',','.')):0;
+  const route=cObj?cObj.route:1;
   closeAdd();
-  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_added')+cName);loadWeek();}}).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,cObj?cObj.route:1,type, currentDriver ? currentDriver.name : '');
+
+  // Optymistyczny update — dodaj do lokalnej tablicy od razu i przerenderuj
+  const tempId='ID_'+Date.now();
+  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase()};
+  entries.push(newEntry);
+  renderGrid();
+  toast(t('toast_added')+cName);
+
+  // Zapisz na serwerze w tle
+  google.script.run.withFailureHandler(function(e){
+    // Cofnij optymistyczny update przy błędzie
+    entries=entries.filter(function(en){return en.id!==tempId;});
+    renderGrid();
+    alert(t('error_label') + ': ' + translateError(e.message));
+  }).withSuccessHandler(function(res){
+    if(res&&res.error){
+      entries=entries.filter(function(en){return en.id!==tempId;});
+      renderGrid();
+      alert(t('error_label') + ': ' + translateError(res.error));
+    } else if(res&&res.id){
+      // Zaktualizuj tymczasowe ID na prawdziwe z serwera
+      const idx=entries.findIndex(function(en){return en.id===tempId;});
+      if(idx!==-1) entries[idx].id=res.id;
+    }
+  }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : '');
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
@@ -4227,7 +4253,18 @@ function openViewEntry(entry){
       return;
     }
     closeViewEntry();
-    google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message));}).withSuccessHandler(function(){loadWeek();}).toggleDone(entry.id, currentDriver ? currentDriver.name : '');
+    // Optymistyczny toggle — natychmiast zmień stan w pamięci
+    const idx=entries.findIndex(function(en){return en.id===entry.id;});
+    if(idx!==-1) entries[idx].done=!entries[idx].done;
+    renderGrid();
+    google.script.run.withFailureHandler(function(e){
+      // Cofnij przy błędzie
+      if(idx!==-1) entries[idx].done=!entries[idx].done;
+      renderGrid();
+      alert(t('error_label') + ': ' + translateError(e.message));
+    }).withSuccessHandler(function(res){
+      if(res&&res.error){if(idx!==-1) entries[idx].done=!entries[idx].done;renderGrid();}
+    }).toggleDone(entry.id, currentDriver ? currentDriver.name : '');
   };
   document.getElementById('viewEntryModal').style.display='flex';
 }
@@ -4245,7 +4282,7 @@ function saveEdit(){
   const fallback=original?{client:original.client,weekKey:original.weekKey,pickWeekKey:original.pickWeekKey,arrDay:original.arrDay,pickDay:original.pickDay,type:original.type}:null;
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type);
 }
-function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(){loadWeek();}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
 function deleteFromEdit(){
   if(!editingId)return;
   const entryToDel=entries.find(e=>e.id===editingId);
