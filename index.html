@@ -2796,6 +2796,9 @@ select.ap-input {
     <div class="action-row" style="margin-top:18px">
       <button class="done-btn" id="veToggleBtn" data-t="btn_mark_done">Oznacz jako odebrane</button>
     </div>
+    <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
+      <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
+    </div>
     <div class="modal-btns" style="margin-top:10px">
       <button onclick="closeViewEntry()" data-t="btn_close">Zamknij</button>
     </div>
@@ -4194,7 +4197,7 @@ function confirmAdd(){
 
   // Optymistyczny update — dodaj do lokalnej tablicy od razu i przerenderuj
   const tempId='ID_'+Date.now();
-  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase()};
+  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase(),addedBy:currentDriver?currentDriver.name:''};
   entries.push(newEntry);
   renderGrid();
   toast(t('toast_added')+cName);
@@ -4211,9 +4214,10 @@ function confirmAdd(){
       renderGrid();
       alert(t('error_label') + ': ' + translateError(res.error));
     } else if(res&&res.id){
-      // Zaktualizuj tymczasowe ID na prawdziwe z serwera
+      // Zaktualizuj tymczasowe ID na prawdziwe z serwera i przerenderuj
       const idx=entries.findIndex(function(en){return en.id===tempId;});
       if(idx!==-1) entries[idx].id=res.id;
+      renderGrid();
     }
   }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : '');
 }
@@ -4266,6 +4270,30 @@ function openViewEntry(entry){
       if(res&&res.error){if(idx!==-1) entries[idx].done=!entries[idx].done;renderGrid();}
     }).toggleDone(entry.id, currentDriver ? currentDriver.name : '');
   };
+
+  // Przycisk Usuń — widoczny tylko jeśli kierowca dodał ten wpis
+  const deleteRow=document.getElementById('veDeleteRow');
+  const isOwner = currentDriver && entry.addedBy && entry.addedBy === currentDriver.name;
+  deleteRow.style.display = isOwner ? 'flex' : 'none';
+  if(isOwner){
+    document.getElementById('veDeleteBtn').onclick=function(){
+      const confirmMsg = currentLang === 'DE' ? 'Eintrag löschen?' : (currentLang === 'UA' ? 'Вилучити запис?' : 'Usunąć wpis?');
+      if(!confirm(confirmMsg)) return;
+      closeViewEntry();
+      // Optymistyczne usunięcie
+      entries=entries.filter(function(en){return en.id!==entry.id;});
+      renderGrid();
+      toast(t('toast_deleted'));
+      google.script.run.withFailureHandler(function(e){
+        // Przywróć przy błędzie — przeładuj z serwera
+        loadWeek();
+        alert(t('error_label') + ': ' + translateError(e.message));
+      }).withSuccessHandler(function(res){
+        if(res&&res.error){loadWeek();}
+      }).removeOwnEntry(entry.id, currentDriver.name);
+    };
+  }
+
   document.getElementById('viewEntryModal').style.display='flex';
 }
 function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';}

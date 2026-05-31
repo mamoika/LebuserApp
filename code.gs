@@ -589,7 +589,8 @@ function getEntriesForWeeks(weeks) {
       arrDay: Number(r[3]), pickDay: Number(r[4]),
       done: r[5] === true || r[5] === 'TRUE' || String(r[5]).toUpperCase() === 'TRUE',
       weight: Number(r[8]) || 0, route: Number(r[9]) || 1,
-      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P'
+      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P',
+      addedBy: r[11] ? String(r[11]).trim() : ''
     };
   }).filter(e => weeks.includes(e.weekKey) || weeks.includes(e.pickWeekKey));
 }
@@ -693,6 +694,26 @@ function removeEntry(id, adminToken) {
     }
   }
   return { error: 'Błąd' };
+}
+
+// Kierowca może usunąć tylko wpis który sam dodał
+function removeOwnEntry(id, driverName) {
+  if (!driverName || !String(driverName).trim()) return { error: 'Wymagane logowanie kierowcy' };
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAME);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(id).trim()) {
+      const addedBy = String(data[i][11] || '').trim();
+      if (addedBy !== String(driverName).trim()) {
+        return { error: 'Możesz usunąć tylko wpisy dodane przez siebie' };
+      }
+      sh.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return { ok: true };
+    }
+  }
+  return { error: 'Nie znaleziono wpisu' };
 }
 
 function getAllEntries() {
