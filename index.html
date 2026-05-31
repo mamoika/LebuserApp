@@ -1726,68 +1726,152 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 
 /* ── Driver grid — white cards on gray sheet background ── */
 .ap-driver-grid {
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
+  display:flex;
+  flex-direction:column;
+  gap:0;
   margin-bottom:4px;
-  max-height:46vh;
+  max-height:52vh;
   overflow-y:auto;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);
+  overflow:hidden;
 }
-@media(max-width:340px){.ap-driver-grid{grid-template-columns:1fr}}
+@media(prefers-color-scheme:dark){.ap-driver-grid{background:#2C2C2E}}
+
+.ap-driver-search {
+  position:sticky;
+  top:0;
+  z-index:2;
+  padding:12px 14px;
+  background:#fff;
+  border-bottom:0.5px solid rgba(60,60,67,0.1);
+}
+@media(prefers-color-scheme:dark){
+  .ap-driver-search{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.08)}
+}
+.ap-driver-search input {
+  width:100%;
+  padding:10px 14px 10px 36px;
+  border-radius:12px;
+  border:none;
+  background:rgba(118,118,128,0.12);
+  color:#000;
+  font-size:15px;
+  font-family:inherit;
+  outline:none;
+  -webkit-appearance:none;
+  transition:background 0.15s;
+}
+.ap-driver-search input::placeholder{color:rgba(60,60,67,0.4)}
+.ap-driver-search input:focus{background:rgba(118,118,128,0.18)}
+@media(prefers-color-scheme:dark){
+  .ap-driver-search input{background:rgba(118,118,128,0.24);color:#fff}
+  .ap-driver-search input::placeholder{color:rgba(235,235,245,0.4)}
+}
+.ap-search-icon {
+  position:absolute;
+  left:26px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:15px;
+  color:rgba(60,60,67,0.4);
+  pointer-events:none;
+}
+@media(prefers-color-scheme:dark){.ap-search-icon{color:rgba(235,235,245,0.4)}}
 
 .ap-driver-card {
   background:#fff;
   border:none;
-  border-radius:20px;
-  padding:18px 12px 16px;
-  display:flex;flex-direction:column;align-items:center;
-  gap:9px;cursor:pointer;text-align:center;
-  box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
-  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s, outline 0.15s;
+  border-radius:0;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:14px;
+  cursor:pointer;
+  text-align:left;
+  transition:background 0.12s ease;
   position:relative;
   -webkit-tap-highlight-color:transparent;
-  outline:2.5px solid transparent;
-  outline-offset:0;
+  border-bottom:0.5px solid rgba(60,60,67,0.08);
 }
+.ap-driver-card:last-child{border-bottom:none}
 .ap-driver-card:hover{
-  transform:scale(1.03) translateY(-1px);
-  box-shadow:0 6px 20px rgba(0,0,0,0.1);
+  background:rgba(0,122,255,0.04);
 }
-.ap-driver-card:active{transform:scale(0.95)}
+.ap-driver-card:active{
+  background:rgba(0,122,255,0.08);
+  transform:none;
+}
 .ap-driver-card.ap-selected{
-  outline:2.5px solid #007AFF;
-  box-shadow:0 0 0 5px rgba(0,122,255,0.12), 0 4px 14px rgba(0,0,0,0.08);
+  background:rgba(0,122,255,0.06);
+}
+.ap-driver-card.ap-selected::before{
+  content:'';
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:3.5px;
+  background:#007AFF;
+  border-radius:0 3px 3px 0;
 }
 @media(prefers-color-scheme:dark){
-  .ap-driver-card{background:#2C2C2E;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
-  .ap-driver-card:hover{box-shadow:0 6px 20px rgba(0,0,0,0.3)}
-  .ap-driver-card.ap-selected{outline-color:#0A84FF;box-shadow:0 0 0 5px rgba(10,132,255,0.18)}
+  .ap-driver-card{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.06)}
+  .ap-driver-card:hover{background:rgba(10,132,255,0.08)}
+  .ap-driver-card:active{background:rgba(10,132,255,0.14)}
+  .ap-driver-card.ap-selected{background:rgba(10,132,255,0.1)}
+  .ap-driver-card.ap-selected::before{background:#0A84FF}
 }
 
 .ap-driver-avatar {
-  width:58px;height:58px;border-radius:50%;
+  width:48px;height:48px;border-radius:14px;
   display:flex;align-items:center;justify-content:center;
-  font-size:20px;font-weight:800;color:#fff;
+  font-size:17px;font-weight:800;color:#fff;
   letter-spacing:-0.5px;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
+}
+.ap-driver-info {
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-width:0;
+  gap:2px;
 }
 .ap-driver-name {
-  font-weight:600;font-size:14px;
-  color:#000;line-height:1.2;
-  word-break:break-word;
+  font-weight:600;font-size:16px;
+  color:#000;line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 @media(prefers-color-scheme:dark){.ap-driver-name{color:#FFF}}
 .ap-driver-routes {
-  font-size:11px;font-weight:400;
-  color:rgba(60,60,67,0.6);line-height:1.2;
+  font-size:13px;font-weight:400;
+  color:rgba(60,60,67,0.6);line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 @media(prefers-color-scheme:dark){.ap-driver-routes{color:rgba(235,235,245,0.6)}}
 
+.ap-driver-status {
+  width:10px;height:10px;
+  border-radius:50%;
+  background:#34C759;
+  flex-shrink:0;
+  box-shadow:0 0 0 2px #fff, 0 0 6px rgba(52,199,89,0.4);
+}
+@media(prefers-color-scheme:dark){.ap-driver-status{box-shadow:0 0 0 2px #2C2C2E, 0 0 6px rgba(52,199,89,0.4)}}
+
 .ap-check-badge {
-  position:absolute;top:9px;right:9px;
-  width:20px;height:20px;border-radius:50%;
+  position:absolute;top:50%;right:16px;
+  transform:translateY(-50%);
+  width:24px;height:24px;border-radius:50%;
   background:#007AFF;color:#fff;
   display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:800;
+  font-size:12px;font-weight:800;
+  box-shadow:0 2px 8px rgba(0,122,255,0.3);
+}
 }
 @media(prefers-color-scheme:dark){.ap-check-badge{background:#0A84FF}}
 
@@ -2506,18 +2590,20 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 </div>
 
 <!-- Driver Select -->
-<!-- ── DRIVER SELECT (Apple 2026) ── -->
-<div class="ap-overlay" id="driverSelectModal">
-  <div class="ap-sheet" style="max-width:500px">
+<!-- ── DRIVER SELECT (Apple 2026 Enterprise) ── -->
+<div class="ap-overlay" id="driverSelectModal" role="dialog" aria-modal="true" aria-labelledby="driverSelectTitle">
+  <div class="ap-sheet" style="max-width:440px">
     <div class="ap-handle"></div>
-    <div class="ap-content">
-      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_"
-           alt="Logo LEBUSER" class="modal-logo"
-           style="display:block;margin:0 auto 14px;opacity:0.9">
-      <div class="ap-title" data-t="driver_select_title">Kim jesteś?</div>
-      <div class="ap-subtitle" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+    <div class="ap-content" style="padding-bottom:20px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,122,255,0.3)">🚛</div>
+        <div>
+          <div class="ap-title" id="driverSelectTitle" style="text-align:left;margin-bottom:2px;font-size:20px" data-t="driver_select_title">Kim jesteś?</div>
+          <div style="font-size:13px;color:rgba(60,60,67,0.6);font-weight:400" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+        </div>
+      </div>
       <div id="driverButtonsContainer" class="ap-driver-grid"></div>
-      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:16px"></div>
+      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:14px"></div>
     </div>
   </div>
 </div>
@@ -3474,33 +3560,56 @@ function openDriverSelect() {
   actions.innerHTML   = '';
 
   if (!drivers || drivers.length === 0) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 16px;color:var(--text-secondary);font-size:14px;font-weight:500">' +
+    container.innerHTML = '<div style="padding:32px 16px;text-align:center;color:rgba(60,60,67,0.6);font-size:15px;font-weight:500">' +
       (currentLang === 'DE' ? 'Keine Fahrer in der Datenbank.' : (currentLang === 'UA' ? 'Немає водіїв у базі.' : 'Brak kierowców w bazie.')) + '</div>';
   } else {
+    // Wyszukiwarka (jeśli > 4 kierowców)
+    if (drivers.length > 4) {
+      const searchDiv = document.createElement('div');
+      searchDiv.className = 'ap-driver-search';
+      searchDiv.innerHTML = '<span class="ap-search-icon">🔍</span>' +
+        '<input type="text" id="driverSearchInput" placeholder="' +
+        (currentLang === 'DE' ? 'Fahrer suchen…' : (currentLang === 'UA' ? 'Пошук водія…' : 'Szukaj kierowcy…')) +
+        '" oninput="filterDriverCards(this.value)" autocomplete="off">';
+      container.appendChild(searchDiv);
+    }
+
+    // Lista kierowców
+    const listDiv = document.createElement('div');
+    listDiv.id = 'driverCardsList';
+    listDiv.style.cssText = 'overflow-y:auto;max-height:' + (drivers.length > 4 ? '44vh' : '52vh');
+
     drivers.forEach(function(d) {
       const isSelected = currentDriver && currentDriver.id === d.id;
       const card = document.createElement('div');
       card.className = 'ap-driver-card' + (isSelected ? ' ap-selected' : '');
+      card.setAttribute('data-driver-name', d.name.toLowerCase());
       const color = driverAvatarColor(d.id);
       const initials = driverInitials(d.name);
       const routeNames = (d.routes && d.routes.length > 0)
-        ? d.routes.map(function(r){ return getRouteName(r); }).join(', ')
-        : (currentLang === 'DE' ? 'Keine Routen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak tras'));
+        ? d.routes.map(function(r){ return getRouteName(r); }).join(' · ')
+        : (currentLang === 'DE' ? 'Keine Routen zugewiesen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak przypisanych tras'));
+
       card.innerHTML =
         '<div class="ap-driver-avatar" style="background:' + color + '">' + esc(initials) + '</div>' +
-        '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
-        '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
+        '<div class="ap-driver-info">' +
+          '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
+          '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
+        '</div>' +
+        '<div class="ap-driver-status"></div>' +
         (isSelected ? '<div class="ap-check-badge">✓</div>' : '');
       card.onclick = function() { selectDriver(d.id); };
-      container.appendChild(card);
+      listDiv.appendChild(card);
     });
+
+    container.appendChild(listDiv);
   }
 
   // Wyloguj kierowcę (jeśli jest zalogowany)
   if (currentDriver) {
     const logoutBtn = document.createElement('button');
     logoutBtn.className = 'ap-btn ap-btn-danger';
-    logoutBtn.innerHTML = '🔓 ' + (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Вийти як водій' : 'Wyloguj kierowcę'));
+    logoutBtn.innerHTML = (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Змінити водія' : 'Zmień kierowcę'));
     logoutBtn.onclick = function() { selectDriver(null); };
     actions.appendChild(logoutBtn);
   }
@@ -3513,6 +3622,21 @@ function openDriverSelect() {
   actions.appendChild(cancelBtn);
 
   document.getElementById('driverSelectModal').style.display = 'flex';
+
+  // Focus na wyszukiwarkę
+  setTimeout(function() {
+    const searchInput = document.getElementById('driverSearchInput');
+    if (searchInput) searchInput.focus();
+  }, 300);
+}
+
+function filterDriverCards(query) {
+  const q = (query || '').toLowerCase().trim();
+  const cards = document.querySelectorAll('#driverCardsList .ap-driver-card');
+  cards.forEach(function(card) {
+    const name = card.getAttribute('data-driver-name') || '';
+    card.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
 }
 
 function selectDriver(id) {
