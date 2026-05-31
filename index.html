@@ -4239,17 +4239,49 @@ function openEdit(id){
 
 // ── VIEW ENTRY (użytkownik) ──
 function openViewEntry(entry){
+  // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
+  const grouped = entries.filter(function(e){
+    return e.client === entry.client && e.route === entry.route &&
+           e.pickWeekKey === entry.pickWeekKey && e.pickDay === entry.pickDay &&
+           !(e.weekKey === entry.weekKey && e.arrDay === entry.arrDay && e.weekKey === e.pickWeekKey && e.arrDay === e.pickDay);
+  });
+  // Jeśli to jest karta z sekcji "Przybył" — pokaż tylko ten jeden wpis
+  // Jeśli to jest karta z sekcji "Do odbioru" — pokaż zgrupowane
+  const isPickupView = (entry.pickWeekKey && entry.pickDay !== undefined);
+  const relatedEntries = grouped.length > 0 ? grouped : [entry];
+  // Sprawdź czy kliknięty wpis jest w sekcji odbioru (nie przyjazdu)
+  const allForPickup = entries.filter(function(e){
+    return e.client === entry.client && e.route === entry.route &&
+           e.pickWeekKey === entry.pickWeekKey && e.pickDay === entry.pickDay;
+  });
+  // Użyj zgrupowanych tylko jeśli jest więcej niż 1 wpis z różnymi typami
+  const uniqueTypes = [];
+  allForPickup.forEach(function(e){ if(uniqueTypes.indexOf(e.type||'P')===-1) uniqueTypes.push(e.type||'P'); });
+  const showGrouped = uniqueTypes.length > 1;
+  const displayEntries = showGrouped ? allForPickup : [entry];
+
   document.getElementById('veClientName').textContent=entry.client+' — '+getRouteName(entry.route);
   document.getElementById('veArrDay').textContent=DAY_NAMES[entry.arrDay];
   document.getElementById('vePickDay').textContent=DAY_NAMES[entry.pickDay]+(entry.weekKey!==entry.pickWeekKey ? t('week_next_suffix') : '');
-  document.getElementById('veType').textContent=(entry.type === 'O') ? t('type_o') : t('type_p');
-  document.getElementById('veWeight').textContent=entry.weight>0?entry.weight+' kg':'—';
+
+  // Typ i waga — jeśli zgrupowane, pokaż oba
+  if(showGrouped){
+    const typesStr = displayEntries.map(function(e){ return (e.type==='O'?t('type_o'):t('type_p'))+' ('+e.weight+'kg)'; }).join(' + ');
+    document.getElementById('veType').textContent=typesStr;
+    const totalWeight = displayEntries.reduce(function(s,e){return s+e.weight;},0);
+    document.getElementById('veWeight').textContent=totalWeight>0?totalWeight+' kg':'—';
+  } else {
+    document.getElementById('veType').textContent=(entry.type === 'O') ? t('type_o') : t('type_p');
+    document.getElementById('veWeight').textContent=entry.weight>0?entry.weight+' kg':'—';
+  }
+
+  const allDone = displayEntries.every(function(e){return e.done;});
   const statusEl=document.getElementById('veStatus');
-  statusEl.textContent=entry.done ? t('status_done') : t('status_pending');
-  statusEl.style.color=entry.done?'var(--accent-green)':'var(--text-tertiary)';
+  statusEl.textContent=allDone ? t('status_done') : t('status_pending');
+  statusEl.style.color=allDone?'var(--accent-green)':'var(--text-tertiary)';
   const tBtn=document.getElementById('veToggleBtn');
-  tBtn.textContent=entry.done ? t('btn_mark_undone') : t('btn_mark_done');
-  tBtn.className='done-btn'+(entry.done?' danger':'');
+  tBtn.textContent=allDone ? t('btn_mark_undone') : t('btn_mark_done');
+  tBtn.className='done-btn'+(allDone?' danger':'');
   tBtn.onclick=function(){
     if (!isAdmin && !currentDriver) {
       toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca'));
@@ -4257,40 +4289,46 @@ function openViewEntry(entry){
       return;
     }
     closeViewEntry();
-    // Optymistyczny toggle — natychmiast zmień stan w pamięci
-    const idx=entries.findIndex(function(en){return en.id===entry.id;});
-    if(idx!==-1) entries[idx].done=!entries[idx].done;
+    // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
+    displayEntries.forEach(function(de){
+      const idx=entries.findIndex(function(en){return en.id===de.id;});
+      if(idx!==-1) entries[idx].done=!allDone;
+    });
     renderGrid();
-    google.script.run.withFailureHandler(function(e){
-      // Cofnij przy błędzie
-      if(idx!==-1) entries[idx].done=!entries[idx].done;
-      renderGrid();
-      alert(t('error_label') + ': ' + translateError(e.message));
-    }).withSuccessHandler(function(res){
-      if(res&&res.error){if(idx!==-1) entries[idx].done=!entries[idx].done;renderGrid();}
-    }).toggleDone(entry.id, currentDriver ? currentDriver.name : '');
+    // Wyślij toggle dla każdego wpisu
+    displayEntries.forEach(function(de){
+      google.script.run.withFailureHandler(function(e){
+        loadWeek(); // Przy błędzie przeładuj
+      }).withSuccessHandler(function(res){
+        if(res&&res.error) loadWeek();
+      }).toggleDone(de.id, currentDriver ? currentDriver.name : '');
+    });
   };
 
-  // Przycisk Usuń — widoczny tylko jeśli kierowca dodał ten wpis
+  // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
   const deleteRow=document.getElementById('veDeleteRow');
-  const isOwner = currentDriver && entry.addedBy && entry.addedBy === currentDriver.name;
+  const isOwner = currentDriver && displayEntries.every(function(de){
+    return de.addedBy && de.addedBy === currentDriver.name;
+  });
   deleteRow.style.display = isOwner ? 'flex' : 'none';
   if(isOwner){
     document.getElementById('veDeleteBtn').onclick=function(){
       const confirmMsg = currentLang === 'DE' ? 'Eintrag löschen?' : (currentLang === 'UA' ? 'Вилучити запис?' : 'Usunąć wpis?');
       if(!confirm(confirmMsg)) return;
       closeViewEntry();
-      // Optymistyczne usunięcie
-      entries=entries.filter(function(en){return en.id!==entry.id;});
+      // Optymistyczne usunięcie wszystkich wpisów w grupie
+      const idsToRemove = displayEntries.map(function(de){return de.id;});
+      entries=entries.filter(function(en){return idsToRemove.indexOf(en.id)===-1;});
       renderGrid();
       toast(t('toast_deleted'));
-      google.script.run.withFailureHandler(function(e){
-        // Przywróć przy błędzie — przeładuj z serwera
-        loadWeek();
-        alert(t('error_label') + ': ' + translateError(e.message));
-      }).withSuccessHandler(function(res){
-        if(res&&res.error){loadWeek();}
-      }).removeOwnEntry(entry.id, currentDriver.name);
+      // Usuń każdy wpis na serwerze
+      idsToRemove.forEach(function(eid){
+        google.script.run.withFailureHandler(function(e){
+          loadWeek();
+        }).withSuccessHandler(function(res){
+          if(res&&res.error) loadWeek();
+        }).removeOwnEntry(eid, currentDriver.name);
+      });
     };
   }
 
