@@ -4002,6 +4002,15 @@ function switchView(v){
   const btn=document.getElementById(btnMap[v]);
   if(btn)btn.className=btn.className+' active';
 
+  // Dynamiczny tytuł strony
+  const titleMap={
+    main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
+    map:'nav_mapa', help:'nav_help', staff:'nav_grafik',
+    grafikEditor:'nav_edytor', timeline:'nav_timeline'
+  };
+  const titleEl=document.querySelector('.app-title');
+  if(titleEl && titleMap[v]) titleEl.textContent=t(titleMap[v]);
+
   // Panel pliku grafiku — widoczny tylko w zakładkach grafiku
   showGrafikFilePanel(v === 'grafikEditor' || v === 'timeline');
 
