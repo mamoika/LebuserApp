@@ -3047,9 +3047,18 @@ function setLanguage(lang) {
   }
 }
 
+// Identyfikatory kontenerów dynamicznych — translateStaticUI pomija je
+// gdy nie mają już klasy 'loader' (tzn. zostały wypełnione przez renderX())
+const DYNAMIC_CONTAINERS = new Set([
+  'clientsListContent','histContent','staffContent',
+  'grafikEditorGrid','tlGridContainer','grid1','grid2'
+]);
+
 function translateStaticUI() {
   // Translate elements with data-t attribute
   document.querySelectorAll('[data-t]').forEach(el => {
+    // Pomiń dynamiczne kontenery — ich tekst jest ustawiany przez render functions przez t()
+    if (DYNAMIC_CONTAINERS.has(el.id)) return;
     const key = el.getAttribute('data-t');
     const trans = t(key);
     if (trans) el.textContent = trans;
@@ -3390,13 +3399,15 @@ function applyAdminState(expires) {
     const adminViews = ['staffView','grafikEditorView','timelineView'];
     if (adminViews.some(id => { const el=document.getElementById(id); return el&&el.style.display==='block'; })) switchView('main');
 
-    // Odśwież widok Klientów jeśli jest otwarty — chowa przyciski admin i przeładowuje listę
-    const cv = document.getElementById('clientsView');
-    if (cv && cv.style.display === 'block') renderClientsList();
   }
 
   applyDriverState();
   translateStaticUI();
+
+  // Odśwież widok Klientów PO translateStaticUI() — inaczej translateStaticUI nadpisuje
+  // zawartość przez data-t="loading" na #clientsListContent
+  const cv = document.getElementById('clientsView');
+  if (cv && cv.style.display === 'block') renderClientsList();
 }
 
 function updateSessionDisplay() {
