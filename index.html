@@ -164,12 +164,12 @@ body{
   gap:7px;
   padding:9px 14px;
   border-radius:var(--radius-md);
-  border:1.5px solid var(--border);
-  background:var(--bg-card);
-  color:var(--text-primary);
+  border:1px solid var(--border-strong);
+  background:var(--bg-card-solid);
+  color:var(--text-secondary);
   font-family:var(--font);
-  font-size:12.5px;
-  font-weight:600;
+  font-size:13px;
+  font-weight:700;
   cursor:pointer;
   transition:all 0.15s;
   white-space:nowrap;
@@ -177,7 +177,12 @@ body{
   flex-shrink:0;
 }
 .driver-btn:hover { background:var(--bg-secondary); }
-.driver-btn[style*="display: none"] { display: none !important; }
+.driver-btn.driver-active {
+  background:rgba(18,102,214,0.08);
+  border-color:rgba(18,102,214,0.3);
+  color:var(--accent);
+}
+.driver-btn.driver-active:hover { background:rgba(18,102,214,0.13); }
 
 /* ── ADMIN BUTTON ── */
 .admin-btn {
@@ -1962,45 +1967,70 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   font-size:11px;font-weight:800;white-space:nowrap}
 
 /* Nowoczesny wybór kierowcy */
+/* Siatka kart kierowców */
+.driver-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+@media (max-width: 400px) { .driver-cards-grid { grid-template-columns: 1fr; } }
+
 .driver-card {
   background: var(--bg-card-solid);
   border: 1.5px solid var(--border);
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-  width: 100%;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   text-align: left;
 }
 .driver-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.1);
   border-color: var(--accent);
 }
-.driver-card:active {
-  transform: translateY(0);
-}
-.driver-card .d-icon {
-  width: 44px; height: 44px;
-  border-radius: 50%;
+.driver-card:active { transform: scale(0.97); }
+.driver-card.selected {
+  border-color: var(--accent);
   background: var(--accent-light);
-  color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(18,102,214,0.15);
+}
+.driver-card .d-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; flex-shrink: 0;
+  font-size: 15px; font-weight: 800;
+  color: #fff; flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+.driver-card .d-check {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .driver-card .d-info {
   display: flex; flex-direction: column; flex: 1; overflow: hidden;
+  min-width: 0;
 }
 .driver-card .d-name {
-  font-weight: 700; font-size: 15px; color: var(--text-primary);
+  font-weight: 700; font-size: 14px; color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .driver-card .d-routes {
-  font-size: 12px; color: var(--text-tertiary); margin-top: 3px;
+  font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -2042,7 +2072,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
       <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
       <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
     </div>
-    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()" style="display:none">👤 Zmień kierowcę</button>
+    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
     <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
   </div>
 </div>
@@ -2239,15 +2269,17 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 
 <!-- Driver Select -->
 <div class="overlay" id="driverSelectModal">
-  <div class="modal" style="display:flex;flex-direction:column;align-items:center;">
-    <div style="margin-bottom:16px;">
-      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="modal-logo" style="margin:0 auto;display:block;">
-      <h3 style="margin-top:10px;text-align:center;margin-bottom:4px;" data-t="driver_select_title">Kim jesteś?</h3>
-      <p style="text-align:center;color:var(--text-secondary);font-size:13px;margin:0;" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</p>
+  <div class="modal" style="max-width:500px">
+    <div class="modal-handle"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px">
+      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="modal-logo" style="margin:0 auto;display:block;margin-bottom:10px">
+      <h3 style="text-align:center;margin-bottom:4px" data-t="driver_select_title">Kim jesteś?</h3>
+      <p style="text-align:center;color:var(--text-secondary);font-size:13px;margin:0" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</p>
     </div>
-    <div id="driverButtonsContainer" style="display:flex;flex-direction:column;gap:8px;width:100%;">
-      <!-- Buttons injected here -->
-    </div>
+    <!-- Siatka kart kierowców -->
+    <div id="driverButtonsContainer" class="driver-cards-grid"></div>
+    <!-- Akcje na dole -->
+    <div id="driverSelectActions" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </div>
 
@@ -2532,6 +2564,7 @@ const TRANSLATIONS = {
     admin_banner: "Tryb administratora aktywny",
     driver_select_title: "Kim jesteś?",
     driver_select_desc: "Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.",
+    btn_select_driver: "Wybierz kierowcę",
     driver_btn_out: "Zmień kierowcę",
     nav_harmonogram: "Harmonogram",
     nav_historia: "Historia",
@@ -2684,6 +2717,7 @@ const TRANSLATIONS = {
     admin_banner: "Administrator-Modus aktiv",
     driver_select_title: "Wer bist du?",
     driver_select_desc: "Bitte wähle deinen Namen aus der Liste.",
+    btn_select_driver: "Fahrer wählen",
     driver_btn_out: "Fahrer wechseln",
     nav_harmonogram: "Zeitplan",
     nav_historia: "Verlauf",
@@ -2835,6 +2869,7 @@ const TRANSLATIONS = {
     admin_banner: "Режим адміністратора активний",
     driver_select_title: "Хто ви?",
     driver_select_desc: "Оберіть своє ім'я зі списку нижче.",
+    btn_select_driver: "Обрати водія",
     driver_btn_out: "Змінити водія",
     nav_harmonogram: "Розклад",
     nav_historia: "Історія",
@@ -3174,49 +3209,67 @@ function getAdminToken() {
   return '';
 }
 
+// Kolory awatarów kierowców (deterministyczne na podstawie ID)
+const DRIVER_AVATAR_COLORS = ['#1266D6','#138A43','#D97706','#8E44AD','#D9342B','#0E7490','#4F46E5','#BE185D','#0F766E','#B45309'];
+function driverAvatarColor(id) {
+  let h = 0;
+  for (let i = 0; i < (id||'').length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return DRIVER_AVATAR_COLORS[h % DRIVER_AVATAR_COLORS.length];
+}
+function driverInitials(name) {
+  return (name||'').split(/\s+/).map(n=>n[0]||'').slice(0,2).join('').toUpperCase() || '?';
+}
+
 function openDriverSelect() {
   const container = document.getElementById('driverButtonsContainer');
+  const actions   = document.getElementById('driverSelectActions');
   container.innerHTML = '';
-  
+  actions.innerHTML   = '';
+
   if (!drivers || drivers.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-secondary);font-size:14px;">Brak kierowców w bazie.</div>';
+    container.style.display = 'block';
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-secondary);font-size:14px">' +
+      (currentLang === 'DE' ? 'Keine Fahrer in der Datenbank.' : (currentLang === 'UA' ? 'Немає водіїв у базі.' : 'Brak kierowców w bazie.')) + '</div>';
   } else {
-    drivers.forEach(d => {
+    container.style.display = '';
+    drivers.forEach(function(d) {
+      const isSelected = currentDriver && currentDriver.id === d.id;
       const card = document.createElement('div');
-      card.className = 'driver-card';
-      const routeNames = (d.routes && d.routes.length > 0) ? d.routes.map(r => getRouteName(r)).join(', ') : 'Brak przypisanych tras';
-      card.innerHTML = '<div class="d-icon">🚐</div>' +
-                       '<div class="d-info">' +
-                         '<div class="d-name">' + esc(d.name) + '</div>' +
-                         '<div class="d-routes">' + esc(routeNames) + '</div>' +
-                       '</div>';
+      card.className = 'driver-card' + (isSelected ? ' selected' : '');
+      const color = driverAvatarColor(d.id);
+      const initials = driverInitials(d.name);
+      const routeNames = (d.routes && d.routes.length > 0)
+        ? d.routes.map(function(r){ return getRouteName(r); }).join(', ')
+        : (currentLang === 'DE' ? 'Keine Routen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak tras'));
+      card.innerHTML =
+        '<div class="d-avatar" style="background:' + color + '">' + esc(initials) + '</div>' +
+        '<div class="d-info">' +
+          '<div class="d-name">' + esc(d.name) + '</div>' +
+          '<div class="d-routes">' + esc(routeNames) + '</div>' +
+        '</div>' +
+        (isSelected ? '<div class="d-check">✓</div>' : '');
       card.onclick = function() { selectDriver(d.id); };
       container.appendChild(card);
     });
   }
-  
+
+  // Przycisk wylogowania kierowcy (jeśli jest zalogowany)
   if (currentDriver) {
     const logoutBtn = document.createElement('button');
-    logoutBtn.className = 'btn-secondary'; // Zwykły wygląd przycisku
-    logoutBtn.style.width = '100%';
-    logoutBtn.style.marginTop = '16px';
-    logoutBtn.style.background = 'var(--bg-secondary)';
-    logoutBtn.style.border = '1px solid var(--border)';
-    logoutBtn.style.padding = '10px';
-    logoutBtn.style.borderRadius = '8px';
-    logoutBtn.style.color = 'var(--text-secondary)';
-    logoutBtn.style.fontWeight = '600';
-    logoutBtn.textContent = '🔓 Wyloguj kierowcę';
+    logoutBtn.style.cssText = 'width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s';
+    logoutBtn.innerHTML = '🔓 ' + (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Вийти з облікового запису водія' : 'Wyloguj kierowcę'));
+    logoutBtn.onmouseover = function(){ this.style.background='var(--accent-red-light)'; this.style.color='var(--accent-red)'; this.style.borderColor='rgba(217,52,43,0.3)'; };
+    logoutBtn.onmouseout  = function(){ this.style.background='var(--bg-secondary)'; this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'; };
     logoutBtn.onclick = function() { selectDriver(null); };
-    container.appendChild(logoutBtn);
+    actions.appendChild(logoutBtn);
   }
-  
+
+  // Przycisk Anuluj
   const cancelBtn = document.createElement('button');
+  cancelBtn.style.cssText = 'width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card-solid);color:var(--text-tertiary);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer';
   cancelBtn.textContent = currentLang === 'DE' ? 'Abbrechen' : (currentLang === 'UA' ? 'Скасувати' : 'Anuluj');
-  cancelBtn.style.width = '100%';
-  cancelBtn.style.marginTop = '8px';
   cancelBtn.onclick = function() { document.getElementById('driverSelectModal').style.display = 'none'; };
-  container.appendChild(cancelBtn);
+  actions.appendChild(cancelBtn);
 
   document.getElementById('driverSelectModal').style.display = 'flex';
 }
@@ -3239,17 +3292,19 @@ function selectDriver(id) {
 }
 
 function applyDriverState() {
-  const btn = document.getElementById('driverToggleBtn');
-  if (isAdmin) {
-    btn.style.display = 'none';
-    return;
-  }
-  
+  const btn   = document.getElementById('driverToggleBtn');
+  const label = document.getElementById('driverBtnLabel');
+
+  // Przycisk zawsze widoczny — niezależnie od trybu admin
   btn.style.display = 'flex';
+
   if (currentDriver) {
-    btn.textContent = '👤 ' + currentDriver.name;
+    label.textContent = currentDriver.name;
+    btn.classList.add('driver-active');
   } else {
-    btn.textContent = currentLang === 'DE' ? '👤 Fahrer wählen' : (currentLang === 'UA' ? '👤 Обрати водія' : '👤 Wybierz kierowcę');
+    label.setAttribute('data-t', 'btn_select_driver');
+    label.textContent = currentLang === 'DE' ? 'Fahrer wählen' : (currentLang === 'UA' ? 'Обрати водія' : 'Wybierz kierowcę');
+    btn.classList.remove('driver-active');
   }
 }
 
