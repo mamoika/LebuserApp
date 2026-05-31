@@ -3217,7 +3217,12 @@ function selectDriver(id) {
     currentDriver = null;
     localStorage.removeItem('currentDriver');
   } else {
-    currentDriver = drivers.find(d => d.id === id);
+    const found = drivers.find(d => d.id === id);
+    if (!found) {
+      toast('Nie znaleziono kierowcy');
+      return;
+    }
+    currentDriver = found;
     localStorage.setItem('currentDriver', JSON.stringify(currentDriver));
   }
   document.getElementById('driverSelectModal').style.display = 'none';
@@ -3384,8 +3389,12 @@ function applyAdminState(expires) {
     if (sessionTimerInterval) { clearInterval(sessionTimerInterval); sessionTimerInterval = null; }
     const adminViews = ['staffView','grafikEditorView','timelineView'];
     if (adminViews.some(id => { const el=document.getElementById(id); return el&&el.style.display==='block'; })) switchView('main');
+
+    // Odśwież widok Klientów jeśli jest otwarty — chowa przyciski admin i przeładowuje listę
+    const cv = document.getElementById('clientsView');
+    if (cv && cv.style.display === 'block') renderClientsList();
   }
-  
+
   applyDriverState();
   translateStaticUI();
 }
@@ -3627,7 +3636,15 @@ function openAdd(dayIdx,offset){
   pendingTargetOffset=offset;
   let optionsHTML='';
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
-  routeIds.forEach(rId=>{const rc=clients.filter(c=>c.route===rId);if(rc.length>0){optionsHTML+='<optgroup label="'+esc(getRouteName(rId))+'">';rc.forEach(c=>{optionsHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});optionsHTML+='</optgroup>';}});
+  // Kierowca widzi tylko klientów ze swoich przypisanych tras
+  const allowedRoutes = (!isAdmin && currentDriver && currentDriver.routes && currentDriver.routes.length > 0)
+    ? currentDriver.routes
+    : null; // null = bez ograniczeń (admin lub niezdefiniowane trasy)
+  routeIds.forEach(rId=>{
+    if(allowedRoutes && !allowedRoutes.includes(rId)) return; // pomiń trasy poza uprawnieniami
+    const rc=clients.filter(c=>c.route===rId);
+    if(rc.length>0){optionsHTML+='<optgroup label="'+esc(getRouteName(rId))+'">';rc.forEach(c=>{optionsHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});optionsHTML+='</optgroup>';}
+  });
   document.getElementById('mClient').innerHTML=optionsHTML;
   if(!optionsHTML){toast(t('toast_add_client_first'));return;}
   document.getElementById('mArrDay').value=dayIdx;document.getElementById('mWeight').value='';
@@ -4521,9 +4538,16 @@ google.script.run
   .withSuccessHandler(function(data){
     clients=data.clients||[];
     drivers=data.drivers||[];
+    // Wczytaj kierowcę z localStorage i zwaliduj czy nadal istnieje w bazie
     try {
-      currentDriver = JSON.parse(localStorage.getItem('currentDriver'));
-    } catch(e) { currentDriver = null; }
+      const stored = JSON.parse(localStorage.getItem('currentDriver'));
+      if (stored && stored.id) {
+        currentDriver = drivers.find(function(d){ return d.id === stored.id; }) || null;
+        if (!currentDriver) localStorage.removeItem('currentDriver'); // usunięty kierowca
+      } else {
+        currentDriver = null;
+      }
+    } catch(e) { currentDriver = null; localStorage.removeItem('currentDriver'); }
     
     const rts=data.routes||[];
     routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
