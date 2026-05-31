@@ -1553,6 +1553,275 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 .col:nth-child(5){animation-delay:120ms}
 .hw,.staff-card{animation:fadeUp 0.2s ease both}
 
+/* ══════════════════════════════════════════════
+   APPLE 2026 MODAL SYSTEM
+══════════════════════════════════════════════ */
+
+/* Overlay z frosted glass */
+.ap-overlay {
+  position:fixed;inset:0;
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:9999;
+  background:rgba(0,0,0,0.38);
+  backdrop-filter:blur(28px) saturate(180%);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);
+}
+@media(min-width:600px){.ap-overlay{align-items:center}}
+
+/* Sheet (bottom drawer on mobile, centered card on tablet+) */
+.ap-sheet {
+  background:rgba(252,252,252,0.94);
+  backdrop-filter:blur(50px) saturate(200%);
+  -webkit-backdrop-filter:blur(50px) saturate(200%);
+  border:0.5px solid rgba(255,255,255,0.75);
+  border-radius:28px 28px 0 0;
+  width:100%;
+  max-width:460px;
+  max-height:92vh;
+  overflow:hidden;
+  box-shadow:0 -1px 0 0.5px rgba(0,0,0,0.06), 0 -24px 52px rgba(0,0,0,0.18);
+  animation:ap-sheet-up 0.42s cubic-bezier(0.32,0.72,0,1) both;
+}
+@media(min-width:600px){
+  .ap-sheet{
+    border-radius:28px;
+    box-shadow:0 24px 64px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(0,0,0,0.08);
+    animation:ap-sheet-in 0.38s cubic-bezier(0.32,0.72,0,1) both;
+  }
+}
+@media(prefers-color-scheme:dark){
+  .ap-sheet{
+    background:rgba(28,28,30,0.92);
+    border-color:rgba(255,255,255,0.1);
+    box-shadow:0 24px 64px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.07);
+  }
+}
+
+@keyframes ap-sheet-up {
+  from{transform:translateY(110%);opacity:0}
+  to  {transform:translateY(0);   opacity:1}
+}
+@keyframes ap-sheet-in {
+  from{transform:scale(0.92) translateY(12px);opacity:0}
+  to  {transform:scale(1)    translateY(0);   opacity:1}
+}
+
+/* Scrollable content area */
+.ap-content {
+  padding:20px 24px 36px;
+  overflow-y:auto;
+  max-height:calc(92vh - 20px);
+  -webkit-overflow-scrolling:touch;
+}
+@media(min-width:600px){
+  .ap-content{padding:28px 28px 28px;max-height:78vh}
+}
+
+/* Handle indicator */
+.ap-handle {
+  width:36px;height:5px;
+  background:rgba(0,0,0,0.18);
+  border-radius:3px;
+  margin:12px auto 0;
+  display:block;
+  flex-shrink:0;
+}
+@media(min-width:600px){.ap-handle{display:none}}
+@media(prefers-color-scheme:dark){.ap-handle{background:rgba(255,255,255,0.22)}}
+
+/* Icon badge */
+.ap-icon {
+  width:66px;height:66px;
+  border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;
+  margin:4px auto 16px;
+  flex-shrink:0;
+}
+.ap-icon.ap-blue   {background:rgba(0,113,227,0.1)}
+.ap-icon.ap-red    {background:rgba(255,59,48,0.1)}
+.ap-icon.ap-green  {background:rgba(52,199,89,0.1)}
+.ap-icon.ap-orange {background:rgba(255,149,0,0.1)}
+@media(prefers-color-scheme:dark){
+  .ap-icon.ap-blue   {background:rgba(10,132,255,0.15)}
+  .ap-icon.ap-red    {background:rgba(255,69,58,0.15)}
+  .ap-icon.ap-green  {background:rgba(48,209,88,0.15)}
+  .ap-icon.ap-orange {background:rgba(255,159,10,0.15)}
+}
+
+/* Typography */
+.ap-title {
+  text-align:center;font-size:21px;font-weight:700;
+  color:var(--text-primary);letter-spacing:-0.4px;
+  margin-bottom:6px;line-height:1.2;
+}
+.ap-subtitle {
+  text-align:center;font-size:14px;color:var(--text-secondary);
+  line-height:1.45;margin-bottom:22px;
+}
+.ap-info-row {
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;
+  background:rgba(0,0,0,0.04);
+  border-radius:14px;
+  margin-bottom:16px;
+  font-size:14px;
+}
+.ap-info-label{color:var(--text-secondary)}
+.ap-info-val  {font-weight:600;color:var(--text-primary)}
+@media(prefers-color-scheme:dark){
+  .ap-info-row{background:rgba(255,255,255,0.07)}
+}
+
+/* Input */
+.ap-input {
+  width:100%;
+  padding:14px 16px;
+  font-size:16px;
+  font-family:var(--font);
+  border-radius:14px;
+  border:1.5px solid rgba(0,0,0,0.1);
+  background:rgba(0,0,0,0.04);
+  color:var(--text-primary);
+  outline:none;
+  transition:border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  -webkit-appearance:none;
+  margin-bottom:6px;
+  display:block;
+}
+.ap-input:focus {
+  border-color:#0071E3;
+  box-shadow:0 0 0 4px rgba(0,113,227,0.14);
+  background:rgba(255,255,255,0.85);
+}
+@media(prefers-color-scheme:dark){
+  .ap-input{border-color:rgba(255,255,255,0.12);background:rgba(255,255,255,0.07)}
+  .ap-input:focus{border-color:#0A84FF;box-shadow:0 0 0 4px rgba(10,132,255,0.2);background:rgba(255,255,255,0.1)}
+}
+
+/* Error */
+.ap-error {
+  font-size:13px;color:#FF3B30;text-align:center;
+  min-height:18px;font-weight:500;margin-bottom:6px;
+  transition:opacity 0.2s;
+}
+
+/* Separator */
+.ap-sep{height:0.5px;background:rgba(0,0,0,0.1);margin:14px 0}
+@media(prefers-color-scheme:dark){.ap-sep{background:rgba(255,255,255,0.1)}}
+
+/* Button group */
+.ap-btn-group {display:flex;flex-direction:column;gap:8px;margin-top:14px}
+
+/* Buttons */
+.ap-btn {
+  width:100%;padding:14px 16px;
+  border-radius:14px;border:none;
+  font-family:var(--font);font-size:16px;font-weight:600;
+  cursor:pointer;
+  transition:transform 0.16s cubic-bezier(0.34,1.56,0.64,1), background 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color:transparent;
+  letter-spacing:-0.1px;
+}
+.ap-btn:active{transform:scale(0.96)!important}
+
+.ap-btn-primary {
+  background:#0071E3;color:#fff;
+  box-shadow:0 2px 12px rgba(0,113,227,0.28);
+}
+.ap-btn-primary:hover{background:#006CDA;transform:translateY(-1px)}
+@media(prefers-color-scheme:dark){
+  .ap-btn-primary{background:#0A84FF;box-shadow:0 2px 12px rgba(10,132,255,0.35)}
+  .ap-btn-primary:hover{background:#1A8FFF}
+}
+
+.ap-btn-secondary {
+  background:rgba(0,0,0,0.06);color:var(--text-primary);
+}
+.ap-btn-secondary:hover{background:rgba(0,0,0,0.09)}
+@media(prefers-color-scheme:dark){
+  .ap-btn-secondary{background:rgba(255,255,255,0.1)}
+  .ap-btn-secondary:hover{background:rgba(255,255,255,0.14)}
+}
+
+.ap-btn-danger {
+  background:rgba(255,59,48,0.09);color:#FF3B30;
+}
+.ap-btn-danger:hover{background:rgba(255,59,48,0.15)}
+@media(prefers-color-scheme:dark){
+  .ap-btn-danger{background:rgba(255,69,58,0.14);color:#FF453A}
+  .ap-btn-danger:hover{background:rgba(255,69,58,0.2)}
+}
+
+/* Driver grid */
+.ap-driver-grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  margin-bottom:4px;
+  max-height:48vh;
+  overflow-y:auto;
+  padding:1px 1px 2px;
+}
+@media(max-width:340px){.ap-driver-grid{grid-template-columns:1fr}}
+
+.ap-driver-card {
+  background:rgba(0,0,0,0.04);
+  border:1.5px solid transparent;
+  border-radius:18px;
+  padding:14px 10px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:8px;cursor:pointer;text-align:center;
+  transition:all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  position:relative;
+  -webkit-tap-highlight-color:transparent;
+}
+.ap-driver-card:hover{
+  background:rgba(0,113,227,0.07);
+  border-color:rgba(0,113,227,0.22);
+  transform:translateY(-2px) scale(1.02);
+  box-shadow:0 6px 18px rgba(0,113,227,0.12);
+}
+.ap-driver-card:active{transform:scale(0.95)}
+.ap-driver-card.ap-selected{
+  background:rgba(0,113,227,0.1);
+  border-color:#0071E3;
+  box-shadow:0 0 0 3px rgba(0,113,227,0.12);
+}
+@media(prefers-color-scheme:dark){
+  .ap-driver-card{background:rgba(255,255,255,0.07)}
+  .ap-driver-card:hover{background:rgba(10,132,255,0.12);border-color:rgba(10,132,255,0.35)}
+  .ap-driver-card.ap-selected{background:rgba(10,132,255,0.16);border-color:#0A84FF}
+}
+
+.ap-driver-avatar {
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;color:#fff;
+  letter-spacing:-0.5px;flex-shrink:0;
+}
+.ap-driver-name {
+  font-weight:600;font-size:13px;color:var(--text-primary);
+  line-height:1.2;
+  word-break:break-word;
+}
+.ap-driver-routes {
+  font-size:10.5px;color:var(--text-tertiary);line-height:1.2;
+}
+.ap-check-badge {
+  position:absolute;top:8px;right:8px;
+  width:18px;height:18px;border-radius:50%;
+  background:#0071E3;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;
+  box-shadow:0 1px 4px rgba(0,113,227,0.4);
+}
+@media(prefers-color-scheme:dark){
+  .ap-check-badge{background:#0A84FF}
+}
+
 /* ── SCROLLBAR ── */
 *::-webkit-scrollbar{width:5px;height:5px}
 *::-webkit-scrollbar-track{background:transparent}
@@ -2268,52 +2537,58 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 </div>
 
 <!-- Driver Select -->
-<div class="overlay" id="driverSelectModal">
-  <div class="modal" style="max-width:500px">
-    <div class="modal-handle"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px">
-      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="modal-logo" style="margin:0 auto;display:block;margin-bottom:10px">
-      <h3 style="text-align:center;margin-bottom:4px" data-t="driver_select_title">Kim jesteś?</h3>
-      <p style="text-align:center;color:var(--text-secondary);font-size:13px;margin:0" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</p>
-    </div>
-    <!-- Siatka kart kierowców -->
-    <div id="driverButtonsContainer" class="driver-cards-grid"></div>
-    <!-- Akcje na dole -->
-    <div id="driverSelectActions" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
-  </div>
-</div>
-
-<!-- Admin Login -->
-<div class="overlay" id="adminLoginModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:12px">
-      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="modal-logo">
-      <h3 style="margin-top:10px;margin-bottom:0" data-t="login_title">🔐 Logowanie administratora</h3>
-    </div>
-    <label data-t="login_pass">Hasło administratora</label>
-    <input type="password" id="adminPasswordInput" placeholder="Wpisz hasło…"
-      data-t-placeholder="placeholder_write_pass"
-      onkeydown="if(event.key==='Enter')doAdminLogin()">
-    <div class="login-error" id="adminLoginError"></div>
-    <div class="modal-btns" style="margin-top:16px">
-      <button onclick="closeAdminLogin()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="doAdminLogin()" data-t="login_btn">Zaloguj</button>
+<!-- ── DRIVER SELECT (Apple 2026) ── -->
+<div class="ap-overlay" id="driverSelectModal">
+  <div class="ap-sheet" style="max-width:500px">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_"
+           alt="Logo LEBUSER" class="modal-logo"
+           style="display:block;margin:0 auto 14px;opacity:0.9">
+      <div class="ap-title" data-t="driver_select_title">Kim jesteś?</div>
+      <div class="ap-subtitle" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+      <div id="driverButtonsContainer" class="ap-driver-grid"></div>
+      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:16px"></div>
     </div>
   </div>
 </div>
 
-<!-- Admin Logout Confirm -->
-<div class="overlay" id="adminLogoutModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="admin_mode_title">🔓 Tryb administratora</h3>
-    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">
-      <span data-t="admin_session_active">Sesja aktywna. Czas pozostały: </span><b id="logoutSessionTime"></b>
-    </p>
-    <div class="modal-btns" style="margin-top:20px">
-      <button onclick="closeAdminLogout()" data-t="admin_stay">Zostań</button>
-      <button class="danger" onclick="doAdminLogout()" data-t="btn_logout">Wyloguj</button>
+<!-- ── ADMIN LOGIN (Apple 2026) ── -->
+<div class="ap-overlay" id="adminLoginModal">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div class="ap-icon ap-blue">🔐</div>
+      <div class="ap-title" data-t="login_title">Logowanie administratora</div>
+      <div class="ap-subtitle" data-t="login_desc_ap">Wpisz hasło, aby uzyskać pełny dostęp do systemu.</div>
+      <input type="password" class="ap-input" id="adminPasswordInput"
+        placeholder="Hasło administratora"
+        data-t-placeholder="placeholder_write_pass"
+        onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <div class="ap-error" id="adminLoginError"></div>
+      <div class="ap-btn-group">
+        <button class="ap-btn ap-btn-primary" onclick="doAdminLogin()" data-t="login_btn">Zaloguj</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogin()" data-t="btn_cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN LOGOUT (Apple 2026) ── -->
+<div class="ap-overlay" id="adminLogoutModal">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div class="ap-icon ap-green">🔓</div>
+      <div class="ap-title" data-t="admin_mode_title">Tryb administratora</div>
+      <div class="ap-info-row">
+        <span class="ap-info-label" data-t="admin_session_active">Sesja aktywna. Czas pozostały:</span>
+        <span class="ap-info-val" id="logoutSessionTime">—</span>
+      </div>
+      <div class="ap-btn-group">
+        <button class="ap-btn ap-btn-danger" onclick="doAdminLogout()" data-t="btn_logout">Wyloguj z trybu admina</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogout()" data-t="admin_stay">Zostań zalogowany</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2566,6 +2841,7 @@ const TRANSLATIONS = {
     driver_select_desc: "Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.",
     btn_select_driver: "Wybierz kierowcę",
     driver_btn_out: "Zmień kierowcę",
+    login_desc_ap: "Wpisz hasło, aby uzyskać pełny dostęp do systemu.",
     nav_harmonogram: "Harmonogram",
     nav_historia: "Historia",
     nav_klienci: "Klienci i Trasy",
@@ -2719,6 +2995,7 @@ const TRANSLATIONS = {
     driver_select_desc: "Bitte wähle deinen Namen aus der Liste.",
     btn_select_driver: "Fahrer wählen",
     driver_btn_out: "Fahrer wechseln",
+    login_desc_ap: "Passwort eingeben für vollen Systemzugriff.",
     nav_harmonogram: "Zeitplan",
     nav_historia: "Verlauf",
     nav_klienci: "Kunden & Routen",
@@ -2871,6 +3148,7 @@ const TRANSLATIONS = {
     driver_select_desc: "Оберіть своє ім'я зі списку нижче.",
     btn_select_driver: "Обрати водія",
     driver_btn_out: "Змінити водія",
+    login_desc_ap: "Введіть пароль для повного доступу до системи.",
     nav_harmonogram: "Розклад",
     nav_historia: "Історія",
     nav_klienci: "Клієнти та маршрути",
@@ -3227,46 +3505,40 @@ function openDriverSelect() {
   actions.innerHTML   = '';
 
   if (!drivers || drivers.length === 0) {
-    container.style.display = 'block';
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-secondary);font-size:14px">' +
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 16px;color:var(--text-secondary);font-size:14px;font-weight:500">' +
       (currentLang === 'DE' ? 'Keine Fahrer in der Datenbank.' : (currentLang === 'UA' ? 'Немає водіїв у базі.' : 'Brak kierowców w bazie.')) + '</div>';
   } else {
-    container.style.display = '';
     drivers.forEach(function(d) {
       const isSelected = currentDriver && currentDriver.id === d.id;
       const card = document.createElement('div');
-      card.className = 'driver-card' + (isSelected ? ' selected' : '');
+      card.className = 'ap-driver-card' + (isSelected ? ' ap-selected' : '');
       const color = driverAvatarColor(d.id);
       const initials = driverInitials(d.name);
       const routeNames = (d.routes && d.routes.length > 0)
         ? d.routes.map(function(r){ return getRouteName(r); }).join(', ')
         : (currentLang === 'DE' ? 'Keine Routen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak tras'));
       card.innerHTML =
-        '<div class="d-avatar" style="background:' + color + '">' + esc(initials) + '</div>' +
-        '<div class="d-info">' +
-          '<div class="d-name">' + esc(d.name) + '</div>' +
-          '<div class="d-routes">' + esc(routeNames) + '</div>' +
-        '</div>' +
-        (isSelected ? '<div class="d-check">✓</div>' : '');
+        '<div class="ap-driver-avatar" style="background:' + color + '">' + esc(initials) + '</div>' +
+        '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
+        '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
+        (isSelected ? '<div class="ap-check-badge">✓</div>' : '');
       card.onclick = function() { selectDriver(d.id); };
       container.appendChild(card);
     });
   }
 
-  // Przycisk wylogowania kierowcy (jeśli jest zalogowany)
+  // Wyloguj kierowcę (jeśli jest zalogowany)
   if (currentDriver) {
     const logoutBtn = document.createElement('button');
-    logoutBtn.style.cssText = 'width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s';
-    logoutBtn.innerHTML = '🔓 ' + (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Вийти з облікового запису водія' : 'Wyloguj kierowcę'));
-    logoutBtn.onmouseover = function(){ this.style.background='var(--accent-red-light)'; this.style.color='var(--accent-red)'; this.style.borderColor='rgba(217,52,43,0.3)'; };
-    logoutBtn.onmouseout  = function(){ this.style.background='var(--bg-secondary)'; this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'; };
+    logoutBtn.className = 'ap-btn ap-btn-danger';
+    logoutBtn.innerHTML = '🔓 ' + (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Вийти як водій' : 'Wyloguj kierowcę'));
     logoutBtn.onclick = function() { selectDriver(null); };
     actions.appendChild(logoutBtn);
   }
 
-  // Przycisk Anuluj
+  // Anuluj
   const cancelBtn = document.createElement('button');
-  cancelBtn.style.cssText = 'width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card-solid);color:var(--text-tertiary);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer';
+  cancelBtn.className = 'ap-btn ap-btn-secondary';
   cancelBtn.textContent = currentLang === 'DE' ? 'Abbrechen' : (currentLang === 'UA' ? 'Скасувати' : 'Anuluj');
   cancelBtn.onclick = function() { document.getElementById('driverSelectModal').style.display = 'none'; };
   actions.appendChild(cancelBtn);
