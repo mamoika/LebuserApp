@@ -90,11 +90,23 @@ body{
 /* ── HEADER ── */
 .app-header {
   display:flex;
+  flex-direction:row;
   align-items:center;
   justify-content:space-between;
   gap:16px;
   margin-bottom:14px;
   padding:2px 2px 0;
+  flex-wrap:wrap;
+}
+.app-header-top {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.app-header-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
 }
 .app-title {
   font-size:26px;
@@ -1311,17 +1323,28 @@ html.phone-layout body{
 }
 html.phone-layout .app-header{
   margin-bottom:12px;
-  flex-direction:column;
-  align-items:stretch;
   gap:10px;
 }
-html.phone-layout .app-header > div:first-child {
-  flex-direction:column !important;
-  align-items:flex-start !important;
-  gap:4px !important;
+html.phone-layout .app-header-top {
+  gap:10px;
 }
-html.phone-layout .app-header > div:last-child {
-  justify-content:space-between;
+html.phone-layout .app-header-actions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  width:100%;
+}
+html.phone-layout .app-header-actions .lang-selector {
+  grid-column:1 / -1;
+  justify-self:center;
+  margin-left:0;
+}
+html.phone-layout .app-header-actions .driver-btn,
+html.phone-layout .app-header-actions .admin-btn {
+  width:100%;
+  justify-content:center;
+  padding:12px 10px;
+  font-size:13px;
 }
 html.phone-layout .app-title{
   font-size:22px;
@@ -1481,17 +1504,25 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   body{padding:12px 10px 28px; overflow-x: hidden;}
   .app-header{
     margin-bottom:12px;
-    flex-direction:column;
-    align-items:stretch;
     gap:10px;
   }
-  .app-header > div:first-child {
-    flex-direction:column !important;
-    align-items:flex-start !important;
-    gap:4px !important;
+  .app-header-actions {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    width:100%;
   }
-  .app-header > div:last-child {
-    justify-content:space-between;
+  .app-header-actions .lang-selector {
+    grid-column:1 / -1;
+    justify-self:center;
+    margin-left:0;
+  }
+  .app-header-actions .driver-btn,
+  .app-header-actions .admin-btn {
+    width:100%;
+    justify-content:center;
+    padding:12px 10px;
+    font-size:13px;
   }
   .app-title{font-size:22px;line-height:1.1;margin-top:4px}
   .app-subtitle{font-size:10px;line-height:1.2;color:var(--text-quaternary);margin-top:1px}
@@ -1681,8 +1712,16 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   box-shadow:0 0 0 0.5px rgba(0,0,0,0.08);
   transition:box-shadow 0.2s;
   -webkit-appearance:none;
+  appearance:none;
   margin-bottom:8px;
   display:block;
+}
+select.ap-input {
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  padding-right:36px;
+  cursor:pointer;
 }
 .ap-input:focus{box-shadow:0 0 0 3px #007AFF, 0 0 0 0.5px rgba(0,0,0,0.04)}
 @media(prefers-color-scheme:dark){
@@ -1726,68 +1765,152 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 
 /* ── Driver grid — white cards on gray sheet background ── */
 .ap-driver-grid {
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
+  display:flex;
+  flex-direction:column;
+  gap:0;
   margin-bottom:4px;
-  max-height:46vh;
+  max-height:52vh;
   overflow-y:auto;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);
+  overflow:hidden;
 }
-@media(max-width:340px){.ap-driver-grid{grid-template-columns:1fr}}
+@media(prefers-color-scheme:dark){.ap-driver-grid{background:#2C2C2E}}
+
+.ap-driver-search {
+  position:sticky;
+  top:0;
+  z-index:2;
+  padding:12px 14px;
+  background:#fff;
+  border-bottom:0.5px solid rgba(60,60,67,0.1);
+}
+@media(prefers-color-scheme:dark){
+  .ap-driver-search{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.08)}
+}
+.ap-driver-search input {
+  width:100%;
+  padding:10px 14px 10px 36px;
+  border-radius:12px;
+  border:none;
+  background:rgba(118,118,128,0.12);
+  color:#000;
+  font-size:15px;
+  font-family:inherit;
+  outline:none;
+  -webkit-appearance:none;
+  transition:background 0.15s;
+}
+.ap-driver-search input::placeholder{color:rgba(60,60,67,0.4)}
+.ap-driver-search input:focus{background:rgba(118,118,128,0.18)}
+@media(prefers-color-scheme:dark){
+  .ap-driver-search input{background:rgba(118,118,128,0.24);color:#fff}
+  .ap-driver-search input::placeholder{color:rgba(235,235,245,0.4)}
+}
+.ap-search-icon {
+  position:absolute;
+  left:26px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:15px;
+  color:rgba(60,60,67,0.4);
+  pointer-events:none;
+}
+@media(prefers-color-scheme:dark){.ap-search-icon{color:rgba(235,235,245,0.4)}}
 
 .ap-driver-card {
   background:#fff;
   border:none;
-  border-radius:20px;
-  padding:18px 12px 16px;
-  display:flex;flex-direction:column;align-items:center;
-  gap:9px;cursor:pointer;text-align:center;
-  box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
-  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s, outline 0.15s;
+  border-radius:0;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:14px;
+  cursor:pointer;
+  text-align:left;
+  transition:background 0.12s ease;
   position:relative;
   -webkit-tap-highlight-color:transparent;
-  outline:2.5px solid transparent;
-  outline-offset:0;
+  border-bottom:0.5px solid rgba(60,60,67,0.08);
 }
+.ap-driver-card:last-child{border-bottom:none}
 .ap-driver-card:hover{
-  transform:scale(1.03) translateY(-1px);
-  box-shadow:0 6px 20px rgba(0,0,0,0.1);
+  background:rgba(0,122,255,0.04);
 }
-.ap-driver-card:active{transform:scale(0.95)}
+.ap-driver-card:active{
+  background:rgba(0,122,255,0.08);
+  transform:none;
+}
 .ap-driver-card.ap-selected{
-  outline:2.5px solid #007AFF;
-  box-shadow:0 0 0 5px rgba(0,122,255,0.12), 0 4px 14px rgba(0,0,0,0.08);
+  background:rgba(0,122,255,0.06);
+}
+.ap-driver-card.ap-selected::before{
+  content:'';
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:3.5px;
+  background:#007AFF;
+  border-radius:0 3px 3px 0;
 }
 @media(prefers-color-scheme:dark){
-  .ap-driver-card{background:#2C2C2E;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
-  .ap-driver-card:hover{box-shadow:0 6px 20px rgba(0,0,0,0.3)}
-  .ap-driver-card.ap-selected{outline-color:#0A84FF;box-shadow:0 0 0 5px rgba(10,132,255,0.18)}
+  .ap-driver-card{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.06)}
+  .ap-driver-card:hover{background:rgba(10,132,255,0.08)}
+  .ap-driver-card:active{background:rgba(10,132,255,0.14)}
+  .ap-driver-card.ap-selected{background:rgba(10,132,255,0.1)}
+  .ap-driver-card.ap-selected::before{background:#0A84FF}
 }
 
 .ap-driver-avatar {
-  width:58px;height:58px;border-radius:50%;
+  width:48px;height:48px;border-radius:14px;
   display:flex;align-items:center;justify-content:center;
-  font-size:20px;font-weight:800;color:#fff;
+  font-size:17px;font-weight:800;color:#fff;
   letter-spacing:-0.5px;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
+}
+.ap-driver-info {
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-width:0;
+  gap:2px;
 }
 .ap-driver-name {
-  font-weight:600;font-size:14px;
-  color:#000;line-height:1.2;
-  word-break:break-word;
+  font-weight:600;font-size:16px;
+  color:#000;line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 @media(prefers-color-scheme:dark){.ap-driver-name{color:#FFF}}
 .ap-driver-routes {
-  font-size:11px;font-weight:400;
-  color:rgba(60,60,67,0.6);line-height:1.2;
+  font-size:13px;font-weight:400;
+  color:rgba(60,60,67,0.6);line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 @media(prefers-color-scheme:dark){.ap-driver-routes{color:rgba(235,235,245,0.6)}}
 
+.ap-driver-status {
+  width:10px;height:10px;
+  border-radius:50%;
+  background:#34C759;
+  flex-shrink:0;
+  box-shadow:0 0 0 2px #fff, 0 0 6px rgba(52,199,89,0.4);
+}
+@media(prefers-color-scheme:dark){.ap-driver-status{box-shadow:0 0 0 2px #2C2C2E, 0 0 6px rgba(52,199,89,0.4)}}
+
 .ap-check-badge {
-  position:absolute;top:9px;right:9px;
-  width:20px;height:20px;border-radius:50%;
+  position:absolute;top:50%;right:16px;
+  transform:translateY(-50%);
+  width:24px;height:24px;border-radius:50%;
   background:#007AFF;color:#fff;
   display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:800;
+  font-size:12px;font-weight:800;
+  box-shadow:0 2px 8px rgba(0,122,255,0.3);
+}
 }
 @media(prefers-color-scheme:dark){.ap-check-badge{background:#0A84FF}}
 
@@ -2297,21 +2420,21 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 
 <!-- ── HEADER ── -->
 <div class="app-header">
-  <div style="display:flex;align-items:center;gap:12px">
+  <div class="app-header-top">
     <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="app-logo">
     <div>
       <div class="app-title" data-t="app_title">Harmonogram</div>
       <div class="app-subtitle" data-t="app_subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px">
-    <div class="lang-selector">
+  <div class="app-header-actions">
+    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
+    <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
+    <div class="lang-selector" style="margin-left:4px">
       <button onclick="setLanguage('PL')" id="lang_PL" class="lang-btn active">PL</button>
       <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
       <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
     </div>
-    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
-    <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
   </div>
 </div>
 
@@ -2358,7 +2481,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 <div id="clientsView" style="display:none">
   <div class="clients-header" id="clientsAdminHeader" style="display:none; gap:8px;">
     <button class="add-route-btn" onclick="openAddRouteModal()">＋ <span data-t="btn_new_route">Nowa trasa</span></button>
-    <button class="add-route-btn" style="background:var(--bg-secondary); color:var(--text-primary); border-color:var(--border);" onclick="openDriverAdminModal()">👨‍✈️ Zarządzaj kierowcami</button>
+    <button class="add-route-btn" onclick="openDriverAdminModal()">👨‍✈️ Zarządzaj kierowcami</button>
   </div>
   <div class="clients-hint">
     <span id="clientsHintDrag" style="display:none"><span data-t="clients_drag_hint">☰ Przeciągaj klientów między trasami</span> &nbsp;·&nbsp;</span>
@@ -2506,18 +2629,20 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 </div>
 
 <!-- Driver Select -->
-<!-- ── DRIVER SELECT (Apple 2026) ── -->
-<div class="ap-overlay" id="driverSelectModal">
-  <div class="ap-sheet" style="max-width:500px">
+<!-- ── DRIVER SELECT (Apple 2026 Enterprise) ── -->
+<div class="ap-overlay" id="driverSelectModal" role="dialog" aria-modal="true" aria-labelledby="driverSelectTitle">
+  <div class="ap-sheet" style="max-width:440px">
     <div class="ap-handle"></div>
-    <div class="ap-content">
-      <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_"
-           alt="Logo LEBUSER" class="modal-logo"
-           style="display:block;margin:0 auto 14px;opacity:0.9">
-      <div class="ap-title" data-t="driver_select_title">Kim jesteś?</div>
-      <div class="ap-subtitle" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+    <div class="ap-content" style="padding-bottom:20px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,122,255,0.3)">🚛</div>
+        <div>
+          <div class="ap-title" id="driverSelectTitle" style="text-align:left;margin-bottom:2px;font-size:20px" data-t="driver_select_title">Kim jesteś?</div>
+          <div style="font-size:13px;color:rgba(60,60,67,0.6);font-weight:400" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+        </div>
+      </div>
       <div id="driverButtonsContainer" class="ap-driver-grid"></div>
-      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:16px"></div>
+      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:14px"></div>
     </div>
   </div>
 </div>
@@ -2595,44 +2720,64 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 </div>
 
 <!-- Add Entry -->
-<div class="overlay" id="addModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_add_title">Dodaj przyjazd</h3>
-    <label data-t="label_client">Klient</label>
-    <select id="mClient"></select>
-    <label data-t="label_type">Rodzaj prania</label>
-    <div class="segmented-control">
-      <button type="button" class="seg-btn type-P active" id="mType_P" onclick="setSegmentedVal('mType', 'P')">Pościel</button>
-      <button type="button" class="seg-btn type-O" id="mType_O" onclick="setSegmentedVal('mType', 'O')">Obrusy</button>
-      <input type="hidden" id="mType" value="P">
-    </div>
-    <label data-t="label_weight">Waga (kg) — opcjonalnie</label>
-    <input type="text" id="mWeight" placeholder="np. 150.5">
-    <label data-t="label_arr_day">Dzień przyjazdu</label>
-    <select id="mArrDay" onchange="updateDefaultPickup('add')">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_day">Dzień odbioru</label>
-    <select id="mPickDay">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_week">Tydzień odbioru</label>
-    <select id="mPickWeek">
-      <option value="0" data-t="week_same">Ten sam tydzień</option>
-      <option value="1" data-t="week_next">Następny tydzień</option>
-    </select>
-    <div class="modal-btns">
-      <button onclick="closeAdd()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="confirmAdd()" data-t="btn_add">Dodaj</button>
+<div class="ap-overlay" id="addModal" role="dialog" aria-modal="true">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#34C759,#25A244);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(52,199,89,0.3)">📦</div>
+        <div>
+          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_add_title">Dodaj przyjazd</div>
+          <div style="font-size:12px;color:rgba(60,60,67,0.5);font-weight:400" id="addModalDriverHint"></div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_client">Klient</div>
+      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px"></select>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
+      <div class="segmented-control" style="margin-bottom:12px">
+        <button type="button" class="seg-btn type-P active" id="mType_P" onclick="setSegmentedVal('mType', 'P')" data-t="type_p">Pościel</button>
+        <button type="button" class="seg-btn type-O" id="mType_O" onclick="setSegmentedVal('mType', 'O')" data-t="type_o">Obrusy</button>
+        <input type="hidden" id="mType" value="P">
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
+      <input type="text" id="mWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:12px" inputmode="decimal">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Dzień przyjazdu</div>
+          <select id="mArrDay" class="ap-input" onchange="updateDefaultPickup('add')">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Dzień odbioru</div>
+          <select id="mPickDay" class="ap-input">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
+      <select id="mPickWeek" class="ap-input" style="margin-bottom:4px">
+        <option value="0" data-t="week_same">Ten sam tydzień</option>
+        <option value="1" data-t="week_next">Następny tydzień</option>
+      </select>
+
+      <div class="ap-btn-group" style="margin-top:18px">
+        <button class="ap-btn ap-btn-primary" onclick="confirmAdd()" data-t="btn_add">Dodaj</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdd()" data-t="btn_cancel">Anuluj</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2650,6 +2795,9 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
     <div class="info-row" style="border-bottom:none"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
     <div class="action-row" style="margin-top:18px">
       <button class="done-btn" id="veToggleBtn" data-t="btn_mark_done">Oznacz jako odebrane</button>
+    </div>
+    <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
+      <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
     </div>
     <div class="modal-btns" style="margin-top:10px">
       <button onclick="closeViewEntry()" data-t="btn_close">Zamknij</button>
@@ -2809,7 +2957,7 @@ const TRANSLATIONS = {
     driver_select_title: "Kim jesteś?",
     driver_select_desc: "Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.",
     btn_select_driver: "Wybierz kierowcę",
-    driver_btn_out: "Zmień kierowcę",
+    driver_btn_out: "Wyloguj się",
     login_desc_ap: "Wpisz hasło, aby uzyskać pełny dostęp do systemu.",
     nav_harmonogram: "Harmonogram",
     nav_historia: "Historia",
@@ -3474,33 +3622,56 @@ function openDriverSelect() {
   actions.innerHTML   = '';
 
   if (!drivers || drivers.length === 0) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 16px;color:var(--text-secondary);font-size:14px;font-weight:500">' +
+    container.innerHTML = '<div style="padding:32px 16px;text-align:center;color:rgba(60,60,67,0.6);font-size:15px;font-weight:500">' +
       (currentLang === 'DE' ? 'Keine Fahrer in der Datenbank.' : (currentLang === 'UA' ? 'Немає водіїв у базі.' : 'Brak kierowców w bazie.')) + '</div>';
   } else {
+    // Wyszukiwarka (jeśli > 4 kierowców)
+    if (drivers.length > 4) {
+      const searchDiv = document.createElement('div');
+      searchDiv.className = 'ap-driver-search';
+      searchDiv.innerHTML = '<span class="ap-search-icon">🔍</span>' +
+        '<input type="text" id="driverSearchInput" placeholder="' +
+        (currentLang === 'DE' ? 'Fahrer suchen…' : (currentLang === 'UA' ? 'Пошук водія…' : 'Szukaj kierowcy…')) +
+        '" oninput="filterDriverCards(this.value)" autocomplete="off">';
+      container.appendChild(searchDiv);
+    }
+
+    // Lista kierowców
+    const listDiv = document.createElement('div');
+    listDiv.id = 'driverCardsList';
+    listDiv.style.cssText = 'overflow-y:auto;max-height:' + (drivers.length > 4 ? '44vh' : '52vh');
+
     drivers.forEach(function(d) {
       const isSelected = currentDriver && currentDriver.id === d.id;
       const card = document.createElement('div');
       card.className = 'ap-driver-card' + (isSelected ? ' ap-selected' : '');
+      card.setAttribute('data-driver-name', d.name.toLowerCase());
       const color = driverAvatarColor(d.id);
       const initials = driverInitials(d.name);
       const routeNames = (d.routes && d.routes.length > 0)
-        ? d.routes.map(function(r){ return getRouteName(r); }).join(', ')
-        : (currentLang === 'DE' ? 'Keine Routen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak tras'));
+        ? d.routes.map(function(r){ return getRouteName(r); }).join(' · ')
+        : (currentLang === 'DE' ? 'Keine Routen zugewiesen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak przypisanych tras'));
+
       card.innerHTML =
         '<div class="ap-driver-avatar" style="background:' + color + '">' + esc(initials) + '</div>' +
-        '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
-        '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
+        '<div class="ap-driver-info">' +
+          '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
+          '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
+        '</div>' +
+        '<div class="ap-driver-status"></div>' +
         (isSelected ? '<div class="ap-check-badge">✓</div>' : '');
       card.onclick = function() { selectDriver(d.id); };
-      container.appendChild(card);
+      listDiv.appendChild(card);
     });
+
+    container.appendChild(listDiv);
   }
 
   // Wyloguj kierowcę (jeśli jest zalogowany)
   if (currentDriver) {
     const logoutBtn = document.createElement('button');
     logoutBtn.className = 'ap-btn ap-btn-danger';
-    logoutBtn.innerHTML = '🔓 ' + (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Вийти як водій' : 'Wyloguj kierowcę'));
+    logoutBtn.innerHTML = (currentLang === 'DE' ? 'Abmelden' : (currentLang === 'UA' ? 'Вийти' : 'Wyloguj się'));
     logoutBtn.onclick = function() { selectDriver(null); };
     actions.appendChild(logoutBtn);
   }
@@ -3513,6 +3684,21 @@ function openDriverSelect() {
   actions.appendChild(cancelBtn);
 
   document.getElementById('driverSelectModal').style.display = 'flex';
+
+  // Focus na wyszukiwarkę
+  setTimeout(function() {
+    const searchInput = document.getElementById('driverSearchInput');
+    if (searchInput) searchInput.focus();
+  }, 300);
+}
+
+function filterDriverCards(query) {
+  const q = (query || '').toLowerCase().trim();
+  const cards = document.querySelectorAll('#driverCardsList .ap-driver-card');
+  cards.forEach(function(card) {
+    const name = card.getAttribute('data-driver-name') || '';
+    card.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
 }
 
 function selectDriver(id) {
@@ -3541,6 +3727,7 @@ function applyDriverState() {
 
   if (currentDriver) {
     label.textContent = currentDriver.name;
+    label.removeAttribute('data-t'); // Zapobiega nadpisaniu przez translateStaticUI
     btn.classList.add('driver-active');
   } else {
     label.setAttribute('data-t', 'btn_select_driver');
@@ -3827,6 +4014,15 @@ function switchView(v){
   const btn=document.getElementById(btnMap[v]);
   if(btn)btn.className=btn.className+' active';
 
+  // Dynamiczny tytuł strony
+  const titleMap={
+    main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
+    map:'nav_mapa', help:'nav_help', staff:'nav_grafik',
+    grafikEditor:'nav_edytor', timeline:'nav_timeline'
+  };
+  const titleEl=document.querySelector('.app-title');
+  if(titleEl && titleMap[v]) titleEl.textContent=t(titleMap[v]);
+
   // Panel pliku grafiku — widoczny tylko w zakładkach grafiku
   showGrafikFilePanel(v === 'grafikEditor' || v === 'timeline');
 
@@ -3896,12 +4092,30 @@ function buildGridHTML(offset,targetWkKey){
       const checkPlaceholder='<span class="tag-check-placeholder"></span>';
       return'<div class="tag tag-arr" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
     }).join('');
-    const pickTags=pickups.map(e=>{
-      const typeBadge='<span class="laundry-type-badge type-'+esc(e.type || 'P')+'">'+esc(e.type || 'P')+'</span>';
-      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
-      const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
-      return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
-    }).join('');
+    const pickTags=(function(){
+      // Grupuj odbiory po kliencie — P+O tego samego klienta razem
+      const byClient={};
+      pickups.forEach(function(e){
+        const key=e.client+'||'+e.route;
+        if(!byClient[key]) byClient[key]={client:e.client,route:e.route,entries:[e],totalWeight:e.weight,types:[e.type||'P'],allDone:e.done};
+        else{byClient[key].entries.push(e);byClient[key].totalWeight+=e.weight;if(byClient[key].types.indexOf(e.type||'P')===-1)byClient[key].types.push(e.type||'P');if(!e.done)byClient[key].allDone=false;}
+      });
+      return Object.keys(byClient).map(function(key){
+        const g=byClient[key];
+        if(g.entries.length===1){
+          const e=g.entries[0];
+          const typeBadge='<span class="laundry-type-badge type-'+esc(e.type||'P')+'">'+esc(e.type||'P')+'</span>';
+          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
+          const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+        }else{
+          const typesBadges=g.types.sort().map(function(tp){return'<span class="laundry-type-badge type-'+esc(tp)+'">'+esc(tp)+'</span>';}).join('');
+          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'<span class="kg-placeholder"></span>';
+          const checkBtn='<span class="tag-check">'+(g.allDone?'✓':'◯')+'</span>';
+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(g.entries[0].id)+')"><span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+        }
+      }).join('');
+    })();
     return'<div class="col'+(isToday?' col-today':'')+'">'+
       '<div class="col-header"><span class="col-day-name">'+DAY_SHORT[i]+'</span><span class="col-date">'+fmtDate(d)+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
       '<div class="metrics-row">'+
@@ -3943,12 +4157,21 @@ function openAdd(dayIdx,offset){
   pendingTargetOffset=offset;
   let optionsHTML='';
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
-  // Kierowca widzi tylko klientów ze swoich przypisanych tras
-  const allowedRoutes = (!isAdmin && currentDriver && currentDriver.routes && currentDriver.routes.length > 0)
-    ? currentDriver.routes
-    : null; // null = bez ograniczeń (admin lub niezdefiniowane trasy)
+  // Filtrowanie tras:
+  // - Admin BEZ wybranego kierowcy → widzi wszystko
+  // - Admin Z wybranym kierowcą → widzi wszystko (admin ma pełny dostęp)
+  // - Kierowca z przypisanymi trasami → widzi TYLKO swoje trasy
+  // - Kierowca BEZ przypisanych tras → widzi wszystko
+  let allowedRoutes = null;
+  if (!isAdmin && currentDriver) {
+    const freshDriver = drivers.find(function(d){ return d.id === currentDriver.id; });
+    const driverRoutes = freshDriver ? freshDriver.routes : (currentDriver.routes || []);
+    if (driverRoutes && driverRoutes.length > 0) {
+      allowedRoutes = driverRoutes;
+    }
+  }
   routeIds.forEach(rId=>{
-    if(allowedRoutes && !allowedRoutes.includes(rId)) return; // pomiń trasy poza uprawnieniami
+    if(allowedRoutes !== null && !allowedRoutes.includes(rId)) return;
     const rc=clients.filter(c=>c.route===rId);
     if(rc.length>0){optionsHTML+='<optgroup label="'+esc(getRouteName(rId))+'">';rc.forEach(c=>{optionsHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});optionsHTML+='</optgroup>';}
   });
@@ -3956,6 +4179,9 @@ function openAdd(dayIdx,offset){
   if(!optionsHTML){toast(t('toast_add_client_first'));return;}
   document.getElementById('mArrDay').value=dayIdx;document.getElementById('mWeight').value='';
   setSegmentedVal('mType', 'P');
+  // Pokaż hint z nazwą kierowcy
+  const hintEl=document.getElementById('addModalDriverHint');
+  if(hintEl) hintEl.textContent=currentDriver ? currentDriver.name : '';
   updateDefaultPickup('add');document.getElementById('addModal').style.display='flex';
 }
 function closeAdd(){document.getElementById('addModal').style.display='none';}
@@ -3965,8 +4191,35 @@ function confirmAdd(){
   const type=document.getElementById('mType').value;
   if(wt!==''){const wtNum=parseFloat(wt.replace(',','.'));if(isNaN(wtNum)||wtNum<=0){toast(t('toast_weight_error'));return;}}
   const cObj=clients.find(c=>c.name===cName);let arrWk=weekKey(pendingTargetOffset);let pickWk=isNextWk?weekKey(pendingTargetOffset+1):arrWk;
+  const parsedWeight=wt?parseFloat(String(wt).replace(',','.')):0;
+  const route=cObj?cObj.route:1;
   closeAdd();
-  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_added')+cName);loadWeek();}}).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,cObj?cObj.route:1,type, currentDriver ? currentDriver.name : '');
+
+  // Optymistyczny update — dodaj do lokalnej tablicy od razu i przerenderuj
+  const tempId='ID_'+Date.now();
+  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase(),addedBy:currentDriver?currentDriver.name:''};
+  entries.push(newEntry);
+  renderGrid();
+  toast(t('toast_added')+cName);
+
+  // Zapisz na serwerze w tle
+  google.script.run.withFailureHandler(function(e){
+    // Cofnij optymistyczny update przy błędzie
+    entries=entries.filter(function(en){return en.id!==tempId;});
+    renderGrid();
+    alert(t('error_label') + ': ' + translateError(e.message));
+  }).withSuccessHandler(function(res){
+    if(res&&res.error){
+      entries=entries.filter(function(en){return en.id!==tempId;});
+      renderGrid();
+      alert(t('error_label') + ': ' + translateError(res.error));
+    } else if(res&&res.id){
+      // Zaktualizuj tymczasowe ID na prawdziwe z serwera i przerenderuj
+      const idx=entries.findIndex(function(en){return en.id===tempId;});
+      if(idx!==-1) entries[idx].id=res.id;
+      renderGrid();
+    }
+  }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : '');
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
@@ -3986,17 +4239,49 @@ function openEdit(id){
 
 // ── VIEW ENTRY (użytkownik) ──
 function openViewEntry(entry){
+  // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
+  const grouped = entries.filter(function(e){
+    return e.client === entry.client && e.route === entry.route &&
+           e.pickWeekKey === entry.pickWeekKey && e.pickDay === entry.pickDay &&
+           !(e.weekKey === entry.weekKey && e.arrDay === entry.arrDay && e.weekKey === e.pickWeekKey && e.arrDay === e.pickDay);
+  });
+  // Jeśli to jest karta z sekcji "Przybył" — pokaż tylko ten jeden wpis
+  // Jeśli to jest karta z sekcji "Do odbioru" — pokaż zgrupowane
+  const isPickupView = (entry.pickWeekKey && entry.pickDay !== undefined);
+  const relatedEntries = grouped.length > 0 ? grouped : [entry];
+  // Sprawdź czy kliknięty wpis jest w sekcji odbioru (nie przyjazdu)
+  const allForPickup = entries.filter(function(e){
+    return e.client === entry.client && e.route === entry.route &&
+           e.pickWeekKey === entry.pickWeekKey && e.pickDay === entry.pickDay;
+  });
+  // Użyj zgrupowanych tylko jeśli jest więcej niż 1 wpis z różnymi typami
+  const uniqueTypes = [];
+  allForPickup.forEach(function(e){ if(uniqueTypes.indexOf(e.type||'P')===-1) uniqueTypes.push(e.type||'P'); });
+  const showGrouped = uniqueTypes.length > 1;
+  const displayEntries = showGrouped ? allForPickup : [entry];
+
   document.getElementById('veClientName').textContent=entry.client+' — '+getRouteName(entry.route);
   document.getElementById('veArrDay').textContent=DAY_NAMES[entry.arrDay];
   document.getElementById('vePickDay').textContent=DAY_NAMES[entry.pickDay]+(entry.weekKey!==entry.pickWeekKey ? t('week_next_suffix') : '');
-  document.getElementById('veType').textContent=(entry.type === 'O') ? t('type_o') : t('type_p');
-  document.getElementById('veWeight').textContent=entry.weight>0?entry.weight+' kg':'—';
+
+  // Typ i waga — jeśli zgrupowane, pokaż oba
+  if(showGrouped){
+    const typesStr = displayEntries.map(function(e){ return (e.type==='O'?t('type_o'):t('type_p'))+' ('+e.weight+'kg)'; }).join(' + ');
+    document.getElementById('veType').textContent=typesStr;
+    const totalWeight = displayEntries.reduce(function(s,e){return s+e.weight;},0);
+    document.getElementById('veWeight').textContent=totalWeight>0?totalWeight+' kg':'—';
+  } else {
+    document.getElementById('veType').textContent=(entry.type === 'O') ? t('type_o') : t('type_p');
+    document.getElementById('veWeight').textContent=entry.weight>0?entry.weight+' kg':'—';
+  }
+
+  const allDone = displayEntries.every(function(e){return e.done;});
   const statusEl=document.getElementById('veStatus');
-  statusEl.textContent=entry.done ? t('status_done') : t('status_pending');
-  statusEl.style.color=entry.done?'var(--accent-green)':'var(--text-tertiary)';
+  statusEl.textContent=allDone ? t('status_done') : t('status_pending');
+  statusEl.style.color=allDone?'var(--accent-green)':'var(--text-tertiary)';
   const tBtn=document.getElementById('veToggleBtn');
-  tBtn.textContent=entry.done ? t('btn_mark_undone') : t('btn_mark_done');
-  tBtn.className='done-btn'+(entry.done?' danger':'');
+  tBtn.textContent=allDone ? t('btn_mark_undone') : t('btn_mark_done');
+  tBtn.className='done-btn'+(allDone?' danger':'');
   tBtn.onclick=function(){
     if (!isAdmin && !currentDriver) {
       toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca'));
@@ -4004,8 +4289,49 @@ function openViewEntry(entry){
       return;
     }
     closeViewEntry();
-    google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message));}).withSuccessHandler(function(){loadWeek();}).toggleDone(entry.id, currentDriver ? currentDriver.name : '');
+    // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
+    displayEntries.forEach(function(de){
+      const idx=entries.findIndex(function(en){return en.id===de.id;});
+      if(idx!==-1) entries[idx].done=!allDone;
+    });
+    renderGrid();
+    // Wyślij toggle dla każdego wpisu
+    displayEntries.forEach(function(de){
+      google.script.run.withFailureHandler(function(e){
+        loadWeek(); // Przy błędzie przeładuj
+      }).withSuccessHandler(function(res){
+        if(res&&res.error) loadWeek();
+      }).toggleDone(de.id, currentDriver ? currentDriver.name : '');
+    });
   };
+
+  // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
+  const deleteRow=document.getElementById('veDeleteRow');
+  const isOwner = currentDriver && displayEntries.every(function(de){
+    return de.addedBy && de.addedBy === currentDriver.name;
+  });
+  deleteRow.style.display = isOwner ? 'flex' : 'none';
+  if(isOwner){
+    document.getElementById('veDeleteBtn').onclick=function(){
+      const confirmMsg = currentLang === 'DE' ? 'Eintrag löschen?' : (currentLang === 'UA' ? 'Вилучити запис?' : 'Usunąć wpis?');
+      if(!confirm(confirmMsg)) return;
+      closeViewEntry();
+      // Optymistyczne usunięcie wszystkich wpisów w grupie
+      const idsToRemove = displayEntries.map(function(de){return de.id;});
+      entries=entries.filter(function(en){return idsToRemove.indexOf(en.id)===-1;});
+      renderGrid();
+      toast(t('toast_deleted'));
+      // Usuń każdy wpis na serwerze
+      idsToRemove.forEach(function(eid){
+        google.script.run.withFailureHandler(function(e){
+          loadWeek();
+        }).withSuccessHandler(function(res){
+          if(res&&res.error) loadWeek();
+        }).removeOwnEntry(eid, currentDriver.name);
+      });
+    };
+  }
+
   document.getElementById('viewEntryModal').style.display='flex';
 }
 function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';}
@@ -4022,7 +4348,7 @@ function saveEdit(){
   const fallback=original?{client:original.client,weekKey:original.weekKey,pickWeekKey:original.pickWeekKey,arrDay:original.arrDay,pickDay:original.pickDay,type:original.type}:null;
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type);
 }
-function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(){loadWeek();}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
 function deleteFromEdit(){
   if(!editingId)return;
   const entryToDel=entries.find(e=>e.id===editingId);
@@ -4850,7 +5176,12 @@ google.script.run
       const stored = JSON.parse(localStorage.getItem('currentDriver'));
       if (stored && stored.id) {
         currentDriver = drivers.find(function(d){ return d.id === stored.id; }) || null;
-        if (!currentDriver) localStorage.removeItem('currentDriver'); // usunięty kierowca
+        if (!currentDriver) {
+          localStorage.removeItem('currentDriver'); // usunięty kierowca
+        } else {
+          // Aktualizuj localStorage z najnowszymi danymi z bazy (trasy mogły się zmienić)
+          localStorage.setItem('currentDriver', JSON.stringify(currentDriver));
+        }
       } else {
         currentDriver = null;
       }
