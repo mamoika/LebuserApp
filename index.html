@@ -3665,6 +3665,7 @@ function applyDriverState() {
 
   if (currentDriver) {
     label.textContent = currentDriver.name;
+    label.removeAttribute('data-t'); // Zapobiega nadpisaniu przez translateStaticUI
     btn.classList.add('driver-active');
   } else {
     label.setAttribute('data-t', 'btn_select_driver');
