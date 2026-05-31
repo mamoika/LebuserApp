@@ -4069,9 +4069,15 @@ function openAdd(dayIdx,offset){
   let optionsHTML='';
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
   // Kierowca widzi tylko klientów ze swoich przypisanych tras
-  const allowedRoutes = (!isAdmin && currentDriver && currentDriver.routes && currentDriver.routes.length > 0)
-    ? currentDriver.routes
-    : null; // null = bez ograniczeń (admin lub niezdefiniowane trasy)
+  // Zawsze bierz aktualne trasy z tablicy drivers (nie z localStorage)
+  let allowedRoutes = null;
+  if (!isAdmin && currentDriver) {
+    const freshDriver = drivers.find(function(d){ return d.id === currentDriver.id; });
+    const driverRoutes = freshDriver ? freshDriver.routes : (currentDriver.routes || []);
+    if (driverRoutes && driverRoutes.length > 0) {
+      allowedRoutes = driverRoutes;
+    }
+  }
   routeIds.forEach(rId=>{
     if(allowedRoutes && !allowedRoutes.includes(rId)) return; // pomiń trasy poza uprawnieniami
     const rc=clients.filter(c=>c.route===rId);
@@ -4975,7 +4981,12 @@ google.script.run
       const stored = JSON.parse(localStorage.getItem('currentDriver'));
       if (stored && stored.id) {
         currentDriver = drivers.find(function(d){ return d.id === stored.id; }) || null;
-        if (!currentDriver) localStorage.removeItem('currentDriver'); // usunięty kierowca
+        if (!currentDriver) {
+          localStorage.removeItem('currentDriver'); // usunięty kierowca
+        } else {
+          // Aktualizuj localStorage z najnowszymi danymi z bazy (trasy mogły się zmienić)
+          localStorage.setItem('currentDriver', JSON.stringify(currentDriver));
+        }
       } else {
         currentDriver = null;
       }
