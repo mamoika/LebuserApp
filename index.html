@@ -4021,12 +4021,30 @@ function buildGridHTML(offset,targetWkKey){
       const checkPlaceholder='<span class="tag-check-placeholder"></span>';
       return'<div class="tag tag-arr" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
     }).join('');
-    const pickTags=pickups.map(e=>{
-      const typeBadge='<span class="laundry-type-badge type-'+esc(e.type || 'P')+'">'+esc(e.type || 'P')+'</span>';
-      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
-      const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
-      return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
-    }).join('');
+    const pickTags=(function(){
+      // Grupuj odbiory po kliencie — P+O tego samego klienta razem
+      const byClient={};
+      pickups.forEach(function(e){
+        const key=e.client+'||'+e.route;
+        if(!byClient[key]) byClient[key]={client:e.client,route:e.route,entries:[e],totalWeight:e.weight,types:[e.type||'P'],allDone:e.done};
+        else{byClient[key].entries.push(e);byClient[key].totalWeight+=e.weight;if(byClient[key].types.indexOf(e.type||'P')===-1)byClient[key].types.push(e.type||'P');if(!e.done)byClient[key].allDone=false;}
+      });
+      return Object.keys(byClient).map(function(key){
+        const g=byClient[key];
+        if(g.entries.length===1){
+          const e=g.entries[0];
+          const typeBadge='<span class="laundry-type-badge type-'+esc(e.type||'P')+'">'+esc(e.type||'P')+'</span>';
+          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
+          const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+        }else{
+          const typesBadges=g.types.sort().map(function(tp){return'<span class="laundry-type-badge type-'+esc(tp)+'">'+esc(tp)+'</span>';}).join('');
+          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'<span class="kg-placeholder"></span>';
+          const checkBtn='<span class="tag-check">'+(g.allDone?'✓':'◯')+'</span>';
+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(g.entries[0].id)+')"><span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+        }
+      }).join('');
+    })();
     return'<div class="col'+(isToday?' col-today':'')+'">'+
       '<div class="col-header"><span class="col-day-name">'+DAY_SHORT[i]+'</span><span class="col-date">'+fmtDate(d)+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
       '<div class="metrics-row">'+
