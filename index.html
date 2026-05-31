@@ -1323,24 +1323,28 @@ html.phone-layout body{
 }
 html.phone-layout .app-header{
   margin-bottom:12px;
-  gap:8px;
+  gap:10px;
 }
 html.phone-layout .app-header-top {
-  flex-wrap:wrap;
-  gap:8px;
-}
-html.phone-layout .app-header-top .lang-selector {
-  margin-left:auto;
+  gap:10px;
 }
 html.phone-layout .app-header-actions {
-  justify-content:stretch;
-  gap:6px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  width:100%;
+}
+html.phone-layout .app-header-actions .lang-selector {
+  grid-column:1 / -1;
+  justify-self:center;
+  margin-left:0;
 }
 html.phone-layout .app-header-actions .driver-btn,
 html.phone-layout .app-header-actions .admin-btn {
-  flex:1;
+  width:100%;
   justify-content:center;
-  min-width:0;
+  padding:12px 10px;
+  font-size:13px;
 }
 html.phone-layout .app-title{
   font-size:22px;
@@ -1500,20 +1504,25 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   body{padding:12px 10px 28px; overflow-x: hidden;}
   .app-header{
     margin-bottom:12px;
-    gap:8px;
-  }
-  .app-header-top {
-    flex-wrap:wrap;
-    gap:8px;
+    gap:10px;
   }
   .app-header-actions {
-    gap:6px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    width:100%;
+  }
+  .app-header-actions .lang-selector {
+    grid-column:1 / -1;
+    justify-self:center;
+    margin-left:0;
   }
   .app-header-actions .driver-btn,
   .app-header-actions .admin-btn {
-    flex:1;
+    width:100%;
     justify-content:center;
-    min-width:0;
+    padding:12px 10px;
+    font-size:13px;
   }
   .app-title{font-size:22px;line-height:1.1;margin-top:4px}
   .app-subtitle{font-size:10px;line-height:1.2;color:var(--text-quaternary);margin-top:1px}
@@ -2417,15 +2426,15 @@ select.ap-input {
       <div class="app-title" data-t="app_title">Harmonogram</div>
       <div class="app-subtitle" data-t="app_subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
     </div>
-    <div class="lang-selector" style="margin-left:auto">
-      <button onclick="setLanguage('PL')" id="lang_PL" class="lang-btn active">PL</button>
-      <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
-      <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
-    </div>
   </div>
   <div class="app-header-actions">
     <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
     <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
+    <div class="lang-selector" style="margin-left:4px">
+      <button onclick="setLanguage('PL')" id="lang_PL" class="lang-btn active">PL</button>
+      <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
+      <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
+    </div>
   </div>
 </div>
 
@@ -2945,7 +2954,7 @@ const TRANSLATIONS = {
     driver_select_title: "Kim jesteś?",
     driver_select_desc: "Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.",
     btn_select_driver: "Wybierz kierowcę",
-    driver_btn_out: "Zmień kierowcę",
+    driver_btn_out: "Wyloguj się",
     login_desc_ap: "Wpisz hasło, aby uzyskać pełny dostęp do systemu.",
     nav_harmonogram: "Harmonogram",
     nav_historia: "Historia",
@@ -3659,7 +3668,7 @@ function openDriverSelect() {
   if (currentDriver) {
     const logoutBtn = document.createElement('button');
     logoutBtn.className = 'ap-btn ap-btn-danger';
-    logoutBtn.innerHTML = (currentLang === 'DE' ? 'Fahrer abmelden' : (currentLang === 'UA' ? 'Змінити водія' : 'Zmień kierowcę'));
+    logoutBtn.innerHTML = (currentLang === 'DE' ? 'Abmelden' : (currentLang === 'UA' ? 'Вийти' : 'Wyloguj się'));
     logoutBtn.onclick = function() { selectDriver(null); };
     actions.appendChild(logoutBtn);
   }
