@@ -391,11 +391,30 @@ function getAppData() {
   let drivers = [];
   if (dk) {
     const dData = dk.getDataRange().getValues();
-    drivers = dData.slice(1).map(r => ({
-      id: String(r[0]),
-      name: String(r[1]),
-      routes: String(r[2] || '').split(',').map(s => Number(s.trim())).filter(n => n > 0)
-    })).filter(d => d.name && d.name.trim() !== '');
+    drivers = dData.slice(1).map(r => {
+      // Parsuj trasy — obsługuje zarówno ID numeryczne ("1,2,3") jak i nazwy tras
+      const rawRoutes = String(r[2] || '').split(',').map(s => s.trim()).filter(s => s !== '');
+      let parsedRoutes = [];
+      rawRoutes.forEach(function(val) {
+        const num = Number(val);
+        if (!isNaN(num) && num > 0) {
+          parsedRoutes.push(num);
+        } else {
+          // Szukaj trasy po nazwie
+          for (let ri = 0; ri < routes.length; ri++) {
+            if (routes[ri].name.toLowerCase().includes(val.toLowerCase())) {
+              parsedRoutes.push(routes[ri].id);
+              break;
+            }
+          }
+        }
+      });
+      return {
+        id: String(r[0]),
+        name: String(r[1]),
+        routes: parsedRoutes
+      };
+    }).filter(d => d.name && d.name.trim() !== '');
   }
 
   return { clients: clients, routes: routes, drivers: drivers };

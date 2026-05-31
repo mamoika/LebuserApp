@@ -4068,8 +4068,11 @@ function openAdd(dayIdx,offset){
   pendingTargetOffset=offset;
   let optionsHTML='';
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
-  // Kierowca widzi tylko klientów ze swoich przypisanych tras
-  // Zawsze bierz aktualne trasy z tablicy drivers (nie z localStorage)
+  // Filtrowanie tras:
+  // - Admin BEZ wybranego kierowcy → widzi wszystko
+  // - Admin Z wybranym kierowcą → widzi wszystko (admin ma pełny dostęp)
+  // - Kierowca z przypisanymi trasami → widzi TYLKO swoje trasy
+  // - Kierowca BEZ przypisanych tras → widzi wszystko
   let allowedRoutes = null;
   if (!isAdmin && currentDriver) {
     const freshDriver = drivers.find(function(d){ return d.id === currentDriver.id; });
@@ -4079,7 +4082,7 @@ function openAdd(dayIdx,offset){
     }
   }
   routeIds.forEach(rId=>{
-    if(allowedRoutes && !allowedRoutes.includes(rId)) return; // pomiń trasy poza uprawnieniami
+    if(allowedRoutes !== null && !allowedRoutes.includes(rId)) return;
     const rc=clients.filter(c=>c.route===rId);
     if(rc.length>0){optionsHTML+='<optgroup label="'+esc(getRouteName(rId))+'">';rc.forEach(c=>{optionsHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});optionsHTML+='</optgroup>';}
   });
