@@ -517,7 +517,7 @@ let currentLang = 'PL';
 try {
   currentLang = localStorage.getItem('lebuserLang') || 'PL';
 } catch(e) {}
-window. = function (key){
+window.t = function t(key){
   return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || (TRANSLATIONS['PL'][key]) || key;
 }
 
@@ -564,7 +564,7 @@ let adminExpires = 0;
 const ADMIN_SESSION_KEY = 'lebuserAdminSession';
 let sessionTimerInterval = null;
 
-window. = function (lang) {
+window.setLanguage = function setLanguage(lang) {
   currentLang = lang;
   localStorage.setItem('lebuserLang', lang);
   
@@ -593,7 +593,7 @@ const DYNAMIC_CONTAINERS = new Set([
   'grafikEditorGrid','tlGridContainer','grid1','grid2'
 ]);
 
-window. = function () {
+window.translateStaticUI = function translateStaticUI() {
   // Translate elements with data-t attribute
   document.querySelectorAll('[data-t]').forEach(el => {
     // Pomiń dynamiczne kontenery — ich tekst jest ustawiany przez render functions przez t()
@@ -625,7 +625,7 @@ window. = function () {
   });
 }
 
-window. = function (plName) {
+window.translateDayShort = function translateDayShort(plName) {
   const clean = String(plName || '').trim().toUpperCase();
   if (clean.startsWith('PN')) return t('day_short_0');
   if (clean.startsWith('WT')) return t('day_short_1');
@@ -637,7 +637,7 @@ window. = function (plName) {
   return plName;
 }
 
-window. = function (msg) {
+window.translateError = function translateError(msg) {
   if (!msg) return msg;
   const str = String(msg);
   if (currentLang === 'PL') return str;
@@ -690,7 +690,7 @@ window. = function (msg) {
   return str;
 }
 
-window. = function () {
+window.checkAdminSession = function checkAdminSession() {
   try {
     const raw = localStorage.getItem(ADMIN_SESSION_KEY);
     if (!raw) return 0;
@@ -701,7 +701,7 @@ window. = function () {
   return 0;
 }
 
-window. = function () {
+window.getAdminToken = function getAdminToken() {
   try {
     const raw = localStorage.getItem(ADMIN_SESSION_KEY);
     if (!raw) return '';
@@ -715,18 +715,18 @@ window. = function () {
 
 // Kolory awatarów kierowców (deterministyczne na podstawie ID)
 const DRIVER_AVATAR_COLORS = ['#1266D6','#138A43','#D97706','#8E44AD','#D9342B','#0E7490','#4F46E5','#BE185D','#0F766E','#B45309'];
-window. = function (id) {
+window.driverAvatarColor = function driverAvatarColor(id) {
   let h = 0;
   for (let i = 0; i < (id||'').length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return DRIVER_AVATAR_COLORS[h % DRIVER_AVATAR_COLORS.length];
 }
-window. = function (name) {
+window.driverInitials = function driverInitials(name) {
   return (name||'').split(/\s+/).map(n=>n[0]||'').slice(0,2).join('').toUpperCase() || '?';
 }
 
 let postLoginCallback = null;
 
-window. = function (callback = null) {
+window.openDriverSelect = function openDriverSelect(callback = null) {
   postLoginCallback = callback;
   const container = document.getElementById('driverButtonsContainer');
   const actions   = document.getElementById('driverSelectActions');
@@ -804,7 +804,7 @@ window. = function (callback = null) {
   }, 300);
 }
 
-window. = function (query) {
+window.filterDriverCards = function filterDriverCards(query) {
   const q = (query || '').toLowerCase().trim();
   const cards = document.querySelectorAll('#driverCardsList .ap-driver-card');
   cards.forEach(function(card) {
@@ -813,7 +813,7 @@ window. = function (query) {
   });
 }
 
-window. = function (id) {
+window.selectDriver = function selectDriver(id) {
   if (!id) {
     currentDriver = null;
     localStorage.removeItem('currentDriver');
@@ -843,7 +843,7 @@ window. = function (id) {
   }
 }
 
-window. = function () {
+window.applyDriverState = function applyDriverState() {
   const btn   = document.getElementById('driverToggleBtn');
   const label = document.getElementById('driverBtnLabel');
 
@@ -864,7 +864,7 @@ window. = function () {
 // ── DRIVER ADMIN (Panel dla Administratora) ──
 let editedDriverRoutes = {};
 
-window. = function () {
+window.openDriverAdminModal = function openDriverAdminModal() {
   const container = document.getElementById('driverAdminContainer');
   container.innerHTML = '';
   editedDriverRoutes = {};
@@ -920,12 +920,12 @@ window. = function () {
   lockScroll();
 }
 
-window. = function () {
+window.closeDriverAdminModal = function closeDriverAdminModal() {
   document.getElementById('driverAdminModal').style.display = 'none';
   unlockScroll();
 }
 
-window. = function () {
+window.saveDriverRoutes = function saveDriverRoutes() {
   const btn = document.querySelector('#driverAdminModal .primary');
   btn.disabled = true;
   btn.textContent = 'Zapisywanie...';
@@ -968,7 +968,7 @@ window. = function () {
   });
 }
 
-window. = function (expires) {
+window.applyAdminState = function applyAdminState(expires) {
   isAdmin = expires > Date.now();
   adminExpires = expires;
 
@@ -1025,7 +1025,7 @@ window. = function (expires) {
   if (cv && cv.style.display === 'block') renderClientsList();
 }
 
-window. = function () {
+window.updateSessionDisplay = function updateSessionDisplay() {
   const msLeft = adminExpires - Date.now();
   const hLeft = msLeft / 3600000;
   let label;
@@ -1043,7 +1043,7 @@ window. = function () {
   document.getElementById('adminSessionInfo').textContent = bannerLabel + ' ' + label;
 }
 
-window. = function () {
+window.openAdminLogin = function openAdminLogin() {
   if (isAdmin) {
     const msLeft = adminExpires - Date.now();
     const hLeft = (msLeft / 3600000).toFixed(1).replace('.', ',');
@@ -1059,17 +1059,17 @@ window. = function () {
   setTimeout(function() { document.getElementById('adminPasswordInput').focus(); }, 100);
 }
 
-window. = function () {
+window.closeAdminLogin = function closeAdminLogin() {
   document.getElementById('adminLoginModal').style.display = 'none';
   unlockScroll();
 }
 
-window. = function () {
+window.closeAdminLogout = function closeAdminLogout() {
   document.getElementById('adminLogoutModal').style.display = 'none';
   unlockScroll();
 }
 
-window. = function () {
+window.doAdminLogin = function doAdminLogin() {
   const pw = document.getElementById('adminPasswordInput').value;
   if (!pw) { document.getElementById('adminLoginError').textContent = currentLang === 'DE' ? 'Passwort eingeben' : (currentLang === 'UA' ? 'Введіть пароль' : 'Wpisz hasło'); return; }
   document.getElementById('adminLoginError').textContent = currentLang === 'DE' ? 'Überprüfung...' : (currentLang === 'UA' ? 'Перевірка…' : 'Sprawdzanie…');
@@ -1095,7 +1095,7 @@ window. = function () {
     .checkAdminPassword(pw);
 }
 
-window. = function () {
+window.doAdminLogout = function doAdminLogout() {
   closeAdminLogout();
   localStorage.removeItem(ADMIN_SESSION_KEY);
   applyAdminState(0);
@@ -1103,7 +1103,7 @@ window. = function () {
 }
 // ──────────────────────────────────────────────────────────────
 
-window. = function (){
+window.applyDeviceLayout = function applyDeviceLayout(){
   const width = window.innerWidth || document.documentElement.clientWidth || (window.screen && window.screen.width) || 0;
   const height = window.innerHeight || document.documentElement.clientHeight || (window.screen && window.screen.height) || width;
   const shortestSide = Math.min(width, height);
@@ -1113,34 +1113,34 @@ applyDeviceLayout();
 window.addEventListener('resize',applyDeviceLayout);
 window.addEventListener('orientationchange',applyDeviceLayout);
 
-window. = function (offset){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day)+offset*7);d.setHours(0,0,0,0);return d;}
-window. = function (offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-window. = function (d){const loc = currentLang === 'DE' ? 'de-DE' : (currentLang === 'UA' ? 'uk-UA' : 'pl-PL'); return d.toLocaleDateString(loc,{day:'numeric',month:'short'});}
-window. = function (msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
-window. = function (){document.body.classList.add('modal-open');}
-window. = function (){document.body.classList.remove('modal-open');}
-window. = function (id){return routeMap[id]||('Trasa '+id);}
-window. = function (routeId){return((Number(routeId)-1)%10)+1;}
-window. = function (routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
-window. = function (value){
+window.getMonday = function getMonday(offset){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day)+offset*7);d.setHours(0,0,0,0);return d;}
+window.weekKey = function weekKey(offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+window.fmtDate = function fmtDate(d){const loc = currentLang === 'DE' ? 'de-DE' : (currentLang === 'UA' ? 'uk-UA' : 'pl-PL'); return d.toLocaleDateString(loc,{day:'numeric',month:'short'});}
+window.toast = function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
+window.lockScroll = function lockScroll(){document.body.classList.add('modal-open');}
+window.unlockScroll = function unlockScroll(){document.body.classList.remove('modal-open');}
+window.getRouteName = function getRouteName(id){return routeMap[id]||('Trasa '+id);}
+window.getRouteColorIdx = function getRouteColorIdx(routeId){return((Number(routeId)-1)%10)+1;}
+window.getRouteColor = function getRouteColor(routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
+window.esc = function esc(value){
   const val = (value !== null && value !== undefined) ? value : '';
   return String(val).replace(/[&<>"']/g,function(ch){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
   });
 }
-window. = function (value){
+window.jsArg = function jsArg(value){
   const val = (value !== null && value !== undefined) ? value : '';
   return esc(JSON.stringify(String(val)));
 }
 
-window. = function (){
+window.updateRouteDropdowns = function updateRouteDropdowns(){
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
   const optionsHTML=routeIds.map(id=>'<option value="'+id+'">'+esc(getRouteName(id))+'</option>').join('');
   document.getElementById('newClientRoute').innerHTML=optionsHTML;
   document.getElementById('ecRoute').innerHTML=optionsHTML;
 }
 
-window. = function (v){
+window.switchView = function switchView(v){
   if(['grafikEditor','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
@@ -1178,7 +1178,7 @@ window. = function (v){
   else if(v==='help')renderHelp();
 }
 
-window. = function (){
+window.renderHelp = function renderHelp(){
   const el=document.getElementById('helpView');
   if(!el)return;
   const L=currentLang;
@@ -1259,7 +1259,7 @@ window. = function (){
 }
 
 // ── REPORTS & LOGS ──
-window. = function () {
+window.loadReports = function loadReports() {
   document.getElementById('reportsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
   google.script.run.withFailureHandler(function(e){
     document.getElementById('reportsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
@@ -1268,7 +1268,7 @@ window. = function () {
   }).getAllEntries();
 }
 
-window. = function (entries) {
+window.renderReports = function renderReports(entries) {
   // Aggregate data: total kg, total clients picked, driver stats, days stats
   const completed = entries.filter(e => e.done);
   let totalKg = 0;
@@ -1325,7 +1325,7 @@ window. = function (entries) {
   document.getElementById('reportsContent').innerHTML = html;
 }
 
-window. = function () {
+window.loadLogs = function loadLogs() {
   document.getElementById('logsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
   google.script.run.withFailureHandler(function(e){
     document.getElementById('logsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
@@ -1348,8 +1348,8 @@ window. = function () {
   }).getLogs();
 }
 
-window. = function (diff){weekOffset+=diff;renderGrid();}
-window. = function () {
+window.changeWeek = function changeWeek(diff){weekOffset+=diff;renderGrid();}
+window.filterSchedule = function filterSchedule() {
   const q = document.getElementById('scheduleSearch').value.toLowerCase();
   document.querySelectorAll('#grid1 .tag, #grid2 .tag').forEach(tag => {
     const nameEl = tag.querySelector('.tag-name');
@@ -1361,7 +1361,7 @@ window. = function () {
     }
   });
 }
-window. = function (){
+window.loadWeek = function loadWeek(){
   document.getElementById('grid1').innerHTML='<div class="loader">'+t('loading')+'</div>';
   document.getElementById('grid2').innerHTML='';
   google.script.run.withFailureHandler(function(err){
@@ -1371,7 +1371,7 @@ window. = function (){
   }).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
 }
 
-window. = function (){
+window.renderGrid = function renderGrid(){
   const d1s=getMonday(weekOffset);const d1e=new Date(d1s);d1e.setDate(d1s.getDate()+4);
   const d2s=getMonday(weekOffset+1);const d2e=new Date(d2s);d2e.setDate(d2s.getDate()+4);
   document.getElementById('titleWk1').textContent=fmtDate(d1s)+' – '+fmtDate(d1e);
@@ -1381,7 +1381,7 @@ window. = function (){
   initSortables();
 }
 
-window. = function () {
+window.initSortables = function initSortables() {
   if (!isAdmin) return;
   if (typeof Sortable === 'undefined') {
     console.warn("SortableJS is not loaded.");
@@ -1416,7 +1416,7 @@ window. = function () {
   });
 }
 
-window. = function (offset,targetWkKey){
+window.buildGridHTML = function buildGridHTML(offset,targetWkKey){
   const monday=getMonday(offset);const prevWkKey=weekKey(offset-1);
   const today=new Date();today.setHours(0,0,0,0);
   const days=Array.from({length:5},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
@@ -1469,12 +1469,12 @@ window. = function (offset,targetWkKey){
   }).join('');
 }
 
-window. = function (routeId){
+window.isRouteDaily = function isRouteDaily(routeId){
   const name=(routeMap[routeId]||'').toLowerCase();
   return name.includes('codzien') || name.includes('pn-pt') || name.includes('mo-fr') || name.includes('täglich');
 }
 
-window. = function (mode){
+window.updateDefaultPickup = function updateDefaultPickup(mode){
   const pfx=mode==='add'?'m':'e';
   const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
 
@@ -1501,7 +1501,7 @@ window. = function (mode){
   document.getElementById(pfx+'PickDay').value=p;document.getElementById(pfx+'PickWeek').value=w;
 }
 
-window. = function (pfx, val){
+window.setSegmentedVal = function setSegmentedVal(pfx, val){
   document.getElementById(pfx).value = val;
   const pBtn = document.getElementById(pfx+'_P');
   const oBtn = document.getElementById(pfx+'_O');
@@ -1514,7 +1514,7 @@ window. = function (pfx, val){
   }
 }
 
-window. = function (dayIdx,offset){
+window.openAdd = function openAdd(dayIdx,offset){
   if (!isAdmin && !currentDriver) {
     toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca, aby dodać zamówienie'));
     openDriverSelect(() => openAdd(dayIdx, offset));
@@ -1553,8 +1553,8 @@ window. = function (dayIdx,offset){
   updateDefaultPickup('add');document.getElementById('addModal').style.display='flex';
   lockScroll();
 }
-window. = function (){document.getElementById('addModal').style.display='none';unlockScroll();}
-window. = function (){
+window.closeAdd = function closeAdd(){document.getElementById('addModal').style.display='none';unlockScroll();}
+window.confirmAdd = function confirmAdd(){
   const cName=document.getElementById('mClient').value;const arrDay=parseInt(document.getElementById('mArrDay').value);const pickDay=parseInt(document.getElementById('mPickDay').value);
   const isNextWk=document.getElementById('mPickWeek').value==='1';const wt=document.getElementById('mWeight').value;
   const type=document.getElementById('mType').value;
@@ -1594,7 +1594,7 @@ window. = function (){
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
-window. = function (id, isArrival){
+window.openEdit = function openEdit(id, isArrival){
   const entry=entries.find(e=>e.id===id);if(!entry)return;
   if(!isAdmin){openViewEntry(entry, isArrival);return;}
   // Admin: pełny modal edycji
@@ -1621,7 +1621,7 @@ window. = function (id, isArrival){
 }
 
 // ── VIEW ENTRY (użytkownik) ──
-window. = function (entry, isArrival){
+window.openViewEntry = function openViewEntry(entry, isArrival){
   viewEntryId = entry.id;
   // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
   const grouped = entries.filter(function(e){
@@ -1721,7 +1721,7 @@ window. = function (entry, isArrival){
 // Zapamiętywanie wybranej paczki wpisów do komentarza
 let pendingToggleEntries = null;
 
-window. = function (displayEntries, commentText) {
+window.performToggle = function performToggle(displayEntries, commentText) {
   const allDone = displayEntries.every(function(e){return e.done;});
   // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
   displayEntries.forEach(function(de){
@@ -1802,9 +1802,9 @@ window. = function (displayEntries, commentText) {
   document.getElementById('viewEntryModal').style.display='flex';
   lockScroll();
 }
-window. = function (){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
+window.closeViewEntry = function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
 
-window. = function (){
+window.saveViewEntryComment = function saveViewEntryComment(){
   if(!currentDriver||!viewEntryId) return;
   const ci=document.getElementById('veCommentInput');
   const comment=(ci?ci.value.trim():'');
@@ -1831,8 +1831,8 @@ window. = function (){
     .saveCommentByDriver(viewEntryId, currentDriver.name, comment);
 }
 
-window. = function (){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
-window. = function (){
+window.closeEdit = function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
+window.saveEdit = function saveEdit(){
   if(!editingId)return;const arrDay=parseInt(document.getElementById('eArrDay').value);const pickDay=parseInt(document.getElementById('ePickDay').value);
   const id=editingId;
   const isNextWk=document.getElementById('ePickWeek').value==='1';const wt=document.getElementById('eWeight').value;
@@ -1846,7 +1846,7 @@ window. = function (){
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type,isUrgent,comment);
 }
 
-window. = function (source) {
+window.copyEntry = function copyEntry(source) {
   let entry = null;
   if (source === 'edit' && editingId) {
     entry = entries.find(e => e.id === editingId);
@@ -1871,8 +1871,8 @@ window. = function (source) {
 
 let viewEntryId = null; // store current view id for copying
 
-window. = function (){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
-window. = function (){
+window.toggleDoneFromEdit = function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+window.deleteFromEdit = function deleteFromEdit(){
   if(!editingId)return;
   const entryToDel=entries.find(e=>e.id===editingId);
   const promptText = currentLang === 'DE' ? 'Eintrag löschen' : (currentLang === 'UA' ? 'Вилучити запис' : 'Usunąć wpis');
@@ -1882,13 +1882,13 @@ window. = function (){
 }
 
 var _histAllEntries=null;
-window. = function (){
+window.histSearch = function histSearch(){
   if(!_histAllEntries)return;
   const q=document.getElementById('histSearchInput');
   renderHistoryData(_histAllEntries, q?q.value.trim().toLowerCase():'');
 }
 
-window. = function (all, filter){
+window.renderHistoryData = function renderHistoryData(all, filter){
   const cont=document.getElementById('histContent');
   const L=currentLang;
   const lbl={
@@ -1983,7 +1983,7 @@ window. = function (all, filter){
 }
 
 
-window. = function (){
+window.loadHistory = function loadHistory(){
   const cont=document.getElementById('histContent');
   cont.innerHTML='<div class="loader">'+t('loading')+'</div>';
 
@@ -2019,7 +2019,7 @@ window. = function (){
     .getAllEntries();
 }
 
-window. = function (){
+window.renderClientsList = function renderClientsList(){
   // Aktualizuj widoczność elementów admin
   document.getElementById('clientsAdminHeader').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('clientsHintDrag').style.display = isAdmin ? 'inline' : 'none';
@@ -2087,20 +2087,20 @@ window. = function (){
   }
 }
 
-window. = function (){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
-window. = function (){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
-window. = function (){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast(t('toast_creating'));google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_route_added'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name,getAdminToken());}
+window.openAddRouteModal = function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
+window.closeAddRouteModal = function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
+window.doAddRoute = function doAddRoute(){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast(t('toast_creating'));google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_route_added'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name,getAdminToken());}
 
-window. = function (id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
-window. = function (){document.getElementById('routeModal').style.display='none';unlockScroll();}
-window. = function (){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName,getAdminToken());}
-window. = function (){const id=document.getElementById('rEditId').value;const rName=document.getElementById('rEditName').value;const confirmMsg = currentLang === 'DE' ? 'Route "'+esc(rName)+'" löschen?' : (currentLang === 'UA' ? 'Вилучити маршрут "'+esc(rName)+'"?' : 'Usunąć trasę "'+esc(rName)+'"?');if(!confirm(confirmMsg))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id,getAdminToken());}
+window.openRouteModal = function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
+window.closeRouteModal = function closeRouteModal(){document.getElementById('routeModal').style.display='none';unlockScroll();}
+window.saveRouteEdit = function saveRouteEdit(){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName,getAdminToken());}
+window.deleteRoute = function deleteRoute(){const id=document.getElementById('rEditId').value;const rName=document.getElementById('rEditName').value;const confirmMsg = currentLang === 'DE' ? 'Route "'+esc(rName)+'" löschen?' : (currentLang === 'UA' ? 'Вилучити маршрут "'+esc(rName)+'"?' : 'Usunąć trasę "'+esc(rName)+'"?');if(!confirm(confirmMsg))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id,getAdminToken());}
 
-window. = function (routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
-window. = function (){document.getElementById('clientModal').style.display='none';unlockScroll();}
-window. = function (){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast(t('error_label') + ': ' + res.error);else{toast(t('toast_added') + name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route,getAdminToken());}
+window.openNewClient = function openNewClient(routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
+window.closeClientModal = function closeClientModal(){document.getElementById('clientModal').style.display='none';unlockScroll();}
+window.saveClient = function saveClient(){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast(t('error_label') + ': ' + res.error);else{toast(t('toast_added') + name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route,getAdminToken());}
 
-window. = function (clientName) {
+window.openClientHistory = function openClientHistory(clientName) {
   document.getElementById('chTitle').textContent = 'Historia: ' + clientName;
   document.getElementById('chContent').innerHTML = '<div class="loader">Ładowanie...</div>';
   document.getElementById('clientHistoryModal').style.display = 'flex';
@@ -2143,7 +2143,7 @@ window. = function (clientName) {
   }).getAllEntries();
 }
 
-window. = function (name,route,lat,lng){
+window.openEditClientModal = function openEditClientModal(name,route,lat,lng){
   document.getElementById('ecOldName').value=name;
   document.getElementById('ecName').value=name;
   document.getElementById('ecRoute').value=route;
@@ -2167,11 +2167,11 @@ window. = function (name,route,lat,lng){
   document.getElementById('editClientModal').style.display='flex';
   lockScroll();
 }
-window. = function (){document.getElementById('editClientModal').style.display='none';unlockScroll();}
-window. = function (){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
-window. = function (){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
+window.closeEditClientModal = function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
+window.doSaveClientEdit = function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
+window.doDeleteClient = function doDeleteClient(){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
 
-window. = function (callback){
+window.loadAppData = function loadAppData(callback){
   google.script.run.withFailureHandler(function(e){alert((currentLang === 'DE' ? 'Verbindungsfehler: ' : (currentLang === 'UA' ? 'Помилка з\'єднання: ' : 'Błąd łączenia: ')) + e.message)}).withSuccessHandler(function(data){
     clients=data.clients||[];const rts=data.routes||[];routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
     drivers=data.drivers||[];
@@ -2180,18 +2180,18 @@ window. = function (callback){
   }).getAppData();
 }
 
-window. = function (routeIds){
+window.buildMapLegend = function buildMapLegend(routeIds){
   const legend=document.getElementById('mapLegend');legend.innerHTML='';
   routeIds.forEach(id=>{const color=getRouteColor(id);const div=document.createElement('div');div.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');div.setAttribute('data-route',id);div.innerHTML='<div class="legend-dot" style="background:'+color+'"></div>'+esc(getRouteName(id));div.onclick=function(){toggleRouteVisibility(id);};legend.appendChild(div);});
 }
 
-window. = function (routeId){
+window.toggleRouteVisibility = function toggleRouteVisibility(routeId){
   if(hiddenRoutes.has(routeId))hiddenRoutes.delete(routeId);else hiddenRoutes.add(routeId);
   if(mapLayers[routeId]){const vis=!hiddenRoutes.has(routeId);mapLayers[routeId].markers.forEach(m=>vis?m.addTo(myMap):myMap.removeLayer(m));if(mapLayers[routeId].polyline){if(vis)mapLayers[routeId].polyline.addTo(myMap);else myMap.removeLayer(mapLayers[routeId].polyline);}}
   document.querySelectorAll('.legend-item').forEach(el=>{const id=Number(el.getAttribute('data-route'));el.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');});
 }
 
-window. = function (){
+window.initMap = function initMap(){
   const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const tileUrl = isDark 
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -2239,7 +2239,7 @@ window. = function (){
   setTimeout(()=>myMap.invalidateSize(),100);
 }
 
-window. = function (){
+window.locateUser = function locateUser(){
   if (!navigator.geolocation) {
     alert(currentLang === 'DE' ? 'Geolocation wird von Ihrem Browser nicht unterstützt' : (currentLang === 'UA' ? 'Геолокація не підтримується вашим браузером' : 'Geolokalizacja nie jest wspierana przez Twoją przeglądarkę'));
     return;
@@ -2289,12 +2289,12 @@ window. = function (){
 // ══════════════════════════════════════════════════════
 let gfpLoaded = false;
 
-window. = function (show) {
+window.showGrafikFilePanel = function showGrafikFilePanel(show) {
   document.getElementById('grafikFilePanel').style.display = show ? 'block' : 'none';
   if (show && !gfpLoaded) loadGrafikFileInfo();
 }
 
-window. = function () {
+window.loadGrafikFileInfo = function loadGrafikFileInfo() {
   document.getElementById('gfpFileName').textContent = 'Ładowanie…';
   google.script.run
     .withFailureHandler(function(e) {
@@ -2328,7 +2328,7 @@ window. = function () {
     .getGrafikFileInfo();
 }
 
-window. = function () {
+window.toggleGfpEdit = function toggleGfpEdit() {
   const panel = document.getElementById('gfpEditPanel');
   const btn = document.getElementById('gfpEditBtn');
   const open = panel.style.display === 'none';
@@ -2337,7 +2337,7 @@ window. = function () {
   if (open) setTimeout(function(){ document.getElementById('gfpIdInput').focus(); }, 50);
 }
 
-window. = function () {
+window.connectGrafikFile = function connectGrafikFile() {
   const val = document.getElementById('gfpIdInput').value.trim();
   if (!val) return;
   document.getElementById('gfpError').textContent = currentLang === 'DE' ? 'Verbindung...' : (currentLang === 'UA' ? 'З\'єднання…' : 'Łączenie…');
@@ -2391,11 +2391,11 @@ const STATION_ORDER = ['T','S','M','R','PR','P','SZ','PP','SP','O','PK','SC','K'
 let tlData = null;        // loaded week data
 let tlActiveDayIdx = 0;   // currently displayed day
 
-window. = function () {
+window.initTimelineView = function initTimelineView() {
   refreshTimelineSheets(true);
 }
 
-window. = function (autoLoad) {
+window.refreshTimelineSheets = function refreshTimelineSheets(autoLoad) {
   google.script.run
     .withFailureHandler(function(e){ toast(t('error_label') + ': ' + e.message); })
     .withSuccessHandler(function(sheets) {
@@ -2413,7 +2413,7 @@ window. = function (autoLoad) {
     .listWeeklySheets();
 }
 
-window. = function () {
+window.loadTimelineData = function loadTimelineData() {
   const sheetName = document.getElementById('tlSheetSelect').value;
   if (!sheetName) return;
   document.getElementById('tlGridContainer').innerHTML = '<div class="loader">' + t('loading_timeline') + '</div>';
@@ -2440,7 +2440,7 @@ window. = function () {
     .getWeeklyData(sheetName);
 }
 
-window. = function () {
+window.renderTlDayTabs = function renderTlDayTabs() {
   if (!tlData) return;
   const tabsEl = document.getElementById('tlDayTabs');
   tabsEl.innerHTML = '';
@@ -2453,14 +2453,14 @@ window. = function () {
   });
 }
 
-window. = function (val) {
+window.getStationClass = function getStationClass(val) {
   if (!val) return '';
   const v = val.trim().toUpperCase();
   if (STATIONS[v]) return 'sc-' + v;
   return '';
 }
 
-window. = function () {
+window.renderTlGrid = function renderTlGrid() {
   if (!tlData || !tlData.days[tlActiveDayIdx]) return;
   const day = tlData.days[tlActiveDayIdx];
   const hours = [];
@@ -2506,7 +2506,7 @@ window. = function () {
   renderTlStats();
 }
 
-window. = function () {
+window.renderTlStats = function renderTlStats() {
   if (!tlData || !tlData.days[tlActiveDayIdx]) return;
   const day = tlData.days[tlActiveDayIdx];
   const statsEl = document.getElementById('tlStats');
@@ -2575,14 +2575,14 @@ const GRAFIK_GROUP_COLORS = {
   'TECHNICZNY / TECHNIKER':'#607d8b','TECHNICZNY':'#607d8b'
 };
 
-window. = function (grp){
+window.getGrafikGroupColor = function getGrafikGroupColor(grp){
   if(!grp) return '#455a64';
   const up=grp.toUpperCase();
   for(const k in GRAFIK_GROUP_COLORS){if(up.includes(k.toUpperCase()))return GRAFIK_GROUP_COLORS[k];}
   return '#455a64';
 }
 
-window. = function (val){
+window.getStatusClass = function getStatusClass(val){
   if(!val||val==='')return '';
   const v=val.trim().toUpperCase();
   if(v==='I')  return 'gc-I';
@@ -2595,14 +2595,14 @@ window. = function (val){
   return '';
 }
 
-window. = function (){
+window.initGrafikEditor = function initGrafikEditor(){
   const today=new Date();
   const ym=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
   document.getElementById('grafikYMInput').value=ym;
   loadGrafikMonth();
 }
 
-window. = function (delta){
+window.changeGrafikMonth = function changeGrafikMonth(delta){
   const input=document.getElementById('grafikYMInput');
   if(!input.value)return;
   const [y,m]=input.value.split('-').map(Number);
@@ -2611,7 +2611,7 @@ window. = function (delta){
   loadGrafikMonth();
 }
 
-window. = function (){
+window.loadGrafikMonth = function loadGrafikMonth(){
   const ym=document.getElementById('grafikYMInput').value;
   if(!ym)return;
   document.getElementById('grafikEditorGrid').innerHTML='<div class="loader">'+t('loading_grafik')+'</div>';
@@ -2631,7 +2631,7 @@ window. = function (){
     .getGrafikMonthData(ym);
 }
 
-window. = function (){
+window.renderGrafikGrid = function renderGrafikGrid(){
   if(!grafikData)return;
   const {year,month,daysInMonth,days,employees}=grafikData;
   const today=new Date();
@@ -2775,7 +2775,7 @@ window. = function (){
     if (loader) { loader.textContent = "Błąd startu: " + e.message; loader.style.color = 'red'; }
   }
 
-window. = function () {
+window.triggerArchive = function triggerArchive() {
   if (!isAdmin) {
     toast('Brak uprawnień');
     return;
