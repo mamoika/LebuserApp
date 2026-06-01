@@ -722,6 +722,27 @@ function removeOwnEntry(id, driverName) {
   return { error: 'Nie znaleziono wpisu' };
 }
 
+function saveCommentByDriver(id, driverName, comment) {
+  if (!driverName || !String(driverName).trim()) return { error: 'Wymagane logowanie kierowcy' };
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAME);
+  if (sh.getMaxColumns() < 15) sh.insertColumnsAfter(sh.getMaxColumns(), 15 - sh.getMaxColumns());
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(id).trim()) {
+      const addedBy = String(data[i][11] || '').trim();
+      if (addedBy !== String(driverName).trim()) {
+        return { error: 'Możesz edytować komentarz tylko własnych wpisów' };
+      }
+      sh.getRange(i + 1, 15).setValue(String(comment || '').trim());
+      SpreadsheetApp.flush();
+      logAction(driverName, 'Komentarz', id, String(comment || '').trim());
+      return { ok: true };
+    }
+  }
+  return { error: 'Nie znaleziono wpisu' };
+}
+
 function setUrgent(id, isUrgent, adminToken) {
   checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();

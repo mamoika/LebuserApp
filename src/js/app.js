@@ -17,7 +17,7 @@ const TRANSLATIONS = {
     nav_klienci: "Klienci i Trasy",
     nav_mapa: "Mapa",
     nav_grafik: "Grafik Załogi",
-    nav_edytor: "Edytor Grafiku",
+    nav_edytor: "Grafik",
     nav_timeline: "Oś Czasu",
     day_0: "Poniedziałek",
     day_1: "Wtorek",
@@ -174,7 +174,7 @@ const TRANSLATIONS = {
     nav_klienci: "Kunden & Routen",
     nav_mapa: "Karte",
     nav_grafik: "Dienstplan",
-    nav_edytor: "Plan-Editor",
+    nav_edytor: "Plan",
     nav_timeline: "Zeitachse",
     day_0: "Montag",
     day_1: "Dienstag",
@@ -330,7 +330,7 @@ const TRANSLATIONS = {
     nav_klienci: "Клієнти та маршрути",
     nav_mapa: "Карта",
     nav_grafik: "Графік персоналу",
-    nav_edytor: "Редактор графіка",
+    nav_edytor: "Графік",
     nav_timeline: "Шкала часу",
     nav_help: "Інструкція",
     day_0: "Понеділок",
@@ -927,12 +927,16 @@ function applyAdminState(expires) {
   const staffTab    = document.getElementById('btnViewStaff');
   const grafikTab   = document.getElementById('btnViewGrafikEditor');
   const timelineTab = document.getElementById('btnViewTimeline');
+  const reportsTab  = document.getElementById('btnViewReports');
+  const logsTab     = document.getElementById('btnViewLogs');
 
   if (isAdmin) {
     btn.classList.add('admin-active');
     banner.classList.add('visible');
     if(grafikTab)   grafikTab.classList.add('visible');
     if(timelineTab) timelineTab.classList.add('visible');
+    if(reportsTab)  reportsTab.classList.add('visible');
+    if(logsTab)     logsTab.classList.add('visible');
     updateSessionDisplay();
     if (!sessionTimerInterval) {
       sessionTimerInterval = setInterval(function() {
@@ -954,8 +958,10 @@ function applyAdminState(expires) {
     banner.classList.remove('visible');
     if(grafikTab)   grafikTab.classList.remove('visible');
     if(timelineTab) timelineTab.classList.remove('visible');
+    if(reportsTab)  reportsTab.classList.remove('visible');
+    if(logsTab)     logsTab.classList.remove('visible');
     if (sessionTimerInterval) { clearInterval(sessionTimerInterval); sessionTimerInterval = null; }
-    const adminViews = ['grafikEditorView','timelineView'];
+    const adminViews = ['grafikEditorView','timelineView','reportsView','logsView'];
     if (adminViews.some(id => { const el=document.getElementById(id); return el&&el.style.display==='block'; })) switchView('main');
 
   }
@@ -1093,7 +1099,8 @@ function switchView(v){
   const views=['main','history','clients','map','help','grafikEditor','timeline','reports','logs'];
   const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
-    const el=document.getElementById(x==='main'?'mainView':x+'View');
+    const idMap={main:'mainView',history:'histView'};
+    const el=document.getElementById(idMap[x]||x+'View');
     if(el)el.style.display=(x===v?'block':'none');
     const b=document.getElementById(btns[x]);
     if(b){if(x===v)b.classList.add('active');else b.classList.remove('active');}
@@ -1119,6 +1126,87 @@ function switchView(v){
   else if(v==='timeline')initTimelineView();
   else if(v==='reports')loadReports();
   else if(v==='logs')loadLogs();
+  else if(v==='help')renderHelp();
+}
+
+function renderHelp(){
+  const el=document.getElementById('helpView');
+  if(!el)return;
+  const L=currentLang;
+  const PL=L==='PL', DE=L==='DE', UA=L==='UA'||(!PL&&!DE);
+
+  const T={
+    title:       PL?'ℹ️ Instrukcja':DE?'ℹ️ Anleitung':'ℹ️ Інструкція',
+    intro:       PL?'Aplikacja służy do zarządzania logistyką pralni. Kierowcy logują się jako kierowca i korzystają z harmonogramu, aby śledzić przyjazdy i odbiory bielizny hotelowej.':
+                 DE?'Die App dient zur Verwaltung der Wäschereilogistik. Fahrer melden sich als Fahrer an und nutzen den Zeitplan, um Anlieferungen und Abholungen von Hotelwäsche zu verfolgen.':
+                 'Застосунок призначений для управління логістикою пральні. Водії авторизуються та використовують розклад для відстеження доставок та видач готельної білизни.',
+
+    sec_driver:  PL?'👤 Kierowca — logowanie':DE?'👤 Fahrer — Anmeldung':'👤 Водій — вхід',
+    driver1:     PL?'Naciśnij przycisk <b>Wybierz kierowcę</b> na górze ekranu.':DE?'Tippen Sie oben auf <b>Fahrer auswählen</b>.':'Натисніть кнопку <b>Вибрати водія</b> вгорі екрана.',
+    driver2:     PL?'Wybierz swoje imię z listy — następnie możesz dodawać zamówienia i oznaczać odbiory.':DE?'Wählen Sie Ihren Namen aus der Liste — danach können Sie Aufträge hinzufügen und Abholungen markieren.':'Оберіть своє ім\'я зі списку — після цього можна додавати замовлення та позначати видачі.',
+    driver3:     PL?'Twoje imię jest zapamiętywane na tym urządzeniu — nie musisz logować się przy każdym otwarciu.':DE?'Ihr Name wird auf diesem Gerät gespeichert — Sie müssen sich nicht jedes Mal neu anmelden.':'Ваше ім\'я зберігається на пристрої — не потрібно входити щоразу.',
+
+    sec_schedule:PL?'🗓 Harmonogram — jak czytać':DE?'🗓 Zeitplan — Leseanleitung':'🗓 Розклад — як читати',
+    sched1:      PL?'Harmonogram pokazuje bieżący tydzień podzielony na 5 dni (Pn–Pt).':DE?'Der Zeitplan zeigt die aktuelle Woche aufgeteilt in 5 Tage (Mo–Fr).':'Розклад показує поточний тиждень, розділений на 5 днів (Пн–Пт).',
+    sched2:      PL?'Każdy dzień ma dwie sekcje: <b>↓ Przyjechało</b> (zielone karty) i <b>↑ Do odbioru</b> (niebieskie karty).':DE?'Jeder Tag hat zwei Abschnitte: <b>↓ Angekommen</b> (grüne Karten) und <b>↑ Zur Abholung</b> (blaue Karten).':'Кожен день має два розділи: <b>↓ Приїхало</b> (зелені картки) і <b>↑ До видачі</b> (сині картки).',
+    sched3:      PL?'Szare karty (przekreślone) = odbiór już oznaczony.':DE?'Graue Karten (durchgestrichen) = Abholung bereits markiert.':'Сірі картки (закреслені) = видачу вже позначено.',
+    sched4:      PL?'Na górze każdego dnia widać sumę kg: <b>Przyjazd</b> — ile kg przyjechało tego dnia; <b>Do prania</b> — ile kg czeka na pranie (z poprzedniego dnia).':DE?'Oben an jedem Tag sehen Sie die kg-Summe: <b>Ankunft</b> — wie viele kg heute angekommen sind; <b>Zu waschen</b> — wie viele kg auf die Wäsche warten (vom Vortag).':'Угорі кожного дня — сума кг: <b>Приїзд</b> — скільки кг приїхало цього дня; <b>До прання</b> — скільки кг чекає на прання (з попереднього дня).',
+
+    sec_badges:  PL?'🏷 Oznaczenia na kartach':DE?'🏷 Kennzeichnungen auf den Karten':'🏷 Позначення на картках',
+    badge_p:     PL?'<b>P</b> = Pościel (niebieskie oznaczenie)':DE?'<b>P</b> = Bettwäsche (blaue Kennzeichnung)':'<b>P</b> = Постіль (синє позначення)',
+    badge_o:     PL?'<b>O</b> = Obrusy (fioletowe oznaczenie)':DE?'<b>O</b> = Tischdecken (violette Kennzeichnung)':'<b>O</b> = Скатертини (фіолетове позначення)',
+    badge_t:     PL?'<b>T1, T2…</b> = Numer trasy logistycznej':DE?'<b>T1, T2…</b> = Nummer der Logistikroute':'<b>T1, T2…</b> = Номер логістичного маршруту',
+    badge_kg:    PL?'<b>35 kg</b> = Waga bielizny w kilogramach':DE?'<b>35 kg</b> = Gewicht der Wäsche in Kilogramm':'<b>35 kg</b> = Вага білизни в кілограмах',
+    badge_flag:  PL?'🚩 = Zamówienie pilne — priorytetowe':DE?'🚩 = Dringender Auftrag — Priorität':'🚩 = Термінове замовлення — пріоритет',
+
+    sec_arrival: PL?'↓ Przyjechało — sekcja przyjazdu':DE?'↓ Angekommen — Anlieferungsbereich':'↓ Приїхало — розділ доставки',
+    arr1:        PL?'Zielona karta = bielizna przywiozła i czeka na pranie.':DE?'Grüne Karte = Wäsche wurde angeliefert und wartet auf die Wäsche.':'Зелена картка = білизна приїхала і чекає на прання.',
+    arr2:        PL?'Naciśnij kartę, aby zobaczyć szczegóły — dzień przyjazdu, dzień odbioru, rodzaj, wagę.':DE?'Tippen Sie auf die Karte, um Details zu sehen — Ankunftstag, Abholtag, Art, Gewicht.':'Натисніть картку, щоб побачити деталі — день приїзду, день видачі, тип, вагу.',
+    arr3:        PL?'Jeśli dodałeś zamówienie sam — możesz je <b>usunąć</b> przyciskiem Usuń w oknie szczegółów.':DE?'Wenn Sie den Auftrag selbst hinzugefügt haben — können Sie ihn über die Schaltfläche <b>Löschen</b> im Detailfenster entfernen.':'Якщо ви самі додали замовлення — можна його <b>вилучити</b> кнопкою Вилучити у вікні деталей.',
+
+    sec_pickup:  PL?'↑ Do odbioru — sekcja odbiorów':DE?'↑ Zur Abholung — Abholungsbereich':'↑ До видачі — розділ видачі',
+    pick1:       PL?'Niebieska karta = bielizna gotowa do odbioru przez klienta.':DE?'Blaue Karte = Wäsche ist bereit zur Abholung durch den Kunden.':'Синя картка = білизна готова до видачі клієнту.',
+    pick2:       PL?'Naciśnij kartę → naciśnij <b>Oznacz jako odebrane</b> gdy klient odbierze pranie.':DE?'Tippen Sie auf die Karte → tippen Sie auf <b>Als abgeholt markieren</b>, wenn der Kunde die Wäsche abholt.':'Натисніть картку → натисніть <b>Позначити як забране</b>, коли клієнт забере білизну.',
+    pick3:       PL?'Jeśli klient ma zarówno Pościel (P) jak i Obrusy (O) w tym samym dniu odbioru — pojawią się razem na jednej karcie.':DE?'Hat der Kunde sowohl Bettwäsche (P) als auch Tischdecken (O) am selben Abholtag — erscheinen sie zusammen auf einer Karte.':'Якщо клієнт має і Постіль (P), і Скатертини (O) в той самий день видачі — вони з\'являться разом на одній картці.',
+    pick4:       PL?'Po oznaczeniu karta staje się szara (przekreślona). Można cofnąć oznaczenie naciśnięciem karty → <b>Cofnij odbiór</b>.':DE?'Nach der Markierung wird die Karte grau (durchgestrichen). Die Markierung kann durch Tippen auf die Karte → <b>Abholung rückgängig</b> aufgehoben werden.':'Після позначення картка стає сірою (закресленою). Можна скасувати позначення — натисніть картку → <b>Скасувати видачу</b>.',
+
+    sec_add:     PL?'➕ Dodawanie zamówienia':DE?'➕ Auftrag hinzufügen':'➕ Додавання замовлення',
+    add1:        PL?'Naciśnij <b>+ dodaj zamówienie</b> na dole kolumny danego dnia.':DE?'Tippen Sie unten in der Tagesspalte auf <b>+ Auftrag hinzufügen</b>.':'Натисніть <b>+ додати замовлення</b> внизу стовпця потрібного дня.',
+    add2:        PL?'Wybierz klienta, rodzaj bielizny (Pościel / Obrusy), podaj wagę (opcjonalnie) i dzień odbioru.':DE?'Wählen Sie den Kunden, die Art der Wäsche (Bettwäsche / Tischdecken), geben Sie das Gewicht (optional) und den Abholtag an.':'Оберіть клієнта, тип білизни (Постіль / Скатертини), вкажіть вагу (необов\'язково) та день видачі.',
+    add3:        PL?'Naciśnij <b>Zapisz</b> — zamówienie pojawi się od razu w harmonogramie.':DE?'Tippen Sie auf <b>Speichern</b> — der Auftrag erscheint sofort im Zeitplan.':'Натисніть <b>Зберегти</b> — замовлення одразу з\'явиться в розкладі.',
+
+    sec_nav:     PL?'📋 Inne zakładki':DE?'📋 Weitere Tabs':'📋 Інші вкладки',
+    nav_hist:    PL?'<b>Historia</b> — wszystkie zamówienia z poprzednich tygodni':DE?'<b>Verlauf</b> — alle Aufträge aus vergangenen Wochen':'<b>Історія</b> — всі замовлення з попередніх тижнів',
+    nav_clients: PL?'<b>Klienci i Trasy</b> — lista hoteli/firm i tras logistycznych (tylko admin)':DE?'<b>Kunden & Routen</b> — Liste der Hotels/Firmen und Logistikrouten (nur Admin)':'<b>Клієнти та Маршрути</b> — список готелів/фірм і маршрутів (тільки адмін)',
+    nav_map:     PL?'<b>Mapa</b> — mapa z lokalizacjami klientów na trasie':DE?'<b>Karte</b> — Karte mit Kundenstandorten auf der Route':'<b>Карта</b> — карта з розташуванням клієнтів на маршруті',
+
+    sec_colors:  PL?'🎨 Kolory kart':DE?'🎨 Kartenfarben':'🎨 Кольори карток',
+    col_green:   PL?'Zielona = przyjechało (czeka na pranie)':DE?'Grün = angekommen (wartet auf die Wäsche)':'Зелена = приїхало (чекає на прання)',
+    col_blue:    PL?'Niebieska = do odbioru (gotowe)':DE?'Blau = zur Abholung (fertig)':'Синя = до видачі (готово)',
+    col_gray:    PL?'Szara = odebrane / zakończone':DE?'Grau = abgeholt / abgeschlossen':'Сіра = забрано / завершено',
+  };
+
+  function section(title, items){
+    return '<div class="help-sec"><div class="help-sec-title">'+title+'</div>'
+      +items.map(function(i){return'<div class="help-sec-item">'+i+'</div>';}).join('')
+      +'</div>';
+  }
+
+  el.innerHTML=
+    '<div class="legend-box" style="margin-top:0;padding:0;background:none;border:none;box-shadow:none;gap:0">'
+    +'<div style="font-size:16px;font-weight:800;color:var(--text-primary);padding:16px 16px 4px">'+T.title+'</div>'
+    +'<div style="font-size:13px;color:var(--text-secondary);padding:0 16px 16px;line-height:1.5">'+T.intro+'</div>'
+    +section(T.sec_driver,[T.driver1,T.driver2,T.driver3])
+    +section(T.sec_schedule,[T.sched1,T.sched2,T.sched3,T.sched4])
+    +section(T.sec_badges,[
+      T.badge_p,T.badge_o,T.badge_t,T.badge_kg,T.badge_flag
+    ])
+    +section(T.sec_arrival,[T.arr1,T.arr2,T.arr3])
+    +section(T.sec_pickup,[T.pick1,T.pick2,T.pick3,T.pick4])
+    +section(T.sec_add,[T.add1,T.add2,T.add3])
+    +section(T.sec_nav,[T.nav_hist,T.nav_clients,T.nav_map])
+    +section(T.sec_colors,[T.col_green,T.col_blue,T.col_gray])
+    +'</div>';
 }
 
 // ── REPORTS & LOGS ──
@@ -1292,10 +1380,9 @@ function buildGridHTML(offset,targetWkKey){
     const pickups=entries.filter(e=>e.pickWeekKey===targetWkKey&&e.pickDay===i&&!(e.weekKey===targetWkKey&&e.arrDay===i));
     const arrTags=arrived.sort((a,b)=>a.order-b.order).map(e=>{
       const typeBadge='<span class="laundry-type-badge type-'+esc(e.type || 'P')+'">'+esc(e.type || 'P')+'</span>';
-      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
+      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';
       const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-      const checkPlaceholder='<span class="tag-check-placeholder"></span>';
-      return'<div class="tag tag-arr'+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+      return'<div class="tag '+(e.done?'tag-done':'tag-arr')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+',true)">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
     }).join('');
     const pickTags=(function(){
       // Grupuj odbiory po kliencie — P+O tego samego klienta razem
@@ -1309,21 +1396,19 @@ function buildGridHTML(offset,targetWkKey){
         if(g.entries.length===1){
           const e=g.entries[0];
           const typeBadge='<span class="laundry-type-badge type-'+esc(e.type||'P')+'">'+esc(e.type||'P')+'</span>';
-          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
-          const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
+          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';
           const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }else{
           const typesBadges=g.types.sort().map(function(tp){return'<span class="laundry-type-badge type-'+esc(tp)+'">'+esc(tp)+'</span>';}).join('');
-          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'<span class="kg-placeholder"></span>';
-          const checkBtn='<span class="tag-check">'+(g.allDone?'✓':'◯')+'</span>';
+          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'';
           const urgentFlag=g.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }
       }).join('');
     })();
     return'<div class="col'+(isToday?' col-today':'')+'">'+
-      '<div class="col-header"><span class="col-day-name">'+DAY_SHORT[i]+'</span><span class="col-date">'+fmtDate(d)+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
+      '<div class="col-header"><span class="col-date">'+fmtDate(d)+'</span><span class="col-day-name" style="flex:1;text-align:center">'+DAY_NAMES[i]+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
       '<div class="metrics-row">'+
         '<div class="metric-chip arr"><div class="metric-chip-label">'+t('grid_arrival')+'</div><div class="metric-chip-val">'+(sumArr>0?sumArr.toFixed(1):0)+' kg</div></div>'+
         '<div class="metric-chip wash"><div class="metric-chip-label">'+t('grid_wash')+'</div><div class="metric-chip-val">'+(sumWash>0?sumWash.toFixed(1):0)+' kg</div></div>'+
@@ -1460,9 +1545,9 @@ function confirmAdd(){
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
-function openEdit(id){
+function openEdit(id, isArrival){
   const entry=entries.find(e=>e.id===id);if(!entry)return;
-  if(!isAdmin){openViewEntry(entry);return;}
+  if(!isAdmin){openViewEntry(entry, isArrival);return;}
   // Admin: pełny modal edycji
   editingId=id;
   document.getElementById('eClientName').textContent=entry.client+' — '+getRouteName(entry.route);
@@ -1487,7 +1572,7 @@ function openEdit(id){
 }
 
 // ── VIEW ENTRY (użytkownik) ──
-function openViewEntry(entry){
+function openViewEntry(entry, isArrival){
   viewEntryId = entry.id;
   // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
   const grouped = entries.filter(function(e){
@@ -1510,9 +1595,22 @@ function openViewEntry(entry){
   const showGrouped = uniqueTypes.length > 1;
   const displayEntries = showGrouped ? allForPickup : [entry];
 
-  document.getElementById('veClientName').textContent=entry.client+' — '+getRouteName(entry.route);
-  document.getElementById('veArrDay').textContent=DAY_NAMES[entry.arrDay];
-  document.getElementById('vePickDay').textContent=DAY_NAMES[entry.pickDay]+(entry.weekKey!==entry.pickWeekKey ? t('week_next_suffix') : '');
+  // Nazwa trasy w kolorze trasy
+  const veClientEl = document.getElementById('veClientName');
+  veClientEl.textContent = entry.client + ' — ' + getRouteName(entry.route);
+  veClientEl.style.color = getRouteColor(entry.route);
+
+  // Dzień przyjazdu z datą
+  function entryDayDate(wkKey, dayIdx) {
+    if (!wkKey) return DAY_NAMES[dayIdx];
+    const parts = wkKey.split('-');
+    if (parts.length < 3) return DAY_NAMES[dayIdx];
+    const mon = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+    mon.setDate(mon.getDate() + dayIdx);
+    return DAY_NAMES[dayIdx] + ', ' + mon.getDate() + ' ' + ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'][mon.getMonth()];
+  }
+  document.getElementById('veArrDay').textContent = entryDayDate(entry.weekKey, entry.arrDay);
+  document.getElementById('vePickDay').textContent = entryDayDate(entry.pickWeekKey, entry.pickDay);
 
   // Typ i waga — jeśli zgrupowane, pokaż oba
   if(showGrouped){
@@ -1560,7 +1658,7 @@ function openViewEntry(entry){
   urgentRow.style.display = entry.urgent ? 'flex' : 'none';
 
   const commentRow = document.getElementById('veCommentRow');
-  if (entry.comment) {
+  if(entry.comment) {
     commentRow.style.display = 'flex';
     document.getElementById('veComment').textContent = entry.comment;
   } else {
@@ -1570,6 +1668,7 @@ function openViewEntry(entry){
   const tBtn=document.getElementById('veToggleBtn');
   tBtn.textContent=allDone ? t('btn_mark_undone') : t('btn_mark_done');
   tBtn.className='done-btn'+(allDone?' danger':'');
+  tBtn.style.display = isArrival ? 'none' : '';
 // Zapamiętywanie wybranej paczki wpisów do komentarza
 let pendingToggleEntries = null;
 
@@ -1603,28 +1702,44 @@ function performToggle(displayEntries, commentText) {
       return;
     }
     closeViewEntry();
-    
-    // Zmieniamy status natychmiast (komentarz w logach będzie pusty, ale akcja "Cofnięcie odbioru" zostanie zapisana)
-    performToggle(displayEntries);
+    const ci = document.getElementById('veCommentInput');
+    const commentText = (ci && isOwner) ? ci.value.trim() : undefined;
+    performToggle(displayEntries, commentText);
   };
 
-  // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
+  // Przycisk Usuń — widoczny jeśli kierowca dodał choć jeden wpis w grupie
   const deleteRow=document.getElementById('veDeleteRow');
+  const ownerCommentRow=document.getElementById('veOwnerCommentRow');
+  // isOwner: kierowca dodał WSZYSTKIE wpisy (dla komentarza edytowalnego)
   const isOwner = currentDriver && displayEntries.every(function(de){
     return de.addedBy && de.addedBy === currentDriver.name;
   });
-  deleteRow.style.display = isOwner ? 'flex' : 'none';
-  if(isOwner){
+  // canDelete: kierowca dodał przynajmniej jeden wpis w grupie
+  const ownEntries = currentDriver ? displayEntries.filter(function(de){
+    return de.addedBy && de.addedBy === currentDriver.name;
+  }) : [];
+  const canDelete = ownEntries.length > 0 && isArrival;
+  if(deleteRow) deleteRow.style.display = canDelete ? 'flex' : 'none';
+  // Właściciel: pole edytowalne zamiast read-only
+  const commentRow2 = document.getElementById('veCommentRow');
+  const commentInput = document.getElementById('veCommentInput');
+  if(isOwner) {
+    if(commentRow2) commentRow2.style.display = 'none';
+    if(ownerCommentRow) ownerCommentRow.style.display = 'block';
+    if(commentInput) commentInput.value = entry.comment || '';
+  } else {
+    if(ownerCommentRow) ownerCommentRow.style.display = 'none';
+  }
+  if(canDelete){
     document.getElementById('veDeleteBtn').onclick=function(){
       const confirmMsg = currentLang === 'DE' ? 'Eintrag löschen?' : (currentLang === 'UA' ? 'Вилучити запис?' : 'Usunąć wpis?');
       if(!confirm(confirmMsg)) return;
       closeViewEntry();
-      // Optymistyczne usunięcie wszystkich wpisów w grupie
-      const idsToRemove = displayEntries.map(function(de){return de.id;});
+      // Usuń tylko wpisy tego kierowcy
+      const idsToRemove = ownEntries.map(function(de){return de.id;});
       entries=entries.filter(function(en){return idsToRemove.indexOf(en.id)===-1;});
       renderGrid();
       toast(t('toast_deleted'));
-      // Usuń każdy wpis na serwerze
       idsToRemove.forEach(function(eid){
         google.script.run.withFailureHandler(function(e){
           loadWeek();
@@ -1639,6 +1754,33 @@ function performToggle(displayEntries, commentText) {
   lockScroll();
 }
 function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
+
+function saveViewEntryComment(){
+  if(!currentDriver||!viewEntryId) return;
+  const ci=document.getElementById('veCommentInput');
+  const comment=(ci?ci.value.trim():'');
+  // Zapisz lokalnie w entries i pokaż wszystkim
+  const idx=entries.findIndex(function(e){return e.id===viewEntryId;});
+  if(idx!==-1){
+    entries[idx].comment=comment;
+    // Odśwież wyświetlenie komentarza w info-row
+    const cr=document.getElementById('veCommentRow');
+    const cv=document.getElementById('veComment');
+    if(comment){
+      if(cr) cr.style.display='flex';
+      if(cv) cv.textContent=comment;
+    } else {
+      if(cr) cr.style.display='none';
+    }
+    renderGrid();
+  }
+  toast(currentLang==='DE'?'Kommentar gespeichert':(currentLang==='UA'?'Коментар збережено':'Komentarz zapisany'));
+  // Wyślij na serwer
+  google.script.run
+    .withFailureHandler(function(){toast('Błąd zapisu komentarza');})
+    .withSuccessHandler(function(res){if(res&&res.error) toast(res.error);})
+    .saveCommentByDriver(viewEntryId, currentDriver.name, comment);
+}
 
 function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
 function saveEdit(){
@@ -1690,22 +1832,142 @@ function deleteFromEdit(){
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(){toast(t('toast_deleted'));loadWeek();}).removeEntry(id,getAdminToken());
 }
 
-function loadHistory(){
-  document.getElementById('histContent').innerHTML='<div class="loader">' + t('loading') + '</div>';
-  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(all){
-    const grouped={};all.forEach(e=>{if(!grouped[e.weekKey])grouped[e.weekKey]=[];grouped[e.weekKey].push(e);});
-    const keys=Object.keys(grouped).sort().reverse();
-    if(!keys.length){document.getElementById('histContent').innerHTML='<div class="loader">' + t('hist_empty') + '</div>';return;}
-    document.getElementById('histContent').innerHTML=keys.map(k=>{
-      const rows=grouped[k].map(e=>{
-        const typeStr=(e.type==='O'?t('type_o'):t('type_p'));
-        const arrLbl = currentLang === 'DE' ? 'Ank.' : (currentLang === 'UA' ? 'приб.' : 'przyj.');
-        const pickLbl = currentLang === 'DE' ? 'Abholung' : (currentLang === 'UA' ? 'видача' : 'odbiór');
-        return'<div class="he"><b>'+esc(e.client)+(e.weight>0?' ('+esc(e.weight)+'kg, '+typeStr+')':' ('+typeStr+')')+' ['+esc(getRouteName(e.route))+']</b> → ' + arrLbl + ': '+esc(DAY_NAMES[e.arrDay])+' | ' + pickLbl + ': '+esc(DAY_NAMES[e.pickDay])+(e.done?' ✓':'')+'</div>';
+var _histAllEntries=null;
+function histSearch(){
+  if(!_histAllEntries)return;
+  const q=document.getElementById('histSearchInput');
+  renderHistoryData(_histAllEntries, q?q.value.trim().toLowerCase():'');
+}
+
+function renderHistoryData(all, filter){
+  const cont=document.getElementById('histContent');
+  const L=currentLang;
+  const lbl={
+    pickups: L==='DE'?'Abh.':L==='UA'?'Видач':'Odb.',
+    avg:     L==='DE'?'\u00D8':L==='UA'?'\u0421\u0435\u0440.':'\u015Ar.',
+    brought: L==='DE'?'Gebracht':L==='UA'?'\u041F\u0440\u0438\u0432\u0456\u0437':'Przywiózł',
+    addedAt: L==='DE'?'Eingetr.':L==='UA'?'Записано':'Wpisano',
+    pickedBy:L==='DE'?'Abgeholt':L==='UA'?'Забрав':'Odebrał',
+    pickedAt:L==='DE'?'am':L==='UA'?'':'',
+    noData:  L==='DE'?'Keine Einträge':L==='UA'?'Немає записів':'Brak wpisów',
+    noResult:L==='DE'?'Keine Ergebnisse':L==='UA'?'Немає результатів':'Brak wyników',
+    pending: L==='DE'?'Ausstehend':L==='UA'?'Очікує':'Oczekuje',
+    done:    L==='DE'?'Abgeholt':L==='UA'?'Забрано':'Odebrane',
+  };
+  if(!all.length){cont.innerHTML='<div class="loader">'+lbl.noData+'</div>';return;}
+  const filtered=filter?all.filter(function(e){
+    return (e.client||'').toLowerCase().includes(filter)
+      ||(e.addedBy||'').toLowerCase().includes(filter)
+      ||(e.pickedBy||'').toLowerCase().includes(filter)
+      ||(e.comment||'').toLowerCase().includes(filter);
+  }):all;
+  if(!filtered.length){cont.innerHTML='<div class="loader">'+lbl.noResult+'</div>';return;}
+  const byClient={};
+  filtered.forEach(function(e){
+    const key=e.client+'||'+e.route;
+    if(!byClient[key])byClient[key]={client:e.client,route:e.route,entries:[]};
+    byClient[key].entries.push(e);
+  });
+  const sorted=Object.values(byClient).sort(function(a,b){
+    return (a.route||0)-(b.route||0)||a.client.localeCompare(b.client);
+  });
+  function parseMonth(e){
+    const src=e.addedAt||e.pickedAt||'';
+    if(!src)return null;
+    const p=src.split(',')[0].split('.');
+    return p.length===3?p[1].trim()+'.'+p[2].trim():null;
+  }
+  const cards=sorted.map(function(g){
+    const entries=g.entries;
+    const doneEnt=entries.filter(function(e){return e.done;});
+    const totalKg=entries.reduce(function(s,e){return s+(e.weight||0);},0);
+    const doneKg=doneEnt.reduce(function(s,e){return s+(e.weight||0);},0);
+    const avgKg=doneEnt.length?(doneKg/doneEnt.length).toFixed(1):'—';
+    const rColor=getRouteColor(g.route);
+    const rIdx=getRouteColorIdx(g.route);
+    const byMonth={};
+    entries.forEach(function(e){
+      const m=parseMonth(e)||'—';
+      if(!byMonth[m])byMonth[m]=[];
+      byMonth[m].push(e);
+    });
+    const monthBlocks=Object.keys(byMonth).sort(function(a,b){return b.localeCompare(a);}).map(function(m){
+      const mes=byMonth[m];
+      const mKg=mes.reduce(function(s,e){return s+(e.weight||0);},0);
+      const mHead='<div class="hist-month-head">'
+        +'<span style="font-size:11px;font-weight:800;color:var(--text-primary)">'+esc(m)+'</span>'
+        +'<span style="font-size:10px;color:var(--text-tertiary);margin-left:auto">'+mes.length+'\u00D7 · <b style="color:var(--accent-blue)">'+mKg.toFixed(1)+' kg</b></span>'
+        +'</div>';
+      const rows=mes.sort(function(a,b){return (b.addedAt||'').localeCompare(a.addedAt||'');}).map(function(e){
+        const tb='<span class="laundry-type-badge type-'+(e.type||'P')+'" style="font-size:9px;padding:1px 5px">'+(e.type||'P')+'</span>';
+        const kb=e.weight>0?'<span style="font-size:11px;font-weight:600;color:var(--text-secondary)">'+e.weight+' kg</span>':'';
+        const sb=e.done
+          ?'<span style="font-size:10px;font-weight:700;color:var(--accent-green)">✓ '+lbl.done+'</span>'
+          :'<span style="font-size:10px;font-weight:600;color:var(--accent-red)">⏳ '+lbl.pending+'</span>';
+        const uf=e.urgent?'<span style="color:var(--accent-red)">🚩</span>':'';
+        const infos=[];
+        if(e.addedBy)infos.push('<span style="color:var(--text-tertiary)">'+lbl.brought+':</span> <b>'+esc(e.addedBy)+'</b>'+(e.addedAt?' <span style="color:var(--text-quaternary);font-size:10px">'+esc(e.addedAt)+'</span>':''));
+        if(e.pickedBy)infos.push('<span style="color:var(--text-tertiary)">'+lbl.pickedBy+':</span> <b style="color:var(--accent-green)">'+esc(e.pickedBy)+'</b>'+(e.pickedAt?' <span style="color:var(--text-quaternary);font-size:10px">'+esc(e.pickedAt)+'</span>':''));
+        if(e.comment)infos.push('💬 <i style="color:var(--text-tertiary)">'+esc(e.comment)+'</i>');
+        return '<div class="hist-entry">'
+          +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">'+uf+tb+kb+sb+'</div>'
+          +(infos.length?'<div class="hist-entry-info">'+infos.map(function(l){return'<span>'+l+'</span>';}).join('')+'</div>':'')
+          +'</div>';
       }).join('');
-      return'<div class="hw"><div class="hw-h">' + t('hist_title') + fmtDate(new Date(k))+'</div>'+rows+'</div>';
+      return mHead+rows;
     }).join('');
-  }).getAllEntries();
+    const head='<div class="hist-card-head" style="border-top:3px solid '+rColor+'">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
+        +'<span class="hist-client-name">'+esc(g.client)+'</span>'
+        +'<span class="rt-badge rt-'+rIdx+'" style="font-size:10px;padding:2px 6px">T'+esc(g.route)+'</span>'
+        +'<span style="font-size:11px;font-weight:600;color:'+rColor+'">'+esc(getRouteName(g.route))+'</span>'
+      +'</div>'
+      +'<div class="hist-card-stats">'
+        +'<span><b style="color:var(--text-primary)">'+entries.length+'</b> <span style="color:var(--text-tertiary)">'+lbl.pickups+'</span></span>'
+        +(totalKg>0?'<span><b style="color:var(--accent-blue)">'+totalKg.toFixed(1)+'</b> <span style="color:var(--text-tertiary)">kg</span></span>':'')
+        +(doneEnt.length&&totalKg>0?'<span><b>'+avgKg+'</b> <span style="color:var(--text-tertiary)">kg '+lbl.avg+'</span></span>':'')
+      +'</div>'
+      +'</div>';
+    return '<div class="hist-card hw">'+head+monthBlocks+'</div>';
+  }).join('');
+  cont.innerHTML='<div class="hist-grid">'+cards+'</div>';
+}
+
+
+function loadHistory(){
+  const cont=document.getElementById('histContent');
+  cont.innerHTML='<div class="loader">'+t('loading')+'</div>';
+
+  const L=currentLang;
+  const lbl={
+    empty:   L==='DE'?'Kein Verlauf':L==='UA'?'Історія порожня':'Brak historii',
+    noData:  L==='DE'?'Keine Abholungen':L==='UA'?'Немає видач':'Brak odbiorów',
+    pickups: L==='DE'?'Abholungen':L==='UA'?'Видач':'Odbiorów',
+    total:   L==='DE'?'Gesamt':L==='UA'?'Всього':'Suma',
+    avg:     L==='DE'?'Ø/Abh.':L==='UA'?'Сер.':'Śr.',
+  };
+
+  google.script.run
+    .withFailureHandler(function(e){
+      cont.innerHTML='<div class="loader" style="color:var(--accent-red)">'+t('error_label')+': '+translateError(e.message)+'</div>';
+    })
+    .withSuccessHandler(function(all){
+      if(!all||!all.length){
+        cont.innerHTML='<div class="loader">'+(currentLang==='DE'?'Kein Verlauf':currentLang==='UA'?'Історія порожня':'Brak historii')+'</div>';
+        return;
+      }
+      _histAllEntries=all;
+      // Wyszukiwarka na górze
+      const searchPlaceholder=currentLang==='DE'?'Suchen…':currentLang==='UA'?'Пошук…':'Szukaj…';
+      document.getElementById('histSearchBar').innerHTML=
+        '<div style="position:relative;margin-bottom:14px">'
+          +'<svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.4" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+          +'<input id="histSearchInput" type="search" placeholder="'+searchPlaceholder+'" oninput="histSearch()" '
+          +'style="width:100%;box-sizing:border-box;padding:9px 14px 9px 36px;font-size:15px;font-family:var(--font);border-radius:12px;border:none;background:rgba(120,120,128,0.12);color:var(--text-primary);outline:none;-webkit-appearance:none;appearance:none">'
+        +'</div>';
+      renderHistoryData(all,'');
+    })
+    .getAllEntries();
 }
 
 function renderClientsList(){
@@ -1749,7 +2011,6 @@ function renderClientsList(){
           const editBtnLbl = currentLang === 'DE' ? 'Bearbeiten' : (currentLang === 'UA' ? 'Редагувати' : 'Edytuj');
           html+='<span class="edit-icon" style="margin-left:8px" onclick="openEditClientModal('+jsArg(c.name)+','+Number(c.route)+','+jsArg(c.lat||'')+','+jsArg(c.lng||'')+')">' + editBtnLbl + '</span>';
         }
-        html+='<span class="edit-icon" style="margin-left:8px;color:var(--accent-blue)" onclick="openClientHistory('+jsArg(c.name)+')">Historia</span>';
         html+='</div>';
       });
       html+='</div><div style="flex:1"></div><div class="divider" style="margin:8px 0"></div>';
@@ -1833,7 +2094,30 @@ function openClientHistory(clientName) {
   }).getAllEntries();
 }
 
-function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';lockScroll();}
+function openEditClientModal(name,route,lat,lng){
+  document.getElementById('ecOldName').value=name;
+  document.getElementById('ecName').value=name;
+  document.getElementById('ecRoute').value=route;
+  document.getElementById('ecLat').value=lat||'';
+  document.getElementById('ecLng').value=lng||'';
+  // Badge kolorowy aktualnej trasy
+  const badge=document.getElementById('ecRouteBadge');
+  if(badge){
+    badge.innerHTML='<span class="rt-badge rt-'+getRouteColorIdx(route)+'" style="font-size:12px;padding:3px 8px">T'+route+'</span>'
+      +'<span style="font-size:13px;font-weight:600;color:'+getRouteColor(route)+'">'+esc(getRouteName(route))+'</span>';
+  }
+  // Odśwież badge przy zmianie selecta
+  const sel=document.getElementById('ecRoute');
+  sel.onchange=function(){
+    const r=Number(this.value);
+    if(badge){
+      badge.innerHTML='<span class="rt-badge rt-'+getRouteColorIdx(r)+'" style="font-size:12px;padding:3px 8px">T'+r+'</span>'
+        +'<span style="font-size:13px;font-weight:600;color:'+getRouteColor(r)+'">'+esc(getRouteName(r))+'</span>';
+    }
+  };
+  document.getElementById('editClientModal').style.display='flex';
+  lockScroll();
+}
 function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
 function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
 function doDeleteClient(){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
@@ -2161,8 +2445,7 @@ function renderTlGrid() {
       const outsideCls = inShift ? '' : ' outside';
       const weCls = day.isWeekend ? ' we-col' : '';
       const sc = getStationClass(val);
-      html += '<td class="tl-cell' + outsideCls + weCls + (sc ? ' ' + sc : '') +
-              '" onclick="openStationPicker(' + eIdx + ',' + tlActiveDayIdx + ',' + h + ',' + jsArg(val) + ',event)">' +
+      html += '<td class="tl-cell' + outsideCls + weCls + (sc ? ' ' + sc : '') + '">' +
               esc(val) + '</td>';
     });
     html += '</tr>';
@@ -2230,66 +2513,6 @@ function renderTlStats() {
   document.getElementById('tlStatsTable').innerHTML = html;
 }
 
-// Station picker
-function openStationPicker(empIdx, dayIdx, hour, currentVal, event) {
-  if (!isAdmin) { toast(currentLang === 'DE' ? 'Bearbeitung erfordert Administratorrechte' : (currentLang === 'UA' ? 'Редагування вимагає прав адміністратора' : 'Edycja wymaga uprawnień administratora')); return; }
-  tlPendingCell = { empIdx: empIdx, dayIdx: dayIdx, hour: hour };
-  const emp = tlData.employees[empIdx];
-  document.getElementById('spTitle').innerHTML =
-    '<b>' + esc(emp.name) + '</b> · ' + esc(tlData.days[dayIdx].label) + ' · ' + hour + ':00' +
-    (currentVal ? ' <span class="cp-current-badge ' + getStationClass(currentVal) + '">' + esc(currentVal) + '</span>' : '');
-
-  // Podświetl aktywne
-  document.querySelectorAll('.sp-btn').forEach(function(b) { b.classList.remove('sp-active'); });
-  const activeBtn = document.querySelector('.sp-btn.sp-' + currentVal.toUpperCase());
-  if (activeBtn) activeBtn.classList.add('sp-active');
-
-  const picker = document.getElementById('stationPicker');
-  picker.style.display = 'block';
-  picker.style.left = '-9999px'; picker.style.top = '-9999px';
-  event.stopPropagation();
-
-  requestAnimationFrame(function() {
-    const rect = event.target.getBoundingClientRect();
-    const pw = picker.offsetWidth || 300; const ph = picker.offsetHeight || 250;
-    let left = rect.left + window.scrollX;
-    let top  = rect.bottom + window.scrollY + 4;
-    if (left + pw > window.scrollX + window.innerWidth - 8) left = window.scrollX + window.innerWidth - pw - 8;
-    if (top  + ph > window.scrollY + window.innerHeight - 8) top = rect.top + window.scrollY - ph - 4;
-    picker.style.left = Math.max(window.scrollX + 4, left) + 'px';
-    picker.style.top  = Math.max(window.scrollY + 4, top)  + 'px';
-  });
-}
-
-function closeStationPicker() {
-  document.getElementById('stationPicker').style.display = 'none';
-  tlPendingCell = null;
-}
-
-function setStation(value) {
-  if (!tlPendingCell || !tlData) return;
-  const { empIdx, dayIdx, hour } = tlPendingCell;
-  const emp = tlData.employees[empIdx];
-  closeStationPicker();
-  // Optimistic update
-  if (!tlData.employees[empIdx].days[dayIdx]) tlData.employees[empIdx].days[dayIdx] = {};
-  if (value) tlData.employees[empIdx].days[dayIdx][hour] = value;
-  else delete tlData.employees[empIdx].days[dayIdx][hour];
-  renderTlGrid();
-  google.script.run
-    .withFailureHandler(function(e) { toast(t('error_label') + ': ' + e.message); loadTimelineData(); })
-    .withSuccessHandler(function(res) {
-      if (res && res.error) { toast(t('error_label') + ': ' + res.error); loadTimelineData(); return; }
-      const emptyText = currentLang === 'DE' ? '(leer)' : (currentLang === 'UA' ? '(порожньо)' : '(puste)');
-      toast('✓ ' + emp.name + ' · ' + hour + ':00 → ' + (value || emptyText));
-    })
-    .setWeeklyStationCell(tlData.sheetName, emp.sheetRow, dayIdx, hour, value, emp.name, getAdminToken());
-}
-
-// Zamknij picker klikając poza nim
-document.addEventListener('click', function(e) {
-  const sp = document.getElementById('stationPicker');
-  if (sp && sp.style.display === 'block' && !sp.contains(e.target)) closeStationPicker();
 });
 
 // ══════════════════════════════════════════════════════
@@ -2437,7 +2660,7 @@ function renderGrafikGrid(){
       const we=days[d-1].weekend;
       const todayCls=d===todayDay?' today-col':'';
       const bgCls=sc||(we?'we':'');
-      html+='<td class="grafik-cell '+bgCls+todayCls+'" onclick="openCellEditor('+eIdx+','+d+','+jsArg(val)+',event)">'+esc(val)+'</td>';
+      html+='<td class="grafik-cell '+bgCls+todayCls+'">'+esc(val)+'</td>';
     }
     html+='</tr>';
   });
@@ -2445,98 +2668,6 @@ function renderGrafikGrid(){
   html+='</tbody></table></div>';
   document.getElementById('grafikEditorGrid').innerHTML=html;
 }
-
-function openCellEditor(empIdx,day,currentVal,event){
-  if(!isAdmin){toast(currentLang === 'DE' ? 'Bearbeitung des Dienstplans erfordert Administratorrechte' : (currentLang === 'UA' ? 'Редагування графіка вимагає прав адміністратора' : 'Edycja grafiku wymaga uprawnień administratora'));return;}
-  pendingCell={empIdx:empIdx,day:day};
-  const emp=grafikData.employees[empIdx];
-  const dayInfo=grafikData.days[day-1];
-  document.getElementById('cellPickerTitle').innerHTML=
-    '<b>'+esc(emp.name)+'</b> — '+day+'. ('+dayInfo.name+')'+
-    (currentVal?'<span class="cp-current-badge '+getStatusClass(currentVal)+'" style="margin-left:6px">'+esc(currentVal)+'</span>':'');
-
-  // Podświetl aktywny status
-  document.querySelectorAll('.cp-btn').forEach(btn=>btn.classList.remove('active-status'));
-  const statusMap={'I':'.cp-I','W':'.cp-W','UW':'.cp-UW','L4':'.cp-L4','NN':'.cp-NN'};
-  if(statusMap[currentVal.toUpperCase()]){
-    const activeBtn=document.querySelector('.cp-status-grid '+statusMap[currentVal.toUpperCase()]);
-    if(activeBtn)activeBtn.classList.add('active-status');
-  }
-
-  // Wstaw bieżącą wartość do pola godzin jeśli to nie jest status słowny
-  const simpleStatuses=['I','W','UW','L4','NN',''];
-  const cpInput=document.getElementById('cpHoursInput');
-  cpInput.value=simpleStatuses.includes(currentVal.toUpperCase())?'':currentVal;
-
-  const picker=document.getElementById('cellPicker');
-  picker.style.display='block';
-  picker.style.left='-9999px';
-  picker.style.top='-9999px';
-
-  event.stopPropagation();
-
-  // Pozycjonowanie po wyrenderowaniu
-  requestAnimationFrame(function(){
-    const rect=event.target.getBoundingClientRect();
-    const pw=picker.offsetWidth||250;
-    const ph=picker.offsetHeight||200;
-    let left=rect.left+window.scrollX;
-    let top=rect.bottom+window.scrollY+4;
-    if(left+pw>window.scrollX+window.innerWidth-8)left=window.scrollX+window.innerWidth-pw-8;
-    if(top+ph>window.scrollY+window.innerHeight-8)top=rect.top+window.scrollY-ph-4;
-    picker.style.left=Math.max(window.scrollX+4,left)+'px';
-    picker.style.top=Math.max(window.scrollY+4,top)+'px';
-    cpInput.focus();
-    cpInput.select();
-  });
-}
-
-function closeCellEditor(){
-  document.getElementById('cellPicker').style.display='none';
-  pendingCell=null;
-}
-
-function setCellValue(value){
-  if(!pendingCell||!grafikData)return;
-  const {empIdx,day}=pendingCell;
-  const emp=grafikData.employees[empIdx];
-  closeCellEditor();
-  const normalizedVal=value.trim().toUpperCase()||value.trim();
-  // Optymistyczna aktualizacja UI
-  grafikData.employees[empIdx].days[day-1]=normalizedVal;
-  renderGrafikGrid();
-  google.script.run
-    .withFailureHandler(function(e){
-      toast((currentLang === 'DE' ? 'Fehler beim Speichern: ' : (currentLang === 'UA' ? 'Помилка запису: ' : 'Błąd zapisu: ')) + e.message);
-      // Cofnij lokalną zmianę przy błędzie
-      loadGrafikMonth();
-    })
-    .withSuccessHandler(function(res){
-      if(res&&res.error){toast(t('error_label') + ': '+res.error);loadGrafikMonth();return;}
-      const dayText = currentLang === 'DE' ? ' Tag ' : (currentLang === 'UA' ? ' дн.' : ' dz.');
-      const emptyText = currentLang === 'DE' ? '(leer)' : (currentLang === 'UA' ? '(порожньо)' : '(puste)');
-      toast('✓ ' + (currentLang === 'DE' ? 'Gespeichert: ' : (currentLang === 'UA' ? 'Збережено: ' : 'Zapisano: ')) + emp.name + dayText + day + ' → ' + (normalizedVal||emptyText));
-    })
-    .setGrafikRowBatch(emp.sheetRow,day,normalizedVal,emp.name,getAdminToken());
-}
-
-function saveCpHours(){
-  const val=document.getElementById('cpHoursInput').value.trim();
-  if(!val){closeCellEditor();return;}
-  // Walidacja: liczba, format X+Y lub pusty
-  const isValid=/^(\d+([,\.]\d+)?|\d+([,\.]\d+)?\+\d+([,\.]\d+)?)$/.test(val.replace(/\s/g,''));
-  if(!isValid){toast(currentLang === 'DE' ? 'Ungültiges Format. Verwenden Sie: 8 oder 7+8 oder 7,5' : (currentLang === 'UA' ? 'Неправильний формат. Використовуйте: 8 або 7+8 або 7,5' : 'Nieprawidłowy format. Użyj: 8 lub 7+8 lub 7,5'));return;}
-  setCellValue(val);
-}
-
-// Zamknij picker klikając poza nim
-document.addEventListener('click',function(e){
-  const picker=document.getElementById('cellPicker');
-  if(picker&&picker.style.display==='block'&&!picker.contains(e.target)){closeCellEditor();}
-});
-document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')closeCellEditor();
-});
 
 // ══════════════════════════════════════════════════════
 

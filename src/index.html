@@ -52,7 +52,7 @@
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
 
-  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">✏️</span><span data-t="nav_edytor">Edytor Grafiku</span></button>
+  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
   <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
   <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
 </div>
@@ -73,9 +73,6 @@
   <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
   <div id="grid2" class="grid"></div>
 
-  <div style="padding: 20px 16px 30px; max-width: 600px; margin: 0 auto;">
-    <input type="text" id="scheduleSearch" class="ap-input" placeholder="🔍 Szukaj klienta w harmonogramie..." oninput="filterSchedule()" style="width: 100%; box-sizing: border-box;">
-  </div>
 </div>
 
 <!-- ── REPORTS VIEW ── -->
@@ -99,6 +96,7 @@
 
 <!-- ── HISTORY VIEW ── -->
 <div class="history" id="histView" style="display:none">
+  <div id="histSearchBar"></div>
   <div id="histContent" class="loader" data-t="loading">Ładowanie historii…</div>
 </div>
 
@@ -190,9 +188,6 @@
       <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
     </select>
     <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
-    <div style="margin-left:auto;font-size:12px;color:var(--text-tertiary)" data-t="tl_click_hint">
-      Kliknij komórkę → przypisz stanowisko
-    </div>
   </div>
   <div class="tl-day-tabs" id="tlDayTabs"></div>
   <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
@@ -209,7 +204,6 @@
     <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
     <button class="week-nav-btn" onclick="changeGrafikMonth(1)">›</button>
     <button class="grafik-load-btn" onclick="loadGrafikMonth()">🔄 <span data-t="grafik_load">Załaduj</span></button>
-    <div style="margin-left:auto;font-size:12px;color:var(--text-tertiary)" data-t="grafik_click_hint">Kliknij komórkę aby zmienić status</div>
   </div>
   <div class="grafik-legend">
     <span style="font-size:10px;font-weight:700;color:var(--text-tertiary);margin-right:4px" data-t="legend_title">LEGENDA:</span>
@@ -405,8 +399,7 @@
         <option value="1" data-t="week_next">Następny tydzień</option>
       </select>
 
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz — opcjonalnie</div>
-      <input type="text" id="mComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:12px">
+      <input type="hidden" id="mComment" value="">
 
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
         <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
@@ -434,74 +427,113 @@
     <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
     <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
     <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
+    <div class="info-row" id="vePickedAtRow" style="display:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
     <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
+    <!-- Komentarz read-only (dla nie-właścicieli) -->
     <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
       <span class="info-label">Komentarz</span>
       <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
     </div>
-    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
-    <div class="info-row" id="vePickedAtRow" style="display:none;border-bottom:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
-    <div class="action-row" style="margin-top:18px">
-      <button class="done-btn" id="veToggleBtn" data-t="btn_mark_done">Oznacz jako odebrane</button>
+    <!-- Komentarz edytowalny (dla właściciela — zastępuje read-only) -->
+    <div id="veOwnerCommentRow" style="display:none;padding:9px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:6px">Komentarz</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="veCommentInput" placeholder="np. klient prosił o tel." onkeydown="if(event.key==='Enter')saveViewEntryComment()" style="flex:1;padding:9px 12px;font-size:14px;font-family:var(--font);border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);outline:none;box-sizing:border-box;">
+        <button onclick="saveViewEntryComment()" style="padding:9px 14px;border-radius:var(--radius-md);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);flex-shrink:0">Zapisz</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:18px">
+      <button class="done-btn" id="veToggleBtn" style="flex:2" data-t="btn_mark_done">Oznacz jako odebrane</button>
+      <button onclick="closeViewEntry()" style="flex:1" data-t="btn_close">Zamknij</button>
     </div>
     <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
       <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeViewEntry()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_close">Zamknij</button>
     </div>
   </div>
 </div>
 
 <!-- Edit Entry (admin only) -->
-<div class="overlay" id="editModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_edit_title">Edytuj wpis</h3>
-    <div id="eClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:4px"></div>
-    <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
-    <label data-t="label_type">Rodzaj prania</label>
-    <div class="segmented-control">
-      <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')">Pościel</button>
-      <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')">Obrusy</button>
-      <input type="hidden" id="eType" value="P">
-    </div>
-    <label data-t="label_weight">Waga (kg) — opcjonalnie</label>
-    <input type="text" id="eWeight" placeholder="np. 150.5">
-    <label data-t="label_arr_day">Dzień przyjazdu</label>
-    <select id="eArrDay" onchange="updateDefaultPickup('edit')">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_day">Dzień odbioru</label>
-    <select id="ePickDay">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_week">Tydzień odbioru</label>
-    <select id="ePickWeek">
-      <option value="0" data-t="week_same">Ten sam tydzień</option>
-      <option value="1" data-t="week_next">Następny tydzień</option>
-    </select>
-    <label>Komentarz</label>
-    <input type="text" id="eComment" placeholder="np. klient prosił o tel.">
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:14px;cursor:pointer">
-      <input type="checkbox" id="eUrgent" style="width:18px;height:18px">
-      <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
-    </label>
-    <div class="action-row">
-      <button class="done-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" data-t="btn_mark_done">Oznacz jako odebrane</button>
-      <button class="danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeEdit()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
+<div class="ap-overlay" id="editModal" role="dialog" aria-modal="true">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,122,255,0.3)">✏️</div>
+        <div>
+          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_edit_title">Edytuj wpis</div>
+          <div id="eClientName" style="font-size:13px;color:var(--accent);font-weight:600"></div>
+        </div>
+      </div>
+
+      <!-- Meta info -->
+      <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.04);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
+
+      <!-- Rodzaj prania -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
+      <div class="segmented-control" style="margin-bottom:14px">
+        <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')" data-t="type_p">Pościel</button>
+        <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')" data-t="type_o">Obrusy</button>
+        <input type="hidden" id="eType" value="P">
+      </div>
+
+      <!-- Waga -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
+      <input type="text" id="eWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:14px" inputmode="decimal">
+
+      <!-- Dzień przyjazdu / odbioru -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Przyjazd</div>
+          <select id="eArrDay" class="ap-input" onchange="updateDefaultPickup('edit')">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Odbiór</div>
+          <select id="ePickDay" class="ap-input">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tydzień odbioru -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
+      <select id="ePickWeek" class="ap-input" style="margin-bottom:14px">
+        <option value="0" data-t="week_same">Ten sam tydzień</option>
+        <option value="1" data-t="week_next">Następny tydzień</option>
+      </select>
+
+      <!-- Komentarz -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz</div>
+      <input type="text" id="eComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:14px">
+
+      <!-- Pilne -->
+      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;margin-bottom:18px;cursor:pointer;padding:12px 14px;background:rgba(255,59,48,0.06);border-radius:12px;border:1px solid rgba(255,59,48,0.15)">
+        <input type="checkbox" id="eUrgent" style="width:20px;height:20px;accent-color:#FF3B30">
+        <span style="color:#FF3B30;font-weight:600">🚩 Pilne (priorytet)</span>
+      </label>
+
+      <!-- Action buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button class="ap-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" style="background:#E8F8EE;color:#1A7A37;font-size:15px;padding:13px" data-t="btn_mark_done">Oznacz odebrane</button>
+        <button class="ap-btn ap-btn-danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="ap-btn ap-btn-secondary" onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
+        <button class="ap-btn ap-btn-primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -530,6 +562,7 @@
     <label data-t="label_client_name">Nazwa klienta</label>
     <input type="text" id="ecName" placeholder="Zmień nazwę…" data-t-placeholder="placeholder_write_name">
     <label data-t="label_route">Trasa logistyczna</label>
+    <div id="ecRouteBadge" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:24px"></div>
     <select id="ecRoute"></select>
     <input type="hidden" id="ecOldName">
     <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
@@ -549,55 +582,6 @@
   </div>
 </div>
 
-<!-- Station Picker (timeline editor) -->
-<div class="station-picker" id="stationPicker">
-  <div class="sp-header">
-    <div class="sp-title" id="spTitle" data-t="station_title">Stanowisko</div>
-    <button class="sp-close" onclick="closeStationPicker()">✕</button>
-  </div>
-  <div class="sp-grid">
-    <button class="sp-btn sp-T"  onclick="setStation('T')">T<br><span style="font-size:8px;font-weight:500" data-t="station_tunnel">Tunnel</span></button>
-    <button class="sp-btn sp-S"  onclick="setStation('S')">S<br><span style="font-size:8px;font-weight:500" data-t="station_folder">Składarka</span></button>
-    <button class="sp-btn sp-M"  onclick="setStation('M')">M<br><span style="font-size:8px;font-weight:500" data-t="station_ironer">Magiel</span></button>
-    <button class="sp-btn sp-R"  onclick="setStation('R')">R<br><span style="font-size:8px;font-weight:500" data-t="station_shaker">Roztrzep.</span></button>
-    <button class="sp-btn sp-PR" onclick="setStation('PR')">PR<br><span style="font-size:8px;font-weight:500" data-t="station_washing">Pranie</span></button>
-    <button class="sp-btn sp-P"  onclick="setStation('P')">P<br><span style="font-size:8px;font-weight:500" data-t="station_pressing">Prasowanie</span></button>
-    <button class="sp-btn sp-SZ" onclick="setStation('SZ')">SZ<br><span style="font-size:8px;font-weight:500" data-t="station_sewing">Szycie</span></button>
-    <button class="sp-btn sp-PP" onclick="setStation('PP')">PP<br><span style="font-size:8px;font-weight:500" data-t="station_reception">Punkt przyj.</span></button>
-    <button class="sp-btn sp-SP" onclick="setStation('SP')">SP<br><span style="font-size:8px;font-weight:500" data-t="station_cleaning">Sprzątanie</span></button>
-    <button class="sp-btn sp-O"  onclick="setStation('O')">O<br><span style="font-size:8px;font-weight:500" data-t="station_marking">Oznakowanie</span></button>
-    <button class="sp-btn sp-PK" onclick="setStation('PK')">PK<br><span style="font-size:8px;font-weight:500" data-t="station_packing">Pakowanie</span></button>
-    <button class="sp-btn sp-SC" onclick="setStation('SC')">SC<br><span style="font-size:8px;font-weight:500" data-t="station_dispatch">Spedycja</span></button>
-    <button class="sp-btn sp-K"  onclick="setStation('K')">K<br><span style="font-size:8px;font-weight:500" data-t="station_driver">Kierowca</span></button>
-    <button class="sp-btn sp-W"  onclick="setStation('W')">W<br><span style="font-size:8px;font-weight:500" data-t="legend_w">Wolne</span></button>
-    <button class="sp-btn sp-clear" onclick="setStation('')">✕<br><span style="font-size:8px;font-weight:500" data-t="cp_clear">Wyczyść</span></button>
-  </div>
-</div>
-
-<!-- Cell Picker (grafik editor) -->
-<div class="cell-picker" id="cellPicker">
-  <div class="cell-picker-header">
-    <div class="cell-picker-title" id="cellPickerTitle" data-t="status_title">Status</div>
-    <button class="cell-picker-close" onclick="closeCellEditor()">✕</button>
-  </div>
-  <div class="cp-status-grid">
-    <button class="cp-btn cp-I"    onclick="setCellValue('I')">I<br><span style="font-size:9px;font-weight:500" data-t="legend_i">Zaplanowany</span></button>
-    <button class="cp-btn cp-W"    onclick="setCellValue('W')">W<br><span style="font-size:9px;font-weight:500" data-t="legend_w">Wolne</span></button>
-    <button class="cp-btn cp-UW"   onclick="setCellValue('UW')">UW<br><span style="font-size:9px;font-weight:500" data-t="legend_uw">Urlop</span></button>
-    <button class="cp-btn cp-L4"   onclick="setCellValue('L4')">L4<br><span style="font-size:9px;font-weight:500" data-t="legend_l4">Choroba</span></button>
-    <button class="cp-btn cp-NN"   onclick="setCellValue('NN')">NN<br><span style="font-size:9px;font-weight:500" data-t="legend_nn">Nieobecny</span></button>
-    <button class="cp-btn cp-clear" onclick="setCellValue('')">✕<br><span style="font-size:9px;font-weight:500" data-t="cp_clear">Wyczyść</span></button>
-  </div>
-  <div class="cp-divider"></div>
-  <div class="cp-label" data-t="cp_hours_label">Godziny / Format niestandardowy</div>
-  <div class="cp-hours-row">
-    <input type="text" class="cp-hours-input" id="cpHoursInput"
-      placeholder="np. 8 lub 7+8 lub 7,5"
-      data-t-placeholder="cp_hours_placeholder"
-      onkeydown="if(event.key==='Enter')saveCpHours()">
-    <button class="cp-hours-save" onclick="saveCpHours()" data-t="btn_save">Zapisz</button>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 

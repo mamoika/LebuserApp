@@ -46,34 +46,34 @@ if (!Array.prototype.includes) { Object.defineProperty(Array.prototype, 'include
 </script>
 <style>
 :root {
-  --bg: linear-gradient(135deg, #F0F4F8 0%, #E2E8F0 100%);
-  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg: linear-gradient(135deg, #F2F2F7 0%, #E8ECF0 100%);
+  --bg-card: rgba(255, 255, 255, 0.80);
   --bg-card-solid: #FFFFFF;
-  --bg-secondary: rgba(255, 255, 255, 0.5);
-  --bg-tertiary: rgba(255, 255, 255, 0.3);
-  --surface-raised: rgba(255, 255, 255, 0.9);
-  --border: rgba(255, 255, 255, 0.4);
-  --border-strong: rgba(148, 163, 184, 0.3);
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-tertiary: #64748B;
-  --text-quaternary: #94A3B8;
-  --accent: #4F46E5; /* Indigo */
-  --accent-light: rgba(79, 70, 229, 0.1);
-  --accent-green: #10B981;
-  --accent-green-light: rgba(16, 185, 129, 0.1);
-  --accent-red: #EF4444;
-  --accent-red-light: rgba(239, 68, 68, 0.1);
-  --accent-orange: #F59E0B;
-  --accent-orange-light: rgba(245, 158, 11, 0.1);
-  --accent-purple: #8B5CF6;
-  --accent-purple-light: rgba(139, 92, 246, 0.1);
-  --accent-teal: #0D9488;
-  --accent-indigo: #4338CA;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --bg-secondary: rgba(255, 255, 255, 0.55);
+  --bg-tertiary: rgba(242, 242, 247, 0.8);
+  --surface-raised: rgba(255, 255, 255, 0.95);
+  --border: rgba(209, 213, 219, 0.5);
+  --border-strong: rgba(156, 163, 175, 0.35);
+  --text-primary: #1C1C1E;
+  --text-secondary: #48484A;
+  --text-tertiary: #636366;
+  --text-quaternary: #8E8E93;
+  --accent: #007AFF; /* Apple Blue */
+  --accent-light: rgba(0, 122, 255, 0.1);
+  --accent-green: #34C759;
+  --accent-green-light: rgba(52, 199, 89, 0.1);
+  --accent-red: #FF3B30;
+  --accent-red-light: rgba(255, 59, 48, 0.1);
+  --accent-orange: #FF9500;
+  --accent-orange-light: rgba(255, 149, 0, 0.1);
+  --accent-purple: #AF52DE;
+  --accent-purple-light: rgba(175, 82, 222, 0.1);
+  --accent-teal: #32ADE6;
+  --accent-indigo: #5856D6;
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
   --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   --shadow-hover: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
@@ -82,24 +82,28 @@ if (!Array.prototype.includes) { Object.defineProperty(Array.prototype, 'include
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-    --bg-card: rgba(30, 41, 59, 0.75);
-    --bg-card-solid: #1E293B;
-    --bg-secondary: rgba(255, 255, 255, 0.05);
-    --bg-tertiary: rgba(0, 0, 0, 0.2);
-    --surface-raised: rgba(51, 65, 85, 0.8);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.15);
-    --text-primary: #F8FAFC;
-    --text-secondary: #CBD5E1;
-    --text-tertiary: #94A3B8;
-    --text-quaternary: #64748B;
-    --accent: #6366F1; /* Indigo */
-    --accent-light: rgba(99, 102, 241, 0.15);
-    --accent-green-light: rgba(16, 185, 129, 0.15);
-    --accent-red-light: rgba(239, 68, 68, 0.15);
-    --accent-orange-light: rgba(245, 158, 11, 0.15);
-    --accent-purple-light: rgba(139, 92, 246, 0.15);
+    --bg: linear-gradient(135deg, #000000 0%, #1C1C1E 100%);
+    --bg-card: rgba(28, 28, 30, 0.85);
+    --bg-card-solid: #1C1C1E;
+    --bg-secondary: rgba(255, 255, 255, 0.06);
+    --bg-tertiary: rgba(44, 44, 46, 0.9);
+    --surface-raised: rgba(58, 58, 60, 0.9);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --text-primary: #FFFFFF;
+    --text-secondary: #EBEBF5;
+    --text-tertiary: #AEAEB2;
+    --text-quaternary: #636366;
+    --accent: #0A84FF; /* Apple Blue Dark */
+    --accent-light: rgba(10, 132, 255, 0.18);
+    --accent-green: #30D158;
+    --accent-green-light: rgba(48, 209, 88, 0.18);
+    --accent-red: #FF453A;
+    --accent-red-light: rgba(255, 69, 58, 0.18);
+    --accent-orange: #FF9F0A;
+    --accent-orange-light: rgba(255, 159, 10, 0.18);
+    --accent-purple: #BF5AF2;
+    --accent-purple-light: rgba(191, 90, 242, 0.18);
     --shadow-sm: 0 2px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05) inset;
     --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
     --shadow-hover: 0 20px 25px -5px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset;
@@ -226,11 +230,11 @@ body{
 }
 .driver-btn:hover { background:var(--bg-secondary); }
 .driver-btn.driver-active {
-  background:rgba(18,102,214,0.08);
-  border-color:rgba(18,102,214,0.3);
+  background:rgba(0,122,255,0.08);
+  border-color:rgba(0,122,255,0.3);
   color:var(--accent);
 }
-.driver-btn.driver-active:hover { background:rgba(18,102,214,0.13); }
+.driver-btn.driver-active:hover { background:rgba(0,122,255,0.13); }
 
 /* ── ADMIN BUTTON ── */
 .admin-btn {
@@ -253,16 +257,16 @@ body{
 }
 .admin-btn:hover { background:var(--bg-secondary); }
 .admin-btn.admin-active {
-  background:rgba(217,52,43,0.08);
-  border-color:rgba(217,52,43,0.25);
+  background:rgba(255,59,48,0.08);
+  border-color:rgba(255,59,48,0.25);
   color:var(--accent-red);
 }
-.admin-btn.admin-active:hover { background:rgba(217,52,43,0.14); }
+.admin-btn.admin-active:hover { background:rgba(255,59,48,0.14); }
 
 .session-timer {
   font-size:11px;
   font-weight:800;
-  background:rgba(217,52,43,0.12);
+  background:rgba(255,59,48,0.12);
   color:var(--accent-red);
   padding:2px 7px;
   border-radius:20px;
@@ -275,8 +279,8 @@ body{
   align-items:center;
   gap:8px;
   padding:8px 14px;
-  background:rgba(217,52,43,0.07);
-  border:0.5px solid rgba(217,52,43,0.2);
+  background:rgba(255,59,48,0.07);
+  border:0.5px solid rgba(255,59,48,0.2);
   border-radius:var(--radius-md);
   font-size:12px;
   font-weight:600;
@@ -386,6 +390,27 @@ body{
   margin:18px 0 9px 2px;
 }
 
+/* ── COL HEADER centering fix ── */
+.col-header {
+  position: relative;
+}
+.col-header .col-date {
+  position: absolute;
+  left: 0;
+  font-size: 11px;
+  color: var(--text-quaternary);
+  font-weight: 500;
+}
+.col-header .col-day-name {
+  width: 100%;
+  text-align: center;
+  display: block;
+}
+.col-header .today-pill {
+  position: absolute;
+  right: 0;
+}
+
 /* ── ROUTE GROUP HEADER ── */
 .route-group-header {
   font-size: 12px;
@@ -409,7 +434,7 @@ body{
   border-radius: 4px;
   background: var(--accent);
   flex-shrink: 0;
-  box-shadow: 0 1px 6px rgba(18, 102, 214, 0.3);
+  box-shadow: 0 1px 6px rgba(0, 122, 255, 0.3);
 }
 
 /* ── KANBAN GRID ── */
@@ -423,24 +448,23 @@ body{
 @media(max-width:380px){.grid{grid-template-columns:1fr}}
 
 .col {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 14px;
+  background: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 14px 14px 10px;
   min-height: 200px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 7px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.col:hover{box-shadow: var(--shadow-hover); transform: translateY(-3px) scale(1.01); border-color: var(--accent-light);}
+@media(prefers-color-scheme:dark){
+  .col { background: #1C1C1E; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+}
+.col:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.05); transform: translateY(-2px); }
 .col-today {
-  border: 1.5px solid var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(18, 102, 214, 0.12) !important;
-  background: var(--bg-card-solid);
+  box-shadow: 0 0 0 2px var(--accent), 0 4px 16px rgba(0,122,255,0.15) !important;
 }
 
 .col-header {
@@ -452,9 +476,8 @@ body{
   margin-bottom:2px;
 }
 .col-day-name {
-  min-width:32px;
-  font-size:14px;
-  font-weight:800;
+  font-size:13px;
+  font-weight:700;
   color:var(--text-primary);
   letter-spacing:0;
 }
@@ -491,8 +514,8 @@ body{
   gap:4px;
   border:0.5px solid transparent;
 }
-.metric-chip.arr { background:var(--accent-green-light); border-color:rgba(19,138,67,0.1); }
-.metric-chip.wash { background:var(--accent-red-light); border-color:rgba(217,52,43,0.1); }
+.metric-chip.arr { background:var(--accent-green-light); border-color:rgba(52,199,89,0.12); }
+.metric-chip.wash { background:var(--accent-red-light); border-color:rgba(255,59,48,0.1); }
 .metric-chip-label {
   font-size:9px;
   font-weight:750;
@@ -500,8 +523,8 @@ body{
   letter-spacing:0.45px;
   opacity:0.65;
 }
-.metric-chip.arr .metric-chip-label { color:#1a7a37; }
-.metric-chip.wash .metric-chip-label { color:#c42a22; }
+.metric-chip.arr .metric-chip-label { color:#25A244; }
+.metric-chip.wash .metric-chip-label { color:#D70015; }
 .metric-chip-val {
   font-size:14px;
   font-weight:800;
@@ -509,8 +532,8 @@ body{
   letter-spacing:0;
   white-space:nowrap;
 }
-.metric-chip.arr .metric-chip-val { color:#1a7a37; }
-.metric-chip.wash .metric-chip-val { color:#c42a22; }
+.metric-chip.arr .metric-chip-val { color:#25A244; }
+.metric-chip.wash .metric-chip-val { color:#D70015; }
 @media(prefers-color-scheme:dark){
   .metric-chip.arr .metric-chip-label,.metric-chip.arr .metric-chip-val { color:var(--accent-green); }
   .metric-chip.wash .metric-chip-label,.metric-chip.wash .metric-chip-val { color:var(--accent-red); }
@@ -518,12 +541,12 @@ body{
 
 /* ── SECTION LABELS ── */
 .sec-label {
-  font-size:9.5px;
-  font-weight:750;
+  font-size:10px;
+  font-weight:600;
   text-transform:uppercase;
-  letter-spacing:0.6px;
+  letter-spacing:0.5px;
   color:var(--text-quaternary);
-  margin-top:5px;
+  margin-top:4px;
   margin-bottom:0;
 }
 
@@ -531,20 +554,24 @@ body{
 .tag {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--bg-card);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: var(--radius-lg);
-  padding: 8px 10px;
-  min-height: 36px;
-  gap: 6px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 9px 11px 9px 10px;
+  min-height: 40px;
+  gap: 7px;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.12s ease, transform 0.12s ease;
   font-weight: 600;
-  border: 1px solid var(--border);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04);
   letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+@media(prefers-color-scheme:dark){
+  .tag { background: #2C2C2E; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 }
 .legend-box {
   display: flex;
@@ -566,24 +593,33 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 .legend-dot.green { background: var(--accent-green-light); border: 1px solid var(--accent-green); }
 .legend-dot.blue { background: var(--accent-light); border: 1px solid var(--accent); }
 .legend-dot.gray { background: var(--bg-tertiary); border: 1px dashed var(--text-quaternary); }
-.tag:hover{filter:brightness(1.05);transform:translateY(-2px);box-shadow:0 6px 14px rgba(15,23,42,0.12); border-color: var(--accent-light);}
+.tag:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05); }
+.tag:active { transform: scale(0.97); opacity: 0.85; }
 .tag:active{transform:scale(0.96);filter:brightness(0.92)}
 .tag-arr {
-  background:var(--accent-green-light);
-  color:var(--accent-green);
-  border-color:rgba(19,138,67,0.16);
+  background: #E8F8EE;
+  box-shadow: none;
+  border: 1px solid rgba(52,199,89,0.25);
 }
+.tag-arr .tag-name { color: #1A7A37; }
+
 .tag-pick {
-  background:var(--accent-light);
-  color:var(--accent);
-  border-color:rgba(18,102,214,0.16);
+  background: #E5F1FF;
+  box-shadow: none;
+  border: 1px solid rgba(0,122,255,0.2);
 }
+.tag-pick .tag-name { color: #0055CC; }
+
 .tag-done {
-  background:var(--bg-tertiary);
-  color:var(--text-quaternary);
-  border-color:transparent;
-  text-decoration:line-through;
-  text-decoration-color:var(--text-quaternary);
+  background: #F2F2F7;
+  box-shadow: none;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.tag-done { opacity: 0.55; }
+.tag-done .tag-name {
+  color: #8E8E93;
+  text-decoration: line-through;
+  text-decoration-color: #8E8E93;
 }
 @media(prefers-color-scheme:dark){
   .tag-arr{color:var(--accent-green)}
@@ -591,67 +627,56 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 }
 .tag-name {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
 }
 .laundry-type-badge {
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 2px 5px;
-  border-radius: 4px;
-  margin-right: 0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
   flex-shrink: 0;
   line-height: 1;
-  width: 20px;
-  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
 }
 .laundry-type-badge.type-P {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: rgba(0,122,255,0.1);
+  color: #007AFF;
 }
 .laundry-type-badge.type-O {
-  background: var(--accent-purple-light);
-  color: var(--accent-purple);
+  background: rgba(175,82,222,0.1);
+  color: #AF52DE;
 }
 @media(prefers-color-scheme:dark){
-  .laundry-type-badge.type-P {
-    background: rgba(0, 122, 255, 0.2);
-    color: #32ADE6;
-  }
-  .laundry-type-badge.type-O {
-    background: rgba(175, 82, 222, 0.2);
-    color: #AF52DE;
-  }
+  .laundry-type-badge.type-P { background:rgba(10,132,255,0.2); color:#0A84FF; }
+  .laundry-type-badge.type-O { background:rgba(191,90,242,0.2); color:#BF5AF2; }
 }
 
 .kg-badge, .kg-placeholder {
-  width: 54px;
-  text-align: center;
-  justify-content: center;
-  align-items: center;
   flex-shrink: 0;
-  box-sizing: border-box;
+  white-space: nowrap;
 }
 .kg-badge {
-  font-size:9.5px;
-  font-weight:750;
-  background:rgba(0,0,0,0.06);
-  padding:2px 6px;
-  border-radius:20px;
-  white-space:nowrap;
-  color:inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0,0,0,0.05);
+  padding: 2px 7px;
+  border-radius: 20px;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
 }
-.kg-placeholder {
-  display: inline-flex;
-  height: 1px;
+@media(prefers-color-scheme:dark){
+  .kg-badge { background: rgba(255,255,255,0.1); }
 }
+.kg-placeholder { width: 0; margin: 0; padding: 0; gap: 0; flex-shrink: 0; }
 .tag-check, .tag-check-placeholder {
   width: 16px;
   flex-shrink: 0;
@@ -844,6 +869,13 @@ body.modal-open { overflow:hidden; }
   -webkit-appearance:none;
   appearance:none;
 }
+.modal select{
+  padding-right:36px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 13px center;
+  cursor:pointer;
+}
 .modal select:focus,.modal input:focus{border-color:var(--accent)}
 
 .modal-btns{
@@ -870,7 +902,7 @@ body.modal-open { overflow:hidden; }
   color:#fff;
   border-color:transparent;
 }
-.modal-btns button.primary:hover{background:#0066DD}
+.modal-btns button.primary:hover{background:#0070F3}
 .modal-btns button.danger{
   background:var(--accent-red-light);
   color:var(--accent-red);
@@ -932,6 +964,60 @@ body.modal-open { overflow:hidden; }
 
 /* ── HISTORY ── */
 .history{display:none}
+
+/* ── HISTORIA ── */
+.hist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.hist-card { margin-bottom: 0 !important; }
+.hist-card-head {
+  padding: 10px 13px 8px;
+  background: var(--bg-card-solid);
+}
+.hist-client-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.hist-card-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.hist-month-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px;
+  background: var(--bg-secondary);
+  border-top: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border);
+}
+.hist-entry {
+  padding: 7px 13px;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hist-entry:last-child { border-bottom: none; }
+.hist-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+html.phone-layout .hist-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
 .hw {
   background:var(--bg-card-solid);
   border:0.5px solid var(--border);
@@ -948,6 +1034,7 @@ body.modal-open { overflow:hidden; }
   border-bottom:0.5px solid var(--border);
   background:var(--bg-tertiary);
 }
+/* historia — wiersz wpisu */
 .he {
   padding:10px 16px;
   font-size:13px;
@@ -955,10 +1042,36 @@ body.modal-open { overflow:hidden; }
   border-bottom:0.5px solid var(--border);
   display:flex;
   gap:8px;
-  align-items:center;
+  align-items:flex-start;
+  line-height:1.5;
 }
 .he:last-child{border-bottom:none}
 .he b{color:var(--text-primary);font-weight:600}
+/* instrukcja — sekcja */
+.help-sec {
+  background:var(--bg-card-solid);
+  border-radius:var(--radius-md);
+  box-shadow:var(--shadow-sm);
+  margin-bottom:10px;
+  overflow:hidden;
+}
+.help-sec-title {
+  font-size:13px;
+  font-weight:800;
+  color:var(--text-primary);
+  padding:12px 16px 8px;
+  border-bottom:0.5px solid var(--border);
+  background:var(--bg-secondary);
+}
+.help-sec-item {
+  padding:9px 16px;
+  font-size:13px;
+  color:var(--text-secondary);
+  border-bottom:0.5px solid var(--border);
+  line-height:1.5;
+}
+.help-sec-item:last-child{border-bottom:none}
+.help-sec-item b{color:var(--text-primary);font-weight:600}
 .loader{
   text-align:center;
   padding:42px 20px;
@@ -1015,6 +1128,7 @@ body.modal-open { overflow:hidden; }
 }
 
 .sortable-list{min-height:50px;display:flex;flex-direction:column;gap:6px}
+.sortable-arr,.sortable-pick{display:flex;flex-direction:column;gap:6px}
 .tag-client {
   background:var(--bg-card-solid);
   border:1px solid var(--border);
@@ -1312,19 +1426,19 @@ button.add-route-btn {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(18, 102, 214, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 button.add-route-btn:hover {
-  background: #005ce6;
-  box-shadow: 0 6px 18px rgba(18, 102, 214, 0.35);
+  background: #0070F3;
+  box-shadow: 0 6px 18px rgba(0, 122, 255, 0.35);
   transform: translateY(-1px);
 }
 button.add-route-btn:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(18, 102, 214, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
 }
 
 .map-action-btn {
@@ -1998,11 +2112,11 @@ select.ap-input {
   user-select:none;
 }
 .grafik-th-day.we{
-  background:rgba(217,52,43,0.07);
+  background:rgba(255,59,48,0.07);
   color:var(--accent-red);
 }
 .grafik-th-day.today-col{
-  background:rgba(18,102,214,0.12);
+  background:rgba(0,122,255,0.12);
   color:var(--accent);
 }
 .grafik-group-row td{
@@ -2050,7 +2164,7 @@ select.ap-input {
   vertical-align:middle;
 }
 .grafik-cell:hover{filter:brightness(0.88);transform:scale(1.15);z-index:1;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-.grafik-cell.we{background:rgba(217,52,43,0.04);}
+.grafik-cell.we{background:rgba(255,59,48,0.04);}
 .grafik-cell.today-col{outline:2px solid var(--accent);outline-offset:-2px;}
 /* Status colors matching spreadsheet */
 .gc-I  {background:#ebdef0;color:#432874}
@@ -2168,7 +2282,7 @@ select.ap-input {
   transition:background 0.15s;
   flex-shrink:0;
 }
-.cp-hours-save:hover{background:#0066DD}
+.cp-hours-save:hover{background:#0070F3}
 .cp-current-badge{
   display:inline-block;
   padding:2px 8px;
@@ -2218,7 +2332,7 @@ select.ap-input {
   transition:background 0.15s;
   white-space:nowrap;
 }
-.grafik-load-btn:hover{background:#0066DD}
+.grafik-load-btn:hover{background:#0070F3}
 .grafik-legend{
   display:flex;
   gap:5px;
@@ -2265,16 +2379,16 @@ select.ap-input {
 .tl-load-btn{padding:9px 16px;border-radius:var(--radius-sm);border:none;
   background:var(--accent);color:#fff;font-family:var(--font);font-size:13px;
   font-weight:700;cursor:pointer;white-space:nowrap}
-.tl-load-btn:hover{background:#0066DD}
+.tl-load-btn:hover{background:#0070F3}
 .tl-day-tabs{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
 .tl-day-tab{padding:7px 14px;border-radius:var(--radius-sm);border:0.5px solid var(--border);
   background:var(--bg-card-solid);color:var(--text-secondary);font-family:var(--font);
   font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow-sm)}
 .tl-day-tab:hover{background:var(--bg-secondary)}
 .tl-day-tab.active{background:var(--accent);color:#fff;border-color:transparent;
-  box-shadow:0 4px 12px rgba(18,102,214,0.22)}
+  box-shadow:0 4px 12px rgba(0,122,255,0.22)}
 .tl-day-tab.weekend{--we-color:#c62828}
-.tl-day-tab.weekend.active{background:var(--accent-red);box-shadow:0 4px 12px rgba(217,52,43,0.25)}
+.tl-day-tab.weekend.active{background:var(--accent-red);box-shadow:0 4px 12px rgba(255,59,48,0.25)}
 
 /* Grid */
 .tl-container{overflow-x:auto;border-radius:var(--radius-lg);border:0.5px solid var(--border);
@@ -2287,7 +2401,7 @@ select.ap-input {
 .tl-th-time{min-width:30px;width:30px;padding:5px 1px;text-align:center;font-size:10px;
   font-weight:800;border-bottom:0.5px solid var(--border);border-right:0.5px solid var(--border);
   background:var(--bg-secondary);color:var(--text-tertiary);user-select:none}
-.tl-th-time.current-hour{background:rgba(18,102,214,0.1);color:var(--accent)}
+.tl-th-time.current-hour{background:rgba(0,122,255,0.1);color:var(--accent)}
 .tl-group-row td{font-size:11px;font-weight:800;color:#fff;padding:5px 10px;
   text-transform:uppercase;letter-spacing:0.6px}
 .tl-td-emp{position:sticky;left:0;z-index:2;background:var(--bg-card-solid);
@@ -2301,7 +2415,7 @@ select.ap-input {
 .tl-cell:hover{filter:brightness(0.85);transform:scale(1.2);z-index:5;position:relative;
   box-shadow:0 2px 8px rgba(0,0,0,0.18)}
 .tl-cell.outside{opacity:0.35;background:var(--bg-tertiary)!important;color:var(--text-quaternary)!important}
-.tl-cell.we-col{background:rgba(217,52,43,0.04)!important}
+.tl-cell.we-col{background:rgba(255,59,48,0.04)!important}
 .tl-cell.we-col.outside{opacity:0.2}
 /* Station colors (matching spreadsheet ROLE_STANOWISKA) */
 .sc-T  {background:#607D8B;color:#fff} .sc-S  {background:#2E7D32;color:#fff}
@@ -2395,7 +2509,7 @@ select.ap-input {
 .driver-card.selected {
   border-color: var(--accent);
   background: var(--accent-light);
-  box-shadow: 0 0 0 3px rgba(18,102,214,0.15);
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
 }
 .driver-card .d-avatar {
   width: 42px; height: 42px;
@@ -2486,7 +2600,7 @@ select.ap-input {
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
 
-  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">✏️</span><span data-t="nav_edytor">Edytor Grafiku</span></button>
+  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
   <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
   <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
 </div>
@@ -2507,9 +2621,6 @@ select.ap-input {
   <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
   <div id="grid2" class="grid"></div>
 
-  <div style="padding: 20px 16px 30px; max-width: 600px; margin: 0 auto;">
-    <input type="text" id="scheduleSearch" class="ap-input" placeholder="🔍 Szukaj klienta w harmonogramie..." oninput="filterSchedule()" style="width: 100%; box-sizing: border-box;">
-  </div>
 </div>
 
 <!-- ── REPORTS VIEW ── -->
@@ -2533,6 +2644,7 @@ select.ap-input {
 
 <!-- ── HISTORY VIEW ── -->
 <div class="history" id="histView" style="display:none">
+  <div id="histSearchBar"></div>
   <div id="histContent" class="loader" data-t="loading">Ładowanie historii…</div>
 </div>
 
@@ -2624,9 +2736,6 @@ select.ap-input {
       <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
     </select>
     <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
-    <div style="margin-left:auto;font-size:12px;color:var(--text-tertiary)" data-t="tl_click_hint">
-      Kliknij komórkę → przypisz stanowisko
-    </div>
   </div>
   <div class="tl-day-tabs" id="tlDayTabs"></div>
   <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
@@ -2643,7 +2752,6 @@ select.ap-input {
     <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
     <button class="week-nav-btn" onclick="changeGrafikMonth(1)">›</button>
     <button class="grafik-load-btn" onclick="loadGrafikMonth()">🔄 <span data-t="grafik_load">Załaduj</span></button>
-    <div style="margin-left:auto;font-size:12px;color:var(--text-tertiary)" data-t="grafik_click_hint">Kliknij komórkę aby zmienić status</div>
   </div>
   <div class="grafik-legend">
     <span style="font-size:10px;font-weight:700;color:var(--text-tertiary);margin-right:4px" data-t="legend_title">LEGENDA:</span>
@@ -2839,8 +2947,7 @@ select.ap-input {
         <option value="1" data-t="week_next">Następny tydzień</option>
       </select>
 
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz — opcjonalnie</div>
-      <input type="text" id="mComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:12px">
+      <input type="hidden" id="mComment" value="">
 
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
         <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
@@ -2868,74 +2975,113 @@ select.ap-input {
     <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
     <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
     <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
+    <div class="info-row" id="vePickedAtRow" style="display:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
     <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
+    <!-- Komentarz read-only (dla nie-właścicieli) -->
     <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
       <span class="info-label">Komentarz</span>
       <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
     </div>
-    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
-    <div class="info-row" id="vePickedAtRow" style="display:none;border-bottom:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
-    <div class="action-row" style="margin-top:18px">
-      <button class="done-btn" id="veToggleBtn" data-t="btn_mark_done">Oznacz jako odebrane</button>
+    <!-- Komentarz edytowalny (dla właściciela — zastępuje read-only) -->
+    <div id="veOwnerCommentRow" style="display:none;padding:9px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:6px">Komentarz</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="veCommentInput" placeholder="np. klient prosił o tel." onkeydown="if(event.key==='Enter')saveViewEntryComment()" style="flex:1;padding:9px 12px;font-size:14px;font-family:var(--font);border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);outline:none;box-sizing:border-box;">
+        <button onclick="saveViewEntryComment()" style="padding:9px 14px;border-radius:var(--radius-md);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);flex-shrink:0">Zapisz</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:18px">
+      <button class="done-btn" id="veToggleBtn" style="flex:2" data-t="btn_mark_done">Oznacz jako odebrane</button>
+      <button onclick="closeViewEntry()" style="flex:1" data-t="btn_close">Zamknij</button>
     </div>
     <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
       <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeViewEntry()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_close">Zamknij</button>
     </div>
   </div>
 </div>
 
 <!-- Edit Entry (admin only) -->
-<div class="overlay" id="editModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_edit_title">Edytuj wpis</h3>
-    <div id="eClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:4px"></div>
-    <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
-    <label data-t="label_type">Rodzaj prania</label>
-    <div class="segmented-control">
-      <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')">Pościel</button>
-      <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')">Obrusy</button>
-      <input type="hidden" id="eType" value="P">
-    </div>
-    <label data-t="label_weight">Waga (kg) — opcjonalnie</label>
-    <input type="text" id="eWeight" placeholder="np. 150.5">
-    <label data-t="label_arr_day">Dzień przyjazdu</label>
-    <select id="eArrDay" onchange="updateDefaultPickup('edit')">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_day">Dzień odbioru</label>
-    <select id="ePickDay">
-      <option value="0" data-t="day_0">Poniedziałek</option>
-      <option value="1" data-t="day_1">Wtorek</option>
-      <option value="2" data-t="day_2">Środa</option>
-      <option value="3" data-t="day_3">Czwartek</option>
-      <option value="4" data-t="day_4">Piątek</option>
-    </select>
-    <label data-t="label_pick_week">Tydzień odbioru</label>
-    <select id="ePickWeek">
-      <option value="0" data-t="week_same">Ten sam tydzień</option>
-      <option value="1" data-t="week_next">Następny tydzień</option>
-    </select>
-    <label>Komentarz</label>
-    <input type="text" id="eComment" placeholder="np. klient prosił o tel.">
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:14px;cursor:pointer">
-      <input type="checkbox" id="eUrgent" style="width:18px;height:18px">
-      <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
-    </label>
-    <div class="action-row">
-      <button class="done-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" data-t="btn_mark_done">Oznacz jako odebrane</button>
-      <button class="danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeEdit()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
+<div class="ap-overlay" id="editModal" role="dialog" aria-modal="true">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,122,255,0.3)">✏️</div>
+        <div>
+          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_edit_title">Edytuj wpis</div>
+          <div id="eClientName" style="font-size:13px;color:var(--accent);font-weight:600"></div>
+        </div>
+      </div>
+
+      <!-- Meta info -->
+      <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.04);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
+
+      <!-- Rodzaj prania -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
+      <div class="segmented-control" style="margin-bottom:14px">
+        <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')" data-t="type_p">Pościel</button>
+        <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')" data-t="type_o">Obrusy</button>
+        <input type="hidden" id="eType" value="P">
+      </div>
+
+      <!-- Waga -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
+      <input type="text" id="eWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:14px" inputmode="decimal">
+
+      <!-- Dzień przyjazdu / odbioru -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Przyjazd</div>
+          <select id="eArrDay" class="ap-input" onchange="updateDefaultPickup('edit')">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Odbiór</div>
+          <select id="ePickDay" class="ap-input">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tydzień odbioru -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
+      <select id="ePickWeek" class="ap-input" style="margin-bottom:14px">
+        <option value="0" data-t="week_same">Ten sam tydzień</option>
+        <option value="1" data-t="week_next">Następny tydzień</option>
+      </select>
+
+      <!-- Komentarz -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz</div>
+      <input type="text" id="eComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:14px">
+
+      <!-- Pilne -->
+      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;margin-bottom:18px;cursor:pointer;padding:12px 14px;background:rgba(255,59,48,0.06);border-radius:12px;border:1px solid rgba(255,59,48,0.15)">
+        <input type="checkbox" id="eUrgent" style="width:20px;height:20px;accent-color:#FF3B30">
+        <span style="color:#FF3B30;font-weight:600">🚩 Pilne (priorytet)</span>
+      </label>
+
+      <!-- Action buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button class="ap-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" style="background:#E8F8EE;color:#1A7A37;font-size:15px;padding:13px" data-t="btn_mark_done">Oznacz odebrane</button>
+        <button class="ap-btn ap-btn-danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="ap-btn ap-btn-secondary" onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
+        <button class="ap-btn ap-btn-primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2964,6 +3110,7 @@ select.ap-input {
     <label data-t="label_client_name">Nazwa klienta</label>
     <input type="text" id="ecName" placeholder="Zmień nazwę…" data-t-placeholder="placeholder_write_name">
     <label data-t="label_route">Trasa logistyczna</label>
+    <div id="ecRouteBadge" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:24px"></div>
     <select id="ecRoute"></select>
     <input type="hidden" id="ecOldName">
     <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
@@ -2983,55 +3130,6 @@ select.ap-input {
   </div>
 </div>
 
-<!-- Station Picker (timeline editor) -->
-<div class="station-picker" id="stationPicker">
-  <div class="sp-header">
-    <div class="sp-title" id="spTitle" data-t="station_title">Stanowisko</div>
-    <button class="sp-close" onclick="closeStationPicker()">✕</button>
-  </div>
-  <div class="sp-grid">
-    <button class="sp-btn sp-T"  onclick="setStation('T')">T<br><span style="font-size:8px;font-weight:500" data-t="station_tunnel">Tunnel</span></button>
-    <button class="sp-btn sp-S"  onclick="setStation('S')">S<br><span style="font-size:8px;font-weight:500" data-t="station_folder">Składarka</span></button>
-    <button class="sp-btn sp-M"  onclick="setStation('M')">M<br><span style="font-size:8px;font-weight:500" data-t="station_ironer">Magiel</span></button>
-    <button class="sp-btn sp-R"  onclick="setStation('R')">R<br><span style="font-size:8px;font-weight:500" data-t="station_shaker">Roztrzep.</span></button>
-    <button class="sp-btn sp-PR" onclick="setStation('PR')">PR<br><span style="font-size:8px;font-weight:500" data-t="station_washing">Pranie</span></button>
-    <button class="sp-btn sp-P"  onclick="setStation('P')">P<br><span style="font-size:8px;font-weight:500" data-t="station_pressing">Prasowanie</span></button>
-    <button class="sp-btn sp-SZ" onclick="setStation('SZ')">SZ<br><span style="font-size:8px;font-weight:500" data-t="station_sewing">Szycie</span></button>
-    <button class="sp-btn sp-PP" onclick="setStation('PP')">PP<br><span style="font-size:8px;font-weight:500" data-t="station_reception">Punkt przyj.</span></button>
-    <button class="sp-btn sp-SP" onclick="setStation('SP')">SP<br><span style="font-size:8px;font-weight:500" data-t="station_cleaning">Sprzątanie</span></button>
-    <button class="sp-btn sp-O"  onclick="setStation('O')">O<br><span style="font-size:8px;font-weight:500" data-t="station_marking">Oznakowanie</span></button>
-    <button class="sp-btn sp-PK" onclick="setStation('PK')">PK<br><span style="font-size:8px;font-weight:500" data-t="station_packing">Pakowanie</span></button>
-    <button class="sp-btn sp-SC" onclick="setStation('SC')">SC<br><span style="font-size:8px;font-weight:500" data-t="station_dispatch">Spedycja</span></button>
-    <button class="sp-btn sp-K"  onclick="setStation('K')">K<br><span style="font-size:8px;font-weight:500" data-t="station_driver">Kierowca</span></button>
-    <button class="sp-btn sp-W"  onclick="setStation('W')">W<br><span style="font-size:8px;font-weight:500" data-t="legend_w">Wolne</span></button>
-    <button class="sp-btn sp-clear" onclick="setStation('')">✕<br><span style="font-size:8px;font-weight:500" data-t="cp_clear">Wyczyść</span></button>
-  </div>
-</div>
-
-<!-- Cell Picker (grafik editor) -->
-<div class="cell-picker" id="cellPicker">
-  <div class="cell-picker-header">
-    <div class="cell-picker-title" id="cellPickerTitle" data-t="status_title">Status</div>
-    <button class="cell-picker-close" onclick="closeCellEditor()">✕</button>
-  </div>
-  <div class="cp-status-grid">
-    <button class="cp-btn cp-I"    onclick="setCellValue('I')">I<br><span style="font-size:9px;font-weight:500" data-t="legend_i">Zaplanowany</span></button>
-    <button class="cp-btn cp-W"    onclick="setCellValue('W')">W<br><span style="font-size:9px;font-weight:500" data-t="legend_w">Wolne</span></button>
-    <button class="cp-btn cp-UW"   onclick="setCellValue('UW')">UW<br><span style="font-size:9px;font-weight:500" data-t="legend_uw">Urlop</span></button>
-    <button class="cp-btn cp-L4"   onclick="setCellValue('L4')">L4<br><span style="font-size:9px;font-weight:500" data-t="legend_l4">Choroba</span></button>
-    <button class="cp-btn cp-NN"   onclick="setCellValue('NN')">NN<br><span style="font-size:9px;font-weight:500" data-t="legend_nn">Nieobecny</span></button>
-    <button class="cp-btn cp-clear" onclick="setCellValue('')">✕<br><span style="font-size:9px;font-weight:500" data-t="cp_clear">Wyczyść</span></button>
-  </div>
-  <div class="cp-divider"></div>
-  <div class="cp-label" data-t="cp_hours_label">Godziny / Format niestandardowy</div>
-  <div class="cp-hours-row">
-    <input type="text" class="cp-hours-input" id="cpHoursInput"
-      placeholder="np. 8 lub 7+8 lub 7,5"
-      data-t-placeholder="cp_hours_placeholder"
-      onkeydown="if(event.key==='Enter')saveCpHours()">
-    <button class="cp-hours-save" onclick="saveCpHours()" data-t="btn_save">Zapisz</button>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -3055,7 +3153,7 @@ const TRANSLATIONS = {
     nav_klienci: "Klienci i Trasy",
     nav_mapa: "Mapa",
     nav_grafik: "Grafik Załogi",
-    nav_edytor: "Edytor Grafiku",
+    nav_edytor: "Grafik",
     nav_timeline: "Oś Czasu",
     day_0: "Poniedziałek",
     day_1: "Wtorek",
@@ -3212,7 +3310,7 @@ const TRANSLATIONS = {
     nav_klienci: "Kunden & Routen",
     nav_mapa: "Karte",
     nav_grafik: "Dienstplan",
-    nav_edytor: "Plan-Editor",
+    nav_edytor: "Plan",
     nav_timeline: "Zeitachse",
     day_0: "Montag",
     day_1: "Dienstag",
@@ -3368,7 +3466,7 @@ const TRANSLATIONS = {
     nav_klienci: "Клієнти та маршрути",
     nav_mapa: "Карта",
     nav_grafik: "Графік персоналу",
-    nav_edytor: "Редактор графіка",
+    nav_edytor: "Графік",
     nav_timeline: "Шкала часу",
     nav_help: "Інструкція",
     day_0: "Понеділок",
@@ -3965,12 +4063,16 @@ function applyAdminState(expires) {
   const staffTab    = document.getElementById('btnViewStaff');
   const grafikTab   = document.getElementById('btnViewGrafikEditor');
   const timelineTab = document.getElementById('btnViewTimeline');
+  const reportsTab  = document.getElementById('btnViewReports');
+  const logsTab     = document.getElementById('btnViewLogs');
 
   if (isAdmin) {
     btn.classList.add('admin-active');
     banner.classList.add('visible');
     if(grafikTab)   grafikTab.classList.add('visible');
     if(timelineTab) timelineTab.classList.add('visible');
+    if(reportsTab)  reportsTab.classList.add('visible');
+    if(logsTab)     logsTab.classList.add('visible');
     updateSessionDisplay();
     if (!sessionTimerInterval) {
       sessionTimerInterval = setInterval(function() {
@@ -3992,8 +4094,10 @@ function applyAdminState(expires) {
     banner.classList.remove('visible');
     if(grafikTab)   grafikTab.classList.remove('visible');
     if(timelineTab) timelineTab.classList.remove('visible');
+    if(reportsTab)  reportsTab.classList.remove('visible');
+    if(logsTab)     logsTab.classList.remove('visible');
     if (sessionTimerInterval) { clearInterval(sessionTimerInterval); sessionTimerInterval = null; }
-    const adminViews = ['grafikEditorView','timelineView'];
+    const adminViews = ['grafikEditorView','timelineView','reportsView','logsView'];
     if (adminViews.some(id => { const el=document.getElementById(id); return el&&el.style.display==='block'; })) switchView('main');
 
   }
@@ -4131,7 +4235,8 @@ function switchView(v){
   const views=['main','history','clients','map','help','grafikEditor','timeline','reports','logs'];
   const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
-    const el=document.getElementById(x==='main'?'mainView':x+'View');
+    const idMap={main:'mainView',history:'histView'};
+    const el=document.getElementById(idMap[x]||x+'View');
     if(el)el.style.display=(x===v?'block':'none');
     const b=document.getElementById(btns[x]);
     if(b){if(x===v)b.classList.add('active');else b.classList.remove('active');}
@@ -4157,6 +4262,87 @@ function switchView(v){
   else if(v==='timeline')initTimelineView();
   else if(v==='reports')loadReports();
   else if(v==='logs')loadLogs();
+  else if(v==='help')renderHelp();
+}
+
+function renderHelp(){
+  const el=document.getElementById('helpView');
+  if(!el)return;
+  const L=currentLang;
+  const PL=L==='PL', DE=L==='DE', UA=L==='UA'||(!PL&&!DE);
+
+  const T={
+    title:       PL?'ℹ️ Instrukcja':DE?'ℹ️ Anleitung':'ℹ️ Інструкція',
+    intro:       PL?'Aplikacja służy do zarządzania logistyką pralni. Kierowcy logują się jako kierowca i korzystają z harmonogramu, aby śledzić przyjazdy i odbiory bielizny hotelowej.':
+                 DE?'Die App dient zur Verwaltung der Wäschereilogistik. Fahrer melden sich als Fahrer an und nutzen den Zeitplan, um Anlieferungen und Abholungen von Hotelwäsche zu verfolgen.':
+                 'Застосунок призначений для управління логістикою пральні. Водії авторизуються та використовують розклад для відстеження доставок та видач готельної білизни.',
+
+    sec_driver:  PL?'👤 Kierowca — logowanie':DE?'👤 Fahrer — Anmeldung':'👤 Водій — вхід',
+    driver1:     PL?'Naciśnij przycisk <b>Wybierz kierowcę</b> na górze ekranu.':DE?'Tippen Sie oben auf <b>Fahrer auswählen</b>.':'Натисніть кнопку <b>Вибрати водія</b> вгорі екрана.',
+    driver2:     PL?'Wybierz swoje imię z listy — następnie możesz dodawać zamówienia i oznaczać odbiory.':DE?'Wählen Sie Ihren Namen aus der Liste — danach können Sie Aufträge hinzufügen und Abholungen markieren.':'Оберіть своє ім\'я зі списку — після цього можна додавати замовлення та позначати видачі.',
+    driver3:     PL?'Twoje imię jest zapamiętywane na tym urządzeniu — nie musisz logować się przy każdym otwarciu.':DE?'Ihr Name wird auf diesem Gerät gespeichert — Sie müssen sich nicht jedes Mal neu anmelden.':'Ваше ім\'я зберігається на пристрої — не потрібно входити щоразу.',
+
+    sec_schedule:PL?'🗓 Harmonogram — jak czytać':DE?'🗓 Zeitplan — Leseanleitung':'🗓 Розклад — як читати',
+    sched1:      PL?'Harmonogram pokazuje bieżący tydzień podzielony na 5 dni (Pn–Pt).':DE?'Der Zeitplan zeigt die aktuelle Woche aufgeteilt in 5 Tage (Mo–Fr).':'Розклад показує поточний тиждень, розділений на 5 днів (Пн–Пт).',
+    sched2:      PL?'Każdy dzień ma dwie sekcje: <b>↓ Przyjechało</b> (zielone karty) i <b>↑ Do odbioru</b> (niebieskie karty).':DE?'Jeder Tag hat zwei Abschnitte: <b>↓ Angekommen</b> (grüne Karten) und <b>↑ Zur Abholung</b> (blaue Karten).':'Кожен день має два розділи: <b>↓ Приїхало</b> (зелені картки) і <b>↑ До видачі</b> (сині картки).',
+    sched3:      PL?'Szare karty (przekreślone) = odbiór już oznaczony.':DE?'Graue Karten (durchgestrichen) = Abholung bereits markiert.':'Сірі картки (закреслені) = видачу вже позначено.',
+    sched4:      PL?'Na górze każdego dnia widać sumę kg: <b>Przyjazd</b> — ile kg przyjechało tego dnia; <b>Do prania</b> — ile kg czeka na pranie (z poprzedniego dnia).':DE?'Oben an jedem Tag sehen Sie die kg-Summe: <b>Ankunft</b> — wie viele kg heute angekommen sind; <b>Zu waschen</b> — wie viele kg auf die Wäsche warten (vom Vortag).':'Угорі кожного дня — сума кг: <b>Приїзд</b> — скільки кг приїхало цього дня; <b>До прання</b> — скільки кг чекає на прання (з попереднього дня).',
+
+    sec_badges:  PL?'🏷 Oznaczenia na kartach':DE?'🏷 Kennzeichnungen auf den Karten':'🏷 Позначення на картках',
+    badge_p:     PL?'<b>P</b> = Pościel (niebieskie oznaczenie)':DE?'<b>P</b> = Bettwäsche (blaue Kennzeichnung)':'<b>P</b> = Постіль (синє позначення)',
+    badge_o:     PL?'<b>O</b> = Obrusy (fioletowe oznaczenie)':DE?'<b>O</b> = Tischdecken (violette Kennzeichnung)':'<b>O</b> = Скатертини (фіолетове позначення)',
+    badge_t:     PL?'<b>T1, T2…</b> = Numer trasy logistycznej':DE?'<b>T1, T2…</b> = Nummer der Logistikroute':'<b>T1, T2…</b> = Номер логістичного маршруту',
+    badge_kg:    PL?'<b>35 kg</b> = Waga bielizny w kilogramach':DE?'<b>35 kg</b> = Gewicht der Wäsche in Kilogramm':'<b>35 kg</b> = Вага білизни в кілограмах',
+    badge_flag:  PL?'🚩 = Zamówienie pilne — priorytetowe':DE?'🚩 = Dringender Auftrag — Priorität':'🚩 = Термінове замовлення — пріоритет',
+
+    sec_arrival: PL?'↓ Przyjechało — sekcja przyjazdu':DE?'↓ Angekommen — Anlieferungsbereich':'↓ Приїхало — розділ доставки',
+    arr1:        PL?'Zielona karta = bielizna przywiozła i czeka na pranie.':DE?'Grüne Karte = Wäsche wurde angeliefert und wartet auf die Wäsche.':'Зелена картка = білизна приїхала і чекає на прання.',
+    arr2:        PL?'Naciśnij kartę, aby zobaczyć szczegóły — dzień przyjazdu, dzień odbioru, rodzaj, wagę.':DE?'Tippen Sie auf die Karte, um Details zu sehen — Ankunftstag, Abholtag, Art, Gewicht.':'Натисніть картку, щоб побачити деталі — день приїзду, день видачі, тип, вагу.',
+    arr3:        PL?'Jeśli dodałeś zamówienie sam — możesz je <b>usunąć</b> przyciskiem Usuń w oknie szczegółów.':DE?'Wenn Sie den Auftrag selbst hinzugefügt haben — können Sie ihn über die Schaltfläche <b>Löschen</b> im Detailfenster entfernen.':'Якщо ви самі додали замовлення — можна його <b>вилучити</b> кнопкою Вилучити у вікні деталей.',
+
+    sec_pickup:  PL?'↑ Do odbioru — sekcja odbiorów':DE?'↑ Zur Abholung — Abholungsbereich':'↑ До видачі — розділ видачі',
+    pick1:       PL?'Niebieska karta = bielizna gotowa do odbioru przez klienta.':DE?'Blaue Karte = Wäsche ist bereit zur Abholung durch den Kunden.':'Синя картка = білизна готова до видачі клієнту.',
+    pick2:       PL?'Naciśnij kartę → naciśnij <b>Oznacz jako odebrane</b> gdy klient odbierze pranie.':DE?'Tippen Sie auf die Karte → tippen Sie auf <b>Als abgeholt markieren</b>, wenn der Kunde die Wäsche abholt.':'Натисніть картку → натисніть <b>Позначити як забране</b>, коли клієнт забере білизну.',
+    pick3:       PL?'Jeśli klient ma zarówno Pościel (P) jak i Obrusy (O) w tym samym dniu odbioru — pojawią się razem na jednej karcie.':DE?'Hat der Kunde sowohl Bettwäsche (P) als auch Tischdecken (O) am selben Abholtag — erscheinen sie zusammen auf einer Karte.':'Якщо клієнт має і Постіль (P), і Скатертини (O) в той самий день видачі — вони з\'являться разом на одній картці.',
+    pick4:       PL?'Po oznaczeniu karta staje się szara (przekreślona). Można cofnąć oznaczenie naciśnięciem karty → <b>Cofnij odbiór</b>.':DE?'Nach der Markierung wird die Karte grau (durchgestrichen). Die Markierung kann durch Tippen auf die Karte → <b>Abholung rückgängig</b> aufgehoben werden.':'Після позначення картка стає сірою (закресленою). Можна скасувати позначення — натисніть картку → <b>Скасувати видачу</b>.',
+
+    sec_add:     PL?'➕ Dodawanie zamówienia':DE?'➕ Auftrag hinzufügen':'➕ Додавання замовлення',
+    add1:        PL?'Naciśnij <b>+ dodaj zamówienie</b> na dole kolumny danego dnia.':DE?'Tippen Sie unten in der Tagesspalte auf <b>+ Auftrag hinzufügen</b>.':'Натисніть <b>+ додати замовлення</b> внизу стовпця потрібного дня.',
+    add2:        PL?'Wybierz klienta, rodzaj bielizny (Pościel / Obrusy), podaj wagę (opcjonalnie) i dzień odbioru.':DE?'Wählen Sie den Kunden, die Art der Wäsche (Bettwäsche / Tischdecken), geben Sie das Gewicht (optional) und den Abholtag an.':'Оберіть клієнта, тип білизни (Постіль / Скатертини), вкажіть вагу (необов\'язково) та день видачі.',
+    add3:        PL?'Naciśnij <b>Zapisz</b> — zamówienie pojawi się od razu w harmonogramie.':DE?'Tippen Sie auf <b>Speichern</b> — der Auftrag erscheint sofort im Zeitplan.':'Натисніть <b>Зберегти</b> — замовлення одразу з\'явиться в розкладі.',
+
+    sec_nav:     PL?'📋 Inne zakładki':DE?'📋 Weitere Tabs':'📋 Інші вкладки',
+    nav_hist:    PL?'<b>Historia</b> — wszystkie zamówienia z poprzednich tygodni':DE?'<b>Verlauf</b> — alle Aufträge aus vergangenen Wochen':'<b>Історія</b> — всі замовлення з попередніх тижнів',
+    nav_clients: PL?'<b>Klienci i Trasy</b> — lista hoteli/firm i tras logistycznych (tylko admin)':DE?'<b>Kunden & Routen</b> — Liste der Hotels/Firmen und Logistikrouten (nur Admin)':'<b>Клієнти та Маршрути</b> — список готелів/фірм і маршрутів (тільки адмін)',
+    nav_map:     PL?'<b>Mapa</b> — mapa z lokalizacjami klientów na trasie':DE?'<b>Karte</b> — Karte mit Kundenstandorten auf der Route':'<b>Карта</b> — карта з розташуванням клієнтів на маршруті',
+
+    sec_colors:  PL?'🎨 Kolory kart':DE?'🎨 Kartenfarben':'🎨 Кольори карток',
+    col_green:   PL?'Zielona = przyjechało (czeka na pranie)':DE?'Grün = angekommen (wartet auf die Wäsche)':'Зелена = приїхало (чекає на прання)',
+    col_blue:    PL?'Niebieska = do odbioru (gotowe)':DE?'Blau = zur Abholung (fertig)':'Синя = до видачі (готово)',
+    col_gray:    PL?'Szara = odebrane / zakończone':DE?'Grau = abgeholt / abgeschlossen':'Сіра = забрано / завершено',
+  };
+
+  function section(title, items){
+    return '<div class="help-sec"><div class="help-sec-title">'+title+'</div>'
+      +items.map(function(i){return'<div class="help-sec-item">'+i+'</div>';}).join('')
+      +'</div>';
+  }
+
+  el.innerHTML=
+    '<div class="legend-box" style="margin-top:0;padding:0;background:none;border:none;box-shadow:none;gap:0">'
+    +'<div style="font-size:16px;font-weight:800;color:var(--text-primary);padding:16px 16px 4px">'+T.title+'</div>'
+    +'<div style="font-size:13px;color:var(--text-secondary);padding:0 16px 16px;line-height:1.5">'+T.intro+'</div>'
+    +section(T.sec_driver,[T.driver1,T.driver2,T.driver3])
+    +section(T.sec_schedule,[T.sched1,T.sched2,T.sched3,T.sched4])
+    +section(T.sec_badges,[
+      T.badge_p,T.badge_o,T.badge_t,T.badge_kg,T.badge_flag
+    ])
+    +section(T.sec_arrival,[T.arr1,T.arr2,T.arr3])
+    +section(T.sec_pickup,[T.pick1,T.pick2,T.pick3,T.pick4])
+    +section(T.sec_add,[T.add1,T.add2,T.add3])
+    +section(T.sec_nav,[T.nav_hist,T.nav_clients,T.nav_map])
+    +section(T.sec_colors,[T.col_green,T.col_blue,T.col_gray])
+    +'</div>';
 }
 
 // ── REPORTS & LOGS ──
@@ -4330,10 +4516,9 @@ function buildGridHTML(offset,targetWkKey){
     const pickups=entries.filter(e=>e.pickWeekKey===targetWkKey&&e.pickDay===i&&!(e.weekKey===targetWkKey&&e.arrDay===i));
     const arrTags=arrived.sort((a,b)=>a.order-b.order).map(e=>{
       const typeBadge='<span class="laundry-type-badge type-'+esc(e.type || 'P')+'">'+esc(e.type || 'P')+'</span>';
-      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
+      const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';
       const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-      const checkPlaceholder='<span class="tag-check-placeholder"></span>';
-      return'<div class="tag tag-arr'+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+      return'<div class="tag '+(e.done?'tag-done':'tag-arr')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+',true)">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
     }).join('');
     const pickTags=(function(){
       // Grupuj odbiory po kliencie — P+O tego samego klienta razem
@@ -4347,21 +4532,19 @@ function buildGridHTML(offset,targetWkKey){
         if(g.entries.length===1){
           const e=g.entries[0];
           const typeBadge='<span class="laundry-type-badge type-'+esc(e.type||'P')+'">'+esc(e.type||'P')+'</span>';
-          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
-          const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
+          const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'';
           const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }else{
           const typesBadges=g.types.sort().map(function(tp){return'<span class="laundry-type-badge type-'+esc(tp)+'">'+esc(tp)+'</span>';}).join('');
-          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'<span class="kg-placeholder"></span>';
-          const checkBtn='<span class="tag-check">'+(g.allDone?'✓':'◯')+'</span>';
+          const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'';
           const urgentFlag=g.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
-          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }
       }).join('');
     })();
     return'<div class="col'+(isToday?' col-today':'')+'">'+
-      '<div class="col-header"><span class="col-day-name">'+DAY_SHORT[i]+'</span><span class="col-date">'+fmtDate(d)+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
+      '<div class="col-header"><span class="col-date">'+fmtDate(d)+'</span><span class="col-day-name" style="flex:1;text-align:center">'+DAY_NAMES[i]+'</span>'+(isToday?'<span class="today-pill">'+t('grid_today')+'</span>':'')+'</div>'+
       '<div class="metrics-row">'+
         '<div class="metric-chip arr"><div class="metric-chip-label">'+t('grid_arrival')+'</div><div class="metric-chip-val">'+(sumArr>0?sumArr.toFixed(1):0)+' kg</div></div>'+
         '<div class="metric-chip wash"><div class="metric-chip-label">'+t('grid_wash')+'</div><div class="metric-chip-val">'+(sumWash>0?sumWash.toFixed(1):0)+' kg</div></div>'+
@@ -4498,9 +4681,9 @@ function confirmAdd(){
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
-function openEdit(id){
+function openEdit(id, isArrival){
   const entry=entries.find(e=>e.id===id);if(!entry)return;
-  if(!isAdmin){openViewEntry(entry);return;}
+  if(!isAdmin){openViewEntry(entry, isArrival);return;}
   // Admin: pełny modal edycji
   editingId=id;
   document.getElementById('eClientName').textContent=entry.client+' — '+getRouteName(entry.route);
@@ -4525,7 +4708,7 @@ function openEdit(id){
 }
 
 // ── VIEW ENTRY (użytkownik) ──
-function openViewEntry(entry){
+function openViewEntry(entry, isArrival){
   viewEntryId = entry.id;
   // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
   const grouped = entries.filter(function(e){
@@ -4548,9 +4731,22 @@ function openViewEntry(entry){
   const showGrouped = uniqueTypes.length > 1;
   const displayEntries = showGrouped ? allForPickup : [entry];
 
-  document.getElementById('veClientName').textContent=entry.client+' — '+getRouteName(entry.route);
-  document.getElementById('veArrDay').textContent=DAY_NAMES[entry.arrDay];
-  document.getElementById('vePickDay').textContent=DAY_NAMES[entry.pickDay]+(entry.weekKey!==entry.pickWeekKey ? t('week_next_suffix') : '');
+  // Nazwa trasy w kolorze trasy
+  const veClientEl = document.getElementById('veClientName');
+  veClientEl.textContent = entry.client + ' — ' + getRouteName(entry.route);
+  veClientEl.style.color = getRouteColor(entry.route);
+
+  // Dzień przyjazdu z datą
+  function entryDayDate(wkKey, dayIdx) {
+    if (!wkKey) return DAY_NAMES[dayIdx];
+    const parts = wkKey.split('-');
+    if (parts.length < 3) return DAY_NAMES[dayIdx];
+    const mon = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+    mon.setDate(mon.getDate() + dayIdx);
+    return DAY_NAMES[dayIdx] + ', ' + mon.getDate() + ' ' + ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'][mon.getMonth()];
+  }
+  document.getElementById('veArrDay').textContent = entryDayDate(entry.weekKey, entry.arrDay);
+  document.getElementById('vePickDay').textContent = entryDayDate(entry.pickWeekKey, entry.pickDay);
 
   // Typ i waga — jeśli zgrupowane, pokaż oba
   if(showGrouped){
@@ -4598,7 +4794,7 @@ function openViewEntry(entry){
   urgentRow.style.display = entry.urgent ? 'flex' : 'none';
 
   const commentRow = document.getElementById('veCommentRow');
-  if (entry.comment) {
+  if(entry.comment) {
     commentRow.style.display = 'flex';
     document.getElementById('veComment').textContent = entry.comment;
   } else {
@@ -4608,6 +4804,7 @@ function openViewEntry(entry){
   const tBtn=document.getElementById('veToggleBtn');
   tBtn.textContent=allDone ? t('btn_mark_undone') : t('btn_mark_done');
   tBtn.className='done-btn'+(allDone?' danger':'');
+  tBtn.style.display = isArrival ? 'none' : '';
 // Zapamiętywanie wybranej paczki wpisów do komentarza
 let pendingToggleEntries = null;
 
@@ -4641,28 +4838,44 @@ function performToggle(displayEntries, commentText) {
       return;
     }
     closeViewEntry();
-    
-    // Zmieniamy status natychmiast (komentarz w logach będzie pusty, ale akcja "Cofnięcie odbioru" zostanie zapisana)
-    performToggle(displayEntries);
+    const ci = document.getElementById('veCommentInput');
+    const commentText = (ci && isOwner) ? ci.value.trim() : undefined;
+    performToggle(displayEntries, commentText);
   };
 
-  // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
+  // Przycisk Usuń — widoczny jeśli kierowca dodał choć jeden wpis w grupie
   const deleteRow=document.getElementById('veDeleteRow');
+  const ownerCommentRow=document.getElementById('veOwnerCommentRow');
+  // isOwner: kierowca dodał WSZYSTKIE wpisy (dla komentarza edytowalnego)
   const isOwner = currentDriver && displayEntries.every(function(de){
     return de.addedBy && de.addedBy === currentDriver.name;
   });
-  deleteRow.style.display = isOwner ? 'flex' : 'none';
-  if(isOwner){
+  // canDelete: kierowca dodał przynajmniej jeden wpis w grupie
+  const ownEntries = currentDriver ? displayEntries.filter(function(de){
+    return de.addedBy && de.addedBy === currentDriver.name;
+  }) : [];
+  const canDelete = ownEntries.length > 0 && isArrival;
+  if(deleteRow) deleteRow.style.display = canDelete ? 'flex' : 'none';
+  // Właściciel: pole edytowalne zamiast read-only
+  const commentRow2 = document.getElementById('veCommentRow');
+  const commentInput = document.getElementById('veCommentInput');
+  if(isOwner) {
+    if(commentRow2) commentRow2.style.display = 'none';
+    if(ownerCommentRow) ownerCommentRow.style.display = 'block';
+    if(commentInput) commentInput.value = entry.comment || '';
+  } else {
+    if(ownerCommentRow) ownerCommentRow.style.display = 'none';
+  }
+  if(canDelete){
     document.getElementById('veDeleteBtn').onclick=function(){
       const confirmMsg = currentLang === 'DE' ? 'Eintrag löschen?' : (currentLang === 'UA' ? 'Вилучити запис?' : 'Usunąć wpis?');
       if(!confirm(confirmMsg)) return;
       closeViewEntry();
-      // Optymistyczne usunięcie wszystkich wpisów w grupie
-      const idsToRemove = displayEntries.map(function(de){return de.id;});
+      // Usuń tylko wpisy tego kierowcy
+      const idsToRemove = ownEntries.map(function(de){return de.id;});
       entries=entries.filter(function(en){return idsToRemove.indexOf(en.id)===-1;});
       renderGrid();
       toast(t('toast_deleted'));
-      // Usuń każdy wpis na serwerze
       idsToRemove.forEach(function(eid){
         google.script.run.withFailureHandler(function(e){
           loadWeek();
@@ -4677,6 +4890,33 @@ function performToggle(displayEntries, commentText) {
   lockScroll();
 }
 function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
+
+function saveViewEntryComment(){
+  if(!currentDriver||!viewEntryId) return;
+  const ci=document.getElementById('veCommentInput');
+  const comment=(ci?ci.value.trim():'');
+  // Zapisz lokalnie w entries i pokaż wszystkim
+  const idx=entries.findIndex(function(e){return e.id===viewEntryId;});
+  if(idx!==-1){
+    entries[idx].comment=comment;
+    // Odśwież wyświetlenie komentarza w info-row
+    const cr=document.getElementById('veCommentRow');
+    const cv=document.getElementById('veComment');
+    if(comment){
+      if(cr) cr.style.display='flex';
+      if(cv) cv.textContent=comment;
+    } else {
+      if(cr) cr.style.display='none';
+    }
+    renderGrid();
+  }
+  toast(currentLang==='DE'?'Kommentar gespeichert':(currentLang==='UA'?'Коментар збережено':'Komentarz zapisany'));
+  // Wyślij na serwer
+  google.script.run
+    .withFailureHandler(function(){toast('Błąd zapisu komentarza');})
+    .withSuccessHandler(function(res){if(res&&res.error) toast(res.error);})
+    .saveCommentByDriver(viewEntryId, currentDriver.name, comment);
+}
 
 function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
 function saveEdit(){
@@ -4728,22 +4968,142 @@ function deleteFromEdit(){
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(){toast(t('toast_deleted'));loadWeek();}).removeEntry(id,getAdminToken());
 }
 
-function loadHistory(){
-  document.getElementById('histContent').innerHTML='<div class="loader">' + t('loading') + '</div>';
-  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(all){
-    const grouped={};all.forEach(e=>{if(!grouped[e.weekKey])grouped[e.weekKey]=[];grouped[e.weekKey].push(e);});
-    const keys=Object.keys(grouped).sort().reverse();
-    if(!keys.length){document.getElementById('histContent').innerHTML='<div class="loader">' + t('hist_empty') + '</div>';return;}
-    document.getElementById('histContent').innerHTML=keys.map(k=>{
-      const rows=grouped[k].map(e=>{
-        const typeStr=(e.type==='O'?t('type_o'):t('type_p'));
-        const arrLbl = currentLang === 'DE' ? 'Ank.' : (currentLang === 'UA' ? 'приб.' : 'przyj.');
-        const pickLbl = currentLang === 'DE' ? 'Abholung' : (currentLang === 'UA' ? 'видача' : 'odbiór');
-        return'<div class="he"><b>'+esc(e.client)+(e.weight>0?' ('+esc(e.weight)+'kg, '+typeStr+')':' ('+typeStr+')')+' ['+esc(getRouteName(e.route))+']</b> → ' + arrLbl + ': '+esc(DAY_NAMES[e.arrDay])+' | ' + pickLbl + ': '+esc(DAY_NAMES[e.pickDay])+(e.done?' ✓':'')+'</div>';
+var _histAllEntries=null;
+function histSearch(){
+  if(!_histAllEntries)return;
+  const q=document.getElementById('histSearchInput');
+  renderHistoryData(_histAllEntries, q?q.value.trim().toLowerCase():'');
+}
+
+function renderHistoryData(all, filter){
+  const cont=document.getElementById('histContent');
+  const L=currentLang;
+  const lbl={
+    pickups: L==='DE'?'Abh.':L==='UA'?'Видач':'Odb.',
+    avg:     L==='DE'?'\u00D8':L==='UA'?'\u0421\u0435\u0440.':'\u015Ar.',
+    brought: L==='DE'?'Gebracht':L==='UA'?'\u041F\u0440\u0438\u0432\u0456\u0437':'Przywiózł',
+    addedAt: L==='DE'?'Eingetr.':L==='UA'?'Записано':'Wpisano',
+    pickedBy:L==='DE'?'Abgeholt':L==='UA'?'Забрав':'Odebrał',
+    pickedAt:L==='DE'?'am':L==='UA'?'':'',
+    noData:  L==='DE'?'Keine Einträge':L==='UA'?'Немає записів':'Brak wpisów',
+    noResult:L==='DE'?'Keine Ergebnisse':L==='UA'?'Немає результатів':'Brak wyników',
+    pending: L==='DE'?'Ausstehend':L==='UA'?'Очікує':'Oczekuje',
+    done:    L==='DE'?'Abgeholt':L==='UA'?'Забрано':'Odebrane',
+  };
+  if(!all.length){cont.innerHTML='<div class="loader">'+lbl.noData+'</div>';return;}
+  const filtered=filter?all.filter(function(e){
+    return (e.client||'').toLowerCase().includes(filter)
+      ||(e.addedBy||'').toLowerCase().includes(filter)
+      ||(e.pickedBy||'').toLowerCase().includes(filter)
+      ||(e.comment||'').toLowerCase().includes(filter);
+  }):all;
+  if(!filtered.length){cont.innerHTML='<div class="loader">'+lbl.noResult+'</div>';return;}
+  const byClient={};
+  filtered.forEach(function(e){
+    const key=e.client+'||'+e.route;
+    if(!byClient[key])byClient[key]={client:e.client,route:e.route,entries:[]};
+    byClient[key].entries.push(e);
+  });
+  const sorted=Object.values(byClient).sort(function(a,b){
+    return (a.route||0)-(b.route||0)||a.client.localeCompare(b.client);
+  });
+  function parseMonth(e){
+    const src=e.addedAt||e.pickedAt||'';
+    if(!src)return null;
+    const p=src.split(',')[0].split('.');
+    return p.length===3?p[1].trim()+'.'+p[2].trim():null;
+  }
+  const cards=sorted.map(function(g){
+    const entries=g.entries;
+    const doneEnt=entries.filter(function(e){return e.done;});
+    const totalKg=entries.reduce(function(s,e){return s+(e.weight||0);},0);
+    const doneKg=doneEnt.reduce(function(s,e){return s+(e.weight||0);},0);
+    const avgKg=doneEnt.length?(doneKg/doneEnt.length).toFixed(1):'—';
+    const rColor=getRouteColor(g.route);
+    const rIdx=getRouteColorIdx(g.route);
+    const byMonth={};
+    entries.forEach(function(e){
+      const m=parseMonth(e)||'—';
+      if(!byMonth[m])byMonth[m]=[];
+      byMonth[m].push(e);
+    });
+    const monthBlocks=Object.keys(byMonth).sort(function(a,b){return b.localeCompare(a);}).map(function(m){
+      const mes=byMonth[m];
+      const mKg=mes.reduce(function(s,e){return s+(e.weight||0);},0);
+      const mHead='<div class="hist-month-head">'
+        +'<span style="font-size:11px;font-weight:800;color:var(--text-primary)">'+esc(m)+'</span>'
+        +'<span style="font-size:10px;color:var(--text-tertiary);margin-left:auto">'+mes.length+'\u00D7 · <b style="color:var(--accent-blue)">'+mKg.toFixed(1)+' kg</b></span>'
+        +'</div>';
+      const rows=mes.sort(function(a,b){return (b.addedAt||'').localeCompare(a.addedAt||'');}).map(function(e){
+        const tb='<span class="laundry-type-badge type-'+(e.type||'P')+'" style="font-size:9px;padding:1px 5px">'+(e.type||'P')+'</span>';
+        const kb=e.weight>0?'<span style="font-size:11px;font-weight:600;color:var(--text-secondary)">'+e.weight+' kg</span>':'';
+        const sb=e.done
+          ?'<span style="font-size:10px;font-weight:700;color:var(--accent-green)">✓ '+lbl.done+'</span>'
+          :'<span style="font-size:10px;font-weight:600;color:var(--accent-red)">⏳ '+lbl.pending+'</span>';
+        const uf=e.urgent?'<span style="color:var(--accent-red)">🚩</span>':'';
+        const infos=[];
+        if(e.addedBy)infos.push('<span style="color:var(--text-tertiary)">'+lbl.brought+':</span> <b>'+esc(e.addedBy)+'</b>'+(e.addedAt?' <span style="color:var(--text-quaternary);font-size:10px">'+esc(e.addedAt)+'</span>':''));
+        if(e.pickedBy)infos.push('<span style="color:var(--text-tertiary)">'+lbl.pickedBy+':</span> <b style="color:var(--accent-green)">'+esc(e.pickedBy)+'</b>'+(e.pickedAt?' <span style="color:var(--text-quaternary);font-size:10px">'+esc(e.pickedAt)+'</span>':''));
+        if(e.comment)infos.push('💬 <i style="color:var(--text-tertiary)">'+esc(e.comment)+'</i>');
+        return '<div class="hist-entry">'
+          +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">'+uf+tb+kb+sb+'</div>'
+          +(infos.length?'<div class="hist-entry-info">'+infos.map(function(l){return'<span>'+l+'</span>';}).join('')+'</div>':'')
+          +'</div>';
       }).join('');
-      return'<div class="hw"><div class="hw-h">' + t('hist_title') + fmtDate(new Date(k))+'</div>'+rows+'</div>';
+      return mHead+rows;
     }).join('');
-  }).getAllEntries();
+    const head='<div class="hist-card-head" style="border-top:3px solid '+rColor+'">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
+        +'<span class="hist-client-name">'+esc(g.client)+'</span>'
+        +'<span class="rt-badge rt-'+rIdx+'" style="font-size:10px;padding:2px 6px">T'+esc(g.route)+'</span>'
+        +'<span style="font-size:11px;font-weight:600;color:'+rColor+'">'+esc(getRouteName(g.route))+'</span>'
+      +'</div>'
+      +'<div class="hist-card-stats">'
+        +'<span><b style="color:var(--text-primary)">'+entries.length+'</b> <span style="color:var(--text-tertiary)">'+lbl.pickups+'</span></span>'
+        +(totalKg>0?'<span><b style="color:var(--accent-blue)">'+totalKg.toFixed(1)+'</b> <span style="color:var(--text-tertiary)">kg</span></span>':'')
+        +(doneEnt.length&&totalKg>0?'<span><b>'+avgKg+'</b> <span style="color:var(--text-tertiary)">kg '+lbl.avg+'</span></span>':'')
+      +'</div>'
+      +'</div>';
+    return '<div class="hist-card hw">'+head+monthBlocks+'</div>';
+  }).join('');
+  cont.innerHTML='<div class="hist-grid">'+cards+'</div>';
+}
+
+
+function loadHistory(){
+  const cont=document.getElementById('histContent');
+  cont.innerHTML='<div class="loader">'+t('loading')+'</div>';
+
+  const L=currentLang;
+  const lbl={
+    empty:   L==='DE'?'Kein Verlauf':L==='UA'?'Історія порожня':'Brak historii',
+    noData:  L==='DE'?'Keine Abholungen':L==='UA'?'Немає видач':'Brak odbiorów',
+    pickups: L==='DE'?'Abholungen':L==='UA'?'Видач':'Odbiorów',
+    total:   L==='DE'?'Gesamt':L==='UA'?'Всього':'Suma',
+    avg:     L==='DE'?'Ø/Abh.':L==='UA'?'Сер.':'Śr.',
+  };
+
+  google.script.run
+    .withFailureHandler(function(e){
+      cont.innerHTML='<div class="loader" style="color:var(--accent-red)">'+t('error_label')+': '+translateError(e.message)+'</div>';
+    })
+    .withSuccessHandler(function(all){
+      if(!all||!all.length){
+        cont.innerHTML='<div class="loader">'+(currentLang==='DE'?'Kein Verlauf':currentLang==='UA'?'Історія порожня':'Brak historii')+'</div>';
+        return;
+      }
+      _histAllEntries=all;
+      // Wyszukiwarka na górze
+      const searchPlaceholder=currentLang==='DE'?'Suchen…':currentLang==='UA'?'Пошук…':'Szukaj…';
+      document.getElementById('histSearchBar').innerHTML=
+        '<div style="position:relative;margin-bottom:14px">'
+          +'<svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.4" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+          +'<input id="histSearchInput" type="search" placeholder="'+searchPlaceholder+'" oninput="histSearch()" '
+          +'style="width:100%;box-sizing:border-box;padding:9px 14px 9px 36px;font-size:15px;font-family:var(--font);border-radius:12px;border:none;background:rgba(120,120,128,0.12);color:var(--text-primary);outline:none;-webkit-appearance:none;appearance:none">'
+        +'</div>';
+      renderHistoryData(all,'');
+    })
+    .getAllEntries();
 }
 
 function renderClientsList(){
@@ -4787,7 +5147,6 @@ function renderClientsList(){
           const editBtnLbl = currentLang === 'DE' ? 'Bearbeiten' : (currentLang === 'UA' ? 'Редагувати' : 'Edytuj');
           html+='<span class="edit-icon" style="margin-left:8px" onclick="openEditClientModal('+jsArg(c.name)+','+Number(c.route)+','+jsArg(c.lat||'')+','+jsArg(c.lng||'')+')">' + editBtnLbl + '</span>';
         }
-        html+='<span class="edit-icon" style="margin-left:8px;color:var(--accent-blue)" onclick="openClientHistory('+jsArg(c.name)+')">Historia</span>';
         html+='</div>';
       });
       html+='</div><div style="flex:1"></div><div class="divider" style="margin:8px 0"></div>';
@@ -4871,7 +5230,30 @@ function openClientHistory(clientName) {
   }).getAllEntries();
 }
 
-function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';lockScroll();}
+function openEditClientModal(name,route,lat,lng){
+  document.getElementById('ecOldName').value=name;
+  document.getElementById('ecName').value=name;
+  document.getElementById('ecRoute').value=route;
+  document.getElementById('ecLat').value=lat||'';
+  document.getElementById('ecLng').value=lng||'';
+  // Badge kolorowy aktualnej trasy
+  const badge=document.getElementById('ecRouteBadge');
+  if(badge){
+    badge.innerHTML='<span class="rt-badge rt-'+getRouteColorIdx(route)+'" style="font-size:12px;padding:3px 8px">T'+route+'</span>'
+      +'<span style="font-size:13px;font-weight:600;color:'+getRouteColor(route)+'">'+esc(getRouteName(route))+'</span>';
+  }
+  // Odśwież badge przy zmianie selecta
+  const sel=document.getElementById('ecRoute');
+  sel.onchange=function(){
+    const r=Number(this.value);
+    if(badge){
+      badge.innerHTML='<span class="rt-badge rt-'+getRouteColorIdx(r)+'" style="font-size:12px;padding:3px 8px">T'+r+'</span>'
+        +'<span style="font-size:13px;font-weight:600;color:'+getRouteColor(r)+'">'+esc(getRouteName(r))+'</span>';
+    }
+  };
+  document.getElementById('editClientModal').style.display='flex';
+  lockScroll();
+}
 function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
 function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
 function doDeleteClient(){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
@@ -5199,8 +5581,7 @@ function renderTlGrid() {
       const outsideCls = inShift ? '' : ' outside';
       const weCls = day.isWeekend ? ' we-col' : '';
       const sc = getStationClass(val);
-      html += '<td class="tl-cell' + outsideCls + weCls + (sc ? ' ' + sc : '') +
-              '" onclick="openStationPicker(' + eIdx + ',' + tlActiveDayIdx + ',' + h + ',' + jsArg(val) + ',event)">' +
+      html += '<td class="tl-cell' + outsideCls + weCls + (sc ? ' ' + sc : '') + '">' +
               esc(val) + '</td>';
     });
     html += '</tr>';
@@ -5268,66 +5649,6 @@ function renderTlStats() {
   document.getElementById('tlStatsTable').innerHTML = html;
 }
 
-// Station picker
-function openStationPicker(empIdx, dayIdx, hour, currentVal, event) {
-  if (!isAdmin) { toast(currentLang === 'DE' ? 'Bearbeitung erfordert Administratorrechte' : (currentLang === 'UA' ? 'Редагування вимагає прав адміністратора' : 'Edycja wymaga uprawnień administratora')); return; }
-  tlPendingCell = { empIdx: empIdx, dayIdx: dayIdx, hour: hour };
-  const emp = tlData.employees[empIdx];
-  document.getElementById('spTitle').innerHTML =
-    '<b>' + esc(emp.name) + '</b> · ' + esc(tlData.days[dayIdx].label) + ' · ' + hour + ':00' +
-    (currentVal ? ' <span class="cp-current-badge ' + getStationClass(currentVal) + '">' + esc(currentVal) + '</span>' : '');
-
-  // Podświetl aktywne
-  document.querySelectorAll('.sp-btn').forEach(function(b) { b.classList.remove('sp-active'); });
-  const activeBtn = document.querySelector('.sp-btn.sp-' + currentVal.toUpperCase());
-  if (activeBtn) activeBtn.classList.add('sp-active');
-
-  const picker = document.getElementById('stationPicker');
-  picker.style.display = 'block';
-  picker.style.left = '-9999px'; picker.style.top = '-9999px';
-  event.stopPropagation();
-
-  requestAnimationFrame(function() {
-    const rect = event.target.getBoundingClientRect();
-    const pw = picker.offsetWidth || 300; const ph = picker.offsetHeight || 250;
-    let left = rect.left + window.scrollX;
-    let top  = rect.bottom + window.scrollY + 4;
-    if (left + pw > window.scrollX + window.innerWidth - 8) left = window.scrollX + window.innerWidth - pw - 8;
-    if (top  + ph > window.scrollY + window.innerHeight - 8) top = rect.top + window.scrollY - ph - 4;
-    picker.style.left = Math.max(window.scrollX + 4, left) + 'px';
-    picker.style.top  = Math.max(window.scrollY + 4, top)  + 'px';
-  });
-}
-
-function closeStationPicker() {
-  document.getElementById('stationPicker').style.display = 'none';
-  tlPendingCell = null;
-}
-
-function setStation(value) {
-  if (!tlPendingCell || !tlData) return;
-  const { empIdx, dayIdx, hour } = tlPendingCell;
-  const emp = tlData.employees[empIdx];
-  closeStationPicker();
-  // Optimistic update
-  if (!tlData.employees[empIdx].days[dayIdx]) tlData.employees[empIdx].days[dayIdx] = {};
-  if (value) tlData.employees[empIdx].days[dayIdx][hour] = value;
-  else delete tlData.employees[empIdx].days[dayIdx][hour];
-  renderTlGrid();
-  google.script.run
-    .withFailureHandler(function(e) { toast(t('error_label') + ': ' + e.message); loadTimelineData(); })
-    .withSuccessHandler(function(res) {
-      if (res && res.error) { toast(t('error_label') + ': ' + res.error); loadTimelineData(); return; }
-      const emptyText = currentLang === 'DE' ? '(leer)' : (currentLang === 'UA' ? '(порожньо)' : '(puste)');
-      toast('✓ ' + emp.name + ' · ' + hour + ':00 → ' + (value || emptyText));
-    })
-    .setWeeklyStationCell(tlData.sheetName, emp.sheetRow, dayIdx, hour, value, emp.name, getAdminToken());
-}
-
-// Zamknij picker klikając poza nim
-document.addEventListener('click', function(e) {
-  const sp = document.getElementById('stationPicker');
-  if (sp && sp.style.display === 'block' && !sp.contains(e.target)) closeStationPicker();
 });
 
 // ══════════════════════════════════════════════════════
@@ -5475,7 +5796,7 @@ function renderGrafikGrid(){
       const we=days[d-1].weekend;
       const todayCls=d===todayDay?' today-col':'';
       const bgCls=sc||(we?'we':'');
-      html+='<td class="grafik-cell '+bgCls+todayCls+'" onclick="openCellEditor('+eIdx+','+d+','+jsArg(val)+',event)">'+esc(val)+'</td>';
+      html+='<td class="grafik-cell '+bgCls+todayCls+'">'+esc(val)+'</td>';
     }
     html+='</tr>';
   });
@@ -5483,98 +5804,6 @@ function renderGrafikGrid(){
   html+='</tbody></table></div>';
   document.getElementById('grafikEditorGrid').innerHTML=html;
 }
-
-function openCellEditor(empIdx,day,currentVal,event){
-  if(!isAdmin){toast(currentLang === 'DE' ? 'Bearbeitung des Dienstplans erfordert Administratorrechte' : (currentLang === 'UA' ? 'Редагування графіка вимагає прав адміністратора' : 'Edycja grafiku wymaga uprawnień administratora'));return;}
-  pendingCell={empIdx:empIdx,day:day};
-  const emp=grafikData.employees[empIdx];
-  const dayInfo=grafikData.days[day-1];
-  document.getElementById('cellPickerTitle').innerHTML=
-    '<b>'+esc(emp.name)+'</b> — '+day+'. ('+dayInfo.name+')'+
-    (currentVal?'<span class="cp-current-badge '+getStatusClass(currentVal)+'" style="margin-left:6px">'+esc(currentVal)+'</span>':'');
-
-  // Podświetl aktywny status
-  document.querySelectorAll('.cp-btn').forEach(btn=>btn.classList.remove('active-status'));
-  const statusMap={'I':'.cp-I','W':'.cp-W','UW':'.cp-UW','L4':'.cp-L4','NN':'.cp-NN'};
-  if(statusMap[currentVal.toUpperCase()]){
-    const activeBtn=document.querySelector('.cp-status-grid '+statusMap[currentVal.toUpperCase()]);
-    if(activeBtn)activeBtn.classList.add('active-status');
-  }
-
-  // Wstaw bieżącą wartość do pola godzin jeśli to nie jest status słowny
-  const simpleStatuses=['I','W','UW','L4','NN',''];
-  const cpInput=document.getElementById('cpHoursInput');
-  cpInput.value=simpleStatuses.includes(currentVal.toUpperCase())?'':currentVal;
-
-  const picker=document.getElementById('cellPicker');
-  picker.style.display='block';
-  picker.style.left='-9999px';
-  picker.style.top='-9999px';
-
-  event.stopPropagation();
-
-  // Pozycjonowanie po wyrenderowaniu
-  requestAnimationFrame(function(){
-    const rect=event.target.getBoundingClientRect();
-    const pw=picker.offsetWidth||250;
-    const ph=picker.offsetHeight||200;
-    let left=rect.left+window.scrollX;
-    let top=rect.bottom+window.scrollY+4;
-    if(left+pw>window.scrollX+window.innerWidth-8)left=window.scrollX+window.innerWidth-pw-8;
-    if(top+ph>window.scrollY+window.innerHeight-8)top=rect.top+window.scrollY-ph-4;
-    picker.style.left=Math.max(window.scrollX+4,left)+'px';
-    picker.style.top=Math.max(window.scrollY+4,top)+'px';
-    cpInput.focus();
-    cpInput.select();
-  });
-}
-
-function closeCellEditor(){
-  document.getElementById('cellPicker').style.display='none';
-  pendingCell=null;
-}
-
-function setCellValue(value){
-  if(!pendingCell||!grafikData)return;
-  const {empIdx,day}=pendingCell;
-  const emp=grafikData.employees[empIdx];
-  closeCellEditor();
-  const normalizedVal=value.trim().toUpperCase()||value.trim();
-  // Optymistyczna aktualizacja UI
-  grafikData.employees[empIdx].days[day-1]=normalizedVal;
-  renderGrafikGrid();
-  google.script.run
-    .withFailureHandler(function(e){
-      toast((currentLang === 'DE' ? 'Fehler beim Speichern: ' : (currentLang === 'UA' ? 'Помилка запису: ' : 'Błąd zapisu: ')) + e.message);
-      // Cofnij lokalną zmianę przy błędzie
-      loadGrafikMonth();
-    })
-    .withSuccessHandler(function(res){
-      if(res&&res.error){toast(t('error_label') + ': '+res.error);loadGrafikMonth();return;}
-      const dayText = currentLang === 'DE' ? ' Tag ' : (currentLang === 'UA' ? ' дн.' : ' dz.');
-      const emptyText = currentLang === 'DE' ? '(leer)' : (currentLang === 'UA' ? '(порожньо)' : '(puste)');
-      toast('✓ ' + (currentLang === 'DE' ? 'Gespeichert: ' : (currentLang === 'UA' ? 'Збережено: ' : 'Zapisano: ')) + emp.name + dayText + day + ' → ' + (normalizedVal||emptyText));
-    })
-    .setGrafikRowBatch(emp.sheetRow,day,normalizedVal,emp.name,getAdminToken());
-}
-
-function saveCpHours(){
-  const val=document.getElementById('cpHoursInput').value.trim();
-  if(!val){closeCellEditor();return;}
-  // Walidacja: liczba, format X+Y lub pusty
-  const isValid=/^(\d+([,\.]\d+)?|\d+([,\.]\d+)?\+\d+([,\.]\d+)?)$/.test(val.replace(/\s/g,''));
-  if(!isValid){toast(currentLang === 'DE' ? 'Ungültiges Format. Verwenden Sie: 8 oder 7+8 oder 7,5' : (currentLang === 'UA' ? 'Неправильний формат. Використовуйте: 8 або 7+8 або 7,5' : 'Nieprawidłowy format. Użyj: 8 lub 7+8 lub 7,5'));return;}
-  setCellValue(val);
-}
-
-// Zamknij picker klikając poza nim
-document.addEventListener('click',function(e){
-  const picker=document.getElementById('cellPicker');
-  if(picker&&picker.style.display==='block'&&!picker.contains(e.target)){closeCellEditor();}
-});
-document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')closeCellEditor();
-});
 
 // ══════════════════════════════════════════════════════
 
