@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LEBUSER Textilservice Sp. z o.o. – Harmonogram</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" onerror="console.error('Nie można załadować SortableJS');"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- @include 'js/polyfills.js' -->
+<!-- @include 'css/style.css' -->
+</head>
+<body>
+
+<main class="app-shell">
+
+<!-- ── HEADER ── -->
+<div class="app-header">
+  <div class="app-header-top">
+    <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="app-logo">
+    <div>
+      <div class="app-title" data-t="app_title">Harmonogram</div>
+      <div class="app-subtitle" data-t="app_subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
+    </div>
+  </div>
+  <div class="app-header-actions">
+    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
+    <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
+    <div class="lang-selector" style="margin-left:4px">
+      <button onclick="setLanguage('PL')" id="lang_PL" class="lang-btn active">PL</button>
+      <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
+      <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN BANNER ── -->
+<div class="admin-banner" id="adminBanner">
+  🔓 Tryb administratora aktywny · <span id="adminSessionInfo"></span>
+</div>
+
+<!-- ── TAB BAR ── -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="btnViewMain" onclick="switchView('main')"><span class="tab-icon">📅</span><span data-t="nav_harmonogram">Harmonogram</span></button>
+  <button class="tab-btn" id="btnViewHist" onclick="switchView('history')"><span class="tab-icon">📋</span><span data-t="nav_historia">Historia</span></button>
+  <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
+  <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
+  <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
+  <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
+
+  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
+  <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
+</div>
+
+<!-- ── MAIN VIEW ── -->
+<div id="mainView">
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
+    <div class="week-label" id="weekLabel">Widok 2 tygodni</div>
+    <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
+  </div>
+
+
+
+  <div class="section-heading" id="titleWk1">📅 Tydzień 1</div>
+  <div id="grid1" class="grid"><div class="loader" data-t="loading">Ładowanie danych…</div></div>
+
+  <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
+  <div id="grid2" class="grid"></div>
+
+</div>
+
+<!-- ── REPORTS VIEW ── -->
+<div id="reportsView" style="display:none; padding:16px;">
+  <div id="reportsContent" class="loader" data-t="loading">Ładowanie raportów…</div>
+</div>
+
+<!-- ── LOGS VIEW ── -->
+<div id="logsView" style="display:none; padding:16px; overflow-x:auto;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+    <div>
+      <h2 style="margin:0;">Logi Systemowe</h2>
+      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px; max-width:400px;">
+        ⚠️ <strong>Uwaga:</strong> Przed uruchomieniem archiwizacji, zalecamy ręczne utworzenie kopii zapasowej arkusza Google (Plik -> Utwórz kopię).
+      </p>
+    </div>
+    <button class="primary" onclick="triggerArchive()" style="padding:8px 16px;">🗃️ Archiwizuj stare dane (60 dni)</button>
+  </div>
+  <div id="logsContent" class="loader" data-t="loading">Ładowanie logów…</div>
+</div>
+
+<!-- ── HISTORY VIEW ── -->
+<div class="history" id="histView" style="display:none">
+  <div id="histSearchBar"></div>
+  <div id="histContent" class="loader" data-t="loading">Ładowanie historii…</div>
+</div>
+
+<!-- ── CLIENTS VIEW ── -->
+<div id="clientsView" style="display:none">
+  <div class="clients-header" id="clientsAdminHeader" style="display:none; gap:8px;">
+    <button class="add-route-btn" onclick="openAddRouteModal()">＋ <span data-t="btn_new_route">Nowa trasa</span></button>
+    <button class="add-route-btn" onclick="openDriverAdminModal()">👨‍✈️ Zarządzaj kierowcami</button>
+  </div>
+  <div class="clients-hint">
+    <span id="clientsHintDrag" style="display:none"><span data-t="clients_drag_hint">☰ Przeciągaj klientów między trasami</span> &nbsp;·&nbsp;</span>
+    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-green);vertical-align:middle;margin:0 2px"></span> <span data-t="gps_has">ma GPS</span> &nbsp;·&nbsp;
+    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-orange);vertical-align:middle;margin:0 2px;opacity:0.6"></span> <span data-t="gps_no">brak GPS</span>
+  </div>
+  <div id="clientsListContent" class="loader" data-t="loading">Ładowanie…</div>
+</div>
+
+<!-- ── MAP VIEW ── -->
+<div id="mapView" style="display:none">
+  <div class="map-controls">
+    <div class="map-legend" id="mapLegend"></div>
+    <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+      <button class="map-action-btn" id="locateMeBtn" onclick="locateUser()">🎯 <span data-t="btn_locate">Moja pozycja</span></button>
+      <button class="map-action-btn" onclick="initMap()">🔄 <span data-t="btn_refresh">Odśwież</span></button>
+    </div>
+  </div>
+  <div id="interactiveMap"></div>
+  <div style="font-size:11px;color:var(--text-quaternary);margin-top:8px;padding:0 4px" data-t="map_hint">
+    Kliknij trasę w legendzie, aby ją ukryć/pokazać. Klienci bez GPS nie pojawiają się na mapie.
+  </div>
+</div>
+
+<!-- ── HELP VIEW ── -->
+<div id="helpView" style="display:none">
+  <div class="legend-box" style="margin-top:0">
+    <div style="width:100%;font-size:16px;color:var(--text-primary);font-weight:800;margin-bottom:8px" data-t="nav_help">ℹ️ Instrukcja</div>
+    <div style="width:100%;font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.4" data-t="leg_intro">Wybierz kartę na liście w zakładce Harmonogram, aby zobaczyć szczegóły zamówienia lub oznaczyć odbiór.</div>
+    
+    <div style="width:100%;font-weight:700;margin-top:8px;font-size:12px;color:var(--text-primary)">Kolory statusów:</div>
+    <div class="legend-item"><span class="legend-dot green"></span> <span data-t="leg_arr">Dostarczone</span></div>
+    <div class="legend-item"><span class="legend-dot blue"></span> <span data-t="leg_pick">Do odbioru</span></div>
+    <div class="legend-item"><span class="legend-dot gray"></span> <span data-t="leg_done">Odebrane</span></div>
+    
+    <div style="width:100%;font-weight:700;margin-top:8px;font-size:12px;color:var(--text-primary)">Rodzaj prania:</div>
+    <div class="legend-item"><span class="laundry-type-badge type-P" style="margin:0;font-size:9px">P</span> <span data-t="type_p">Pościel</span></div>
+    <div class="legend-item"><span class="laundry-type-badge type-O" style="margin:0;font-size:9px">O</span> <span data-t="type_o">Obrusy</span></div>
+  </div>
+</div>
+
+<!-- ── GRAFIK FILE SETTINGS (admin panel — shared header) ── -->
+<div id="grafikFilePanel" style="display:none;margin-bottom:12px">
+  <div style="background:var(--bg-card-solid);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;box-shadow:var(--shadow-sm)">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px" data-t="gfp_title">📊 Plik grafiku:</span>
+      <span id="gfpFileName" style="font-size:13px;font-weight:700;color:var(--text-primary)" data-t="loading">Ładowanie…</span>
+      <span id="gfpMonthTitle" style="font-size:12px;color:var(--text-tertiary)"></span>
+      <span id="gfpWeekCount" style="font-size:11px;color:var(--text-quaternary)"></span>
+      <button onclick="toggleGfpEdit()" id="gfpEditBtn"
+        style="margin-left:auto;padding:6px 12px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">
+        ⚙️ <span data-t="gfp_change_btn">Zmień plik</span>
+      </button>
+    </div>
+    <div id="gfpEditPanel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">
+        <span data-t="gfp_instructions_1">Wklej URL lub ID nowego pliku Google Sheets z grafikiem na bieżący miesiąc.</span><br>
+        <span style="color:var(--text-tertiary);font-size:11px" data-t="gfp_instructions_2">Plik musi zawierać arkusz o nazwie Grafik (miesięczny) i arkusze W1, W2… (tygodniowe).</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="gfpIdInput"
+          style="flex:1;min-width:200px;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);font-family:var(--font);font-size:13px;outline:none"
+          placeholder="https://docs.google.com/spreadsheets/d/...  lub samo ID"
+          data-t-placeholder="gfp_placeholder"
+          onkeydown="if(event.key==='Enter')connectGrafikFile()">
+        <button onclick="connectGrafikFile()"
+          style="padding:9px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap"
+          data-t="gfp_connect_btn">
+          Podłącz
+        </button>
+      </div>
+      <div id="gfpError" style="font-size:12px;color:var(--accent-red);margin-top:8px;min-height:18px;font-weight:500"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── GRAFIK & TIMELINE VIEW (admin only) ── -->
+<div id="grafikEditorView" style="display:none">
+  <!-- Grafik Section -->
+  <div class="grafik-nav">
+    <button class="week-nav-btn" onclick="changeGrafikMonth(-1)">‹</button>
+    <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
+    <button class="week-nav-btn" onclick="changeGrafikMonth(1)">›</button>
+    <button class="grafik-load-btn" onclick="loadGrafikMonth()">🔄 <span data-t="grafik_load">Załaduj</span></button>
+  </div>
+  <div class="grafik-legend">
+    <span style="font-size:10px;font-weight:700;color:var(--text-tertiary);margin-right:4px" data-t="legend_title">LEGENDA:</span>
+    <span class="grafik-legend-item gc-I">I — <span data-t="legend_i">zaplanowany</span></span>
+    <span class="grafik-legend-item gc-W">W — <span data-t="legend_w">wolne</span></span>
+    <span class="grafik-legend-item gc-UW">UW — <span data-t="legend_uw">urlop</span></span>
+    <span class="grafik-legend-item gc-L4">L4 — <span data-t="legend_l4">choroba</span></span>
+    <span class="grafik-legend-item gc-NN">NN — <span data-t="legend_nn">nieobecny</span></span>
+    <span class="grafik-legend-item gc-godz">8 — <span data-t="legend_godz">godz. pracy</span></span>
+    <span class="grafik-legend-item gc-plus">7+8 — <span data-t="legend_plus">start+godz.</span></span>
+  </div>
+  <div id="grafikStats" class="grafik-stats" style="display:none"></div>
+  <div id="grafikEditorGrid"><div class="loader" data-t="grafik_choose_month_loader">Wybierz miesiąc i kliknij Załaduj</div></div>
+
+  <!-- Timeline Section -->
+  <div id="timelineSection" style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border);">
+    <h3 style="margin-bottom:12px; font-size:14px; color:var(--text-primary);" data-t="nav_timeline">Oś Czasu</h3>
+    <div class="tl-nav">
+      <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
+        <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
+      </select>
+      <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
+    </div>
+    <div class="tl-day-tabs" id="tlDayTabs"></div>
+    <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
+    <div id="tlStats" class="tl-stats" style="display:none">
+      <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
+      <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
+    </div>
+  </div>
+</div>
+
+
+</main>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+  <!-- CLIENT HISTORY MODAL -->
+  <div class="overlay" id="clientHistoryModal" style="display:none;z-index:9999">
+    <div class="ap-sheet" style="max-height:80vh;display:flex;flex-direction:column">
+      <div class="modal-header" id="chTitle">Historia: Klient</div>
+      <div class="ap-sheet-content" id="chContent" style="flex:1;overflow-y:auto">
+        <div class="loader">Ładowanie...</div>
+      </div>
+      <div class="modal-btns" style="padding:16px;background:var(--bg-card);border-top:1px solid var(--border)">
+        <button onclick="document.getElementById('clientHistoryModal').style.display='none'">Zamknij</button>
+      </div>
+    </div>
+  </div>
+
+<!-- Driver Admin Modal -->
+<div class="overlay" id="driverAdminModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 style="margin-top:0;">👨‍✈️ Zarządzaj Kierowcami</h3>
+    <p style="font-size:13px; color:var(--text-secondary); margin-top:-5px; margin-bottom:15px;">Przypisz trasy do poszczególnych kierowców. Zmiany będą od razu widoczne na ich urządzeniach.</p>
+    <div id="driverAdminContainer" style="display:flex;flex-direction:column;gap:16px;max-height:50vh;overflow-y:auto;padding-right:8px;">
+      <!-- Treść generowana w JS -->
+    </div>
+    <div class="modal-btns" style="margin-top:20px;">
+      <button onclick="closeDriverAdminModal()">Zamknij</button>
+      <button class="primary" onclick="saveDriverRoutes()">Zapisz zmiany</button>
+    </div>
+  </div>
+</div>
+
+<!-- Driver Select -->
+<!-- ── DRIVER SELECT (Apple 2026 Enterprise) ── -->
+<div class="ap-overlay" id="driverSelectModal" role="dialog" aria-modal="true" aria-labelledby="driverSelectTitle">
+  <div class="ap-sheet" style="max-width:440px">
+    <div class="ap-handle"></div>
+    <div class="ap-content" style="padding-bottom:20px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,122,255,0.3)">🚛</div>
+        <div>
+          <div class="ap-title" id="driverSelectTitle" style="text-align:left;margin-bottom:2px;font-size:20px" data-t="driver_select_title">Kim jesteś?</div>
+          <div style="font-size:13px;color:rgba(60,60,67,0.6);font-weight:400" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
+        </div>
+      </div>
+      <div id="driverButtonsContainer" class="ap-driver-grid"></div>
+      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN LOGIN (Apple 2026) ── -->
+<div class="ap-overlay" id="adminLoginModal">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div class="ap-icon ap-blue">🔐</div>
+      <div class="ap-title" data-t="login_title">Logowanie administratora</div>
+      <div class="ap-subtitle" data-t="login_desc_ap">Wpisz hasło, aby uzyskać pełny dostęp do systemu.</div>
+      <input type="password" class="ap-input" id="adminPasswordInput"
+        placeholder="Hasło administratora"
+        data-t-placeholder="placeholder_write_pass"
+        onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <div class="ap-error" id="adminLoginError"></div>
+      <div class="ap-btn-group">
+        <button class="ap-btn ap-btn-primary" onclick="doAdminLogin()" data-t="login_btn">Zaloguj</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogin()" data-t="btn_cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN LOGOUT (Apple 2026) ── -->
+<div class="ap-overlay" id="adminLogoutModal">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div class="ap-icon ap-green">🔓</div>
+      <div class="ap-title" data-t="admin_mode_title">Tryb administratora</div>
+      <div class="ap-info-row">
+        <span class="ap-info-label" data-t="admin_session_active">Sesja aktywna. Czas pozostały:</span>
+        <span class="ap-info-val" id="logoutSessionTime">—</span>
+      </div>
+      <div class="ap-btn-group">
+        <button class="ap-btn ap-btn-danger" onclick="doAdminLogout()" data-t="btn_logout">Wyloguj z trybu admina</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogout()" data-t="admin_stay">Zostań zalogowany</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Route -->
+<div class="overlay" id="addRouteModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 data-t="modal_new_route_title">Nowa trasa</h3>
+    <label data-t="label_route_name">Nazwa trasy</label>
+    <input type="text" id="rAddName" placeholder="np. Trasa Północna" data-t-placeholder="placeholder_route_ex">
+    <div class="modal-btns">
+      <button onclick="closeAddRouteModal()" data-t="btn_cancel">Anuluj</button>
+      <button class="primary" onclick="doAddRoute()" data-t="btn_add">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Route (admin only) -->
+<div class="overlay" id="routeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 data-t="modal_edit_route_title">Edytuj trasę</h3>
+    <input type="hidden" id="rEditId">
+    <label data-t="label_route_name">Nazwa trasy</label>
+    <input type="text" id="rEditName" placeholder="Wpisz nazwę…" data-t-placeholder="placeholder_write_name">
+    <div class="action-row">
+      <button class="danger" onclick="deleteRoute()" data-t="btn_delete_route">Usuń trasę</button>
+    </div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button onclick="closeRouteModal()" data-t="btn_cancel">Anuluj</button>
+      <button class="primary" onclick="saveRouteEdit()" data-t="btn_save">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Entry -->
+<div class="ap-overlay" id="addModal" role="dialog" aria-modal="true">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#34C759,#25A244);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(52,199,89,0.3)">📦</div>
+        <div>
+          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_add_title">Dodaj przyjazd</div>
+          <div style="font-size:12px;color:rgba(60,60,67,0.5);font-weight:400" id="addModalDriverHint"></div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_client">Klient</div>
+      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px" onchange="updateDefaultPickup('add')"></select>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
+      <div class="segmented-control" style="margin-bottom:12px">
+        <button type="button" class="seg-btn type-P active" id="mType_P" onclick="setSegmentedVal('mType', 'P')" data-t="type_p">Pościel</button>
+        <button type="button" class="seg-btn type-O" id="mType_O" onclick="setSegmentedVal('mType', 'O')" data-t="type_o">Obrusy</button>
+        <input type="hidden" id="mType" value="P">
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
+      <input type="text" id="mWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:12px" inputmode="decimal">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Dzień przyjazdu</div>
+          <select id="mArrDay" class="ap-input" onchange="updateDefaultPickup('add')">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Dzień odbioru</div>
+          <select id="mPickDay" class="ap-input">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
+      <select id="mPickWeek" class="ap-input" style="margin-bottom:12px">
+        <option value="0" data-t="week_same">Ten sam tydzień</option>
+        <option value="1" data-t="week_next">Następny tydzień</option>
+      </select>
+
+      <input type="hidden" id="mComment" value="">
+
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
+        <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
+        <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
+      </label>
+
+      <div class="ap-btn-group" style="margin-top:18px">
+        <button class="ap-btn ap-btn-primary" onclick="confirmAdd()" data-t="btn_add">Dodaj</button>
+        <button class="ap-btn ap-btn-secondary" onclick="closeAdd()" data-t="btn_cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Entry (user — read-only + toggle) -->
+<div class="overlay" id="viewEntryModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 data-t="modal_view_title">Szczegóły zamówienia</h3>
+    <div id="veClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:12px"></div>
+    <div class="info-row"><span class="info-label" data-t="label_arr_day">Dzień przyjazdu</span><span class="info-val" id="veArrDay"></span></div>
+    <div class="info-row"><span class="info-label" data-t="label_pick_day">Dzień odbioru</span><span class="info-val" id="vePickDay"></span></div>
+    <div class="info-row"><span class="info-label" data-t="label_type">Rodzaj prania</span><span class="info-val" id="veType"></span></div>
+    <div class="info-row"><span class="info-label" data-t="label_weight_simple">Waga</span><span class="info-val" id="veWeight"></span></div>
+    <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
+    <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
+    <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
+    <div class="info-row" id="vePickedAtRow" style="display:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
+    <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
+    <!-- Komentarz read-only (dla nie-właścicieli) -->
+    <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
+      <span class="info-label">Komentarz</span>
+      <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
+    </div>
+    <!-- Komentarz edytowalny (dla właściciela — zastępuje read-only) -->
+    <div id="veOwnerCommentRow" style="display:none;padding:9px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:6px">Komentarz</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="veCommentInput" placeholder="np. klient prosił o tel." onkeydown="if(event.key==='Enter')saveViewEntryComment()" style="flex:1;padding:9px 12px;font-size:14px;font-family:var(--font);border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);outline:none;box-sizing:border-box;">
+        <button onclick="saveViewEntryComment()" style="padding:9px 14px;border-radius:var(--radius-md);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);flex-shrink:0">Zapisz</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:18px">
+      <button class="done-btn" id="veToggleBtn" style="flex:2" data-t="btn_mark_done">Oznacz jako odebrane</button>
+      <button onclick="closeViewEntry()" style="flex:1" data-t="btn_close">Zamknij</button>
+    </div>
+    <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
+      <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Entry (admin only) -->
+<div class="ap-overlay" id="editModal" role="dialog" aria-modal="true">
+  <div class="ap-sheet">
+    <div class="ap-handle"></div>
+    <div class="ap-content">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,122,255,0.3)">✏️</div>
+        <div>
+          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_edit_title">Edytuj wpis</div>
+          <div id="eClientName" style="font-size:13px;color:var(--accent);font-weight:600"></div>
+        </div>
+      </div>
+
+      <!-- Meta info -->
+      <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.04);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
+
+      <!-- Rodzaj prania -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
+      <div class="segmented-control" style="margin-bottom:14px">
+        <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')" data-t="type_p">Pościel</button>
+        <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')" data-t="type_o">Obrusy</button>
+        <input type="hidden" id="eType" value="P">
+      </div>
+
+      <!-- Waga -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
+      <input type="text" id="eWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:14px" inputmode="decimal">
+
+      <!-- Dzień przyjazdu / odbioru -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Przyjazd</div>
+          <select id="eArrDay" class="ap-input" onchange="updateDefaultPickup('edit')">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Odbiór</div>
+          <select id="ePickDay" class="ap-input">
+            <option value="0" data-t="day_0">Poniedziałek</option>
+            <option value="1" data-t="day_1">Wtorek</option>
+            <option value="2" data-t="day_2">Środa</option>
+            <option value="3" data-t="day_3">Czwartek</option>
+            <option value="4" data-t="day_4">Piątek</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tydzień odbioru -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
+      <select id="ePickWeek" class="ap-input" style="margin-bottom:14px">
+        <option value="0" data-t="week_same">Ten sam tydzień</option>
+        <option value="1" data-t="week_next">Następny tydzień</option>
+      </select>
+
+      <!-- Komentarz -->
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz</div>
+      <input type="text" id="eComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:14px">
+
+      <!-- Pilne -->
+      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;margin-bottom:18px;cursor:pointer;padding:12px 14px;background:rgba(255,59,48,0.06);border-radius:12px;border:1px solid rgba(255,59,48,0.15)">
+        <input type="checkbox" id="eUrgent" style="width:20px;height:20px;accent-color:#FF3B30">
+        <span style="color:#FF3B30;font-weight:600">🚩 Pilne (priorytet)</span>
+      </label>
+
+      <!-- Action buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button class="ap-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" style="background:#E8F8EE;color:#1A7A37;font-size:15px;padding:13px" data-t="btn_mark_done">Oznacz odebrane</button>
+        <button class="ap-btn ap-btn-danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="ap-btn ap-btn-secondary" onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
+        <button class="ap-btn ap-btn-primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- New Client (admin only) -->
+<div class="overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 data-t="modal_new_client_title">Nowy klient</h3>
+    <label data-t="label_client_name_new">Nazwa hotelu / firmy</label>
+    <input type="text" id="newClientInput" placeholder="np. Hotel Gorzów" data-t-placeholder="placeholder_route_ex">
+    <label data-t="label_default_route">Stała trasa logistyczna</label>
+    <select id="newClientRoute"></select>
+    <div class="modal-btns">
+      <button onclick="closeClientModal()" data-t="btn_cancel">Anuluj</button>
+      <button class="primary" onclick="saveClient()" data-t="btn_add">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Client (admin only) -->
+<div class="overlay" id="editClientModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 data-t="modal_edit_client_title">Edytuj klienta</h3>
+    <label data-t="label_client_name">Nazwa klienta</label>
+    <input type="text" id="ecName" placeholder="Zmień nazwę…" data-t-placeholder="placeholder_write_name">
+    <label data-t="label_route">Trasa logistyczna</label>
+    <div id="ecRouteBadge" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:24px"></div>
+    <select id="ecRoute"></select>
+    <input type="hidden" id="ecOldName">
+    <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px" data-t="gps_coords">Współrzędne GPS</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1"><label style="margin-top:0" data-t="gps_lat">Szerokość (Lat)</label><input type="text" id="ecLat" placeholder="52.7350"></div>
+        <div style="flex:1"><label style="margin-top:0" data-t="gps_lng">Długość (Lng)</label><input type="text" id="ecLng" placeholder="15.2280"></div>
+      </div>
+    </div>
+    <div class="action-row">
+      <button class="danger" onclick="doDeleteClient()" data-t="btn_delete_client">Usuń z bazy</button>
+    </div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button onclick="closeEditClientModal()" data-t="btn_cancel">Anuluj</button>
+      <button class="primary" onclick="doSaveClientEdit()" data-t="btn_save">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<!-- @include 'js/app.js' -->
+
+</body>
+</html>

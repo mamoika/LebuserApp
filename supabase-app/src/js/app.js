@@ -1,3140 +1,37 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LEBUSER Textilservice Sp. z o.o. – Harmonogram</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" onerror="console.error('Nie można załadować SortableJS');"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+import { api } from './supabaseApi.js';
 
-<script>
-// SUPER-CATCHER
-if (!String.prototype.includes) { String.prototype.includes = function(search, start) { 'use strict'; if (typeof start !== 'number') { start = 0; } if (start + search.length > this.length) { return false; } else { return this.indexOf(search, start) !== -1; } }; }
-if (!Array.prototype.includes) { Object.defineProperty(Array.prototype, 'includes', { value: function(searchElement, fromIndex) { if (this == null) { throw new TypeError('"this" is null or not defined'); } var o = Object(this); var len = o.length >>> 0; if (len === 0) { return false; } var n = fromIndex | 0; var k = Math.max(n >= 0 ? n : len - Math.abs(n), 0); function sameValueZero(x, y) { return x === y || (typeof x === 'number' && typeof y === 'number' && isNaN(x) && isNaN(y)); } while (k < len) { if (sameValueZero(o[k], searchElement)) { return true; } k++; } return false; } }); }
-
-if (window.NodeList && !NodeList.prototype.forEach) { NodeList.prototype.forEach = Array.prototype.forEach; }
-if (!Object.values) { Object.values = function(obj) { return Object.keys(obj).map(function(e) { return obj[e]; }); }; }
-
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-  var errText = 'CRITICAL ERROR: ' + msg + ' at line ' + lineNo + ':' + columnNo;
-  var loader = document.querySelector('.loader');
-  if (loader) {
-    loader.textContent = errText;
-    loader.style.color = 'red';
-    loader.style.background = 'white';
-    loader.style.padding = '10px';
-    loader.style.border = '2px solid red';
-  } else {
-    document.body.innerHTML = '<div style="color:red;padding:20px;">' + errText + '</div>';
+window.google = {
+  script: {
+    get run() {
+      const builder = {
+        successHandler: null,
+        failureHandler: null,
+        withSuccessHandler: function(fn) { this.successHandler = fn; return this; },
+        withFailureHandler: function(fn) { this.failureHandler = fn; return this; }
+      };
+      
+      return new Proxy(builder, {
+        get(target, prop) {
+          if (prop in target) return target[prop];
+          return async function(...args) {
+            try {
+              if (api[prop]) {
+                const res = await api[prop](...args);
+                if (target.successHandler) target.successHandler(res);
+              } else {
+                console.warn('Funkcja API ' + prop + ' nie istnieje w supabaseApi.js');
+                if (target.successHandler) target.successHandler(null);
+              }
+            } catch(err) {
+              if (target.failureHandler) target.failureHandler(err);
+              else console.error(err);
+            }
+          };
+        }
+      });
+    }
   }
-  return false;
 };
-window.addEventListener("unhandledrejection", function(event) {
-  var errText = 'PROMISE ERROR: ' + (event.reason ? event.reason.message : 'Unknown');
-  var loader = document.querySelector('.loader');
-  if (loader) { loader.textContent = errText; loader.style.color = 'red'; }
-});
-
-// Polyfills for older browsers (e.g. Safari 9, older Android) to prevent silent crashes in GAS callbacks
-if (!String.prototype.includes) { String.prototype.includes = function(search, start) { 'use strict'; if (typeof start !== 'number') { start = 0; } if (start + search.length > this.length) { return false; } else { return this.indexOf(search, start) !== -1; } }; }
-if (!Array.prototype.includes) { Object.defineProperty(Array.prototype, 'includes', { value: function(searchElement, fromIndex) { if (this == null) { throw new TypeError('"this" is null or not defined'); } var o = Object(this); var len = o.length >>> 0; if (len === 0) { return false; } var n = fromIndex | 0; var k = Math.max(n >= 0 ? n : len - Math.abs(n), 0); function sameValueZero(x, y) { return x === y || (typeof x === 'number' && typeof y === 'number' && isNaN(x) && isNaN(y)); } while (k < len) { if (sameValueZero(o[k], searchElement)) { return true; } k++; } return false; } }); }
-
-</script>
-<style>
-:root {
-  --bg: linear-gradient(135deg, #F2F2F7 0%, #E8ECF0 100%);
-  --bg-card: rgba(255, 255, 255, 0.80);
-  --bg-card-solid: #FFFFFF;
-  --bg-secondary: rgba(255, 255, 255, 0.55);
-  --bg-tertiary: rgba(242, 242, 247, 0.8);
-  --surface-raised: rgba(255, 255, 255, 0.95);
-  --border: rgba(209, 213, 219, 0.5);
-  --border-strong: rgba(156, 163, 175, 0.35);
-  --text-primary: #1C1C1E;
-  --text-secondary: #48484A;
-  --text-tertiary: #636366;
-  --text-quaternary: #8E8E93;
-  --accent: #007AFF; /* Apple Blue */
-  --accent-light: rgba(0, 122, 255, 0.1);
-  --accent-green: #34C759;
-  --accent-green-light: rgba(52, 199, 89, 0.1);
-  --accent-red: #FF3B30;
-  --accent-red-light: rgba(255, 59, 48, 0.1);
-  --accent-orange: #FF9500;
-  --accent-orange-light: rgba(255, 149, 0, 0.1);
-  --accent-purple: #AF52DE;
-  --accent-purple-light: rgba(175, 82, 222, 0.1);
-  --accent-teal: #32ADE6;
-  --accent-indigo: #5856D6;
-  --radius-sm: 8px;
-  --radius-md: 11px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
-  --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  --shadow-hover: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-  --font: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: linear-gradient(135deg, #000000 0%, #1C1C1E 100%);
-    --bg-card: rgba(28, 28, 30, 0.85);
-    --bg-card-solid: #1C1C1E;
-    --bg-secondary: rgba(255, 255, 255, 0.06);
-    --bg-tertiary: rgba(44, 44, 46, 0.9);
-    --surface-raised: rgba(58, 58, 60, 0.9);
-    --border: rgba(255, 255, 255, 0.1);
-    --border-strong: rgba(255, 255, 255, 0.18);
-    --text-primary: #FFFFFF;
-    --text-secondary: #EBEBF5;
-    --text-tertiary: #AEAEB2;
-    --text-quaternary: #636366;
-    --accent: #0A84FF; /* Apple Blue Dark */
-    --accent-light: rgba(10, 132, 255, 0.18);
-    --accent-green: #30D158;
-    --accent-green-light: rgba(48, 209, 88, 0.18);
-    --accent-red: #FF453A;
-    --accent-red-light: rgba(255, 69, 58, 0.18);
-    --accent-orange: #FF9F0A;
-    --accent-orange-light: rgba(255, 159, 10, 0.18);
-    --accent-purple: #BF5AF2;
-    --accent-purple-light: rgba(191, 90, 242, 0.18);
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05) inset;
-    --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
-    --shadow-hover: 0 20px 25px -5px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset;
-  }
-}
-
-*{box-sizing:border-box;margin:0;padding:0}
-html{font-size:16px}
-body{
-  font-family:var(--font);
-  background:var(--bg);
-  color:var(--text-primary);
-  padding:18px 18px 40px;
-  min-height:100vh;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
-
-.app-shell {
-  width:min(100%, 1440px);
-  margin:0 auto;
-}
-
-/* ── HEADER ── */
-.app-header {
-  display:flex;
-  flex-direction:row;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  margin-bottom:14px;
-  padding:2px 2px 0;
-  flex-wrap:wrap;
-}
-.app-header-top {
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.app-header-actions {
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.app-title {
-  font-size:26px;
-  font-weight:750;
-  letter-spacing:0;
-  color:var(--text-primary);
-  line-height:1.1;
-}
-.app-subtitle {
-  font-size:12px;
-  color:var(--text-tertiary);
-  margin-top:3px;
-  font-weight:400;
-}
-.app-logo {
-  height: 42px;
-  width: auto;
-  object-fit: contain;
-  border-radius: 6px;
-}
-.modal-logo {
-  height: 52px;
-  width: auto;
-  object-fit: contain;
-}
-
-.lang-selector {
-  display: flex;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  padding: 2px;
-  gap: 2px;
-  border: 0.5px solid var(--border);
-}
-.lang-btn {
-  border: none;
-  background: transparent;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-secondary);
-  border-radius: calc(var(--radius-md) - 2px);
-  cursor: pointer;
-  transition: all 0.12s ease;
-  font-family: var(--font);
-}
-.lang-btn:hover {
-  color: var(--text-primary);
-}
-.lang-btn.active {
-  background: var(--bg-card-solid);
-  color: var(--accent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-@media(prefers-color-scheme:dark){
-  .lang-btn.active {
-    color: #fff;
-    background: var(--surface-raised);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-}
-
-/* ── DRIVER BUTTON ── */
-.driver-btn {
-  display:flex;
-  align-items:center;
-  gap:7px;
-  padding:9px 14px;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-strong);
-  background:var(--bg-card-solid);
-  color:var(--text-secondary);
-  font-family:var(--font);
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-  transition:all 0.15s;
-  white-space:nowrap;
-  box-shadow:var(--shadow-sm);
-  flex-shrink:0;
-}
-.driver-btn:hover { background:var(--bg-secondary); }
-.driver-btn.driver-active {
-  background:rgba(0,122,255,0.08);
-  border-color:rgba(0,122,255,0.3);
-  color:var(--accent);
-}
-.driver-btn.driver-active:hover { background:rgba(0,122,255,0.13); }
-
-/* ── ADMIN BUTTON ── */
-.admin-btn {
-  display:flex;
-  align-items:center;
-  gap:7px;
-  padding:9px 14px;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-strong);
-  background:var(--bg-card-solid);
-  color:var(--text-secondary);
-  font-family:var(--font);
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-  transition:all 0.15s;
-  white-space:nowrap;
-  box-shadow:var(--shadow-sm);
-  flex-shrink:0;
-}
-.admin-btn:hover { background:var(--bg-secondary); }
-.admin-btn.admin-active {
-  background:rgba(255,59,48,0.08);
-  border-color:rgba(255,59,48,0.25);
-  color:var(--accent-red);
-}
-.admin-btn.admin-active:hover { background:rgba(255,59,48,0.14); }
-
-.session-timer {
-  font-size:11px;
-  font-weight:800;
-  background:rgba(255,59,48,0.12);
-  color:var(--accent-red);
-  padding:2px 7px;
-  border-radius:20px;
-  margin-left:2px;
-}
-
-/* ── ADMIN MODE BANNER ── */
-.admin-banner {
-  display:none;
-  align-items:center;
-  gap:8px;
-  padding:8px 14px;
-  background:rgba(255,59,48,0.07);
-  border:0.5px solid rgba(255,59,48,0.2);
-  border-radius:var(--radius-md);
-  font-size:12px;
-  font-weight:600;
-  color:var(--accent-red);
-  margin-bottom:12px;
-}
-.admin-banner.visible { display:flex; }
-
-/* ── TAB BAR ── */
-.tab-bar {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 10;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 6px;
-  margin-bottom: 24px;
-  width: 100%;
-  max-width: 100%;
-  box-shadow: var(--shadow-sm);
-}
-.tab-bar::-webkit-scrollbar{display:none}
-.tab-btn {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  padding:10px 16px;
-  border-radius:var(--radius-lg);
-  border:none;
-  background:transparent;
-  color:var(--text-secondary);
-  font-family:var(--font);
-  font-size:12.5px;
-  font-weight:650;
-  cursor:pointer;
-  transition:all 0.15s ease;
-  white-space:nowrap;
-  flex:1 0 auto;
-  letter-spacing:0;
-  line-height:1.4;
-}
-.tab-btn .tab-icon {
-  font-size:14px;
-  line-height:1;
-  opacity:0.85;
-}
-.tab-btn:hover { color:var(--text-primary); }
-.tab-btn.active {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  box-shadow: 0 4px 12px var(--accent-light);
-  transform: translateY(-1px);
-}
-.tab-btn.active .tab-icon { opacity:1; }
-.tab-btn.admin-tab { display:none; }
-.tab-btn.admin-tab.visible { display:flex; }
-
-/* ── WEEK NAV ── */
-.week-nav {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:16px;
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  padding:8px;
-  box-shadow:var(--shadow-sm);
-}
-.week-nav-btn {
-  width:34px; height:34px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:var(--radius-sm);
-  border:0.5px solid var(--border-strong);
-  background:var(--bg-tertiary);
-  color:var(--text-secondary);
-  font-size:18px;
-  cursor:pointer;
-  transition:all 0.15s;
-  font-family:var(--font);
-  line-height:1;
-}
-.week-nav-btn:hover{background:var(--accent);color:#fff;border-color:transparent}
-.week-nav-btn:active{transform:scale(0.92)}
-.week-label {
-  flex:1;
-  text-align:center;
-  font-size:13px;
-  font-weight:700;
-  color:var(--text-primary);
-  letter-spacing:0;
-}
-
-/* ── SECTION HEADING ── */
-.section-heading {
-  font-size:12px;
-  font-weight:750;
-  color:var(--text-tertiary);
-  text-transform:uppercase;
-  letter-spacing:0.6px;
-  margin:18px 0 9px 2px;
-}
-
-/* ── COL HEADER centering fix ── */
-.col-header {
-  position: relative;
-}
-.col-header .col-date {
-  position: absolute;
-  left: 0;
-  font-size: 11px;
-  color: var(--text-quaternary);
-  font-weight: 500;
-}
-.col-header .col-day-name {
-  width: 100%;
-  text-align: center;
-  display: block;
-}
-.col-header .today-pill {
-  position: absolute;
-  right: 0;
-}
-
-/* ── ROUTE GROUP HEADER ── */
-.route-group-header {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 32px 0 16px 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-.route-group-header::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 14px;
-  border-radius: 4px;
-  background: var(--accent);
-  flex-shrink: 0;
-  box-shadow: 0 1px 6px rgba(0, 122, 255, 0.3);
-}
-
-/* ── KANBAN GRID ── */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(5,minmax(180px,1fr));
-  gap:12px;
-}
-@media(max-width:1120px){.grid{grid-template-columns:repeat(3,minmax(180px,1fr))}}
-@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:380px){.grid{grid-template-columns:1fr}}
-
-.col {
-  background: #fff;
-  border: none;
-  border-radius: 16px;
-  padding: 14px 14px 10px;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-@media(prefers-color-scheme:dark){
-  .col { background: #1C1C1E; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
-}
-.col:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.05); transform: translateY(-2px); }
-.col-today {
-  box-shadow: 0 0 0 2px var(--accent), 0 4px 16px rgba(0,122,255,0.15) !important;
-}
-
-.col-header {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding-bottom:9px;
-  border-bottom:0.5px solid var(--border);
-  margin-bottom:2px;
-}
-.col-day-name {
-  font-size:13px;
-  font-weight:700;
-  color:var(--text-primary);
-  letter-spacing:0;
-}
-.col-date {
-  font-size:11.5px;
-  color:var(--text-tertiary);
-  font-weight:550;
-  flex:1;
-  letter-spacing:0;
-}
-.today-pill {
-  background:var(--accent);
-  color:#fff;
-  font-size:9px;
-  font-weight:700;
-  padding:2px 7px;
-  border-radius:20px;
-  letter-spacing:0.3px;
-  text-transform:uppercase;
-}
-
-/* ── METRICS ── */
-.metrics-row {
-  display:flex;
-  gap:6px;
-}
-.metric-chip {
-  flex:1;
-  min-width:0;
-  padding:8px 9px;
-  border-radius:8px;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  border:0.5px solid transparent;
-}
-.metric-chip.arr { background:var(--accent-green-light); border-color:rgba(52,199,89,0.12); }
-.metric-chip.wash { background:var(--accent-red-light); border-color:rgba(255,59,48,0.1); }
-.metric-chip-label {
-  font-size:9px;
-  font-weight:750;
-  text-transform:uppercase;
-  letter-spacing:0.45px;
-  opacity:0.65;
-}
-.metric-chip.arr .metric-chip-label { color:#25A244; }
-.metric-chip.wash .metric-chip-label { color:#D70015; }
-.metric-chip-val {
-  font-size:14px;
-  font-weight:800;
-  line-height:1;
-  letter-spacing:0;
-  white-space:nowrap;
-}
-.metric-chip.arr .metric-chip-val { color:#25A244; }
-.metric-chip.wash .metric-chip-val { color:#D70015; }
-@media(prefers-color-scheme:dark){
-  .metric-chip.arr .metric-chip-label,.metric-chip.arr .metric-chip-val { color:var(--accent-green); }
-  .metric-chip.wash .metric-chip-label,.metric-chip.wash .metric-chip-val { color:var(--accent-red); }
-}
-
-/* ── SECTION LABELS ── */
-.sec-label {
-  font-size:10px;
-  font-weight:600;
-  text-transform:uppercase;
-  letter-spacing:0.5px;
-  color:var(--text-quaternary);
-  margin-top:4px;
-  margin-bottom:0;
-}
-
-/* ── TAGS / CARDS ── */
-.tag {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 10px;
-  padding: 9px 11px 9px 10px;
-  min-height: 40px;
-  gap: 7px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04);
-  letter-spacing: 0;
-  -webkit-tap-highlight-color: transparent;
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-@media(prefers-color-scheme:dark){
-  .tag { background: #2C2C2E; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-}
-.legend-box {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  background: var(--bg-card-solid);
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-sm);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
-.legend-item { display: flex; align-items: center; gap: 6px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-.legend-dot.green { background: var(--accent-green-light); border: 1px solid var(--accent-green); }
-.legend-dot.blue { background: var(--accent-light); border: 1px solid var(--accent); }
-.legend-dot.gray { background: var(--bg-tertiary); border: 1px dashed var(--text-quaternary); }
-.tag:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05); }
-.tag:active { transform: scale(0.97); opacity: 0.85; }
-.tag:active{transform:scale(0.96);filter:brightness(0.92)}
-.tag-arr {
-  background: #E8F8EE;
-  box-shadow: none;
-  border: 1px solid rgba(52,199,89,0.25);
-}
-.tag-arr .tag-name { color: #1A7A37; }
-
-.tag-pick {
-  background: #E5F1FF;
-  box-shadow: none;
-  border: 1px solid rgba(0,122,255,0.2);
-}
-.tag-pick .tag-name { color: #0055CC; }
-
-.tag-done {
-  background: #F2F2F7;
-  box-shadow: none;
-  border: 1px solid rgba(0,0,0,0.06);
-}
-.tag-done { opacity: 0.55; }
-.tag-done .tag-name {
-  color: #8E8E93;
-  text-decoration: line-through;
-  text-decoration-color: #8E8E93;
-}
-@media(prefers-color-scheme:dark){
-  .tag-arr{color:var(--accent-green)}
-  .tag-pick{color:var(--accent-teal)}
-}
-.tag-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-.laundry-type-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.laundry-type-badge.type-P {
-  background: rgba(0,122,255,0.1);
-  color: #007AFF;
-}
-.laundry-type-badge.type-O {
-  background: rgba(175,82,222,0.1);
-  color: #AF52DE;
-}
-@media(prefers-color-scheme:dark){
-  .laundry-type-badge.type-P { background:rgba(10,132,255,0.2); color:#0A84FF; }
-  .laundry-type-badge.type-O { background:rgba(191,90,242,0.2); color:#BF5AF2; }
-}
-
-.kg-badge, .kg-placeholder {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.kg-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: rgba(0,0,0,0.05);
-  padding: 2px 7px;
-  border-radius: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 52px;
-}
-@media(prefers-color-scheme:dark){
-  .kg-badge { background: rgba(255,255,255,0.1); }
-}
-.kg-placeholder { width: 0; margin: 0; padding: 0; gap: 0; flex-shrink: 0; }
-.tag-check, .tag-check-placeholder {
-  width: 16px;
-  flex-shrink: 0;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  box-sizing: border-box;
-}
-.tag-check {
-  font-size: 11px;
-  opacity: 0.5;
-}
-.tag-check-placeholder {
-  height: 1px;
-}
-
-.segmented-control {
-  display: flex;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  gap: 2px;
-  margin-bottom: 12px;
-}
-.seg-btn {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  border-radius: calc(var(--radius-md) - 2px);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: var(--font);
-}
-.seg-btn:hover {
-  color: var(--text-primary);
-}
-.seg-btn.active.type-P {
-  background: var(--accent-light);
-  color: var(--accent);
-  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.15);
-}
-.seg-btn.active.type-O {
-  background: var(--accent-purple-light);
-  color: var(--accent-purple);
-  box-shadow: 0 2px 6px rgba(175, 82, 222, 0.15);
-}
-@media(prefers-color-scheme:dark){
-  .seg-btn.active.type-P {
-    background: rgba(0, 122, 255, 0.2);
-    color: #32ADE6;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  }
-  .seg-btn.active.type-O {
-    background: rgba(175, 82, 222, 0.2);
-    color: #AF52DE;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  }
-}
-
-/* ── ROUTE BADGES ── */
-.rt-badge {
-  font-size:9.5px;
-  padding:2px 6px;
-  border-radius:7px;
-  font-weight:800;
-  white-space:nowrap;
-  flex-shrink:0;
-  width: 28px;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  box-sizing: border-box;
-}
-.rt-1{background:rgba(0,122,255,0.12);color:#007AFF}
-.rt-2{background:rgba(255,149,0,0.12);color:#FF9500}
-.rt-3{background:rgba(175,82,222,0.12);color:#AF52DE}
-.rt-4{background:rgba(255,59,48,0.12);color:#FF3B30}
-.rt-5{background:rgba(90,200,250,0.12);color:#32ADE6}
-.rt-6{background:rgba(52,199,89,0.12);color:#34C759}
-.rt-7{background:rgba(88,86,214,0.12);color:#5856D6}
-.rt-8{background:rgba(255,204,0,0.12);color:#c49500}
-.rt-9{background:rgba(255,59,48,0.08);color:#FF453A}
-.rt-10{background:rgba(142,142,147,0.12);color:#636366}
-
-/* ── ADD BTN ── */
-.add-btn {
-  margin-top: auto;
-  width: 100%;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font);
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.add-btn:hover {
-  background: var(--accent-light);
-  color: var(--accent);
-  border-color: var(--accent);
-  border-style: solid;
-  transform: scale(1.01);
-}
-.add-btn:active {
-  transform: scale(0.99);
-}
-
-/* ── DIVIDER ── */
-.divider{height:0.5px;background:var(--border)}
-
-/* ── MODALS ── */
-body.modal-open { overflow:hidden; }
-.overlay {
-  position:fixed;inset:0;
-  background: rgba(15, 23, 42, 0.4);
-  display:none;
-  align-items:flex-end;
-  justify-content:center;
-  z-index:9999;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-@media(min-width:600px){.overlay{align-items:center}}
-
-.modal {
-  background:var(--bg-card-solid);
-  border-radius:var(--radius-xl) var(--radius-xl) 0 0;
-  padding:20px 20px 32px;
-  width:100%;
-  max-width:420px;
-  max-height:90vh;
-  overflow-y:auto;
-  box-shadow:var(--shadow-md);
-}
-@media(min-width:600px){
-  .modal{border-radius:var(--radius-xl);padding:24px;max-height:80vh;background:var(--bg-card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:var(--shadow-md);border:1px solid var(--border);}
-}
-
-.modal-handle {
-  width:36px; height:4px;
-  background:var(--border-strong);
-  border-radius:2px;
-  margin:0 auto 18px;
-  display:block;
-}
-@media(min-width:600px){.modal-handle{display:none}}
-
-.modal h3{
-  font-size:18px;
-  font-weight:800;
-  margin-bottom:18px;
-  letter-spacing:-0.3px;
-}
-
-.modal label {
-  display:block;
-  font-size:12px;
-  font-weight:600;
-  color:var(--text-tertiary);
-  text-transform:uppercase;
-  letter-spacing:0.4px;
-  margin-top:14px;
-  margin-bottom:6px;
-}
-
-.modal select,.modal input[type=text],.modal input[type=date],.modal input[type=password]{
-  width:100%;
-  padding:11px 13px;
-  font-size:15px;
-  font-family:var(--font);
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-strong);
-  background:var(--bg-tertiary);
-  color:var(--text-primary);
-  outline:none;
-  transition:border-color 0.15s;
-  -webkit-appearance:none;
-  appearance:none;
-}
-.modal select{
-  padding-right:36px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;
-  background-position:right 13px center;
-  cursor:pointer;
-}
-.modal select:focus,.modal input:focus{border-color:var(--accent)}
-
-.modal-btns{
-  display:flex;
-  gap:8px;
-  margin-top:20px;
-}
-.modal-btns button{
-  flex:1;
-  padding:13px;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-strong);
-  background:var(--bg-secondary);
-  color:var(--text-primary);
-  font-family:var(--font);
-  font-size:15px;
-  font-weight:750;
-  cursor:pointer;
-  transition:all 0.15s;
-}
-.modal-btns button:active{transform:scale(0.98)}
-.modal-btns button.primary{
-  background:var(--accent);
-  color:#fff;
-  border-color:transparent;
-}
-.modal-btns button.primary:hover{background:#0070F3}
-.modal-btns button.danger{
-  background:var(--accent-red-light);
-  color:var(--accent-red);
-  border-color:rgba(255,59,48,0.2);
-}
-
-/* ── ACTION BUTTONS in modal ── */
-.action-row {
-  display:flex;
-  gap:8px;
-  margin-top:16px;
-}
-.action-row button {
-  flex:1;
-  padding:11px;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border);
-  background:var(--bg-secondary);
-  color:var(--text-primary);
-  font-family:var(--font);
-  font-size:14px;
-  font-weight:500;
-  cursor:pointer;
-  transition:all 0.15s;
-}
-.action-row button.done-btn {
-  background:var(--accent-green-light);
-  color:var(--accent-green);
-  border-color:rgba(52,199,89,0.2);
-  font-weight:600;
-}
-.action-row button.danger {
-  background:var(--accent-red-light);
-  color:var(--accent-red);
-  border-color:rgba(255,59,48,0.2);
-}
-
-/* ── INFO ROWS in modals ── */
-.info-row {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:9px 0;
-  border-bottom:0.5px solid var(--border);
-  font-size:13px;
-}
-.info-row:last-child { border-bottom:none; }
-.info-label { color:var(--text-tertiary); font-size:12px; }
-.info-val { font-weight:600; color:var(--text-primary); }
-
-/* ── LOGIN ERROR ── */
-.login-error {
-  font-size:13px;
-  color:var(--accent-red);
-  margin-top:10px;
-  min-height:20px;
-  font-weight:500;
-}
-
-/* ── HISTORY ── */
-.history{display:none}
-
-/* ── HISTORIA ── */
-.hist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-.hist-card { margin-bottom: 0 !important; }
-.hist-card-head {
-  padding: 10px 13px 8px;
-  background: var(--bg-card-solid);
-}
-.hist-client-name {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-.hist-card-stats {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-  font-size: 12px;
-}
-.hist-month-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 13px;
-  background: var(--bg-secondary);
-  border-top: 0.5px solid var(--border);
-  border-bottom: 0.5px solid var(--border);
-}
-.hist-entry {
-  padding: 7px 13px;
-  border-bottom: 0.5px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.hist-entry:last-child { border-bottom: none; }
-.hist-entry-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-html.phone-layout .hist-grid {
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-.hw {
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  overflow:hidden;
-  margin-bottom:10px;
-  box-shadow:var(--shadow-sm);
-}
-.hw-h {
-  padding:12px 16px;
-  font-size:13px;
-  font-weight:700;
-  color:var(--text-secondary);
-  border-bottom:0.5px solid var(--border);
-  background:var(--bg-tertiary);
-}
-/* historia — wiersz wpisu */
-.he {
-  padding:10px 16px;
-  font-size:13px;
-  color:var(--text-secondary);
-  border-bottom:0.5px solid var(--border);
-  display:flex;
-  gap:8px;
-  align-items:flex-start;
-  line-height:1.5;
-}
-.he:last-child{border-bottom:none}
-.he b{color:var(--text-primary);font-weight:600}
-/* instrukcja — sekcja */
-.help-sec {
-  background:var(--bg-card-solid);
-  border-radius:var(--radius-md);
-  box-shadow:var(--shadow-sm);
-  margin-bottom:10px;
-  overflow:hidden;
-}
-.help-sec-title {
-  font-size:13px;
-  font-weight:800;
-  color:var(--text-primary);
-  padding:12px 16px 8px;
-  border-bottom:0.5px solid var(--border);
-  background:var(--bg-secondary);
-}
-.help-sec-item {
-  padding:9px 16px;
-  font-size:13px;
-  color:var(--text-secondary);
-  border-bottom:0.5px solid var(--border);
-  line-height:1.5;
-}
-.help-sec-item:last-child{border-bottom:none}
-.help-sec-item b{color:var(--text-primary);font-weight:600}
-.loader{
-  text-align:center;
-  padding:42px 20px;
-  color:var(--text-tertiary);
-  font-size:14px;
-  font-weight:600;
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-sm);
-}
-.grid > .loader{grid-column:1 / -1}
-
-/* ── TOAST ── */
-.toast {
-  position:fixed;
-  bottom:24px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(28,28,30,0.92);
-  color:#fff;
-  padding:10px 18px;
-  border-radius:20px;
-  font-size:14px;
-  font-weight:500;
-  display:none;
-  z-index:99999;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  white-space:nowrap;
-  box-shadow:0 4px 20px rgba(0,0,0,0.3);
-}
-@media(prefers-color-scheme:dark){
-  .toast{background:rgba(255,255,255,0.15)}
-}
-
-/* ── CLIENTS ── */
-.clients-header {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:12px;
-}
-.clients-hint {
-  font-size:12px;
-  color:var(--text-tertiary);
-  margin-bottom:16px;
-  line-height:1.5;
-  display:flex;
-  align-items:center;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-.sortable-list{min-height:50px;display:flex;flex-direction:column;gap:6px}
-.sortable-arr,.sortable-pick{display:flex;flex-direction:column;gap:6px}
-.tag-client {
-  background:var(--bg-card-solid);
-  border:1px solid var(--border);
-  padding:10px 12px;
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  gap:0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.015);
-  transition:all 0.2s ease;
-  margin-bottom:2px;
-}
-.tag-client.draggable { cursor:grab; }
-.tag-client.draggable:active{
-  cursor:grabbing;
-  box-shadow: 0 8px 24px rgba(15,23,42,0.12);
-  transform:scale(1.02);
-  border-color:var(--accent);
-  background:var(--bg-card-solid);
-}
-.tag-client:hover{
-  border-color:var(--border-strong);
-  background:var(--bg-tertiary);
-  transform:translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.025);
-}
-.drag-handle{
-  color:var(--text-quaternary);
-  margin-right:8px;
-  font-size:11px;
-  cursor:grab;
-  flex-shrink:0;
-  transition:color 0.15s ease;
-}
-.tag-client:hover .drag-handle {
-  color:var(--text-secondary);
-}
-.client-name{
-  flex:1;
-  font-weight:650;
-  color:var(--text-primary);
-  font-size:13.5px;
-  letter-spacing:-0.1px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  margin-right:8px;
-}
-.sortable-ghost{
-  opacity:0.45;
-  background:var(--accent-light) !important;
-  border:2px dashed var(--accent) !important;
-  border-radius:10px;
-}
-
-/* ── EDIT ICON ── */
-.edit-icon {
-  cursor:pointer;
-  color:var(--text-secondary);
-  font-size:10px;
-  font-weight:600;
-  padding:3px 6px;
-  border-radius:5px;
-  border:1px solid var(--border);
-  background:var(--bg-tertiary);
-  transition:all 0.15s ease;
-  font-style:normal;
-  line-height:1.2;
-  user-select:none;
-  flex-shrink:0;
-}
-.edit-icon:hover{
-  color:var(--accent);
-  border-color:var(--accent-light);
-  background:var(--accent-light);
-}
-
-.route-card {
-  min-height:300px;
-  border-top-width:4px !important;
-  border-radius:12px;
-  padding:16px;
-  background:var(--bg-card-solid);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 0 0 1px var(--border);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position:relative;
-}
-.route-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-strong);
-}
-.route-title {
-  font-size:13px;
-  font-weight:700;
-  letter-spacing:-0.2px;
-  color:var(--text-primary);
-  flex:1;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  padding-left:2px;
-}
-.route-id-badge {
-  color:#fff;
-  border-radius:6px;
-  padding:3px 6px;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:0.5px;
-  line-height:1.2;
-  flex-shrink:0;
-  text-transform:uppercase;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.client-order {
-  min-width:20px;
-  height:20px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border-radius:6px;
-  background:var(--bg-tertiary);
-  color:var(--text-secondary);
-  font-size:10.5px;
-  font-weight:700;
-  margin-right:8px;
-  flex-shrink:0;
-  border:0.5px solid var(--border);
-}
-.gps-dot {
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  flex-shrink:0;
-  display:inline-block;
-  position:relative;
-}
-.gps-dot.ok {
-  background:var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green);
-}
-.gps-dot.ok::after {
-  content:'';
-  position:absolute;
-  top:0; left:0;
-  width:100%; height:100%;
-  border-radius:50%;
-  background:var(--accent-green);
-  opacity:0.4;
-  animation: gps-pulse 2s infinite ease-out;
-}
-.gps-dot.missing {
-  background:var(--accent-orange);
-  opacity:0.45;
-}
-@keyframes gps-pulse {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(2.8); opacity: 0; }
-}
-
-/* ── MAP ── */
-.map-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
-.map-legend{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;align-items:center}
-.legend-item {
-  display:flex;align-items:center;gap:5px;
-  padding:5px 10px;
-  border-radius:7px;
-  font-weight:750;
-  font-size:11px;
-  cursor:pointer;
-  border:0.5px solid var(--border);
-  background:var(--bg-card-solid);
-  transition:all 0.15s;
-}
-.legend-item:hover{box-shadow:var(--shadow-sm)}
-.legend-item.hidden-route{opacity:0.35}
-.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-#interactiveMap{
-  width:100%;height:65vh;
-  min-height:420px;
-  border-radius:var(--radius-lg);
-  border:0.5px solid var(--border);
-  overflow:hidden;
-  box-shadow:var(--shadow-md);
-}
-.user-pulse-marker {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.pulse-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #007AFF;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 4px rgba(0,0,0,0.3);
-  z-index: 2;
-}
-.pulse-ring {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 122, 255, 0.4);
-  animation: pulse-animation 1.8s infinite ease-out;
-  z-index: 1;
-}
-@keyframes pulse-animation {
-  0% {
-    transform: scale(0.6);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-
-/* ── STAFF ── */
-.staff-container{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-top:10px}
-@media(max-width:750px){.staff-container{grid-template-columns:1fr}}
-.staff-card {
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  padding:16px;
-  box-shadow:var(--shadow-sm);
-}
-.staff-card h3{font-size:14px;font-weight:700;margin-bottom:12px}
-.staff-row{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:9px 0;border-bottom:0.5px solid var(--border);
-  font-size:13px;
-}
-.staff-row:last-child{border-bottom:none;padding-bottom:0}
-.staff-name{font-weight:600;color:var(--text-primary)}
-.staff-hours{font-size:11px;color:var(--text-tertiary);margin-top:1px}
-
-.staff-badge{
-  padding:3px 10px;
-  border-radius:20px;
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:0.2px;
-}
-.badge-i{background:var(--accent-green-light);color:var(--accent-green)}
-.badge-w{background:var(--bg-secondary);color:var(--text-tertiary)}
-.badge-uw{background:var(--accent-light);color:var(--accent)}
-.badge-l4{background:var(--accent-red-light);color:var(--accent-red)}
-
-.stat-row{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px;
-}
-.stat-row:last-child{border-bottom:none}
-.stat-label{color:var(--text-secondary)}
-.stat-val{font-weight:700;color:var(--text-primary)}
-
-/* ── DATE INPUT ── */
-.date-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.date-row label{font-size:13px;font-weight:500;color:var(--text-secondary)}
-.date-row input[type=date]{
-  padding:9px 12px;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-strong);
-  background:var(--bg-card-solid);
-  color:var(--text-primary);
-  font-family:var(--font);
-  font-size:14px;
-  outline:none;
-}
-
-/* ── COL TITLE with route badge ── */
-.col-route-row{
-  display:flex;align-items:center;justify-content:center;
-  gap:6px;
-  padding:5px 8px;
-  border-radius:var(--radius-sm);
-  margin-bottom:4px;
-}
-
-/* ── BUTTONS (generic) ── */
-button.add-route-btn {
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-button.add-route-btn:hover {
-  background: #0070F3;
-  box-shadow: 0 6px 18px rgba(0, 122, 255, 0.35);
-  transform: translateY(-1px);
-}
-button.add-route-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
-}
-
-.map-action-btn {
-  font-size:12px;
-  padding:8px 12px;
-  border-radius:var(--radius-md);
-  border:0.5px solid var(--border);
-  background:var(--bg-card-solid);
-  cursor:pointer;
-  font-family:var(--font);
-  font-weight:750;
-  color:var(--text-primary);
-  box-shadow:var(--shadow-sm);
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  transition:background 0.15s;
-}
-.map-action-btn:hover{background:var(--bg-secondary)}
-
-@media(max-width:720px){
-  body{padding:12px 12px 32px}
-  .app-header{align-items:flex-start}
-  .app-title{font-size:23px}
-  .tab-bar{padding:4px;margin-left:-2px;margin-right:-2px;width:calc(100% + 4px)}
-  .tab-btn{flex:0 0 auto;padding:8px 10px;font-size:12px}
-  .week-nav{position:sticky;top:8px;z-index:10}
-  .col{min-height:180px}
-  .metric-chip{padding:7px}
-  .metric-chip-val{font-size:13px}
-  #interactiveMap{height:62vh;min-height:360px}
-}
-
-html.phone-layout {
-  overflow-x: hidden;
-}
-html.phone-layout body{
-  padding:12px 10px 28px;
-  overflow-x: hidden;
-}
-html.phone-layout .app-header{
-  margin-bottom:12px;
-  gap:10px;
-}
-html.phone-layout .app-header-top {
-  gap:10px;
-}
-html.phone-layout .app-header-actions {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  width:100%;
-}
-html.phone-layout .app-header-actions .lang-selector {
-  grid-column:1 / -1;
-  justify-self:center;
-  margin-left:0;
-}
-html.phone-layout .app-header-actions .driver-btn,
-html.phone-layout .app-header-actions .admin-btn {
-  width:100%;
-  justify-content:center;
-  padding:12px 10px;
-  font-size:13px;
-}
-html.phone-layout .app-title{
-  font-size:22px;
-  line-height:1.1;
-  margin-top:4px;
-}
-html.phone-layout .app-subtitle{
-  font-size:10px;
-  line-height:1.2;
-  color:var(--text-quaternary);
-  margin-top:1px;
-}
-html.phone-layout .tab-bar{
-  width:100%;
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:5px;
-  padding:5px;
-}
-html.phone-layout .tab-btn{
-  min-width:0;
-  width:100%;
-  min-height:34px;
-  padding:7px 8px;
-  font-size:12px;
-  gap:5px;
-}
-html.phone-layout .tab-btn .tab-icon{
-  font-size:13px;
-}
-html.phone-layout #btnViewStaff, html.phone-layout #btnViewHelp{
-  grid-column:1 / -1;
-}
-html.phone-layout .week-nav{
-  position:sticky;
-  top:6px;
-  z-index:10;
-  margin-bottom:12px;
-  padding:8px;
-}
-html.phone-layout .week-nav-btn{
-  width:36px;
-  height:36px;
-  font-size:20px;
-}
-html.phone-layout .week-label{
-  font-size:13px;
-}
-html.phone-layout .section-heading{
-  font-size:14px;
-  margin:14px 0 8px 2px;
-}
-html.phone-layout .grid{
-  grid-template-columns:1fr;
-  gap:10px;
-}
-html.phone-layout .col{
-  min-height:0;
-  padding:10px 12px;
-  gap:8px;
-}
-html.phone-layout .col-header{
-  padding-bottom:8px;
-}
-html.phone-layout .col-day-name{
-  font-size:15px;
-  min-width:32px;
-}
-html.phone-layout .col-date{
-  font-size:13px;
-}
-html.phone-layout .today-pill{
-  font-size:10px;
-  padding:3px 6px;
-}
-html.phone-layout .metrics-row{
-  gap:6px;
-}
-html.phone-layout .metric-chip{
-  padding:8px;
-}
-html.phone-layout .metric-chip-label{
-  font-size:9.5px;
-}
-html.phone-layout .metric-chip-val{
-  font-size:14.5px;
-}
-html.phone-layout .sec-label{
-  font-size:10px;
-  margin-top:4px;
-  margin-bottom:2px;
-}
-html.phone-layout .tag,
-html.phone-layout .tag-client{
-  min-height:34px;
-  padding:6px 8px;
-  font-size:13px;
-  border-radius:6px;
-}
-html.phone-layout .tag-name,
-html.phone-layout .client-name{
-  font-size:13px;
-}
-html.phone-layout .kg-badge,
-html.phone-layout .rt-badge{
-  font-size:10px;
-  padding:2px 4px;
-}
-html.phone-layout .tag-check{
-  font-size:12px;
-}
-html.phone-layout .add-btn{
-  min-height:36px;
-  font-size:13px;
-}
-html.phone-layout .clients-hint{
-  font-size:13px;
-}
-html.phone-layout .route-id-badge{
-  font-size:13px;
-  padding:5px 8px;
-}
-html.phone-layout .route-title{
-  font-size:16px;
-}
-html.phone-layout .client-order{
-  min-width:28px;
-  height:28px;
-  font-size:13px;
-}
-html.phone-layout #interactiveMap{
-  height:64vh;
-  min-height:360px;
-}
-html.phone-layout .overlay {
-  align-items:center;
-}
-html.phone-layout .modal {
-  border-radius:var(--radius-xl);
-  padding:16px 16px 20px;
-  margin:16px;
-  width:calc(100% - 32px);
-  max-height:85vh;
-}
-html.phone-layout .modal-handle { display:none; }
-html.phone-layout .modal h3 { font-size:16px; margin-bottom:10px; }
-html.phone-layout .modal label { margin-top:8px; margin-bottom:3px; font-size:10px; }
-html.phone-layout .modal select, html.phone-layout .modal input[type=text], html.phone-layout .modal input[type=date], html.phone-layout .modal input[type=password] { padding:8px 10px; font-size:13px; }
-html.phone-layout .modal-btns { margin-top:12px; gap:6px; }
-html.phone-layout .modal-btns button { padding:9px; font-size:13px; }
-html.phone-layout .seg-btn { padding:5px 8px; font-size:11px; }
-html.phone-layout .segmented-control { margin-bottom:6px; }
-
-
-@media(max-width:600px), (max-device-width:600px){
-  html { overflow-x: hidden; }
-  body{padding:12px 10px 28px; overflow-x: hidden;}
-  .app-header{
-    margin-bottom:12px;
-    gap:10px;
-  }
-  .app-header-actions {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    width:100%;
-  }
-  .app-header-actions .lang-selector {
-    grid-column:1 / -1;
-    justify-self:center;
-    margin-left:0;
-  }
-  .app-header-actions .driver-btn,
-  .app-header-actions .admin-btn {
-    width:100%;
-    justify-content:center;
-    padding:12px 10px;
-    font-size:13px;
-  }
-  .app-title{font-size:22px;line-height:1.1;margin-top:4px}
-  .app-subtitle{font-size:10px;line-height:1.2;color:var(--text-quaternary);margin-top:1px}
-  .tab-bar{
-    width:100%;
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:5px;
-    padding:5px;
-  }
-  .tab-btn{min-width:0;width:100%;min-height:34px;padding:7px 8px;font-size:12px;gap:5px}
-  .tab-btn .tab-icon{font-size:13px}
-  #btnViewStaff{grid-column:1 / -1}
-  .week-nav{position:sticky;top:6px;z-index:10;margin-bottom:12px;padding:8px}
-  .week-nav-btn{width:36px;height:36px;font-size:20px}
-  .week-label{font-size:13px}
-  .section-heading{font-size:14px;margin:14px 0 8px 2px}
-  .grid{grid-template-columns:1fr;gap:10px}
-  .col{min-height:0;padding:10px 12px;gap:8px}
-  .col-header{padding-bottom:8px}
-  .col-day-name{font-size:15px;min-width:32px}
-  .col-date{font-size:13px}
-  .today-pill{font-size:10px;padding:3px 6px}
-  .metrics-row{gap:6px}
-  .metric-chip{padding:8px}
-  .metric-chip-label{font-size:9.5px}
-  .metric-chip-val{font-size:14.5px}
-  .sec-label{font-size:10px;margin-top:4px;margin-bottom:2px}
-  .tag,.tag-client{min-height:34px;padding:6px 8px;font-size:13px;border-radius:6px}
-  .tag-name,.client-name{font-size:13px}
-  .kg-badge,.rt-badge{font-size:10px;padding:2px 4px}
-  .tag-check{font-size:12px}
-  .add-btn{min-height:36px;font-size:13px}
-  .clients-hint{font-size:12px}
-  .route-id-badge{font-size:12px;padding:4px 7px}
-  .route-title{font-size:14px}
-  .client-order{min-width:24px;height:24px;font-size:12px}
-  #interactiveMap{height:64vh;min-height:360px}
-  .admin-btn, .driver-btn {font-size:11px;padding:6px 8px}
-  .overlay{align-items:center}
-  .modal{border-radius:var(--radius-xl);padding:16px 16px 20px;margin:16px;width:calc(100% - 32px);max-height:85vh}
-  .modal-handle{display:none}
-  .modal h3{font-size:16px;margin-bottom:10px}
-  .modal label{margin-top:8px;margin-bottom:3px;font-size:10px}
-  .modal select,.modal input[type=text],.modal input[type=date],.modal input[type=password]{padding:8px 10px;font-size:13px}
-  .modal-btns{margin-top:12px;gap:6px}
-  .modal-btns button{padding:9px;font-size:13px}
-  .seg-btn{padding:5px 8px;font-size:11px}
-  .segmented-control{margin-bottom:6px}
-}
-
-/* ── ANIMATIONS ── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.col{animation:fadeUp 0.22s ease both}
-.col:nth-child(1){animation-delay:0ms}
-.col:nth-child(2){animation-delay:30ms}
-.col:nth-child(3){animation-delay:60ms}
-.col:nth-child(4){animation-delay:90ms}
-.col:nth-child(5){animation-delay:120ms}
-.hw,.staff-card{animation:fadeUp 0.2s ease both}
-
-/* ══════════════════════════════════════════════
-   APPLE 2026 MODAL SYSTEM
-   — system background + white cards + SF Pro feel
-══════════════════════════════════════════════ */
-
-/* Overlay */
-.ap-overlay {
-  position:fixed;inset:0;
-  display:none;
-  align-items:flex-end;
-  justify-content:center;
-  z-index:10000;
-  background:rgba(0,0,0,0.5);
-  backdrop-filter:blur(20px) saturate(160%);
-  -webkit-backdrop-filter:blur(20px) saturate(160%);
-}
-@media(min-width:600px){.ap-overlay{align-items:center}}
-
-/* Sheet — iOS system background (#F2F2F7 light, #1C1C1E dark) */
-.ap-sheet {
-  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',var(--font),sans-serif;
-  background:#F2F2F7;
-  border-radius:24px 24px 0 0;
-  width:100%;
-  max-width:480px;
-  max-height:92vh;
-  overflow:hidden;
-  box-shadow:0 0 0 0.5px rgba(0,0,0,0.08), 0 -4px 32px rgba(0,0,0,0.12);
-  animation:ap-sheet-up 0.44s cubic-bezier(0.32,0.72,0,1) both;
-}
-@media(min-width:600px){
-  .ap-sheet{
-    border-radius:24px;
-    box-shadow:0 0 0 0.5px rgba(0,0,0,0.1), 0 20px 60px rgba(0,0,0,0.22);
-    animation:ap-sheet-in 0.38s cubic-bezier(0.32,0.72,0,1) both;
-  }
-}
-@media(prefers-color-scheme:dark){
-  .ap-sheet{background:#1C1C1E}
-}
-
-@keyframes ap-sheet-up {
-  from{transform:translateY(100%)}
-  to  {transform:translateY(0)}
-}
-@keyframes ap-sheet-in {
-  from{transform:scale(0.94) translateY(10px);opacity:0}
-  to  {transform:scale(1)    translateY(0);   opacity:1}
-}
-
-/* Handle */
-.ap-handle {
-  width:36px;height:5px;
-  background:rgba(60,60,67,0.3);
-  border-radius:3px;
-  margin:10px auto 0;
-  display:block;
-}
-@media(min-width:600px){.ap-handle{display:none}}
-@media(prefers-color-scheme:dark){.ap-handle{background:rgba(235,235,245,0.3)}}
-
-/* Content */
-.ap-content {
-  padding:20px 20px 32px;
-  overflow-y:auto;
-  max-height:calc(92vh - 25px);
-  -webkit-overflow-scrolling:touch;
-}
-@media(min-width:600px){.ap-content{padding:24px 24px 28px;max-height:80vh}}
-
-/* Icon badge — Apple rounded-square app icon feel */
-.ap-icon {
-  width:64px;height:64px;
-  border-radius:16px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:32px;
-  margin:8px auto 14px;
-  flex-shrink:0;
-}
-.ap-icon.ap-blue  {background:linear-gradient(145deg,#0A84FF,#0055CC)}
-.ap-icon.ap-green {background:linear-gradient(145deg,#30D158,#25A244)}
-.ap-icon.ap-red   {background:linear-gradient(145deg,#FF453A,#C91B12)}
-.ap-icon.ap-orange{background:linear-gradient(145deg,#FF9F0A,#CC6600)}
-
-/* Typography */
-.ap-title {
-  text-align:center;
-  font-size:22px;font-weight:700;letter-spacing:-0.5px;
-  color:#000;margin-bottom:5px;line-height:1.15;
-}
-@media(prefers-color-scheme:dark){.ap-title{color:#FFF}}
-
-.ap-subtitle {
-  text-align:center;font-size:14px;
-  color:rgba(60,60,67,0.6);
-  line-height:1.45;margin-bottom:20px;font-weight:400;
-}
-@media(prefers-color-scheme:dark){.ap-subtitle{color:rgba(235,235,245,0.6)}}
-
-/* Info row — white card on gray background (iOS grouped table style) */
-.ap-info-row {
-  display:flex;justify-content:space-between;align-items:center;
-  padding:13px 16px;
-  background:#fff;
-  border-radius:14px;
-  margin-bottom:12px;
-  font-size:15px;
-}
-@media(prefers-color-scheme:dark){.ap-info-row{background:#2C2C2E}}
-.ap-info-label{color:rgba(60,60,67,0.6);font-weight:400}
-@media(prefers-color-scheme:dark){.ap-info-label{color:rgba(235,235,245,0.6)}}
-.ap-info-val  {font-weight:600;color:#000;font-variant-numeric:tabular-nums}
-@media(prefers-color-scheme:dark){.ap-info-val{color:#FFF}}
-
-/* Input — white card on gray background */
-.ap-input {
-  width:100%;
-  padding:14px 16px;
-  font-size:16px;
-  font-family:inherit;
-  border-radius:13px;
-  border:none;
-  background:#fff;
-  color:#000;
-  outline:none;
-  box-shadow:0 0 0 0.5px rgba(0,0,0,0.08);
-  transition:box-shadow 0.2s;
-  -webkit-appearance:none;
-  appearance:none;
-  margin-bottom:8px;
-  display:block;
-}
-select.ap-input {
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;
-  background-position:right 14px center;
-  padding-right:36px;
-  cursor:pointer;
-}
-.ap-input:focus{box-shadow:0 0 0 3px #007AFF, 0 0 0 0.5px rgba(0,0,0,0.04)}
-@media(prefers-color-scheme:dark){
-  .ap-input{background:#2C2C2E;color:#FFF;box-shadow:0 0 0 0.5px rgba(255,255,255,0.1)}
-  .ap-input:focus{box-shadow:0 0 0 3px #0A84FF, 0 0 0 0.5px rgba(255,255,255,0.08)}
-}
-
-/* Error */
-.ap-error{font-size:13px;color:#FF3B30;text-align:center;min-height:18px;font-weight:500;margin-bottom:4px}
-
-/* Buttons */
-.ap-btn-group{display:flex;flex-direction:column;gap:10px;margin-top:16px}
-
-.ap-btn {
-  width:100%;padding:15px 16px;
-  border-radius:14px;border:none;
-  font-family:inherit;font-size:17px;font-weight:600;
-  cursor:pointer;
-  transition:opacity 0.12s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
-  -webkit-tap-highlight-color:transparent;
-  letter-spacing:-0.2px;
-}
-.ap-btn:active{transform:scale(0.96)!important;opacity:0.85}
-
-.ap-btn-primary{background:#007AFF;color:#fff}
-.ap-btn-primary:hover{background:#0070F3}
-@media(prefers-color-scheme:dark){.ap-btn-primary{background:#0A84FF}}
-
-.ap-btn-secondary{background:#fff;color:#007AFF;font-weight:400}
-.ap-btn-secondary:hover{background:rgba(255,255,255,0.85)}
-@media(prefers-color-scheme:dark){
-  .ap-btn-secondary{background:#2C2C2E;color:#0A84FF}
-  .ap-btn-secondary:hover{background:#3A3A3C}
-}
-
-.ap-btn-danger{background:#fff;color:#FF3B30;font-weight:600}
-.ap-btn-danger:hover{background:rgba(255,255,255,0.85)}
-@media(prefers-color-scheme:dark){
-  .ap-btn-danger{background:#2C2C2E;color:#FF453A}
-}
-
-/* ── Driver grid — white cards on gray sheet background ── */
-.ap-driver-grid {
-  display:flex;
-  flex-direction:column;
-  gap:0;
-  margin-bottom:4px;
-  max-height:52vh;
-  overflow-y:auto;
-  background:#fff;
-  border-radius:16px;
-  box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);
-  overflow:hidden;
-}
-@media(prefers-color-scheme:dark){.ap-driver-grid{background:#2C2C2E}}
-
-.ap-driver-search {
-  position:sticky;
-  top:0;
-  z-index:2;
-  padding:12px 14px;
-  background:#fff;
-  border-bottom:0.5px solid rgba(60,60,67,0.1);
-}
-@media(prefers-color-scheme:dark){
-  .ap-driver-search{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.08)}
-}
-.ap-driver-search input {
-  width:100%;
-  padding:10px 14px 10px 36px;
-  border-radius:12px;
-  border:none;
-  background:rgba(118,118,128,0.12);
-  color:#000;
-  font-size:15px;
-  font-family:inherit;
-  outline:none;
-  -webkit-appearance:none;
-  appearance:none;
-  transition:background 0.15s;
-}
-.ap-driver-search input::placeholder{color:rgba(60,60,67,0.4)}
-.ap-driver-search input:focus{background:rgba(118,118,128,0.18)}
-@media(prefers-color-scheme:dark){
-  .ap-driver-search input{background:rgba(118,118,128,0.24);color:#fff}
-  .ap-driver-search input::placeholder{color:rgba(235,235,245,0.4)}
-}
-.ap-search-icon {
-  position:absolute;
-  left:26px;
-  top:50%;
-  transform:translateY(-50%);
-  font-size:15px;
-  color:rgba(60,60,67,0.4);
-  pointer-events:none;
-}
-@media(prefers-color-scheme:dark){.ap-search-icon{color:rgba(235,235,245,0.4)}}
-
-.ap-driver-card {
-  background:#fff;
-  border:none;
-  border-radius:0;
-  padding:14px 16px;
-  display:flex;
-  flex-direction:row;
-  align-items:center;
-  gap:14px;
-  cursor:pointer;
-  text-align:left;
-  transition:background 0.12s ease;
-  position:relative;
-  -webkit-tap-highlight-color:transparent;
-  border-bottom:0.5px solid rgba(60,60,67,0.08);
-}
-.ap-driver-card:last-child{border-bottom:none}
-.ap-driver-card:hover{
-  background:rgba(0,122,255,0.04);
-}
-.ap-driver-card:active{
-  background:rgba(0,122,255,0.08);
-  transform:none;
-}
-.ap-driver-card.ap-selected{
-  background:rgba(0,122,255,0.06);
-}
-.ap-driver-card.ap-selected::before{
-  content:'';
-  position:absolute;
-  left:0;top:0;bottom:0;
-  width:3.5px;
-  background:#007AFF;
-  border-radius:0 3px 3px 0;
-}
-@media(prefers-color-scheme:dark){
-  .ap-driver-card{background:#2C2C2E;border-bottom-color:rgba(255,255,255,0.06)}
-  .ap-driver-card:hover{background:rgba(10,132,255,0.08)}
-  .ap-driver-card:active{background:rgba(10,132,255,0.14)}
-  .ap-driver-card.ap-selected{background:rgba(10,132,255,0.1)}
-  .ap-driver-card.ap-selected::before{background:#0A84FF}
-}
-
-.ap-driver-avatar {
-  width:48px;height:48px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:17px;font-weight:800;color:#fff;
-  letter-spacing:-0.5px;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(0,0,0,0.12);
-}
-.ap-driver-info {
-  display:flex;
-  flex-direction:column;
-  flex:1;
-  min-width:0;
-  gap:2px;
-}
-.ap-driver-name {
-  font-weight:600;font-size:16px;
-  color:#000;line-height:1.25;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-@media(prefers-color-scheme:dark){.ap-driver-name{color:#FFF}}
-.ap-driver-routes {
-  font-size:13px;font-weight:400;
-  color:rgba(60,60,67,0.6);line-height:1.3;
-  white-space:pre-line;
-}
-@media(prefers-color-scheme:dark){.ap-driver-routes{color:rgba(235,235,245,0.6)}}
-
-.ap-check-badge {
-  position:absolute;top:50%;right:16px;
-  transform:translateY(-50%);
-  width:24px;height:24px;border-radius:50%;
-  background:#007AFF;color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:800;
-  box-shadow:0 2px 8px rgba(0,122,255,0.3);
-}
-@media(prefers-color-scheme:dark){.ap-check-badge{background:#0A84FF}}
-
-/* ── SCROLLBAR ── */
-*::-webkit-scrollbar{width:5px;height:5px}
-*::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
-
-/* ── GRAFIK EDITOR ── */
-.grafik-container{
-  overflow-x:auto;
-  overflow-y:visible;
-  border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-sm);
-  border:0.5px solid var(--border);
-  background:var(--bg-card-solid);
-}
-.grafik-table{
-  border-collapse:collapse;
-  min-width:max-content;
-  width:100%;
-}
-.grafik-th-name{
-  position:sticky;
-  left:0;
-  z-index:3;
-  min-width:190px;
-  max-width:190px;
-  background:var(--bg-secondary);
-  padding:6px 10px;
-  text-align:left;
-  font-size:10px;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:0.4px;
-  color:var(--text-tertiary);
-  border-bottom:0.5px solid var(--border-strong);
-  border-right:1px solid var(--border-strong);
-  white-space:nowrap;
-}
-.grafik-th-day{
-  min-width:38px;
-  width:38px;
-  padding:5px 2px;
-  text-align:center;
-  font-size:10px;
-  font-weight:800;
-  border-bottom:0.5px solid var(--border);
-  border-right:0.5px solid var(--border);
-  background:var(--bg-secondary);
-  color:var(--text-secondary);
-  user-select:none;
-}
-.grafik-th-day.we{
-  background:rgba(255,59,48,0.07);
-  color:var(--accent-red);
-}
-.grafik-th-day.today-col{
-  background:rgba(0,122,255,0.12);
-  color:var(--accent);
-}
-.grafik-group-row td{
-  font-size:11px;
-  font-weight:800;
-  color:#fff;
-  padding:6px 10px;
-  text-transform:uppercase;
-  letter-spacing:0.7px;
-  border-bottom:0.5px solid rgba(255,255,255,0.15);
-}
-.grafik-td-name{
-  position:sticky;
-  left:0;
-  z-index:2;
-  background:var(--bg-card-solid);
-  padding:4px 10px;
-  font-size:12px;
-  font-weight:600;
-  white-space:nowrap;
-  border-bottom:0.5px solid var(--border);
-  border-right:1px solid var(--border-strong);
-  max-width:190px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.grafik-td-name .emp-hours{
-  font-size:10px;
-  color:var(--text-quaternary);
-  font-weight:400;
-  margin-left:5px;
-}
-.grafik-cell{
-  width:38px;
-  min-width:38px;
-  height:30px;
-  text-align:center;
-  font-size:11px;
-  font-weight:700;
-  border-bottom:0.5px solid var(--border);
-  border-right:0.5px solid var(--border);
-  cursor:pointer;
-  transition:filter 0.1s, transform 0.1s;
-  user-select:none;
-  vertical-align:middle;
-}
-.grafik-cell:hover{filter:brightness(0.88);transform:scale(1.15);z-index:1;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-.grafik-cell.we{background:rgba(255,59,48,0.04);}
-.grafik-cell.today-col{outline:2px solid var(--accent);outline-offset:-2px;}
-/* Status colors matching spreadsheet */
-.gc-I  {background:#ebdef0;color:#432874}
-.gc-W  {background:#f4f6f7;color:#aaa}
-.gc-UW {background:#d6eaf8;color:#0c5460}
-.gc-L4 {background:#fcf3cf;color:#856404}
-.gc-NN {background:#fadbd8;color:#721c24}
-.gc-godz {background:#d4edda;color:#155724}
-.gc-plus {background:#ffe0b2;color:#e65100}
-@media(prefers-color-scheme:dark){
-  .gc-I  {background:rgba(67,40,116,0.4);color:#c39bd3}
-  .gc-W  {background:rgba(120,120,130,0.15);color:var(--text-quaternary)}
-  .gc-UW {background:rgba(12,84,96,0.35);color:#85c1e9}
-  .gc-L4 {background:rgba(133,100,4,0.35);color:#f7dc6f}
-  .gc-NN {background:rgba(114,28,36,0.35);color:#f1948a}
-  .gc-godz {background:rgba(21,87,36,0.35);color:#a9dfbf}
-  .gc-plus {background:rgba(230,81,0,0.25);color:#ffa07a}
-}
-
-/* Cell picker popup */
-.cell-picker{
-  position:fixed;
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border-strong);
-  border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-md);
-  padding:14px;
-  z-index:99998;
-  display:none;
-  min-width:240px;
-  max-width:300px;
-}
-.cell-picker-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:12px;
-  gap:8px;
-}
-.cell-picker-title{
-  font-size:12px;
-  font-weight:700;
-  color:var(--text-primary);
-  flex:1;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.cell-picker-close{
-  width:22px;height:22px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:50%;
-  border:none;
-  background:var(--bg-secondary);
-  color:var(--text-tertiary);
-  cursor:pointer;
-  font-size:14px;
-  flex-shrink:0;
-}
-.cell-picker-close:hover{background:var(--accent-red-light);color:var(--accent-red)}
-.cp-status-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:5px;
-  margin-bottom:10px;
-}
-.cp-btn{
-  padding:8px 4px;
-  border-radius:6px;
-  border:1px solid transparent;
-  font-size:11px;
-  font-weight:700;
-  cursor:pointer;
-  transition:filter 0.1s, transform 0.1s;
-  text-align:center;
-  font-family:var(--font);
-  line-height:1.3;
-}
-.cp-btn:hover{filter:brightness(0.88);transform:scale(1.05)}
-.cp-btn:active{transform:scale(0.96)}
-.cp-btn.active-status{outline:2px solid var(--text-primary);outline-offset:1px}
-.cp-I  {background:#ebdef0;color:#432874}
-.cp-W  {background:#f4f6f7;color:#888;border-color:var(--border)}
-.cp-UW {background:#d6eaf8;color:#0c5460}
-.cp-L4 {background:#fcf3cf;color:#856404}
-.cp-NN {background:#fadbd8;color:#721c24}
-.cp-clear{background:var(--bg-secondary);color:var(--text-secondary);border-color:var(--border)}
-.cp-divider{height:0.5px;background:var(--border);margin:10px 0}
-.cp-label{font-size:10px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px}
-.cp-hours-row{display:flex;gap:6px;align-items:center}
-.cp-hours-input{
-  flex:1;
-  padding:8px 10px;
-  border-radius:var(--radius-sm);
-  border:1px solid var(--border-strong);
-  background:var(--bg-tertiary);
-  color:var(--text-primary);
-  font-size:13px;
-  font-weight:600;
-  font-family:var(--font);
-  outline:none;
-  transition:border-color 0.15s;
-}
-.cp-hours-input:focus{border-color:var(--accent)}
-.cp-hours-save{
-  padding:8px 12px;
-  border-radius:var(--radius-sm);
-  border:none;
-  background:var(--accent);
-  color:#fff;
-  font-size:12px;
-  font-weight:700;
-  cursor:pointer;
-  font-family:var(--font);
-  transition:background 0.15s;
-  flex-shrink:0;
-}
-.cp-hours-save:hover{background:#0070F3}
-.cp-current-badge{
-  display:inline-block;
-  padding:2px 8px;
-  border-radius:20px;
-  font-size:10px;
-  font-weight:700;
-  margin-left:6px;
-  vertical-align:middle;
-}
-
-/* Grafik month controls */
-.grafik-nav{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:12px;
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  padding:8px 12px;
-  box-shadow:var(--shadow-sm);
-  flex-wrap:wrap;
-}
-.grafik-nav input[type=month]{
-  padding:8px 12px;
-  border-radius:var(--radius-sm);
-  border:1px solid var(--border-strong);
-  background:var(--bg-tertiary);
-  color:var(--text-primary);
-  font-family:var(--font);
-  font-size:14px;
-  font-weight:600;
-  outline:none;
-  transition:border-color 0.15s;
-}
-.grafik-nav input[type=month]:focus{border-color:var(--accent)}
-.grafik-load-btn{
-  padding:9px 16px;
-  border-radius:var(--radius-sm);
-  border:none;
-  background:var(--accent);
-  color:#fff;
-  font-family:var(--font);
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-  transition:background 0.15s;
-  white-space:nowrap;
-}
-.grafik-load-btn:hover{background:#0070F3}
-.grafik-legend{
-  display:flex;
-  gap:5px;
-  flex-wrap:wrap;
-  align-items:center;
-  font-size:11px;
-  margin-bottom:10px;
-  padding:8px 10px;
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-md);
-}
-.grafik-legend-item{
-  padding:3px 8px;
-  border-radius:5px;
-  font-weight:700;
-  font-size:10px;
-  white-space:nowrap;
-}
-.grafik-stats{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-bottom:12px;
-}
-.grafik-stat-chip{
-  background:var(--bg-card-solid);
-  border:0.5px solid var(--border);
-  border-radius:var(--radius-sm);
-  padding:8px 14px;
-  font-size:12px;
-  box-shadow:var(--shadow-sm);
-}
-.grafik-stat-chip b{font-size:18px;font-weight:800;display:block;line-height:1.2}
-
-/* ── TIMELINE EDITOR (Oś Czasu) ── */
-.tl-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  background:var(--bg-card-solid);border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);padding:8px 12px;margin-bottom:10px;
-  box-shadow:var(--shadow-sm)}
-.tl-select{padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
-  background:var(--bg-tertiary);color:var(--text-primary);font-family:var(--font);
-  font-size:14px;font-weight:600;outline:none;cursor:pointer}
-.tl-load-btn{padding:9px 16px;border-radius:var(--radius-sm);border:none;
-  background:var(--accent);color:#fff;font-family:var(--font);font-size:13px;
-  font-weight:700;cursor:pointer;white-space:nowrap}
-.tl-load-btn:hover{background:#0070F3}
-.tl-day-tabs{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
-.tl-day-tab{padding:7px 14px;border-radius:var(--radius-sm);border:0.5px solid var(--border);
-  background:var(--bg-card-solid);color:var(--text-secondary);font-family:var(--font);
-  font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow-sm)}
-.tl-day-tab:hover{background:var(--bg-secondary)}
-.tl-day-tab.active{background:var(--accent);color:#fff;border-color:transparent;
-  box-shadow:0 4px 12px rgba(0,122,255,0.22)}
-.tl-day-tab.weekend{--we-color:#c62828}
-.tl-day-tab.weekend.active{background:var(--accent-red);box-shadow:0 4px 12px rgba(255,59,48,0.25)}
-
-/* Grid */
-.tl-container{overflow-x:auto;border-radius:var(--radius-lg);border:0.5px solid var(--border);
-  background:var(--bg-card-solid);box-shadow:var(--shadow-sm)}
-.tl-table{border-collapse:collapse;min-width:max-content}
-.tl-th-emp{position:sticky;left:0;z-index:3;min-width:170px;background:var(--bg-secondary);
-  padding:5px 10px;font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:0.4px;color:var(--text-tertiary);border-bottom:0.5px solid var(--border-strong);
-  border-right:1px solid var(--border-strong);white-space:nowrap}
-.tl-th-time{min-width:30px;width:30px;padding:5px 1px;text-align:center;font-size:10px;
-  font-weight:800;border-bottom:0.5px solid var(--border);border-right:0.5px solid var(--border);
-  background:var(--bg-secondary);color:var(--text-tertiary);user-select:none}
-.tl-th-time.current-hour{background:rgba(0,122,255,0.1);color:var(--accent)}
-.tl-group-row td{font-size:11px;font-weight:800;color:#fff;padding:5px 10px;
-  text-transform:uppercase;letter-spacing:0.6px}
-.tl-td-emp{position:sticky;left:0;z-index:2;background:var(--bg-card-solid);
-  padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap;
-  border-bottom:0.5px solid var(--border);border-right:1px solid var(--border-strong);
-  max-width:170px;overflow:hidden;text-overflow:ellipsis}
-.tl-td-emp .tl-hours{font-size:9px;color:var(--text-quaternary);font-weight:400;margin-left:4px}
-.tl-cell{width:30px;min-width:30px;height:28px;text-align:center;font-size:10px;font-weight:800;
-  border-bottom:0.5px solid var(--border);border-right:0.5px solid var(--border);
-  cursor:pointer;transition:filter 0.1s,transform 0.1s;user-select:none;vertical-align:middle}
-.tl-cell:hover{filter:brightness(0.85);transform:scale(1.2);z-index:5;position:relative;
-  box-shadow:0 2px 8px rgba(0,0,0,0.18)}
-.tl-cell.outside{opacity:0.35;background:var(--bg-tertiary)!important;color:var(--text-quaternary)!important}
-.tl-cell.we-col{background:rgba(255,59,48,0.04)!important}
-.tl-cell.we-col.outside{opacity:0.2}
-/* Station colors (matching spreadsheet ROLE_STANOWISKA) */
-.sc-T  {background:#607D8B;color:#fff} .sc-S  {background:#2E7D32;color:#fff}
-.sc-M  {background:#E65100;color:#fff} .sc-R  {background:#C62828;color:#fff}
-.sc-PR {background:#00838F;color:#fff} .sc-P  {background:#6A1B9A;color:#fff}
-.sc-SZ {background:#4E342E;color:#fff} .sc-PP {background:#F9A825;color:#1a1a1a}
-.sc-SP {background:#37474F;color:#fff} .sc-O  {background:#AD1457;color:#fff}
-.sc-PK {background:#558B2F;color:#fff} .sc-SC {background:#FF6F00;color:#fff}
-.sc-K  {background:#1155cc;color:#fff}
-.sc-W  {background:#f4f6f7;color:#aaa;font-size:9px}
-.sc-UW {background:#d6eaf8;color:#0c5460;font-size:9px}
-.sc-L4 {background:#fcf3cf;color:#856404;font-size:9px}
-
-/* Station picker */
-.station-picker{position:fixed;background:var(--bg-card-solid);border:0.5px solid var(--border-strong);
-  border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:12px;z-index:99998;
-  display:none;width:300px}
-.sp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.sp-title{font-size:11px;font-weight:700;color:var(--text-primary);flex:1;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sp-close{width:20px;height:20px;display:flex;align-items:center;justify-content:center;
-  border-radius:50%;border:none;background:var(--bg-secondary);color:var(--text-tertiary);
-  cursor:pointer;font-size:13px;flex-shrink:0}
-.sp-close:hover{background:var(--accent-red-light);color:var(--accent-red)}
-.sp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
-.sp-btn{padding:6px 2px;border-radius:5px;border:none;font-size:10px;font-weight:800;
-  cursor:pointer;text-align:center;transition:filter 0.1s,transform 0.1s;font-family:var(--font);
-  line-height:1.3}
-.sp-btn:hover{filter:brightness(0.85);transform:scale(1.06)}
-.sp-btn.sp-active{outline:2.5px solid var(--text-primary);outline-offset:1px}
-.sp-clear{background:var(--bg-secondary);color:var(--text-secondary);border:0.5px solid var(--border)}
-.sp-W  {background:#f4f6f7;color:#888;border:0.5px solid var(--border)}
-.sp-T  {background:#607D8B;color:#fff} .sp-S  {background:#2E7D32;color:#fff}
-.sp-M  {background:#E65100;color:#fff} .sp-R  {background:#C62828;color:#fff}
-.sp-PR {background:#00838F;color:#fff} .sp-P  {background:#6A1B9A;color:#fff}
-.sp-SZ {background:#4E342E;color:#fff} .sp-PP {background:#F9A825;color:#1a1a1a}
-.sp-SP {background:#37474F;color:#fff} .sp-O  {background:#AD1457;color:#fff}
-.sp-PK {background:#558B2F;color:#fff} .sp-SC {background:#FF6F00;color:#fff}
-.sp-K  {background:#1155cc;color:#fff}
-
-/* Statistics */
-.tl-stats{margin-top:12px;background:var(--bg-card-solid);border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm)}
-.tl-stats-header{padding:9px 14px;background:var(--bg-secondary);font-size:11px;
-  font-weight:700;color:var(--text-secondary);text-transform:uppercase;
-  letter-spacing:0.5px;border-bottom:0.5px solid var(--border)}
-.tl-stats-table{width:100%;border-collapse:collapse}
-.tl-stats-table th{padding:6px 10px;font-size:10px;font-weight:700;
-  text-transform:uppercase;letter-spacing:0.3px;color:var(--text-tertiary);
-  border-bottom:0.5px solid var(--border);text-align:center}
-.tl-stats-table th:first-child{text-align:left;min-width:120px}
-.tl-stats-table td{padding:5px 8px;font-size:12px;font-weight:700;text-align:center;
-  border-bottom:0.5px solid var(--border)}
-.tl-stats-table td:first-child{text-align:left}
-.tl-stats-table tr:last-child td{border-bottom:none}
-.tl-stat-badge{display:inline-block;padding:2px 7px;border-radius:4px;
-  font-size:11px;font-weight:800;white-space:nowrap}
-
-/* Nowoczesny wybór kierowcy */
-/* Siatka kart kierowców */
-.driver-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  width: 100%;
-  max-height: 52vh;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-@media (max-width: 400px) { .driver-cards-grid { grid-template-columns: 1fr; } }
-
-.driver-card {
-  background: var(--bg-card-solid);
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  text-align: left;
-}
-.driver-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.1);
-  border-color: var(--accent);
-}
-.driver-card:active { transform: scale(0.97); }
-.driver-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-light);
-  box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
-}
-.driver-card .d-avatar {
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 800;
-  color: #fff; flex-shrink: 0;
-  letter-spacing: -0.5px;
-}
-.driver-card .d-check {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-.driver-card .d-info {
-  display: flex; flex-direction: column; flex: 1; overflow: hidden;
-  min-width: 0;
-}
-.driver-card .d-name {
-  font-weight: 700; font-size: 14px; color: var(--text-primary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.driver-card .d-routes {
-  font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.route-chip {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 16px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1.5px solid transparent;
-  transition: all 0.2s;
-}
-.route-chip.active {
-  background: var(--accent-light);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-</style>
-</head>
-<body>
-
-<main class="app-shell">
-
-<!-- ── HEADER ── -->
-<div class="app-header">
-  <div class="app-header-top">
-    <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" class="app-logo">
-    <div>
-      <div class="app-title" data-t="app_title">Harmonogram</div>
-      <div class="app-subtitle" data-t="app_subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
-    </div>
-  </div>
-  <div class="app-header-actions">
-    <button class="driver-btn" id="driverToggleBtn" onclick="openDriverSelect()">👤 <span id="driverBtnLabel" data-t="btn_select_driver">Wybierz kierowcę</span></button>
-    <button class="admin-btn" id="adminToggleBtn" onclick="openAdminLogin()">🔒 Administrator</button>
-    <div class="lang-selector" style="margin-left:4px">
-      <button onclick="setLanguage('PL')" id="lang_PL" class="lang-btn active">PL</button>
-      <button onclick="setLanguage('DE')" id="lang_DE" class="lang-btn">DE</button>
-      <button onclick="setLanguage('UA')" id="lang_UA" class="lang-btn">UA</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── ADMIN BANNER ── -->
-<div class="admin-banner" id="adminBanner">
-  🔓 Tryb administratora aktywny · <span id="adminSessionInfo"></span>
-</div>
-
-<!-- ── TAB BAR ── -->
-<div class="tab-bar">
-  <button class="tab-btn active" id="btnViewMain" onclick="switchView('main')"><span class="tab-icon">📅</span><span data-t="nav_harmonogram">Harmonogram</span></button>
-  <button class="tab-btn" id="btnViewHist" onclick="switchView('history')"><span class="tab-icon">📋</span><span data-t="nav_historia">Historia</span></button>
-  <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
-  <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
-  <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
-  <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
-
-  <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
-  <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
-</div>
-
-<!-- ── MAIN VIEW ── -->
-<div id="mainView">
-  <div class="week-nav">
-    <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
-    <div class="week-label" id="weekLabel">Widok 2 tygodni</div>
-    <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
-  </div>
-
-
-
-  <div class="section-heading" id="titleWk1">📅 Tydzień 1</div>
-  <div id="grid1" class="grid"><div class="loader" data-t="loading">Ładowanie danych…</div></div>
-
-  <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
-  <div id="grid2" class="grid"></div>
-
-</div>
-
-<!-- ── REPORTS VIEW ── -->
-<div id="reportsView" style="display:none; padding:16px;">
-  <div id="reportsContent" class="loader" data-t="loading">Ładowanie raportów…</div>
-</div>
-
-<!-- ── LOGS VIEW ── -->
-<div id="logsView" style="display:none; padding:16px; overflow-x:auto;">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
-    <div>
-      <h2 style="margin:0;">Logi Systemowe</h2>
-      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px; max-width:400px;">
-        ⚠️ <strong>Uwaga:</strong> Przed uruchomieniem archiwizacji, zalecamy ręczne utworzenie kopii zapasowej arkusza Google (Plik -> Utwórz kopię).
-      </p>
-    </div>
-    <button class="primary" onclick="triggerArchive()" style="padding:8px 16px;">🗃️ Archiwizuj stare dane (60 dni)</button>
-  </div>
-  <div id="logsContent" class="loader" data-t="loading">Ładowanie logów…</div>
-</div>
-
-<!-- ── HISTORY VIEW ── -->
-<div class="history" id="histView" style="display:none">
-  <div id="histSearchBar"></div>
-  <div id="histContent" class="loader" data-t="loading">Ładowanie historii…</div>
-</div>
-
-<!-- ── CLIENTS VIEW ── -->
-<div id="clientsView" style="display:none">
-  <div class="clients-header" id="clientsAdminHeader" style="display:none; gap:8px;">
-    <button class="add-route-btn" onclick="openAddRouteModal()">＋ <span data-t="btn_new_route">Nowa trasa</span></button>
-    <button class="add-route-btn" onclick="openDriverAdminModal()">👨‍✈️ Zarządzaj kierowcami</button>
-  </div>
-  <div class="clients-hint">
-    <span id="clientsHintDrag" style="display:none"><span data-t="clients_drag_hint">☰ Przeciągaj klientów między trasami</span> &nbsp;·&nbsp;</span>
-    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-green);vertical-align:middle;margin:0 2px"></span> <span data-t="gps_has">ma GPS</span> &nbsp;·&nbsp;
-    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-orange);vertical-align:middle;margin:0 2px;opacity:0.6"></span> <span data-t="gps_no">brak GPS</span>
-  </div>
-  <div id="clientsListContent" class="loader" data-t="loading">Ładowanie…</div>
-</div>
-
-<!-- ── MAP VIEW ── -->
-<div id="mapView" style="display:none">
-  <div class="map-controls">
-    <div class="map-legend" id="mapLegend"></div>
-    <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
-      <button class="map-action-btn" id="locateMeBtn" onclick="locateUser()">🎯 <span data-t="btn_locate">Moja pozycja</span></button>
-      <button class="map-action-btn" onclick="initMap()">🔄 <span data-t="btn_refresh">Odśwież</span></button>
-    </div>
-  </div>
-  <div id="interactiveMap"></div>
-  <div style="font-size:11px;color:var(--text-quaternary);margin-top:8px;padding:0 4px" data-t="map_hint">
-    Kliknij trasę w legendzie, aby ją ukryć/pokazać. Klienci bez GPS nie pojawiają się na mapie.
-  </div>
-</div>
-
-<!-- ── HELP VIEW ── -->
-<div id="helpView" style="display:none">
-  <div class="legend-box" style="margin-top:0">
-    <div style="width:100%;font-size:16px;color:var(--text-primary);font-weight:800;margin-bottom:8px" data-t="nav_help">ℹ️ Instrukcja</div>
-    <div style="width:100%;font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.4" data-t="leg_intro">Wybierz kartę na liście w zakładce Harmonogram, aby zobaczyć szczegóły zamówienia lub oznaczyć odbiór.</div>
-    
-    <div style="width:100%;font-weight:700;margin-top:8px;font-size:12px;color:var(--text-primary)">Kolory statusów:</div>
-    <div class="legend-item"><span class="legend-dot green"></span> <span data-t="leg_arr">Dostarczone</span></div>
-    <div class="legend-item"><span class="legend-dot blue"></span> <span data-t="leg_pick">Do odbioru</span></div>
-    <div class="legend-item"><span class="legend-dot gray"></span> <span data-t="leg_done">Odebrane</span></div>
-    
-    <div style="width:100%;font-weight:700;margin-top:8px;font-size:12px;color:var(--text-primary)">Rodzaj prania:</div>
-    <div class="legend-item"><span class="laundry-type-badge type-P" style="margin:0;font-size:9px">P</span> <span data-t="type_p">Pościel</span></div>
-    <div class="legend-item"><span class="laundry-type-badge type-O" style="margin:0;font-size:9px">O</span> <span data-t="type_o">Obrusy</span></div>
-  </div>
-</div>
-
-<!-- ── GRAFIK FILE SETTINGS (admin panel — shared header) ── -->
-<div id="grafikFilePanel" style="display:none;margin-bottom:12px">
-  <div style="background:var(--bg-card-solid);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;box-shadow:var(--shadow-sm)">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px" data-t="gfp_title">📊 Plik grafiku:</span>
-      <span id="gfpFileName" style="font-size:13px;font-weight:700;color:var(--text-primary)" data-t="loading">Ładowanie…</span>
-      <span id="gfpMonthTitle" style="font-size:12px;color:var(--text-tertiary)"></span>
-      <span id="gfpWeekCount" style="font-size:11px;color:var(--text-quaternary)"></span>
-      <button onclick="toggleGfpEdit()" id="gfpEditBtn"
-        style="margin-left:auto;padding:6px 12px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">
-        ⚙️ <span data-t="gfp_change_btn">Zmień plik</span>
-      </button>
-    </div>
-    <div id="gfpEditPanel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
-      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">
-        <span data-t="gfp_instructions_1">Wklej URL lub ID nowego pliku Google Sheets z grafikiem na bieżący miesiąc.</span><br>
-        <span style="color:var(--text-tertiary);font-size:11px" data-t="gfp_instructions_2">Plik musi zawierać arkusz o nazwie Grafik (miesięczny) i arkusze W1, W2… (tygodniowe).</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="text" id="gfpIdInput"
-          style="flex:1;min-width:200px;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);font-family:var(--font);font-size:13px;outline:none"
-          placeholder="https://docs.google.com/spreadsheets/d/...  lub samo ID"
-          data-t-placeholder="gfp_placeholder"
-          onkeydown="if(event.key==='Enter')connectGrafikFile()">
-        <button onclick="connectGrafikFile()"
-          style="padding:9px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap"
-          data-t="gfp_connect_btn">
-          Podłącz
-        </button>
-      </div>
-      <div id="gfpError" style="font-size:12px;color:var(--accent-red);margin-top:8px;min-height:18px;font-weight:500"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ── GRAFIK & TIMELINE VIEW (admin only) ── -->
-<div id="grafikEditorView" style="display:none">
-  <!-- Grafik Section -->
-  <div class="grafik-nav">
-    <button class="week-nav-btn" onclick="changeGrafikMonth(-1)">‹</button>
-    <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
-    <button class="week-nav-btn" onclick="changeGrafikMonth(1)">›</button>
-    <button class="grafik-load-btn" onclick="loadGrafikMonth()">🔄 <span data-t="grafik_load">Załaduj</span></button>
-  </div>
-  <div class="grafik-legend">
-    <span style="font-size:10px;font-weight:700;color:var(--text-tertiary);margin-right:4px" data-t="legend_title">LEGENDA:</span>
-    <span class="grafik-legend-item gc-I">I — <span data-t="legend_i">zaplanowany</span></span>
-    <span class="grafik-legend-item gc-W">W — <span data-t="legend_w">wolne</span></span>
-    <span class="grafik-legend-item gc-UW">UW — <span data-t="legend_uw">urlop</span></span>
-    <span class="grafik-legend-item gc-L4">L4 — <span data-t="legend_l4">choroba</span></span>
-    <span class="grafik-legend-item gc-NN">NN — <span data-t="legend_nn">nieobecny</span></span>
-    <span class="grafik-legend-item gc-godz">8 — <span data-t="legend_godz">godz. pracy</span></span>
-    <span class="grafik-legend-item gc-plus">7+8 — <span data-t="legend_plus">start+godz.</span></span>
-  </div>
-  <div id="grafikStats" class="grafik-stats" style="display:none"></div>
-  <div id="grafikEditorGrid"><div class="loader" data-t="grafik_choose_month_loader">Wybierz miesiąc i kliknij Załaduj</div></div>
-
-  <!-- Timeline Section -->
-  <div id="timelineSection" style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border);">
-    <h3 style="margin-bottom:12px; font-size:14px; color:var(--text-primary);" data-t="nav_timeline">Oś Czasu</h3>
-    <div class="tl-nav">
-      <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
-        <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
-      </select>
-      <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
-    </div>
-    <div class="tl-day-tabs" id="tlDayTabs"></div>
-    <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
-    <div id="tlStats" class="tl-stats" style="display:none">
-      <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
-      <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
-    </div>
-  </div>
-</div>
-
-
-</main>
-
-<!-- ═══════════════ MODALS ═══════════════ -->
-
-  <!-- CLIENT HISTORY MODAL -->
-  <div class="overlay" id="clientHistoryModal" style="display:none;z-index:9999">
-    <div class="ap-sheet" style="max-height:80vh;display:flex;flex-direction:column">
-      <div class="modal-header" id="chTitle">Historia: Klient</div>
-      <div class="ap-sheet-content" id="chContent" style="flex:1;overflow-y:auto">
-        <div class="loader">Ładowanie...</div>
-      </div>
-      <div class="modal-btns" style="padding:16px;background:var(--bg-card);border-top:1px solid var(--border)">
-        <button onclick="document.getElementById('clientHistoryModal').style.display='none'">Zamknij</button>
-      </div>
-    </div>
-  </div>
-
-<!-- Driver Admin Modal -->
-<div class="overlay" id="driverAdminModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 style="margin-top:0;">👨‍✈️ Zarządzaj Kierowcami</h3>
-    <p style="font-size:13px; color:var(--text-secondary); margin-top:-5px; margin-bottom:15px;">Przypisz trasy do poszczególnych kierowców. Zmiany będą od razu widoczne na ich urządzeniach.</p>
-    <div id="driverAdminContainer" style="display:flex;flex-direction:column;gap:16px;max-height:50vh;overflow-y:auto;padding-right:8px;">
-      <!-- Treść generowana w JS -->
-    </div>
-    <div class="modal-btns" style="margin-top:20px;">
-      <button onclick="closeDriverAdminModal()">Zamknij</button>
-      <button class="primary" onclick="saveDriverRoutes()">Zapisz zmiany</button>
-    </div>
-  </div>
-</div>
-
-<!-- Driver Select -->
-<!-- ── DRIVER SELECT (Apple 2026 Enterprise) ── -->
-<div class="ap-overlay" id="driverSelectModal" role="dialog" aria-modal="true" aria-labelledby="driverSelectTitle">
-  <div class="ap-sheet" style="max-width:440px">
-    <div class="ap-handle"></div>
-    <div class="ap-content" style="padding-bottom:20px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,122,255,0.3)">🚛</div>
-        <div>
-          <div class="ap-title" id="driverSelectTitle" style="text-align:left;margin-bottom:2px;font-size:20px" data-t="driver_select_title">Kim jesteś?</div>
-          <div style="font-size:13px;color:rgba(60,60,67,0.6);font-weight:400" data-t="driver_select_desc">Wybierz swoje imię z listy poniżej, aby rozpocząć pracę.</div>
-        </div>
-      </div>
-      <div id="driverButtonsContainer" class="ap-driver-grid"></div>
-      <div id="driverSelectActions" class="ap-btn-group" style="margin-top:14px"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ── ADMIN LOGIN (Apple 2026) ── -->
-<div class="ap-overlay" id="adminLoginModal">
-  <div class="ap-sheet">
-    <div class="ap-handle"></div>
-    <div class="ap-content">
-      <div class="ap-icon ap-blue">🔐</div>
-      <div class="ap-title" data-t="login_title">Logowanie administratora</div>
-      <div class="ap-subtitle" data-t="login_desc_ap">Wpisz hasło, aby uzyskać pełny dostęp do systemu.</div>
-      <input type="password" class="ap-input" id="adminPasswordInput"
-        placeholder="Hasło administratora"
-        data-t-placeholder="placeholder_write_pass"
-        onkeydown="if(event.key==='Enter')doAdminLogin()">
-      <div class="ap-error" id="adminLoginError"></div>
-      <div class="ap-btn-group">
-        <button class="ap-btn ap-btn-primary" onclick="doAdminLogin()" data-t="login_btn">Zaloguj</button>
-        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogin()" data-t="btn_cancel">Anuluj</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── ADMIN LOGOUT (Apple 2026) ── -->
-<div class="ap-overlay" id="adminLogoutModal">
-  <div class="ap-sheet">
-    <div class="ap-handle"></div>
-    <div class="ap-content">
-      <div class="ap-icon ap-green">🔓</div>
-      <div class="ap-title" data-t="admin_mode_title">Tryb administratora</div>
-      <div class="ap-info-row">
-        <span class="ap-info-label" data-t="admin_session_active">Sesja aktywna. Czas pozostały:</span>
-        <span class="ap-info-val" id="logoutSessionTime">—</span>
-      </div>
-      <div class="ap-btn-group">
-        <button class="ap-btn ap-btn-danger" onclick="doAdminLogout()" data-t="btn_logout">Wyloguj z trybu admina</button>
-        <button class="ap-btn ap-btn-secondary" onclick="closeAdminLogout()" data-t="admin_stay">Zostań zalogowany</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Add Route -->
-<div class="overlay" id="addRouteModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_new_route_title">Nowa trasa</h3>
-    <label data-t="label_route_name">Nazwa trasy</label>
-    <input type="text" id="rAddName" placeholder="np. Trasa Północna" data-t-placeholder="placeholder_route_ex">
-    <div class="modal-btns">
-      <button onclick="closeAddRouteModal()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="doAddRoute()" data-t="btn_add">Dodaj</button>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Route (admin only) -->
-<div class="overlay" id="routeModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_edit_route_title">Edytuj trasę</h3>
-    <input type="hidden" id="rEditId">
-    <label data-t="label_route_name">Nazwa trasy</label>
-    <input type="text" id="rEditName" placeholder="Wpisz nazwę…" data-t-placeholder="placeholder_write_name">
-    <div class="action-row">
-      <button class="danger" onclick="deleteRoute()" data-t="btn_delete_route">Usuń trasę</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeRouteModal()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="saveRouteEdit()" data-t="btn_save">Zapisz</button>
-    </div>
-  </div>
-</div>
-
-<!-- Add Entry -->
-<div class="ap-overlay" id="addModal" role="dialog" aria-modal="true">
-  <div class="ap-sheet">
-    <div class="ap-handle"></div>
-    <div class="ap-content">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#34C759,#25A244);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(52,199,89,0.3)">📦</div>
-        <div>
-          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_add_title">Dodaj przyjazd</div>
-          <div style="font-size:12px;color:rgba(60,60,67,0.5);font-weight:400" id="addModalDriverHint"></div>
-        </div>
-      </div>
-
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_client">Klient</div>
-      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px" onchange="updateDefaultPickup('add')"></select>
-
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
-      <div class="segmented-control" style="margin-bottom:12px">
-        <button type="button" class="seg-btn type-P active" id="mType_P" onclick="setSegmentedVal('mType', 'P')" data-t="type_p">Pościel</button>
-        <button type="button" class="seg-btn type-O" id="mType_O" onclick="setSegmentedVal('mType', 'O')" data-t="type_o">Obrusy</button>
-        <input type="hidden" id="mType" value="P">
-      </div>
-
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
-      <input type="text" id="mWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:12px" inputmode="decimal">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div>
-          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Dzień przyjazdu</div>
-          <select id="mArrDay" class="ap-input" onchange="updateDefaultPickup('add')">
-            <option value="0" data-t="day_0">Poniedziałek</option>
-            <option value="1" data-t="day_1">Wtorek</option>
-            <option value="2" data-t="day_2">Środa</option>
-            <option value="3" data-t="day_3">Czwartek</option>
-            <option value="4" data-t="day_4">Piątek</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Dzień odbioru</div>
-          <select id="mPickDay" class="ap-input">
-            <option value="0" data-t="day_0">Poniedziałek</option>
-            <option value="1" data-t="day_1">Wtorek</option>
-            <option value="2" data-t="day_2">Środa</option>
-            <option value="3" data-t="day_3">Czwartek</option>
-            <option value="4" data-t="day_4">Piątek</option>
-          </select>
-        </div>
-      </div>
-
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
-      <select id="mPickWeek" class="ap-input" style="margin-bottom:12px">
-        <option value="0" data-t="week_same">Ten sam tydzień</option>
-        <option value="1" data-t="week_next">Następny tydzień</option>
-      </select>
-
-      <input type="hidden" id="mComment" value="">
-
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
-        <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
-        <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
-      </label>
-
-      <div class="ap-btn-group" style="margin-top:18px">
-        <button class="ap-btn ap-btn-primary" onclick="confirmAdd()" data-t="btn_add">Dodaj</button>
-        <button class="ap-btn ap-btn-secondary" onclick="closeAdd()" data-t="btn_cancel">Anuluj</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- View Entry (user — read-only + toggle) -->
-<div class="overlay" id="viewEntryModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_view_title">Szczegóły zamówienia</h3>
-    <div id="veClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:12px"></div>
-    <div class="info-row"><span class="info-label" data-t="label_arr_day">Dzień przyjazdu</span><span class="info-val" id="veArrDay"></span></div>
-    <div class="info-row"><span class="info-label" data-t="label_pick_day">Dzień odbioru</span><span class="info-val" id="vePickDay"></span></div>
-    <div class="info-row"><span class="info-label" data-t="label_type">Rodzaj prania</span><span class="info-val" id="veType"></span></div>
-    <div class="info-row"><span class="info-label" data-t="label_weight_simple">Waga</span><span class="info-val" id="veWeight"></span></div>
-    <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
-    <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
-    <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
-    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
-    <div class="info-row" id="vePickedAtRow" style="display:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
-    <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
-    <!-- Komentarz read-only (dla nie-właścicieli) -->
-    <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
-      <span class="info-label">Komentarz</span>
-      <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
-    </div>
-    <!-- Komentarz edytowalny (dla właściciela — zastępuje read-only) -->
-    <div id="veOwnerCommentRow" style="display:none;padding:9px 0;border-bottom:0.5px solid var(--border)">
-      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:6px">Komentarz</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" id="veCommentInput" placeholder="np. klient prosił o tel." onkeydown="if(event.key==='Enter')saveViewEntryComment()" style="flex:1;padding:9px 12px;font-size:14px;font-family:var(--font);border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--bg-tertiary);color:var(--text-primary);outline:none;box-sizing:border-box;">
-        <button onclick="saveViewEntryComment()" style="padding:9px 14px;border-radius:var(--radius-md);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);flex-shrink:0">Zapisz</button>
-      </div>
-    </div>
-    <div class="modal-btns" style="margin-top:18px">
-      <button class="done-btn" id="veToggleBtn" style="flex:2" data-t="btn_mark_done">Oznacz jako odebrane</button>
-      <button onclick="closeViewEntry()" style="flex:1" data-t="btn_close">Zamknij</button>
-    </div>
-    <div class="action-row" id="veDeleteRow" style="display:none;margin-top:8px">
-      <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Entry (admin only) -->
-<div class="ap-overlay" id="editModal" role="dialog" aria-modal="true">
-  <div class="ap-sheet">
-    <div class="ap-handle"></div>
-    <div class="ap-content">
-
-      <!-- Header -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,#007AFF,#0055CC);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,122,255,0.3)">✏️</div>
-        <div>
-          <div class="ap-title" style="text-align:left;font-size:19px;margin-bottom:1px" data-t="modal_edit_title">Edytuj wpis</div>
-          <div id="eClientName" style="font-size:13px;color:var(--accent);font-weight:600"></div>
-        </div>
-      </div>
-
-      <!-- Meta info -->
-      <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.04);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
-
-      <!-- Rodzaj prania -->
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
-      <div class="segmented-control" style="margin-bottom:14px">
-        <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')" data-t="type_p">Pościel</button>
-        <button type="button" class="seg-btn type-O" id="eType_O" onclick="setSegmentedVal('eType', 'O')" data-t="type_o">Obrusy</button>
-        <input type="hidden" id="eType" value="P">
-      </div>
-
-      <!-- Waga -->
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_weight">Waga (kg) — opcjonalnie</div>
-      <input type="text" id="eWeight" class="ap-input" placeholder="np. 150.5" style="margin-bottom:14px" inputmode="decimal">
-
-      <!-- Dzień przyjazdu / odbioru -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div>
-          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_arr_day">Przyjazd</div>
-          <select id="eArrDay" class="ap-input" onchange="updateDefaultPickup('edit')">
-            <option value="0" data-t="day_0">Poniedziałek</option>
-            <option value="1" data-t="day_1">Wtorek</option>
-            <option value="2" data-t="day_2">Środa</option>
-            <option value="3" data-t="day_3">Czwartek</option>
-            <option value="4" data-t="day_4">Piątek</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_day">Odbiór</div>
-          <select id="ePickDay" class="ap-input">
-            <option value="0" data-t="day_0">Poniedziałek</option>
-            <option value="1" data-t="day_1">Wtorek</option>
-            <option value="2" data-t="day_2">Środa</option>
-            <option value="3" data-t="day_3">Czwartek</option>
-            <option value="4" data-t="day_4">Piątek</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Tydzień odbioru -->
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
-      <select id="ePickWeek" class="ap-input" style="margin-bottom:14px">
-        <option value="0" data-t="week_same">Ten sam tydzień</option>
-        <option value="1" data-t="week_next">Następny tydzień</option>
-      </select>
-
-      <!-- Komentarz -->
-      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz</div>
-      <input type="text" id="eComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:14px">
-
-      <!-- Pilne -->
-      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;margin-bottom:18px;cursor:pointer;padding:12px 14px;background:rgba(255,59,48,0.06);border-radius:12px;border:1px solid rgba(255,59,48,0.15)">
-        <input type="checkbox" id="eUrgent" style="width:20px;height:20px;accent-color:#FF3B30">
-        <span style="color:#FF3B30;font-weight:600">🚩 Pilne (priorytet)</span>
-      </label>
-
-      <!-- Action buttons -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <button class="ap-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" style="background:#E8F8EE;color:#1A7A37;font-size:15px;padding:13px" data-t="btn_mark_done">Oznacz odebrane</button>
-        <button class="ap-btn ap-btn-danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="ap-btn ap-btn-secondary" onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
-        <button class="ap-btn ap-btn-primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- New Client (admin only) -->
-<div class="overlay" id="clientModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_new_client_title">Nowy klient</h3>
-    <label data-t="label_client_name_new">Nazwa hotelu / firmy</label>
-    <input type="text" id="newClientInput" placeholder="np. Hotel Gorzów" data-t-placeholder="placeholder_route_ex">
-    <label data-t="label_default_route">Stała trasa logistyczna</label>
-    <select id="newClientRoute"></select>
-    <div class="modal-btns">
-      <button onclick="closeClientModal()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="saveClient()" data-t="btn_add">Dodaj</button>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Client (admin only) -->
-<div class="overlay" id="editClientModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3 data-t="modal_edit_client_title">Edytuj klienta</h3>
-    <label data-t="label_client_name">Nazwa klienta</label>
-    <input type="text" id="ecName" placeholder="Zmień nazwę…" data-t-placeholder="placeholder_write_name">
-    <label data-t="label_route">Trasa logistyczna</label>
-    <div id="ecRouteBadge" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:24px"></div>
-    <select id="ecRoute"></select>
-    <input type="hidden" id="ecOldName">
-    <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
-      <div style="font-size:12px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px" data-t="gps_coords">Współrzędne GPS</div>
-      <div style="display:flex;gap:8px">
-        <div style="flex:1"><label style="margin-top:0" data-t="gps_lat">Szerokość (Lat)</label><input type="text" id="ecLat" placeholder="52.7350"></div>
-        <div style="flex:1"><label style="margin-top:0" data-t="gps_lng">Długość (Lng)</label><input type="text" id="ecLng" placeholder="15.2280"></div>
-      </div>
-    </div>
-    <div class="action-row">
-      <button class="danger" onclick="doDeleteClient()" data-t="btn_delete_client">Usuń z bazy</button>
-    </div>
-    <div class="modal-btns" style="margin-top:10px">
-      <button onclick="closeEditClientModal()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="doSaveClientEdit()" data-t="btn_save">Zapisz</button>
-    </div>
-  </div>
-</div>
-
-
-<div class="toast" id="toast"></div>
-
-<script>
 // Error handling moved to the top of the file
 
 const TRANSLATIONS = {
@@ -3620,7 +517,7 @@ let currentLang = 'PL';
 try {
   currentLang = localStorage.getItem('lebuserLang') || 'PL';
 } catch(e) {}
-function t(key){
+window. = function (key){
   return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || (TRANSLATIONS['PL'][key]) || key;
 }
 
@@ -3667,7 +564,7 @@ let adminExpires = 0;
 const ADMIN_SESSION_KEY = 'lebuserAdminSession';
 let sessionTimerInterval = null;
 
-function setLanguage(lang) {
+window. = function (lang) {
   currentLang = lang;
   localStorage.setItem('lebuserLang', lang);
   
@@ -3696,7 +593,7 @@ const DYNAMIC_CONTAINERS = new Set([
   'grafikEditorGrid','tlGridContainer','grid1','grid2'
 ]);
 
-function translateStaticUI() {
+window. = function () {
   // Translate elements with data-t attribute
   document.querySelectorAll('[data-t]').forEach(el => {
     // Pomiń dynamiczne kontenery — ich tekst jest ustawiany przez render functions przez t()
@@ -3728,7 +625,7 @@ function translateStaticUI() {
   });
 }
 
-function translateDayShort(plName) {
+window. = function (plName) {
   const clean = String(plName || '').trim().toUpperCase();
   if (clean.startsWith('PN')) return t('day_short_0');
   if (clean.startsWith('WT')) return t('day_short_1');
@@ -3740,7 +637,7 @@ function translateDayShort(plName) {
   return plName;
 }
 
-function translateError(msg) {
+window. = function (msg) {
   if (!msg) return msg;
   const str = String(msg);
   if (currentLang === 'PL') return str;
@@ -3793,7 +690,7 @@ function translateError(msg) {
   return str;
 }
 
-function checkAdminSession() {
+window. = function () {
   try {
     const raw = localStorage.getItem(ADMIN_SESSION_KEY);
     if (!raw) return 0;
@@ -3804,7 +701,7 @@ function checkAdminSession() {
   return 0;
 }
 
-function getAdminToken() {
+window. = function () {
   try {
     const raw = localStorage.getItem(ADMIN_SESSION_KEY);
     if (!raw) return '';
@@ -3818,18 +715,18 @@ function getAdminToken() {
 
 // Kolory awatarów kierowców (deterministyczne na podstawie ID)
 const DRIVER_AVATAR_COLORS = ['#1266D6','#138A43','#D97706','#8E44AD','#D9342B','#0E7490','#4F46E5','#BE185D','#0F766E','#B45309'];
-function driverAvatarColor(id) {
+window. = function (id) {
   let h = 0;
   for (let i = 0; i < (id||'').length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return DRIVER_AVATAR_COLORS[h % DRIVER_AVATAR_COLORS.length];
 }
-function driverInitials(name) {
+window. = function (name) {
   return (name||'').split(/\s+/).map(n=>n[0]||'').slice(0,2).join('').toUpperCase() || '?';
 }
 
 let postLoginCallback = null;
 
-function openDriverSelect(callback = null) {
+window. = function (callback = null) {
   postLoginCallback = callback;
   const container = document.getElementById('driverButtonsContainer');
   const actions   = document.getElementById('driverSelectActions');
@@ -3907,7 +804,7 @@ function openDriverSelect(callback = null) {
   }, 300);
 }
 
-function filterDriverCards(query) {
+window. = function (query) {
   const q = (query || '').toLowerCase().trim();
   const cards = document.querySelectorAll('#driverCardsList .ap-driver-card');
   cards.forEach(function(card) {
@@ -3916,7 +813,7 @@ function filterDriverCards(query) {
   });
 }
 
-function selectDriver(id) {
+window. = function (id) {
   if (!id) {
     currentDriver = null;
     localStorage.removeItem('currentDriver');
@@ -3946,7 +843,7 @@ function selectDriver(id) {
   }
 }
 
-function applyDriverState() {
+window. = function () {
   const btn   = document.getElementById('driverToggleBtn');
   const label = document.getElementById('driverBtnLabel');
 
@@ -3967,7 +864,7 @@ function applyDriverState() {
 // ── DRIVER ADMIN (Panel dla Administratora) ──
 let editedDriverRoutes = {};
 
-function openDriverAdminModal() {
+window. = function () {
   const container = document.getElementById('driverAdminContainer');
   container.innerHTML = '';
   editedDriverRoutes = {};
@@ -4023,12 +920,12 @@ function openDriverAdminModal() {
   lockScroll();
 }
 
-function closeDriverAdminModal() {
+window. = function () {
   document.getElementById('driverAdminModal').style.display = 'none';
   unlockScroll();
 }
 
-function saveDriverRoutes() {
+window. = function () {
   const btn = document.querySelector('#driverAdminModal .primary');
   btn.disabled = true;
   btn.textContent = 'Zapisywanie...';
@@ -4071,7 +968,7 @@ function saveDriverRoutes() {
   });
 }
 
-function applyAdminState(expires) {
+window. = function (expires) {
   isAdmin = expires > Date.now();
   adminExpires = expires;
 
@@ -4128,7 +1025,7 @@ function applyAdminState(expires) {
   if (cv && cv.style.display === 'block') renderClientsList();
 }
 
-function updateSessionDisplay() {
+window. = function () {
   const msLeft = adminExpires - Date.now();
   const hLeft = msLeft / 3600000;
   let label;
@@ -4146,7 +1043,7 @@ function updateSessionDisplay() {
   document.getElementById('adminSessionInfo').textContent = bannerLabel + ' ' + label;
 }
 
-function openAdminLogin() {
+window. = function () {
   if (isAdmin) {
     const msLeft = adminExpires - Date.now();
     const hLeft = (msLeft / 3600000).toFixed(1).replace('.', ',');
@@ -4162,17 +1059,17 @@ function openAdminLogin() {
   setTimeout(function() { document.getElementById('adminPasswordInput').focus(); }, 100);
 }
 
-function closeAdminLogin() {
+window. = function () {
   document.getElementById('adminLoginModal').style.display = 'none';
   unlockScroll();
 }
 
-function closeAdminLogout() {
+window. = function () {
   document.getElementById('adminLogoutModal').style.display = 'none';
   unlockScroll();
 }
 
-function doAdminLogin() {
+window. = function () {
   const pw = document.getElementById('adminPasswordInput').value;
   if (!pw) { document.getElementById('adminLoginError').textContent = currentLang === 'DE' ? 'Passwort eingeben' : (currentLang === 'UA' ? 'Введіть пароль' : 'Wpisz hasło'); return; }
   document.getElementById('adminLoginError').textContent = currentLang === 'DE' ? 'Überprüfung...' : (currentLang === 'UA' ? 'Перевірка…' : 'Sprawdzanie…');
@@ -4198,7 +1095,7 @@ function doAdminLogin() {
     .checkAdminPassword(pw);
 }
 
-function doAdminLogout() {
+window. = function () {
   closeAdminLogout();
   localStorage.removeItem(ADMIN_SESSION_KEY);
   applyAdminState(0);
@@ -4206,7 +1103,7 @@ function doAdminLogout() {
 }
 // ──────────────────────────────────────────────────────────────
 
-function applyDeviceLayout(){
+window. = function (){
   const width = window.innerWidth || document.documentElement.clientWidth || (window.screen && window.screen.width) || 0;
   const height = window.innerHeight || document.documentElement.clientHeight || (window.screen && window.screen.height) || width;
   const shortestSide = Math.min(width, height);
@@ -4216,34 +1113,34 @@ applyDeviceLayout();
 window.addEventListener('resize',applyDeviceLayout);
 window.addEventListener('orientationchange',applyDeviceLayout);
 
-function getMonday(offset){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day)+offset*7);d.setHours(0,0,0,0);return d;}
-function weekKey(offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function fmtDate(d){const loc = currentLang === 'DE' ? 'de-DE' : (currentLang === 'UA' ? 'uk-UA' : 'pl-PL'); return d.toLocaleDateString(loc,{day:'numeric',month:'short'});}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
-function lockScroll(){document.body.classList.add('modal-open');}
-function unlockScroll(){document.body.classList.remove('modal-open');}
-function getRouteName(id){return routeMap[id]||('Trasa '+id);}
-function getRouteColorIdx(routeId){return((Number(routeId)-1)%10)+1;}
-function getRouteColor(routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
-function esc(value){
+window. = function (offset){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day)+offset*7);d.setHours(0,0,0,0);return d;}
+window. = function (offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+window. = function (d){const loc = currentLang === 'DE' ? 'de-DE' : (currentLang === 'UA' ? 'uk-UA' : 'pl-PL'); return d.toLocaleDateString(loc,{day:'numeric',month:'short'});}
+window. = function (msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
+window. = function (){document.body.classList.add('modal-open');}
+window. = function (){document.body.classList.remove('modal-open');}
+window. = function (id){return routeMap[id]||('Trasa '+id);}
+window. = function (routeId){return((Number(routeId)-1)%10)+1;}
+window. = function (routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
+window. = function (value){
   const val = (value !== null && value !== undefined) ? value : '';
   return String(val).replace(/[&<>"']/g,function(ch){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
   });
 }
-function jsArg(value){
+window. = function (value){
   const val = (value !== null && value !== undefined) ? value : '';
   return esc(JSON.stringify(String(val)));
 }
 
-function updateRouteDropdowns(){
+window. = function (){
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
   const optionsHTML=routeIds.map(id=>'<option value="'+id+'">'+esc(getRouteName(id))+'</option>').join('');
   document.getElementById('newClientRoute').innerHTML=optionsHTML;
   document.getElementById('ecRoute').innerHTML=optionsHTML;
 }
 
-function switchView(v){
+window. = function (v){
   if(['grafikEditor','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
@@ -4281,7 +1178,7 @@ function switchView(v){
   else if(v==='help')renderHelp();
 }
 
-function renderHelp(){
+window. = function (){
   const el=document.getElementById('helpView');
   if(!el)return;
   const L=currentLang;
@@ -4362,7 +1259,7 @@ function renderHelp(){
 }
 
 // ── REPORTS & LOGS ──
-function loadReports() {
+window. = function () {
   document.getElementById('reportsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
   google.script.run.withFailureHandler(function(e){
     document.getElementById('reportsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
@@ -4371,7 +1268,7 @@ function loadReports() {
   }).getAllEntries();
 }
 
-function renderReports(entries) {
+window. = function (entries) {
   // Aggregate data: total kg, total clients picked, driver stats, days stats
   const completed = entries.filter(e => e.done);
   let totalKg = 0;
@@ -4428,7 +1325,7 @@ function renderReports(entries) {
   document.getElementById('reportsContent').innerHTML = html;
 }
 
-function loadLogs() {
+window. = function () {
   document.getElementById('logsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
   google.script.run.withFailureHandler(function(e){
     document.getElementById('logsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
@@ -4451,8 +1348,8 @@ function loadLogs() {
   }).getLogs();
 }
 
-function changeWeek(diff){weekOffset+=diff;renderGrid();}
-function filterSchedule() {
+window. = function (diff){weekOffset+=diff;renderGrid();}
+window. = function () {
   const q = document.getElementById('scheduleSearch').value.toLowerCase();
   document.querySelectorAll('#grid1 .tag, #grid2 .tag').forEach(tag => {
     const nameEl = tag.querySelector('.tag-name');
@@ -4464,7 +1361,7 @@ function filterSchedule() {
     }
   });
 }
-function loadWeek(){
+window. = function (){
   document.getElementById('grid1').innerHTML='<div class="loader">'+t('loading')+'</div>';
   document.getElementById('grid2').innerHTML='';
   google.script.run.withFailureHandler(function(err){
@@ -4474,7 +1371,7 @@ function loadWeek(){
   }).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
 }
 
-function renderGrid(){
+window. = function (){
   const d1s=getMonday(weekOffset);const d1e=new Date(d1s);d1e.setDate(d1s.getDate()+4);
   const d2s=getMonday(weekOffset+1);const d2e=new Date(d2s);d2e.setDate(d2s.getDate()+4);
   document.getElementById('titleWk1').textContent=fmtDate(d1s)+' – '+fmtDate(d1e);
@@ -4484,7 +1381,7 @@ function renderGrid(){
   initSortables();
 }
 
-function initSortables() {
+window. = function () {
   if (!isAdmin) return;
   if (typeof Sortable === 'undefined') {
     console.warn("SortableJS is not loaded.");
@@ -4519,7 +1416,7 @@ function initSortables() {
   });
 }
 
-function buildGridHTML(offset,targetWkKey){
+window. = function (offset,targetWkKey){
   const monday=getMonday(offset);const prevWkKey=weekKey(offset-1);
   const today=new Date();today.setHours(0,0,0,0);
   const days=Array.from({length:5},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
@@ -4572,12 +1469,12 @@ function buildGridHTML(offset,targetWkKey){
   }).join('');
 }
 
-function isRouteDaily(routeId){
+window. = function (routeId){
   const name=(routeMap[routeId]||'').toLowerCase();
   return name.includes('codzien') || name.includes('pn-pt') || name.includes('mo-fr') || name.includes('täglich');
 }
 
-function updateDefaultPickup(mode){
+window. = function (mode){
   const pfx=mode==='add'?'m':'e';
   const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
 
@@ -4604,7 +1501,7 @@ function updateDefaultPickup(mode){
   document.getElementById(pfx+'PickDay').value=p;document.getElementById(pfx+'PickWeek').value=w;
 }
 
-function setSegmentedVal(pfx, val){
+window. = function (pfx, val){
   document.getElementById(pfx).value = val;
   const pBtn = document.getElementById(pfx+'_P');
   const oBtn = document.getElementById(pfx+'_O');
@@ -4617,7 +1514,7 @@ function setSegmentedVal(pfx, val){
   }
 }
 
-function openAdd(dayIdx,offset){
+window. = function (dayIdx,offset){
   if (!isAdmin && !currentDriver) {
     toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca, aby dodać zamówienie'));
     openDriverSelect(() => openAdd(dayIdx, offset));
@@ -4656,8 +1553,8 @@ function openAdd(dayIdx,offset){
   updateDefaultPickup('add');document.getElementById('addModal').style.display='flex';
   lockScroll();
 }
-function closeAdd(){document.getElementById('addModal').style.display='none';unlockScroll();}
-function confirmAdd(){
+window. = function (){document.getElementById('addModal').style.display='none';unlockScroll();}
+window. = function (){
   const cName=document.getElementById('mClient').value;const arrDay=parseInt(document.getElementById('mArrDay').value);const pickDay=parseInt(document.getElementById('mPickDay').value);
   const isNextWk=document.getElementById('mPickWeek').value==='1';const wt=document.getElementById('mWeight').value;
   const type=document.getElementById('mType').value;
@@ -4697,7 +1594,7 @@ function confirmAdd(){
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
-function openEdit(id, isArrival){
+window. = function (id, isArrival){
   const entry=entries.find(e=>e.id===id);if(!entry)return;
   if(!isAdmin){openViewEntry(entry, isArrival);return;}
   // Admin: pełny modal edycji
@@ -4724,7 +1621,7 @@ function openEdit(id, isArrival){
 }
 
 // ── VIEW ENTRY (użytkownik) ──
-function openViewEntry(entry, isArrival){
+window. = function (entry, isArrival){
   viewEntryId = entry.id;
   // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
   const grouped = entries.filter(function(e){
@@ -4824,7 +1721,7 @@ function openViewEntry(entry, isArrival){
 // Zapamiętywanie wybranej paczki wpisów do komentarza
 let pendingToggleEntries = null;
 
-function performToggle(displayEntries, commentText) {
+window. = function (displayEntries, commentText) {
   const allDone = displayEntries.every(function(e){return e.done;});
   // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
   displayEntries.forEach(function(de){
@@ -4905,9 +1802,9 @@ function performToggle(displayEntries, commentText) {
   document.getElementById('viewEntryModal').style.display='flex';
   lockScroll();
 }
-function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
+window. = function (){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
 
-function saveViewEntryComment(){
+window. = function (){
   if(!currentDriver||!viewEntryId) return;
   const ci=document.getElementById('veCommentInput');
   const comment=(ci?ci.value.trim():'');
@@ -4934,8 +1831,8 @@ function saveViewEntryComment(){
     .saveCommentByDriver(viewEntryId, currentDriver.name, comment);
 }
 
-function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
-function saveEdit(){
+window. = function (){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
+window. = function (){
   if(!editingId)return;const arrDay=parseInt(document.getElementById('eArrDay').value);const pickDay=parseInt(document.getElementById('ePickDay').value);
   const id=editingId;
   const isNextWk=document.getElementById('ePickWeek').value==='1';const wt=document.getElementById('eWeight').value;
@@ -4949,7 +1846,7 @@ function saveEdit(){
   google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type,isUrgent,comment);
 }
 
-function copyEntry(source) {
+window. = function (source) {
   let entry = null;
   if (source === 'edit' && editingId) {
     entry = entries.find(e => e.id === editingId);
@@ -4974,8 +1871,8 @@ function copyEntry(source) {
 
 let viewEntryId = null; // store current view id for copying
 
-function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
-function deleteFromEdit(){
+window. = function (){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+window. = function (){
   if(!editingId)return;
   const entryToDel=entries.find(e=>e.id===editingId);
   const promptText = currentLang === 'DE' ? 'Eintrag löschen' : (currentLang === 'UA' ? 'Вилучити запис' : 'Usunąć wpis');
@@ -4985,13 +1882,13 @@ function deleteFromEdit(){
 }
 
 var _histAllEntries=null;
-function histSearch(){
+window. = function (){
   if(!_histAllEntries)return;
   const q=document.getElementById('histSearchInput');
   renderHistoryData(_histAllEntries, q?q.value.trim().toLowerCase():'');
 }
 
-function renderHistoryData(all, filter){
+window. = function (all, filter){
   const cont=document.getElementById('histContent');
   const L=currentLang;
   const lbl={
@@ -5086,7 +1983,7 @@ function renderHistoryData(all, filter){
 }
 
 
-function loadHistory(){
+window. = function (){
   const cont=document.getElementById('histContent');
   cont.innerHTML='<div class="loader">'+t('loading')+'</div>';
 
@@ -5122,7 +2019,7 @@ function loadHistory(){
     .getAllEntries();
 }
 
-function renderClientsList(){
+window. = function (){
   // Aktualizuj widoczność elementów admin
   document.getElementById('clientsAdminHeader').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('clientsHintDrag').style.display = isAdmin ? 'inline' : 'none';
@@ -5190,20 +2087,20 @@ function renderClientsList(){
   }
 }
 
-function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
-function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
-function doAddRoute(){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast(t('toast_creating'));google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_route_added'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name,getAdminToken());}
+window. = function (){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
+window. = function (){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
+window. = function (){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast(t('toast_creating'));google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_route_added'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name,getAdminToken());}
 
-function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
-function closeRouteModal(){document.getElementById('routeModal').style.display='none';unlockScroll();}
-function saveRouteEdit(){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName,getAdminToken());}
-function deleteRoute(){const id=document.getElementById('rEditId').value;const rName=document.getElementById('rEditName').value;const confirmMsg = currentLang === 'DE' ? 'Route "'+esc(rName)+'" löschen?' : (currentLang === 'UA' ? 'Вилучити маршрут "'+esc(rName)+'"?' : 'Usunąć trasę "'+esc(rName)+'"?');if(!confirm(confirmMsg))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id,getAdminToken());}
+window. = function (id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
+window. = function (){document.getElementById('routeModal').style.display='none';unlockScroll();}
+window. = function (){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName,getAdminToken());}
+window. = function (){const id=document.getElementById('rEditId').value;const rName=document.getElementById('rEditName').value;const confirmMsg = currentLang === 'DE' ? 'Route "'+esc(rName)+'" löschen?' : (currentLang === 'UA' ? 'Вилучити маршрут "'+esc(rName)+'"?' : 'Usunąć trasę "'+esc(rName)+'"?');if(!confirm(confirmMsg))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id,getAdminToken());}
 
-function openNewClient(routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
-function closeClientModal(){document.getElementById('clientModal').style.display='none';unlockScroll();}
-function saveClient(){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast(t('error_label') + ': ' + res.error);else{toast(t('toast_added') + name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route,getAdminToken());}
+window. = function (routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
+window. = function (){document.getElementById('clientModal').style.display='none';unlockScroll();}
+window. = function (){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast(t('error_label') + ': ' + res.error);else{toast(t('toast_added') + name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route,getAdminToken());}
 
-function openClientHistory(clientName) {
+window. = function (clientName) {
   document.getElementById('chTitle').textContent = 'Historia: ' + clientName;
   document.getElementById('chContent').innerHTML = '<div class="loader">Ładowanie...</div>';
   document.getElementById('clientHistoryModal').style.display = 'flex';
@@ -5246,7 +2143,7 @@ function openClientHistory(clientName) {
   }).getAllEntries();
 }
 
-function openEditClientModal(name,route,lat,lng){
+window. = function (name,route,lat,lng){
   document.getElementById('ecOldName').value=name;
   document.getElementById('ecName').value=name;
   document.getElementById('ecRoute').value=route;
@@ -5270,11 +2167,11 @@ function openEditClientModal(name,route,lat,lng){
   document.getElementById('editClientModal').style.display='flex';
   lockScroll();
 }
-function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
-function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
-function doDeleteClient(){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
+window. = function (){document.getElementById('editClientModal').style.display='none';unlockScroll();}
+window. = function (){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
+window. = function (){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
 
-function loadAppData(callback){
+window. = function (callback){
   google.script.run.withFailureHandler(function(e){alert((currentLang === 'DE' ? 'Verbindungsfehler: ' : (currentLang === 'UA' ? 'Помилка з\'єднання: ' : 'Błąd łączenia: ')) + e.message)}).withSuccessHandler(function(data){
     clients=data.clients||[];const rts=data.routes||[];routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
     drivers=data.drivers||[];
@@ -5283,18 +2180,18 @@ function loadAppData(callback){
   }).getAppData();
 }
 
-function buildMapLegend(routeIds){
+window. = function (routeIds){
   const legend=document.getElementById('mapLegend');legend.innerHTML='';
   routeIds.forEach(id=>{const color=getRouteColor(id);const div=document.createElement('div');div.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');div.setAttribute('data-route',id);div.innerHTML='<div class="legend-dot" style="background:'+color+'"></div>'+esc(getRouteName(id));div.onclick=function(){toggleRouteVisibility(id);};legend.appendChild(div);});
 }
 
-function toggleRouteVisibility(routeId){
+window. = function (routeId){
   if(hiddenRoutes.has(routeId))hiddenRoutes.delete(routeId);else hiddenRoutes.add(routeId);
   if(mapLayers[routeId]){const vis=!hiddenRoutes.has(routeId);mapLayers[routeId].markers.forEach(m=>vis?m.addTo(myMap):myMap.removeLayer(m));if(mapLayers[routeId].polyline){if(vis)mapLayers[routeId].polyline.addTo(myMap);else myMap.removeLayer(mapLayers[routeId].polyline);}}
   document.querySelectorAll('.legend-item').forEach(el=>{const id=Number(el.getAttribute('data-route'));el.className='legend-item'+(hiddenRoutes.has(id)?' hidden-route':'');});
 }
 
-function initMap(){
+window. = function (){
   const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const tileUrl = isDark 
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -5342,7 +2239,7 @@ function initMap(){
   setTimeout(()=>myMap.invalidateSize(),100);
 }
 
-function locateUser(){
+window. = function (){
   if (!navigator.geolocation) {
     alert(currentLang === 'DE' ? 'Geolocation wird von Ihrem Browser nicht unterstützt' : (currentLang === 'UA' ? 'Геолокація не підтримується вашим браузером' : 'Geolokalizacja nie jest wspierana przez Twoją przeglądarkę'));
     return;
@@ -5392,12 +2289,12 @@ function locateUser(){
 // ══════════════════════════════════════════════════════
 let gfpLoaded = false;
 
-function showGrafikFilePanel(show) {
+window. = function (show) {
   document.getElementById('grafikFilePanel').style.display = show ? 'block' : 'none';
   if (show && !gfpLoaded) loadGrafikFileInfo();
 }
 
-function loadGrafikFileInfo() {
+window. = function () {
   document.getElementById('gfpFileName').textContent = 'Ładowanie…';
   google.script.run
     .withFailureHandler(function(e) {
@@ -5431,7 +2328,7 @@ function loadGrafikFileInfo() {
     .getGrafikFileInfo();
 }
 
-function toggleGfpEdit() {
+window. = function () {
   const panel = document.getElementById('gfpEditPanel');
   const btn = document.getElementById('gfpEditBtn');
   const open = panel.style.display === 'none';
@@ -5440,7 +2337,7 @@ function toggleGfpEdit() {
   if (open) setTimeout(function(){ document.getElementById('gfpIdInput').focus(); }, 50);
 }
 
-function connectGrafikFile() {
+window. = function () {
   const val = document.getElementById('gfpIdInput').value.trim();
   if (!val) return;
   document.getElementById('gfpError').textContent = currentLang === 'DE' ? 'Verbindung...' : (currentLang === 'UA' ? 'З\'єднання…' : 'Łączenie…');
@@ -5494,11 +2391,11 @@ const STATION_ORDER = ['T','S','M','R','PR','P','SZ','PP','SP','O','PK','SC','K'
 let tlData = null;        // loaded week data
 let tlActiveDayIdx = 0;   // currently displayed day
 
-function initTimelineView() {
+window. = function () {
   refreshTimelineSheets(true);
 }
 
-function refreshTimelineSheets(autoLoad) {
+window. = function (autoLoad) {
   google.script.run
     .withFailureHandler(function(e){ toast(t('error_label') + ': ' + e.message); })
     .withSuccessHandler(function(sheets) {
@@ -5516,7 +2413,7 @@ function refreshTimelineSheets(autoLoad) {
     .listWeeklySheets();
 }
 
-function loadTimelineData() {
+window. = function () {
   const sheetName = document.getElementById('tlSheetSelect').value;
   if (!sheetName) return;
   document.getElementById('tlGridContainer').innerHTML = '<div class="loader">' + t('loading_timeline') + '</div>';
@@ -5543,7 +2440,7 @@ function loadTimelineData() {
     .getWeeklyData(sheetName);
 }
 
-function renderTlDayTabs() {
+window. = function () {
   if (!tlData) return;
   const tabsEl = document.getElementById('tlDayTabs');
   tabsEl.innerHTML = '';
@@ -5556,14 +2453,14 @@ function renderTlDayTabs() {
   });
 }
 
-function getStationClass(val) {
+window. = function (val) {
   if (!val) return '';
   const v = val.trim().toUpperCase();
   if (STATIONS[v]) return 'sc-' + v;
   return '';
 }
 
-function renderTlGrid() {
+window. = function () {
   if (!tlData || !tlData.days[tlActiveDayIdx]) return;
   const day = tlData.days[tlActiveDayIdx];
   const hours = [];
@@ -5609,7 +2506,7 @@ function renderTlGrid() {
   renderTlStats();
 }
 
-function renderTlStats() {
+window. = function () {
   if (!tlData || !tlData.days[tlActiveDayIdx]) return;
   const day = tlData.days[tlActiveDayIdx];
   const statsEl = document.getElementById('tlStats');
@@ -5678,14 +2575,14 @@ const GRAFIK_GROUP_COLORS = {
   'TECHNICZNY / TECHNIKER':'#607d8b','TECHNICZNY':'#607d8b'
 };
 
-function getGrafikGroupColor(grp){
+window. = function (grp){
   if(!grp) return '#455a64';
   const up=grp.toUpperCase();
   for(const k in GRAFIK_GROUP_COLORS){if(up.includes(k.toUpperCase()))return GRAFIK_GROUP_COLORS[k];}
   return '#455a64';
 }
 
-function getStatusClass(val){
+window. = function (val){
   if(!val||val==='')return '';
   const v=val.trim().toUpperCase();
   if(v==='I')  return 'gc-I';
@@ -5698,14 +2595,14 @@ function getStatusClass(val){
   return '';
 }
 
-function initGrafikEditor(){
+window. = function (){
   const today=new Date();
   const ym=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
   document.getElementById('grafikYMInput').value=ym;
   loadGrafikMonth();
 }
 
-function changeGrafikMonth(delta){
+window. = function (delta){
   const input=document.getElementById('grafikYMInput');
   if(!input.value)return;
   const [y,m]=input.value.split('-').map(Number);
@@ -5714,7 +2611,7 @@ function changeGrafikMonth(delta){
   loadGrafikMonth();
 }
 
-function loadGrafikMonth(){
+window. = function (){
   const ym=document.getElementById('grafikYMInput').value;
   if(!ym)return;
   document.getElementById('grafikEditorGrid').innerHTML='<div class="loader">'+t('loading_grafik')+'</div>';
@@ -5734,7 +2631,7 @@ function loadGrafikMonth(){
     .getGrafikMonthData(ym);
 }
 
-function renderGrafikGrid(){
+window. = function (){
   if(!grafikData)return;
   const {year,month,daysInMonth,days,employees}=grafikData;
   const today=new Date();
@@ -5878,7 +2775,7 @@ function renderGrafikGrid(){
     if (loader) { loader.textContent = "Błąd startu: " + e.message; loader.style.color = 'red'; }
   }
 
-function triggerArchive() {
+window. = function () {
   if (!isAdmin) {
     toast('Brak uprawnień');
     return;
@@ -5907,8 +2804,3 @@ function triggerArchive() {
     }
   }).archiveOldData(getAdminToken());
 }
-
-</script>
-
-</body>
-</html>

@@ -570,6 +570,31 @@ function logAction(user, action, targetId, details) {
   } catch(e) {}
 }
 
+function sendCommentEmail(driverName, clientName, route, type, weight, comment) {
+  if (!comment || String(comment).trim() === '') return;
+  try {
+    let emailBody = 'Witaj,\n\n';
+    emailBody += 'Kierowca ' + String(driverName) + ' zostawił nowy komentarz do zamówienia.\n\n';
+    emailBody += 'Szczegóły zamówienia:\n';
+    emailBody += '- Klient: ' + String(clientName) + '\n';
+    emailBody += '- Trasa: T' + String(route) + '\n';
+    emailBody += '- Rodzaj prania: ' + (String(type) === 'O' ? 'Obrusy' : 'Pościel') + '\n';
+    if (weight && String(weight) !== '0' && String(weight) !== '') {
+      emailBody += '- Waga: ' + String(weight) + ' kg\n';
+    }
+    emailBody += '\nTreść komentarza:\n"' + String(comment).trim() + '"\n\n';
+    emailBody += 'Wiadomość wygenerowana automatycznie przez system Lebuser App.';
+    
+    MailApp.sendEmail({
+      to: 'spedycja.profiwash@gmail.com',
+      subject: 'Nowy komentarz od kierowcy ' + String(driverName) + ' (' + String(clientName) + ')',
+      body: emailBody
+    });
+  } catch(e) {
+    logAction('System', 'Błąd e-mail', '', e.message);
+  }
+}
+
 function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, route, type, driverName, isUrgent, comment) {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SHEET_NAME);
@@ -584,6 +609,9 @@ function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, rout
   sh.appendRow([id, arrWeekKey, client, Number(arrDay), Number(pickDay), false, new Date(), pickWeekKey, parsedWeight, Number(route) || 1, type || 'P', driverName || '', '', '', comment || '', isUrgent ? true : false, 9999]);
   SpreadsheetApp.flush();
   logAction(driverName, 'Dodanie', id, 'Klient: ' + client);
+  if (comment && String(comment).trim() !== '') {
+    sendCommentEmail(driverName, client, route, type, parsedWeight, String(comment).trim());
+  }
   return { ok: true, id };
 }
 
@@ -657,7 +685,12 @@ function toggleDone(id, driverName, comment) {
       sh.getRange(i + 1, 14).setValue(isDone ? new Date() : '');
       // Komentarz zapisujemy zawsze przy toggle (albo do pustego, albo z wartością)
       if (comment !== undefined) {
-        sh.getRange(i + 1, 15).setValue(String(comment).trim());
+        const oldComment = String(data[i][14] || '').trim();
+        const newComment = String(comment).trim();
+        sh.getRange(i + 1, 15).setValue(newComment);
+        if (newComment !== '' && newComment !== oldComment) {
+          sendCommentEmail(driverName, String(data[i][2]), String(data[i][9]), String(data[i][10]), String(data[i][8]), newComment);
+        }
       }
       SpreadsheetApp.flush();
       logAction(driverName, isDone ? 'Odbiór' : 'Cofnięcie odbioru', id, 'Komentarz: ' + (comment || ''));
@@ -734,9 +767,14 @@ function saveCommentByDriver(id, driverName, comment) {
       if (addedBy !== String(driverName).trim()) {
         return { error: 'Możesz edytować komentarz tylko własnych wpisów' };
       }
-      sh.getRange(i + 1, 15).setValue(String(comment || '').trim());
+      const oldComment = String(data[i][14] || '').trim();
+      const newComment = String(comment || '').trim();
+      sh.getRange(i + 1, 15).setValue(newComment);
+      if (newComment !== '' && newComment !== oldComment) {
+        sendCommentEmail(driverName, String(data[i][2]), String(data[i][9]), String(data[i][10]), String(data[i][8]), newComment);
+      }
       SpreadsheetApp.flush();
-      logAction(driverName, 'Komentarz', id, String(comment || '').trim());
+      logAction(driverName, 'Komentarz', id, newComment);
       return { ok: true };
     }
   }
