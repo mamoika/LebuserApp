@@ -2469,10 +2469,10 @@ select.ap-input {
 <div class="tab-bar">
   <button class="tab-btn active" id="btnViewMain" onclick="switchView('main')"><span class="tab-icon">📅</span><span data-t="nav_harmonogram">Harmonogram</span></button>
   <button class="tab-btn" id="btnViewHist" onclick="switchView('history')"><span class="tab-icon">📋</span><span data-t="nav_historia">Historia</span></button>
-  <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
+  <button class="tab-btn admin-tab" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
   <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
-  <button class="tab-btn" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
+  <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
   <button class="tab-btn admin-tab" id="btnViewStaff" onclick="switchView('staff')"><span class="tab-icon">👷</span><span data-t="nav_grafik">Grafik Załogi</span></button>
   <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">✏️</span><span data-t="nav_edytor">Edytor Grafiku</span></button>
   <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
@@ -2498,6 +2498,10 @@ select.ap-input {
 
   <div class="section-heading" id="titleWk2" style="margin-top:28px">📅 Następny tydzień</div>
   <div id="grid2" class="grid"></div>
+
+  <div style="padding: 20px 16px 30px; max-width: 600px; margin: 0 auto;">
+    <input type="text" id="scheduleSearch" class="ap-input" placeholder="🔍 Szukaj klienta w harmonogramie..." oninput="filterSchedule()" style="width: 100%; box-sizing: border-box;">
+  </div>
 </div>
 
 <!-- ── REPORTS VIEW ── -->
@@ -4149,6 +4153,11 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
+  if(['staff','grafikEditor','timeline','reports','logs','clients'].includes(v)&&!isAdmin){
+    toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
+    v='main';
+  }
+
   const views=['main','history','clients','map','help','staff','grafikEditor','timeline','reports','logs'];
   const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',staff:'btnViewStaff',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
@@ -4157,10 +4166,6 @@ function switchView(v){
     const b=document.getElementById(btns[x]);
     if(b){if(x===v)b.classList.add('active');else b.classList.remove('active');}
   });
-
-  if(['staff','grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
-    toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora')); v='main';
-  }
 
   // Dynamiczny tytuł strony
   const titleMap={
