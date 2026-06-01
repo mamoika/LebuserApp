@@ -2469,7 +2469,7 @@ select.ap-input {
 <div class="tab-bar">
   <button class="tab-btn active" id="btnViewMain" onclick="switchView('main')"><span class="tab-icon">📅</span><span data-t="nav_harmonogram">Harmonogram</span></button>
   <button class="tab-btn" id="btnViewHist" onclick="switchView('history')"><span class="tab-icon">📋</span><span data-t="nav_historia">Historia</span></button>
-  <button class="tab-btn admin-tab" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
+  <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
   <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
@@ -2886,8 +2886,7 @@ select.ap-input {
       <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
     </div>
     <div class="modal-btns" style="margin-top:10px">
-      <button onclick="copyEntry('view')" style="flex:0.5">📋 Kopiuj</button>
-      <button onclick="closeViewEntry()" data-t="btn_close">Zamknij</button>
+      <button onclick="closeViewEntry()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_close">Zamknij</button>
     </div>
   </div>
 </div>
@@ -2954,8 +2953,7 @@ select.ap-input {
       <button class="danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
     </div>
     <div class="modal-btns" style="margin-top:10px">
-      <button onclick="copyEntry('edit')" style="flex:0.5">📋 Kopiuj</button>
-      <button onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
+      <button onclick="closeEdit()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_cancel">Anuluj</button>
       <button class="primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
     </div>
   </div>
@@ -4153,7 +4151,7 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
-  if(['staff','grafikEditor','timeline','reports','logs','clients'].includes(v)&&!isAdmin){
+  if(['staff','grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
   }
