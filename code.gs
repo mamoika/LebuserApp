@@ -1166,3 +1166,87 @@ function updateDriverRoutes(driverId, routesStr, adminToken) {
   }
   return { error: 'Nie znaleziono kierowcy' };
 }
+
+function archiveOldData(adminToken) {
+  checkAuth(adminToken);
+  const ss = SpreadsheetApp.getActive();
+  const thresholdDate = new Date();
+  thresholdDate.setDate(thresholdDate.getDate() - 30);
+  
+  let archivedCount = 0;
+
+  // 1. Archiwizacja Harmonogramu
+  const sh = ss.getSheetByName(SHEET_NAME);
+  if (sh) {
+    let archSh = ss.getSheetByName(SHEET_NAME + '_Archiwum');
+    if (!archSh) archSh = ss.insertSheet(SHEET_NAME + '_Archiwum');
+    
+    const data = sh.getDataRange().getValues();
+    if (data.length > 1) {
+      if (archSh.getLastRow() === 0) archSh.appendRow(data[0]);
+      
+      let rowsToMove = [];
+      let rowIndicesToDelete = [];
+      
+      for (let i = 1; i < data.length; i++) {
+        const dateStr = data[i][1]; 
+        if (dateStr) {
+          const parts = String(dateStr).split('.');
+          if (parts.length === 3) {
+            const entryDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (entryDate < thresholdDate) {
+              rowsToMove.push(data[i]);
+              rowIndicesToDelete.push(i + 1);
+            }
+          }
+        }
+      }
+      
+      if (rowsToMove.length > 0) {
+        archSh.getRange(archSh.getLastRow() + 1, 1, rowsToMove.length, rowsToMove[0].length).setValues(rowsToMove);
+        for (let i = rowIndicesToDelete.length - 1; i >= 0; i--) {
+          sh.deleteRow(rowIndicesToDelete[i]);
+        }
+        archivedCount += rowsToMove.length;
+      }
+    }
+  }
+
+  // 2. Archiwizacja Logów
+  const shLogs = ss.getSheetByName('Logi');
+  if (shLogs) {
+    let archLogs = ss.getSheetByName('Logi_Archiwum');
+    if (!archLogs) archLogs = ss.insertSheet('Logi_Archiwum');
+    
+    const data = shLogs.getDataRange().getValues();
+    if (data.length > 1) {
+      if (archLogs.getLastRow() === 0) archLogs.appendRow(data[0]);
+      
+      let rowsToMove = [];
+      let rowIndicesToDelete = [];
+      
+      for (let i = 1; i < data.length; i++) {
+        let entryDate = new Date(data[i][0]);
+        if (isNaN(entryDate.getTime())) {
+          const match = String(data[i][0]).match(/(\d{2})\.(\d{2})\.(\d{4})/);
+          if (match) entryDate = new Date(match[3], match[2] - 1, match[1]);
+        }
+        
+        if (!isNaN(entryDate.getTime()) && entryDate < thresholdDate) {
+          rowsToMove.push(data[i]);
+          rowIndicesToDelete.push(i + 1);
+        }
+      }
+      
+      if (rowsToMove.length > 0) {
+        archLogs.getRange(archLogs.getLastRow() + 1, 1, rowsToMove.length, rowsToMove[0].length).setValues(rowsToMove);
+        for (let i = rowIndicesToDelete.length - 1; i >= 0; i--) {
+          shLogs.deleteRow(rowIndicesToDelete[i]);
+        }
+      }
+    }
+  }
+
+  SpreadsheetApp.flush();
+  return { ok: true, count: archivedCount };
+}
