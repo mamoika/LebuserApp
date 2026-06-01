@@ -5519,7 +5519,9 @@ function loadTimelineData() {
         return;
       }
       tlData = data;
-      tlActiveDayIdx = 0;
+      let d = new Date().getDay() - 1;
+      if (d < 0) d = 6;
+      tlActiveDayIdx = (d < tlData.days.length) ? d : 0;
       renderTlDayTabs();
       renderTlGrid();
     })
