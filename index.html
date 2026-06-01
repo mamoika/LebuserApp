@@ -4097,11 +4097,15 @@ function getRouteName(id){return routeMap[id]||('Trasa '+id);}
 function getRouteColorIdx(routeId){return((Number(routeId)-1)%10)+1;}
 function getRouteColor(routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
 function esc(value){
-  return String(value ?? '').replace(/[&<>"']/g,function(ch){
+  const val = (value !== null && value !== undefined) ? value : '';
+  return String(val).replace(/[&<>"']/g,function(ch){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
   });
 }
-function jsArg(value){return esc(JSON.stringify(String(value ?? '')));}
+function jsArg(value){
+  const val = (value !== null && value !== undefined) ? value : '';
+  return esc(JSON.stringify(String(val)));
+}
 
 function updateRouteDropdowns(){
   const routeIds=Object.keys(routeMap).map(Number).sort((a,b)=>a-b);
@@ -4270,7 +4274,8 @@ function changeWeek(diff){weekOffset+=diff;renderGrid();}
 function filterSchedule() {
   const q = document.getElementById('scheduleSearch').value.toLowerCase();
   document.querySelectorAll('#grid1 .tag, #grid2 .tag').forEach(tag => {
-    const name = (tag.querySelector('.tag-name')?.textContent || '').toLowerCase();
+    const nameEl = tag.querySelector('.tag-name');
+    const name = (nameEl ? nameEl.textContent : '').toLowerCase();
     if (name.includes(q)) {
       tag.style.display = '';
     } else {
