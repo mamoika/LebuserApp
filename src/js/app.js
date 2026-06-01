@@ -98,8 +98,7 @@ const TRANSLATIONS = {
     legend_godz: "godz. pracy",
     legend_plus: "start+godz.",
     grafik_choose_month_loader: "Wybierz miesiąc i kliknij Załaduj",
-    staff_preview_date: "Data podglądu:",
-    staff_choose_date_loader: "Wybierz datę…",
+
     btn_new_route: "Nowa trasa",
     clients_drag_hint: "Przeciągaj klientów między trasami",
     gps_has: "ma GPS",
@@ -255,8 +254,7 @@ const TRANSLATIONS = {
     legend_godz: "Arbeitsstunden",
     legend_plus: "Start + Std.",
     grafik_choose_month_loader: "Monat auswählen und Laden anklicken",
-    staff_preview_date: "Vorschaudatum:",
-    staff_choose_date_loader: "Datum auswählen...",
+
     btn_new_route: "Neue Route",
     clients_drag_hint: "Kunden zwischen Routen verschieben (ziehen)",
     gps_has: "mit GPS",
@@ -413,8 +411,7 @@ const TRANSLATIONS = {
     legend_godz: "робочих годин",
     legend_plus: "старт+години",
     grafik_choose_month_loader: "Оберіть місяць та натисніть Завантажити",
-    staff_preview_date: "Дата перегляду:",
-    staff_choose_date_loader: "Оберіть дату...",
+
     btn_new_route: "Новий маршрут",
     clients_drag_hint: "Перетягуйте клієнтів між маршрутами",
     gps_has: "з GPS",
@@ -547,16 +544,12 @@ function setLanguage(lang) {
   renderGrid();
   if (document.getElementById('histView') && document.getElementById('histView').style.display === 'block') loadHistory();
   if (document.getElementById('clientsView') && document.getElementById('clientsView').style.display === 'block') renderClientsList();
-  if (document.getElementById('staffView') && document.getElementById('staffView').style.display === 'block') {
-    const curVal = document.getElementById('staffDateInput').value;
-    loadStaffData(curVal);
-  }
 }
 
 // Identyfikatory kontenerów dynamicznych — translateStaticUI pomija je
 // gdy nie mają już klasy 'loader' (tzn. zostały wypełnione przez renderX())
 const DYNAMIC_CONTAINERS = new Set([
-  'clientsListContent','histContent','staffContent',
+  'clientsListContent','histContent',
   'grafikEditorGrid','tlGridContainer','grid1','grid2'
 ]);
 
@@ -938,7 +931,6 @@ function applyAdminState(expires) {
   if (isAdmin) {
     btn.classList.add('admin-active');
     banner.classList.add('visible');
-    staffTab.classList.add('visible');
     if(grafikTab)   grafikTab.classList.add('visible');
     if(timelineTab) timelineTab.classList.add('visible');
     updateSessionDisplay();
@@ -960,11 +952,10 @@ function applyAdminState(expires) {
     btn.innerHTML = t('admin_btn');
     btn.classList.remove('admin-active');
     banner.classList.remove('visible');
-    staffTab.classList.remove('visible');
     if(grafikTab)   grafikTab.classList.remove('visible');
     if(timelineTab) timelineTab.classList.remove('visible');
     if (sessionTimerInterval) { clearInterval(sessionTimerInterval); sessionTimerInterval = null; }
-    const adminViews = ['staffView','grafikEditorView','timelineView'];
+    const adminViews = ['grafikEditorView','timelineView'];
     if (adminViews.some(id => { const el=document.getElementById(id); return el&&el.style.display==='block'; })) switchView('main');
 
   }
@@ -1094,13 +1085,13 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
-  if(['staff','grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
+  if(['grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
   }
 
-  const views=['main','history','clients','map','help','staff','grafikEditor','timeline','reports','logs'];
-  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',staff:'btnViewStaff',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
+  const views=['main','history','clients','map','help','grafikEditor','timeline','reports','logs'];
+  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
     const el=document.getElementById(x==='main'?'mainView':x+'View');
     if(el)el.style.display=(x===v?'block':'none');
@@ -1111,7 +1102,7 @@ function switchView(v){
   // Dynamiczny tytuł strony
   const titleMap={
     main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
-    map:'nav_mapa', help:'nav_help', staff:'nav_grafik',
+    map:'nav_mapa', help:'nav_help',
     grafikEditor:'nav_edytor', timeline:'nav_timeline', reports:'nav_raporty', logs:'nav_logi'
   };
   const titleEl=document.querySelector('.app-title');
@@ -1124,7 +1115,6 @@ function switchView(v){
   else if(v==='history')loadHistory();
   else if(v==='map')initMap();
   else if(v==='clients')renderClientsList();
-  else if(v==='staff')loadStaffData();
   else if(v==='grafikEditor')initGrafikEditor();
   else if(v==='timeline')initTimelineView();
   else if(v==='reports')loadReports();
@@ -1219,30 +1209,6 @@ function loadLogs() {
       '</table>';
     document.getElementById('logsContent').innerHTML = html;
   }).getLogs();
-}
-
-function loadStaffData(dateStr){
-  if(!dateStr){const today=new Date();let y=today.getFullYear();let m=String(today.getMonth()+1).padStart(2,'0');let d=String(today.getDate()).padStart(2,'0');dateStr=y+'-'+m+'-'+d;document.getElementById('staffDateInput').value=dateStr;}
-  document.getElementById('staffContent').innerHTML='<div class="loader">Łączenie z plikiem grafiku…</div>';
-  google.script.run.withFailureHandler(function(err){document.getElementById('staffContent').innerHTML='<div class="loader" style="color:var(--accent-red)"><b>Błąd:</b> '+err.message+'</div>';}).withSuccessHandler(function(res){if(res.error){document.getElementById('staffContent').innerHTML='<div class="loader" style="color:var(--accent-red)">'+res.error+'</div>';return;}renderStaffView(res);}).getGrafikDataForDate(dateStr);
-}
-
-function renderStaffView(data){
-  const buildBadge=(s)=>{let cls='badge-w';if(s==='I')cls='badge-i';if(s==='UW')cls='badge-uw';if(s==='L4')cls='badge-l4';return'<span class="staff-badge '+cls+'">'+s+'</span>';};
-  const buildList=(list)=>{if(!list.length)return'<div style="padding:8px 0;font-size:13px;color:var(--text-tertiary)">Brak pracowników</div>';return list.map(p=>'<div class="staff-row"><div><div class="staff-name">'+esc(p.name)+'</div><div class="staff-hours">'+(p.status==='I'?esc(p.defaultHours):'')+'</div></div>'+buildBadge(p.status)+'</div>').join('');};
-  const countPresent=(list)=>list.filter(p=>p.status==='I'||p.status==='UW').length;
-  document.getElementById('staffContent').innerHTML=
-    '<div class="staff-container">'+
-    '<div class="staff-card"><h3>📊 Statystyka dnia</h3>'+
-    '<div class="stat-row"><span class="stat-label">🚚 Kierowcy obecni</span><span class="stat-val">'+countPresent(data.kierowcy)+' / '+data.kierowcy.length+'</span></div>'+
-    '<div class="stat-row"><span class="stat-label">🟢 Produkcja ZD 1</span><span class="stat-val">'+countPresent(data.zd1)+'</span></div>'+
-    '<div class="stat-row"><span class="stat-label">🔴 Produkcja ZD 2</span><span class="stat-val">'+countPresent(data.zd2)+'</span></div>'+
-    '</div>'+
-    '<div style="display:flex;flex-direction:column;gap:12px">'+
-    '<div class="staff-card"><h3>🚚 Kierowcy</h3>'+buildList(data.kierowcy)+'</div>'+
-    '<div class="staff-card"><h3>🟢 ZD 1</h3>'+buildList(data.zd1)+'</div>'+
-    '<div class="staff-card"><h3>🔴 ZD 2</h3>'+buildList(data.zd2)+'</div>'+
-    '</div></div>';
 }
 
 function changeWeek(diff){weekOffset+=diff;renderGrid();}

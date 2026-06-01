@@ -1,0 +1,515 @@
+4:+++ b/index.html
+9:+body.modal-open { overflow:hidden; }
+18:+  transition:box-shadow:0.2s;
+26:+  appearance:none;
+37:+  white-space:pre-line;
+65:+  <button class="tab-btn" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
+69:+  <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
+77:+  
+78:+  <div style="padding: 10px 16px 0; max-width: 600px; margin: 0 auto;">
+79:+    <input type="text" id="scheduleSearch" class="ap-input" placeholder="🔍 Szukaj klienta w harmonogramie..." oninput="filterSchedule()" style="width: 100%; box-sizing: border-box;">
+80:+  </div>
+88:+<!-- ── REPORTS VIEW ── -->
+89:+<div id="reportsView" style="display:none; padding:16px;">
+90:+  <div id="reportsContent" class="loader" data-t="loading">Ładowanie raportów…</div>
+91:+</div>
+92:+
+93:+<!-- ── LOGS VIEW ── -->
+94:+<div id="logsView" style="display:none; padding:16px; overflow-x:auto;">
+95:+  <div id="logsContent" class="loader" data-t="loading">Ładowanie logów…</div>
+96:+</div>
+97:+
+100:+<div class="history" id="histView" style="display:none">
+108:+<!-- COMMENT MODAL -->
+109:+  <div class="overlay" id="commentModal" style="display:none">
+110:+    <div class="ap-sheet">
+111:+      <div class="modal-header">Dodaj komentarz do anulowania</div>
+112:+      <div class="ap-sheet-content">
+113:+        <input type="text" id="commentInput" class="ap-input" placeholder="Powód (np. brak paczek)...">
+114:+        <div class="ap-btn-group" style="margin-top:16px">
+115:+          <button class="ap-btn ap-btn-primary" onclick="confirmComment()">Potwierdź</button>
+116:+          <button class="ap-btn ap-btn-secondary" onclick="cancelComment()">Wróć bez zmian</button>
+117:+        </div>
+118:+      </div>
+119:+    </div>
+120:+  </div>
+121:+
+122:+  <!-- CLIENT HISTORY MODAL -->
+123:+  <div class="overlay" id="clientHistoryModal" style="display:none;z-index:9999">
+124:+    <div class="ap-sheet" style="max-height:80vh;display:flex;flex-direction:column">
+125:+      <div class="modal-header" id="chTitle">Historia: Klient</div>
+126:+      <div class="ap-sheet-content" id="chContent" style="flex:1;overflow-y:auto">
+127:+        <div class="loader">Ładowanie...</div>
+128:+      </div>
+129:+      <div class="modal-btns" style="padding:16px;background:var(--bg-card);border-top:1px solid var(--border)">
+130:+        <button onclick="document.getElementById('clientHistoryModal').style.display='none'">Zamknij</button>
+131:+      </div>
+132:+    </div>
+133:+  </div>
+134:+
+143:+      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px" onchange="updateDefaultPickup('add')"></select>
+152:+      <select id="mPickWeek" class="ap-input" style="margin-bottom:12px">
+157:+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz — opcjonalnie</div>
+158:+      <input type="text" id="mComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:12px">
+159:+
+160:+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
+161:+        <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
+162:+        <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
+163:+      </label>
+164:+
+173:+    <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
+174:+    <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
+175:+    <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+176:+    <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
+177:+    <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
+178:+      <span class="info-label">Komentarz</span>
+179:+      <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
+180:+    </div>
+181:+    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
+182:+    <div class="info-row" id="vePickedAtRow" style="display:none;border-bottom:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
+190:+      <button onclick="copyEntry('view')" style="flex:0.5">📋 Kopiuj</button>
+196:+<!-- Comment modal (przy cofaniu odbioru) -->
+197:+<div class="overlay" id="commentModal">
+198:+  <div class="modal">
+199:+    <div class="modal-handle"></div>
+200:+    <h3>Dlaczego cofasz odbiór?</h3>
+201:+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Opcjonalnie wpisz powód — będzie widoczny w szczegółach zamówienia.</p>
+202:+    <label>Komentarz (opcjonalnie)</label>
+203:+    <input type="text" id="commentInput" placeholder="np. klient nieobecny, brakuje towaru..." style="margin-bottom:4px">
+204:+    <div class="modal-btns" style="margin-top:16px">
+205:+      <button onclick="cancelComment()" data-t="btn_cancel">Anuluj</button>
+206:+      <button class="primary" onclick="confirmComment()">Cofnij odbiór</button>
+207:+    </div>
+208:+  </div>
+209:+</div>
+210:+
+217:+    <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
+225:+    <label>Komentarz</label>
+226:+    <input type="text" id="eComment" placeholder="np. klient prosił o tel.">
+227:+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:14px;cursor:pointer">
+228:+      <input type="checkbox" id="eUrgent" style="width:18px;height:18px">
+229:+      <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
+230:+    </label>
+236:+      <button onclick="copyEntry('edit')" style="flex:0.5">📋 Kopiuj</button>
+244:+    label_added_by: "Przywiózł",
+245:+    label_added_at: "Wpisano",
+246:+    label_picked_by: "Odebrał",
+247:+    label_picked_at: "Odebrano",
+255:+    label_added_by: "Gebracht von",
+256:+    label_added_at: "Eingetragen",
+257:+    label_picked_by: "Abgeholt von",
+258:+    label_picked_at: "Abgeholt am",
+266:+    label_added_by: "Привіз",
+267:+    label_added_at: "Записано",
+268:+    label_picked_by: "Забрав",
+269:+    label_picked_at: "Забрано",
+278:+        ? d.routes.map(function(r, i){ return getRouteName(r) + ((i % 2 === 1 && i < d.routes.length - 1) ? '\n' : (i < d.routes.length - 1 ? ' · ' : '')); }).join('')
+295:+  cancelBtn.onclick = function() { document.getElementById('driverSelectModal').style.display = 'none'; unlockScroll(); };
+299:+  lockScroll();
+307:+    // Wyloguj admina przy logowaniu kierowcy
+308:+    if (isAdmin) {
+309:+      localStorage.removeItem(ADMIN_SESSION_KEY);
+310:+      applyAdminState(0);
+311:+    }
+314:+  unlockScroll();
+322:+  lockScroll();
+327:+  unlockScroll();
+336:+    if ([...newRoutes].sort().join(',') === [...oldRoutes].sort().join(',')) {
+344:+      renderGrid();
+352:+    lockScroll();
+358:+  lockScroll();
+364:+  unlockScroll();
+369:+  unlockScroll();
+377:+      // Wyloguj kierowcę przy logowaniu admina
+378:+      currentDriver = null;
+379:+      localStorage.removeItem('currentDriver');
+387:+function lockScroll(){document.body.classList.add('modal-open');}
+388:+function unlockScroll(){document.body.classList.remove('modal-open');}
+405:+  const views=['main','history','clients','map','help','staff','grafikEditor','timeline','reports','logs'];
+406:+  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',staff:'btnViewStaff',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
+407:+  views.forEach(function(x){
+408:+    const el=document.getElementById(x==='main'?'mainView':x+'View');
+409:+    if(el)el.style.display=(x===v?'block':'none');
+410:+    const b=document.getElementById(btns[x]);
+411:+    if(b){if(x===v)b.classList.add('active');else b.classList.remove('active');}
+412:+  });
+415:+  if(['staff','grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
+428:+    grafikEditor:'nav_edytor', timeline:'nav_timeline', reports:'nav_raporty', logs:'nav_logi'
+436:+  else if(v==='reports')loadReports();
+437:+  else if(v==='logs')loadLogs();
+438:+}
+439:+
+440:+// ── REPORTS & LOGS ──
+441:+function loadReports() {
+442:+  document.getElementById('reportsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
+443:+  google.script.run.withFailureHandler(function(e){
+444:+    document.getElementById('reportsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
+445:+  }).withSuccessHandler(function(allEntries) {
+446:+    renderReports(allEntries);
+447:+  }).getAllEntries();
+448:+}
+449:+
+450:+function renderReports(entries) {
+451:+  // Aggregate data: total kg, total clients picked, driver stats, days stats
+452:+  const completed = entries.filter(e => e.done);
+453:+  let totalKg = 0;
+454:+  const driverStats = {};
+455:+  const dayStats = {1:0,2:0,3:0,4:0,5:0,6:0,0:0};
+456:+  const clientsSet = new Set();
+457:+  
+458:+  completed.forEach(e => {
+459:+    totalKg += e.weight || 0;
+460:+    clientsSet.add(e.client);
+461:+    
+462:+    if (e.pickedBy) {
+463:+      if (!driverStats[e.pickedBy]) driverStats[e.pickedBy] = {kg:0, count:0};
+464:+      driverStats[e.pickedBy].kg += e.weight || 0;
+465:+      driverStats[e.pickedBy].count += 1;
+466:+    }
+467:+    
+468:+    if (e.pickedAt) {
+469:+      // Very basic parsing to find day of week, or just use pickDay
+470:+      dayStats[e.pickDay] = (dayStats[e.pickDay] || 0) + (e.weight || 0);
+471:+    }
+472:+  });
+473:+
+474:+  const dayNames = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+475:+  let maxDayKg = Math.max(...Object.values(dayStats), 1);
+476:+
+477:+  let html = `
+478:+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+479:+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-blue)">${totalKg.toFixed(1)}</div><div style="font-size:12px;color:var(--text-tertiary)">Zabrane Kg</div></div>
+480:+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-green)">${completed.length}</div><div style="font-size:12px;color:var(--text-tertiary)">Odebrane wpisy</div></div>
+481:+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-orange)">${clientsSet.size}</div><div style="font-size:12px;color:var(--text-tertiary)">Obsłużeni klienci</div></div>
+482:+    </div>
+483:+    
+484:+    <div class="sec-label">Obciążenie w tygodniu (Kg)</div>
+485:+    <div class="card" style="margin-bottom:24px">
+486:+      ${[1,2,3,4,5,6,0].map(d => `
+487:+        <div style="display:flex;align-items:center;margin-bottom:8px">
+488:+          <div style="width:100px;font-size:12px;color:var(--text-secondary)">${dayNames[d]}</div>
+489:+          <div style="flex:1;height:12px;background:var(--bg-secondary);border-radius:6px;overflow:hidden">
+490:+            <div style="width:${(dayStats[d]/maxDayKg)*100}%;height:100%;background:var(--accent-blue)"></div>
+491:+          </div>
+492:+          <div style="width:60px;text-align:right;font-size:12px;font-weight:600">${dayStats[d].toFixed(0)}</div>
+493:+        </div>
+494:+      `).join('')}
+495:+    </div>
+496:+
+497:+    <div class="sec-label">Statystyki kierowców</div>
+498:+    <div class="card">
+499:+      ${Object.keys(driverStats).length === 0 ? '<div style="color:var(--text-tertiary);font-size:13px">Brak danych kierowców</div>' : ''}
+500:+      ${Object.keys(driverStats).sort((a,b)=>driverStats[b].kg-driverStats[a].kg).map(drv => `
+501:+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+502:+          <div style="font-weight:600;font-size:14px">${esc(drv)}</div>
+503:+          <div style="font-size:13px"><span style="color:var(--accent-green)">${driverStats[drv].count}</span> odbiorów, <span style="font-weight:600">${driverStats[drv].kg.toFixed(1)}kg</span></div>
+504:+        </div>
+505:+      `).join('')}
+506:+    </div>
+507:+  `;
+508:+  document.getElementById('reportsContent').innerHTML = html;
+509:+}
+510:+
+511:+function loadLogs() {
+512:+  document.getElementById('logsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
+513:+  google.script.run.withFailureHandler(function(e){
+514:+    document.getElementById('logsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
+515:+  }).withSuccessHandler(function(logs) {
+516:+    let html = `
+517:+      <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--bg-card);border-radius:12px;overflow:hidden">
+518:+        <tr style="background:var(--bg-secondary);text-align:left">
+519:+          <th style="padding:10px">Data</th><th style="padding:10px">Kto</th><th style="padding:10px">Akcja</th><th style="padding:10px">ID/Szczegóły</th>
+520:+        </tr>
+521:+        ${logs.map(l => `
+522:+          <tr style="border-top:1px solid var(--border)">
+523:+            <td style="padding:8px 10px;white-space:nowrap;color:var(--text-secondary)">${esc(l.date)}</td>
+524:+            <td style="padding:8px 10px;font-weight:600">${esc(l.user)}</td>
+525:+            <td style="padding:8px 10px;color:var(--accent-blue)">${esc(l.action)}</td>
+526:+            <td style="padding:8px 10px">${esc(l.target)} ${esc(l.details)}</td>
+527:+          </tr>
+528:+        `).join('')}
+529:+      </table>
+530:+    `;
+531:+    document.getElementById('logsContent').innerHTML = html;
+532:+  }).getLogs();
+541:+function changeWeek(diff){weekOffset+=diff;renderGrid();}
+542:+function filterSchedule() {
+543:+  const q = document.getElementById('scheduleSearch').value.toLowerCase();
+544:+  document.querySelectorAll('#grid1 .tag, #grid2 .tag').forEach(tag => {
+545:+    const name = (tag.querySelector('.tag-name')?.textContent || '').toLowerCase();
+546:+    if (name.includes(q)) {
+547:+      tag.style.display = '';
+548:+    } else {
+549:+      tag.style.display = 'none';
+550:+    }
+551:+  });
+552:+}
+557:+  google.script.run.withFailureHandler(function(err){alert(t('error_label') + ': '+(err&&err.message?err.message:'Nieznany błąd'));}).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
+565:+  initSortables();
+566:+}
+567:+
+568:+function initSortables() {
+569:+  if (!isAdmin) return;
+570:+  document.querySelectorAll('.sortable-arr, .sortable-pick').forEach(el => {
+571:+    new Sortable(el, {
+572:+      group: 'entries',
+573:+      animation: 150,
+574:+      ghostClass: 'sortable-ghost',
+575:+      delay: window.innerWidth <= 768 ? 200 : 0, // Delay for mobile
+576:+      delayOnTouchOnly: true,
+577:+      onEnd: function(evt) {
+578:+        // Collect new order
+579:+        const orderedIds = Array.from(evt.to.children).map(c => c.getAttribute('data-id')).filter(id => id);
+580:+        if (orderedIds.length === 0) return;
+581:+        toast(currentLang === 'DE' ? 'Reihenfolge wird gespeichert...' : (currentLang === 'UA' ? 'Збереження порядку…' : 'Zapisywanie kolejności…'));
+582:+        
+583:+        // Optymistycznie zaktualizuj lokalne entries
+584:+        orderedIds.forEach((id, idx) => {
+585:+          const entry = entries.find(e => e.id === id);
+586:+          if(entry) entry.order = idx + 1;
+587:+        });
+588:+
+589:+        google.script.run.withFailureHandler(e => {
+590:+          alert(t('error_label') + ': ' + e.message); loadWeek();
+591:+        }).withSuccessHandler(() => {
+592:+          toast(currentLang === 'DE' ? 'Reihenfolge gespeichert' : (currentLang === 'UA' ? 'Порядок збережено' : 'Kolejność zapisana'));
+593:+        }).updateEntriesOrder(orderedIds, getAdminToken());
+594:+      }
+595:+    });
+596:+  });
+605:+    const arrTags=arrived.sort((a,b)=>a.order-b.order).map(e=>{
+608:+      const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
+611:+      return'<div class="tag tag-arr'+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+620:+        if(!byClient[key]) byClient[key]={client:e.client,route:e.route,entries:[e],totalWeight:e.weight,types:[e.type||'P'],allDone:e.done,urgent:e.urgent,order:e.order,id:e.id};
+621:+        else{byClient[key].entries.push(e);byClient[key].totalWeight+=e.weight;if(byClient[key].types.indexOf(e.type||'P')===-1)byClient[key].types.push(e.type||'P');if(!e.done)byClient[key].allDone=false;if(e.urgent)byClient[key].urgent=true;byClient[key].order=Math.min(byClient[key].order, e.order);}
+625:+      return Object.keys(byClient).map(key=>byClient[key]).sort((a,b)=>a.order-b.order).map(function(g){
+632:+          const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
+633:+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+639:+          const urgentFlag=g.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
+640:+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+650:+      '<div class="sec-label">'+t('grid_arrived_sec')+'</div>'+'<div class="sortable-arr">'+arrTags+'</div>'+
+651:+      (pickTags?'<div class="divider"></div><div class="sec-label">'+t('grid_pickup_sec')+'</div>'+'<div class="sortable-pick">'+pickTags+'</div>':'')+
+657:+function isRouteDaily(routeId){
+658:+  const name=(routeMap[routeId]||'').toLowerCase();
+659:+  return name.includes('codzien') || name.includes('pn-pt') || name.includes('mo-fr') || name.includes('täglich');
+660:+}
+661:+
+665:+  const pfx=mode==='add'?'m':'e';
+666:+  const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
+667:+
+668:+  // Sprawdź trasę wybranego klienta
+669:+  let routeId=null;
+670:+  if(mode==='add'){
+671:+    const cName=document.getElementById('mClient').value;
+672:+    const cObj=clients.find(c=>c.name===cName);
+673:+    if(cObj) routeId=cObj.route;
+674:+  } else {
+675:+    // W trybie edycji — weź trasę z edytowanego wpisu
+676:+    const entry=entries.find(e=>e.id===editingId);
+677:+    if(entry) routeId=entry.route;
+678:+  }
+679:+
+680:+  let p=0,w=0;
+681:+  if(routeId && isRouteDaily(routeId)){
+682:+    // Trasa codzienna: odbiór następnego dnia
+683:+    if(arr<4){p=arr+1;w=0;}else{p=0;w=1;} // Pt→Pn nast. tydzień
+684:+  } else {
+685:+    // Trasy co drugi dzień: +2 dni (stara logika)
+686:+    if(arr===0){p=2;w=0;}else if(arr===1){p=3;w=0;}else if(arr===2){p=4;w=0;}else if(arr===3){p=1;w=1;}else if(arr===4){p=0;w=1;}
+687:+  }
+695:+  document.getElementById('mComment').value='';
+696:+  document.getElementById('mUrgent').checked=false;
+702:+  lockScroll();
+705:+function closeAdd(){document.getElementById('addModal').style.display='none';unlockScroll();}
+710:+  const comment=document.getElementById('mComment').value;
+711:+  const isUrgent=document.getElementById('mUrgent').checked;
+720:+  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase(),addedBy:currentDriver?currentDriver.name:(isAdmin?'Admin':''),addedAt:new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),pickedBy:'',comment:comment,urgent:isUrgent,order:9999};
+729:+  }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : (isAdmin ? 'Admin' : ''), isUrgent, comment);
+737:+  // Meta info: kto przywiózł, kiedy, kto odebrał
+738:+  let metaParts=[];
+739:+  if(entry.addedBy) metaParts.push('<b>'+t('label_added_by')+':</b> '+esc(entry.addedBy));
+740:+  if(entry.addedAt) metaParts.push('<b>'+t('label_added_at')+':</b> '+esc(entry.addedAt));
+741:+  if(entry.pickedBy) metaParts.push('<b>'+t('label_picked_by')+':</b> '+esc(entry.pickedBy));
+742:+  if(entry.pickedAt) metaParts.push('<b>'+t('label_picked_at')+':</b> '+esc(entry.pickedAt));
+743:+  const metaEl=document.getElementById('eMetaInfo');
+744:+  if(metaParts.length>0){metaEl.innerHTML=metaParts.join('<br>');metaEl.style.display='block';}
+745:+  else{metaEl.style.display='none';}
+749:+  document.getElementById('eComment').value=entry.comment||'';
+750:+  document.getElementById('eUrgent').checked=entry.urgent||false;
+754:+  lockScroll();
+759:+  viewEntryId = entry.id;
+767:+
+768:+  // Pokaż kto przywiózł i kiedy wpisał
+769:+  const addedByRow=document.getElementById('veAddedByRow');
+770:+  const addedAtRow=document.getElementById('veAddedAtRow');
+771:+  const pickedByRow=document.getElementById('vePickedByRow');
+772:+  const addedByVal=entry.addedBy||'';
+773:+  const addedAtVal=entry.addedAt||'';
+774:+  const pickedByVal=entry.pickedBy||'';
+775:+  if(addedByVal){
+776:+    addedByRow.style.display='flex';
+777:+    document.getElementById('veAddedBy').textContent=addedByVal;
+778:+  } else { addedByRow.style.display='none'; }
+779:+  if(addedAtVal){
+780:+    addedAtRow.style.display='flex';
+781:+    document.getElementById('veAddedAt').textContent=addedAtVal;
+782:+  } else { addedAtRow.style.display='none'; }
+783:+  if(pickedByVal){
+784:+    pickedByRow.style.display='flex';
+785:+    document.getElementById('vePickedBy').textContent=pickedByVal;
+786:+  } else { pickedByRow.style.display='none'; }
+787:+  const pickedAtRow=document.getElementById('vePickedAtRow');
+788:+  const pickedAtVal=entry.pickedAt||'';
+789:+  if(pickedAtVal){
+790:+    pickedAtRow.style.display='flex';
+791:+    document.getElementById('vePickedAt').textContent=pickedAtVal;
+792:+  } else { pickedAtRow.style.display='none'; }
+793:+  
+794:+  const urgentRow = document.getElementById('veUrgentRow');
+795:+  urgentRow.style.display = entry.urgent ? 'flex' : 'none';
+796:+
+797:+  const commentRow = document.getElementById('veCommentRow');
+798:+  if (entry.comment) {
+799:+    commentRow.style.display = 'flex';
+800:+    document.getElementById('veComment').textContent = entry.comment;
+801:+  } else {
+802:+    commentRow.style.display = 'none';
+803:+  }
+804:+
+808:+// Zapamiętywanie wybranej paczki wpisów do komentarza
+809:+let pendingToggleEntries = null;
+810:+
+811:+function performToggle(displayEntries, commentText) {
+812:+  const allDone = displayEntries.every(function(e){return e.done;});
+813:+  // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
+814:+  displayEntries.forEach(function(de){
+815:+    const idx=entries.findIndex(function(en){return en.id===de.id;});
+816:+    if(idx!==-1){
+817:+      entries[idx].done=!allDone;
+818:+      entries[idx].pickedBy=(!allDone)?(currentDriver?currentDriver.name:''):'';
+819:+      entries[idx].pickedAt=(!allDone)?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+820:+      if (commentText !== undefined) entries[idx].comment = commentText;
+821:+    }
+822:+  });
+823:+  renderGrid();
+824:+  // Wyślij toggle dla każdego wpisu
+825:+  displayEntries.forEach(function(de){
+826:+    google.script.run.withFailureHandler(function(e){
+827:+      loadWeek(); // Przy błędzie przeładuj
+828:+    }).withSuccessHandler(function(res){
+829:+      if(res&&res.error) loadWeek();
+830:+    }).toggleDone(de.id, currentDriver ? currentDriver.name : '', commentText);
+831:+  });
+832:+}
+833:+
+834:+function cancelComment() {
+835:+  document.getElementById('commentModal').style.display = 'none';
+836:+  pendingToggleEntries = null;
+837:+}
+838:+
+839:+function confirmComment() {
+840:+  const commentText = document.getElementById('commentInput').value.trim();
+841:+  document.getElementById('commentModal').style.display = 'none';
+842:+  if (pendingToggleEntries) {
+843:+    performToggle(pendingToggleEntries, commentText);
+844:+    pendingToggleEntries = null;
+845:+  }
+846:+}
+847:+
+869:+    
+870:+    // Jeśli cofamy odbiór, zapytaj o komentarz
+871:+    if (allDone) {
+872:+      pendingToggleEntries = displayEntries;
+873:+      document.getElementById('commentInput').value = displayEntries[0].comment || '';
+874:+      document.getElementById('commentModal').style.display = 'flex';
+875:+    } else {
+876:+      performToggle(displayEntries);
+877:+    }
+885:+  lockScroll();
+888:+function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
+891:+function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
+897:+  const comment=document.getElementById('eComment').value;
+898:+  const isUrgent=document.getElementById('eUrgent').checked;
+904:+  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type,isUrgent,comment);
+907:+
+908:+function copyEntry(source) {
+909:+  let entry = null;
+910:+  if (source === 'edit' && editingId) {
+911:+    entry = entries.find(e => e.id === editingId);
+912:+    closeEdit();
+913:+  } else if (source === 'view' && viewEntryId) {
+914:+    entry = entries.find(e => e.id === viewEntryId);
+915:+    closeViewEntry();
+916:+  }
+917:+  if (!entry) return;
+918:+  // Open Add modal but prefilled
+919:+  openAdd(entry.arrDay, weekOffset);
+920:+  setTimeout(() => {
+921:+    document.getElementById('mClient').value = entry.client;
+922:+    document.getElementById('mWeight').value = entry.weight > 0 ? entry.weight : '';
+923:+    setSegmentedVal('mType', entry.type || 'P');
+924:+    document.getElementById('mPickWeek').value = (entry.weekKey !== entry.pickWeekKey) ? '1' : '0';
+925:+    document.getElementById('mPickDay').value = entry.pickDay;
+926:+    document.getElementById('mComment').value = entry.comment || '';
+927:+    document.getElementById('mUrgent').checked = entry.urgent || false;
+928:+  }, 50);
+929:+}
+930:+
+931:+let viewEntryId = null; // store current view id for copying
+932:+
+933:+function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+941:+        html+='<span class="edit-icon" style="margin-left:8px;color:var(--accent-blue)" onclick="openClientHistory('+jsArg(c.name)+')">Historia</span>';
+951:+function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
+952:+function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
+957:+function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
+958:+function closeRouteModal(){document.getElementById('routeModal').style.display='none';unlockScroll();}
+964:+function openNewClient(routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
+965:+function closeClientModal(){document.getElementById('clientModal').style.display='none';unlockScroll();}
+970:+function openClientHistory(clientName) {
+971:+  document.getElementById('chTitle').textContent = 'Historia: ' + clientName;
+972:+  document.getElementById('chContent').innerHTML = '<div class="loader">Ładowanie...</div>';
+973:+  document.getElementById('clientHistoryModal').style.display = 'flex';
+974:+  
+975:+  google.script.run.withSuccessHandler(function(allEntries) {
+976:+    const clientEntries = allEntries.filter(e => e.client === clientName && e.done);
+977:+    if(clientEntries.length === 0) {
+978:+      document.getElementById('chContent').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-tertiary)">Brak odebranych wpisów.</div>';
+979:+      return;
+980:+    }
+981:+    
+982:+    // Group by month
+983:+    const byMonth = {};
+984:+    clientEntries.forEach(e => {
+985:+      // Very basic extraction of MM.YYYY from pickedAt
+986:+      let mKey = 'Inne';
+987:+      if(e.pickedAt) {
+988:+        const parts = e.pickedAt.split(',')[0].split('.');
+989:+        if(parts.length === 3) mKey = parts[1] + '.' + parts[2];
+990:+      }
+991:+      if(!byMonth[mKey]) byMonth[mKey] = {count:0, kg:0};
+992:+      byMonth[mKey].count++;
+993:+      byMonth[mKey].kg += (e.weight || 0);
+994:+    });
+995:+    
+996:+    let html = '';
+997:+    Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(m => {
+998:+      let avg = byMonth[m].count > 0 ? (byMonth[m].kg / byMonth[m].count).toFixed(1) : 0;
+999:+      html += `
+1000:+        <div class="card" style="margin-bottom:12px">
+1001:+          <div style="font-weight:600;font-size:15px;margin-bottom:8px">${m}</div>
+1002:+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">
+1003:+            <span>Odbiorów: <strong style="color:var(--text-primary)">${byMonth[m].count}</strong></span>
+1004:+            <span>Suma: <strong style="color:var(--accent-blue)">${byMonth[m].kg.toFixed(1)} kg</strong></span>
+1005:+            <span>Średnio: <strong>${avg} kg</strong></span>
+1006:+          </div>
+1007:+        </div>
+1008:+      `;
+1009:+    });
+1010:+    document.getElementById('chContent').innerHTML = html;
+1011:+  }).getAllEntries();
+1012:+}
+1013:+
+1014:+function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';lockScroll();}
+1015:+function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
+1022:+    drivers=data.drivers||[];
+1023:+    if(currentDriver){var fresh=drivers.find(function(d){return d.id===currentDriver.id;});if(fresh)currentDriver=fresh;}

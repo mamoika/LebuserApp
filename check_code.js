@@ -219,7 +219,75 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function getGrafikDataForDate(dateStr) {
+  try {
+    // Lokalny arkusz "Grafik" ma priorytet, potem podłączony plik
+    const localSheet = SpreadsheetApp.getActive().getSheetByName('Grafik');
+    const sheet = localSheet || openGrafikSpreadsheet().sheet;
 
+    const parts = dateStr.split('-');
+    // dayNum = dzień miesiąca (1–31); grafik ma dni miesiąca w kolumnach zaczynając od 6-tej
+    const dayNum = parseInt(parts[2], 10);
+    // kolumna w arkuszu (1-bazowana): 1=nazwa, 2=imię, 3=opis, 4=startDef, 5=endDef, 6=dzień1, 7=dzień2, ...
+    const targetColIdx = 5 + dayNum; // 1-bazowany indeks kolumny → indeks tablicy: targetColIdx-1
+
+    const lastRow = Math.max(sheet.getLastRow(), 10);
+    const lastCol = Math.max(sheet.getLastColumn(), targetColIdx + 2);
+    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    const result = { date: dateStr, day: dayNum, zd1: [], zd2: [], kierowcy: [] };
+    let currentSection = '';
+
+    for (let i = 4; i < data.length; i++) {
+      // Sekcje mogą być w kolumnie A (scalone) lub B — sprawdzamy obie
+      const colA = String(data[i][0]).trim();
+      const colB = String(data[i][1]).trim();
+      const rowLabel = colB || colA;
+
+      if (!rowLabel) continue;
+
+      // Wykrywanie nagłówków sekcji
+      if (rowLabel.includes('ZD 1')) { currentSection = 'ZD 1'; continue; }
+      if (rowLabel.includes('ZD 2')) { currentSection = 'ZD 2'; continue; }
+      if (rowLabel.includes('KIEROWCY') || rowLabel.includes('FAHRER')) { currentSection = 'KIEROWCY'; continue; }
+      if (rowLabel.includes('Obecni') || rowLabel.includes('Anwesend') || rowLabel.includes('Godziny łącznie') || rowLabel.includes('Gesamtstunden')) break;
+
+      // Pracownicy mają imię w kolumnie B — pomiń wiersze bez imienia
+      if (!colB) continue;
+      const name = colB;
+
+      const defStart = data[i][3];
+      const defEnd = data[i][4];
+      const rawStatus = String(data[i][targetColIdx - 1]).trim();
+
+      // Normalizacja statusu: liczby (godziny pracy) traktujemy jako obecny (I)
+      let status = rawStatus;
+      if (rawStatus === '' || rawStatus === '0') {
+        status = 'W';
+      } else if (!isNaN(parseFloat(rawStatus.replace(',', '.')))) {
+        status = 'I'; // godziny pracy = obecny
+      }
+
+      let timeRange = '';
+      if (defStart && defEnd) {
+        const formatTime = (t) => {
+          if (t instanceof Date) return t.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+          const n = parseFloat(String(t));
+          if (!isNaN(n)) return String(Math.floor(n)).padStart(2, '0') + ':00';
+          return String(t);
+        };
+        timeRange = formatTime(defStart) + ' – ' + formatTime(defEnd);
+      }
+
+      const person = { name: name, status: status || 'W', defaultHours: timeRange };
+      if (currentSection === 'ZD 1') result.zd1.push(person);
+      else if (currentSection === 'ZD 2') result.zd2.push(person);
+      else if (currentSection === 'KIEROWCY') result.kierowcy.push(person);
+    }
+    return result;
+  } catch (e) {
+    return { error: 'Błąd połączenia. Upewnij się, że odpaliłeś funkcję TEST_ZgodyGoogle. Szczegóły: ' + e.message };
+  }
+}
 
 function initSheets() {
   const ss = SpreadsheetApp.getActive();
@@ -228,12 +296,12 @@ function initSheets() {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez', 'DataOdbioru', 'Komentarz', 'Pilne', 'SortOrder']);
+    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez', 'DataOdbioru', 'Komentarz', 'Pilne']);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 17).setFontWeight('bold');
+    sh.getRange(1, 1, 1, 16).setFontWeight('bold');
   } else {
     const maxCols = sh.getMaxColumns();
-    if (maxCols < 17) sh.insertColumnsAfter(maxCols, 17 - maxCols);
+    if (maxCols < 16) sh.insertColumnsAfter(maxCols, 16 - maxCols);
     if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Typ').setFontWeight('bold');
     if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('DodanePrzez').setFontWeight('bold');
     if (sh.getRange(1, 13).getValue() === '') sh.getRange(1, 13).setValue('OdebranePrzez').setFontWeight('bold');
@@ -1097,88 +1165,4 @@ function updateDriverRoutes(driverId, routesStr, adminToken) {
     }
   }
   return { error: 'Nie znaleziono kierowcy' };
-}
-
-function archiveOldData(adminToken) {
-  checkAuth(adminToken);
-  const ss = SpreadsheetApp.getActive();
-  const thresholdDate = new Date();
-  thresholdDate.setDate(thresholdDate.getDate() - 60);
-  
-  let archivedCount = 0;
-
-  // 1. Archiwizacja Harmonogramu
-  const sh = ss.getSheetByName(SHEET_NAME);
-  if (sh) {
-    let archSh = ss.getSheetByName(SHEET_NAME + '_Archiwum');
-    if (!archSh) archSh = ss.insertSheet(SHEET_NAME + '_Archiwum');
-    
-    const data = sh.getDataRange().getValues();
-    if (data.length > 1) {
-      if (archSh.getLastRow() === 0) archSh.appendRow(data[0]);
-      
-      let rowsToMove = [];
-      let rowIndicesToDelete = [];
-      
-      for (let i = 1; i < data.length; i++) {
-        const dateStr = data[i][1]; 
-        if (dateStr) {
-          const parts = String(dateStr).split('.');
-          if (parts.length === 3) {
-            const entryDate = new Date(parts[2], parts[1] - 1, parts[0]);
-            if (entryDate < thresholdDate) {
-              rowsToMove.push(data[i]);
-              rowIndicesToDelete.push(i + 1);
-            }
-          }
-        }
-      }
-      
-      if (rowsToMove.length > 0) {
-        archSh.getRange(archSh.getLastRow() + 1, 1, rowsToMove.length, rowsToMove[0].length).setValues(rowsToMove);
-        for (let i = rowIndicesToDelete.length - 1; i >= 0; i--) {
-          sh.deleteRow(rowIndicesToDelete[i]);
-        }
-        archivedCount += rowsToMove.length;
-      }
-    }
-  }
-
-  // 2. Archiwizacja Logów
-  const shLogs = ss.getSheetByName('Logi');
-  if (shLogs) {
-    let archLogs = ss.getSheetByName('Logi_Archiwum');
-    if (!archLogs) archLogs = ss.insertSheet('Logi_Archiwum');
-    
-    const data = shLogs.getDataRange().getValues();
-    if (data.length > 1) {
-      if (archLogs.getLastRow() === 0) archLogs.appendRow(data[0]);
-      
-      let rowsToMove = [];
-      let rowIndicesToDelete = [];
-      
-      for (let i = 1; i < data.length; i++) {
-        let entryDate = new Date(data[i][0]);
-        if (isNaN(entryDate.getTime())) {
-          const match = String(data[i][0]).match(/(\d{2})\.(\d{2})\.(\d{4})/);
-          if (match) entryDate = new Date(match[3], match[2] - 1, match[1]);
-        }
-        
-        if (!isNaN(entryDate.getTime()) && entryDate < thresholdDate) {
-          rowsToMove.push(data[i]);
-          rowIndicesToDelete.push(i + 1);
-        }
-      }
-      
-      if (rowsToMove.length > 0) {
-        archLogs.getRange(archLogs.getLastRow() + 1, 1, rowsToMove.length, rowsToMove[0].length).setValues(rowsToMove);
-        for (let i = rowIndicesToDelete.length - 1; i >= 0; i--) {
-          shLogs.deleteRow(rowIndicesToDelete[i]);
-        }
-      }
-    }
-  }
-
-  SpreadsheetApp.flush();
-  return { ok: true, count: archivedCount };
 }

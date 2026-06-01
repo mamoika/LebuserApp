@@ -1,0 +1,24 @@
+{
+  "name": "lebuser-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "check_code.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mamoika/LebuserApp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mamoika/LebuserApp/issues"
+  },
+  "homepage": "https://github.com/mamoika/LebuserApp#readme",
+  "dependencies": {
+    "acorn": "^8.16.0"
+  }
+}

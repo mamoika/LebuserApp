@@ -51,7 +51,7 @@
   <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
-  <button class="tab-btn admin-tab" id="btnViewStaff" onclick="switchView('staff')"><span class="tab-icon">👷</span><span data-t="nav_grafik">Grafik Załogi</span></button>
+
   <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">✏️</span><span data-t="nav_edytor">Edytor Grafiku</span></button>
   <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
   <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
@@ -225,14 +225,7 @@
   <div id="grafikEditorGrid"><div class="loader" data-t="grafik_choose_month_loader">Wybierz miesiąc i kliknij Załaduj</div></div>
 </div>
 
-<!-- ── STAFF VIEW (admin only) ── -->
-<div id="staffView" style="display:none">
-  <div class="date-row">
-    <label data-t="staff_preview_date">Data podglądu:</label>
-    <input type="date" id="staffDateInput" onchange="loadStaffData(this.value)">
-  </div>
-  <div id="staffContent"><div class="loader" data-t="staff_choose_date_loader">Wybierz datę…</div></div>
-</div>
+
 </main>
 
 <!-- ═══════════════ MODALS ═══════════════ -->
