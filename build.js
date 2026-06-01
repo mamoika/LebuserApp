@@ -18,8 +18,13 @@ try {
       console.log(`Including ${filename}...`);
       let content = fs.readFileSync(filePath, 'utf8');
       
-      // return the raw content, tags are handled in src/index.html
-      return content;
+      if (filename.endsWith('.css')) {
+        return `<style>\n${content}\n</style>`;
+      } else if (filename.endsWith('.js')) {
+        return `<script>\n${content}\n</script>`;
+      } else {
+        return content;
+      }
     } else {
       console.warn(`WARNING: Included file ${filename} not found!`);
       return match;
