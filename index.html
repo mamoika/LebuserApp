@@ -1711,7 +1711,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   color:#000;
   outline:none;
   box-shadow:0 0 0 0.5px rgba(0,0,0,0.08);
-  transition:box-shadow:0.2s;
+  transition:box-shadow 0.2s;
   -webkit-appearance:none;
   appearance:none;
   margin-bottom:8px;
@@ -3497,7 +3497,10 @@ const TRANSLATIONS = {
   }
 };
 
-let currentLang=localStorage.getItem('lebuserLang')||'PL';
+let currentLang = 'PL';
+try {
+  currentLang = localStorage.getItem('lebuserLang') || 'PL';
+} catch(e) {}
 function t(key){
   return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || (TRANSLATIONS['PL'][key]) || key;
 }
@@ -3522,14 +3525,22 @@ let myMap=null,myTileLayer=null,baseMarker=null,mapLayers={},hiddenRoutes=new Se
 const D_BASE_LAT=52.7229319,D_BASE_LNG=15.2520164;
 const ROUTE_COLORS={1:'#007AFF',2:'#FF9500',3:'#AF52DE',4:'#FF3B30',5:'#32ADE6',6:'#34C759',7:'#5856D6',8:'#c49500',9:'#FF453A',10:'#636366'};
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-  if (myMap && myTileLayer) {
-    const tileUrl = e.matches 
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    myTileLayer.setUrl(tileUrl);
+try {
+  const mql = window.matchMedia('(prefers-color-scheme: dark)');
+  const handler = function(e) {
+    if (myMap && myTileLayer) {
+      const tileUrl = e.matches 
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      myTileLayer.setUrl(tileUrl);
+    }
+  };
+  if (mql.addEventListener) {
+    mql.addEventListener('change', handler);
+  } else if (mql.addListener) {
+    mql.addListener(handler);
   }
-});
+} catch(e) {}
 
 // ── ADMIN SESSION ──────────────────────────────────────────────
 let isAdmin = false;
