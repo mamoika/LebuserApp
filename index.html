@@ -6,7 +6,7 @@
 <title>LEBUSER Textilservice Sp. z o.o. – Harmonogram</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" onerror="console.error('Nie można załadować SortableJS');"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -4301,7 +4301,11 @@ function filterSchedule() {
 function loadWeek(){
   document.getElementById('grid1').innerHTML='<div class="loader">'+t('loading')+'</div>';
   document.getElementById('grid2').innerHTML='';
-  google.script.run.withFailureHandler(function(err){alert(t('error_label') + ': '+(err&&err.message?err.message:'Nieznany błąd'));}).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
+  google.script.run.withFailureHandler(function(err){
+    const msg = t('error_label') + ': '+(err&&err.message?err.message:'Nieznany błąd');
+    const loader = document.querySelector('#grid1 .loader');
+    if(loader) { loader.textContent = msg; loader.style.color = 'red'; } else alert(msg);
+  }).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
 }
 
 function renderGrid(){
@@ -4316,6 +4320,10 @@ function renderGrid(){
 
 function initSortables() {
   if (!isAdmin) return;
+  if (typeof Sortable === 'undefined') {
+    console.warn("SortableJS is not loaded.");
+    return;
+  }
   document.querySelectorAll('.sortable-arr, .sortable-pick').forEach(el => {
     new Sortable(el, {
       group: 'entries',
