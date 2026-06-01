@@ -2346,7 +2346,6 @@ const STATION_ORDER = ['T','S','M','R','PR','P','SZ','PP','SP','O','PK','SC','K'
 
 let tlData = null;        // loaded week data
 let tlActiveDayIdx = 0;   // currently displayed day
-let tlPendingCell = null; // {empIdx, dayIdx, hour}
 
 function initTimelineView() {
   refreshTimelineSheets(true);
@@ -2524,7 +2523,6 @@ function renderTlStats() {
 //  GRAFIK EDITOR
 // ══════════════════════════════════════════════════════
 let grafikData = null;
-let pendingCell = null; // {empIdx, day}
 
 const GRAFIK_GROUP_COLORS = {
   'ZD 1':'#2e7d32','ZD 2':'#c62828',

@@ -1144,13 +1144,18 @@ function archiveOldData(adminToken) {
       for (let i = 1; i < data.length; i++) {
         const dateStr = data[i][1]; 
         if (dateStr) {
-          const parts = String(dateStr).split('.');
-          if (parts.length === 3) {
-            const entryDate = new Date(parts[2], parts[1] - 1, parts[0]);
-            if (entryDate < thresholdDate) {
-              rowsToMove.push(data[i]);
-              rowIndicesToDelete.push(i + 1);
-            }
+          const ds = String(dateStr);
+          let entryDate = null;
+          if (ds.includes('-')) {
+            const parts = ds.split('-');
+            if (parts.length === 3) entryDate = new Date(parts[0], parts[1] - 1, parts[2]);
+          } else if (ds.includes('.')) {
+            const parts = ds.split('.');
+            if (parts.length === 3) entryDate = new Date(parts[2], parts[1] - 1, parts[0]);
+          }
+          if (entryDate && entryDate < thresholdDate) {
+            rowsToMove.push(data[i]);
+            rowIndicesToDelete.push(i + 1);
           }
         }
       }
