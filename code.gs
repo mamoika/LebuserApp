@@ -1171,7 +1171,7 @@ function archiveOldData(adminToken) {
   checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const thresholdDate = new Date();
-  thresholdDate.setDate(thresholdDate.getDate() - 30);
+  thresholdDate.setDate(thresholdDate.getDate() - 60);
   
   let archivedCount = 0;
 

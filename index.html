@@ -2512,9 +2512,14 @@ select.ap-input {
 
 <!-- ── LOGS VIEW ── -->
 <div id="logsView" style="display:none; padding:16px; overflow-x:auto;">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-    <h2 style="margin:0;">Logi Systemowe</h2>
-    <button class="primary" onclick="triggerArchive()" style="padding:8px 16px;">🗃️ Archiwizuj stare dane (30 dni)</button>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+    <div>
+      <h2 style="margin:0;">Logi Systemowe</h2>
+      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px; max-width:400px;">
+        ⚠️ <strong>Uwaga:</strong> Przed uruchomieniem archiwizacji, zalecamy ręczne utworzenie kopii zapasowej arkusza Google (Plik -> Utwórz kopię).
+      </p>
+    </div>
+    <button class="primary" onclick="triggerArchive()" style="padding:8px 16px;">🗃️ Archiwizuj stare dane (60 dni)</button>
   </div>
   <div id="logsContent" class="loader" data-t="loading">Ładowanie logów…</div>
 </div>
@@ -5670,7 +5675,7 @@ function triggerArchive() {
     toast('Brak uprawnień');
     return;
   }
-  const confirmMsg = currentLang === 'DE' ? 'Daten älter als 30 Tage wirklich archivieren?' : (currentLang === 'UA' ? 'Архівувати дані старіші за 30 днів?' : 'Czy na pewno zarchiwizować dane starsze niż 30 dni? Zostaną przeniesione do zakładek Archiwum.');
+  const confirmMsg = currentLang === 'DE' ? 'Daten älter als 60 Tage wirklich archivieren?' : (currentLang === 'UA' ? 'Архівувати дані старіші за 60 днів?' : 'Czy na pewno zarchiwizować dane starsze niż 60 dni? Zostaną przeniesione do zakładek Archiwum.');
   if (!confirm(confirmMsg)) return;
 
   const btn = document.querySelector('#logsView button.primary');

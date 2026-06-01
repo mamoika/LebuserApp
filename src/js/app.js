@@ -2636,7 +2636,7 @@ function triggerArchive() {
     toast('Brak uprawnień');
     return;
   }
-  const confirmMsg = currentLang === 'DE' ? 'Daten älter als 30 Tage wirklich archivieren?' : (currentLang === 'UA' ? 'Архівувати дані старіші за 30 днів?' : 'Czy na pewno zarchiwizować dane starsze niż 30 dni? Zostaną przeniesione do zakładek Archiwum.');
+  const confirmMsg = currentLang === 'DE' ? 'Daten älter als 60 Tage wirklich archivieren?' : (currentLang === 'UA' ? 'Архівувати дані старіші за 60 днів?' : 'Czy na pewno zarchiwizować dane starsze niż 60 dni? Zostaną przeniesione do zakładek Archiwum.');
   if (!confirm(confirmMsg)) return;
 
   const btn = document.querySelector('#logsView button.primary');
