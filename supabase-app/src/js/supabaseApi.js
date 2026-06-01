@@ -5,7 +5,7 @@ function checkAuth(token) {
 }
 
 export const api = {
-  loadInitialData: async () => {
+  getAppData: async () => {
     const [{data: clients}, {data: routes}, {data: drivers}] = await Promise.all([
       supabase.from('clients').select('*').order('sort_order'),
       supabase.from('routes').select('*').order('id'),
