@@ -4222,37 +4222,33 @@ function renderReports(entries) {
   const dayNames = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
   let maxDayKg = Math.max(...Object.values(dayStats), 1);
 
-  let html = `
-    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-blue)">${totalKg.toFixed(1)}</div><div style="font-size:12px;color:var(--text-tertiary)">Zabrane Kg</div></div>
-      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-green)">${completed.length}</div><div style="font-size:12px;color:var(--text-tertiary)">Odebrane wpisy</div></div>
-      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-orange)">${clientsSet.size}</div><div style="font-size:12px;color:var(--text-tertiary)">Obsłużeni klienci</div></div>
-    </div>
-    
-    <div class="sec-label">Obciążenie w tygodniu (Kg)</div>
-    <div class="card" style="margin-bottom:24px">
-      ${[1,2,3,4,5,6,0].map(d => `
-        <div style="display:flex;align-items:center;margin-bottom:8px">
-          <div style="width:100px;font-size:12px;color:var(--text-secondary)">${dayNames[d]}</div>
-          <div style="flex:1;height:12px;background:var(--bg-secondary);border-radius:6px;overflow:hidden">
-            <div style="width:${(dayStats[d]/maxDayKg)*100}%;height:100%;background:var(--accent-blue)"></div>
-          </div>
-          <div style="width:60px;text-align:right;font-size:12px;font-weight:600">${dayStats[d].toFixed(0)}</div>
-        </div>
-      `).join('')}
-    </div>
-
-    <div class="sec-label">Statystyki kierowców</div>
-    <div class="card">
-      ${Object.keys(driverStats).length === 0 ? '<div style="color:var(--text-tertiary);font-size:13px">Brak danych kierowców</div>' : ''}
-      ${Object.keys(driverStats).sort((a,b)=>driverStats[b].kg-driverStats[a].kg).map(drv => `
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-weight:600;font-size:14px">${esc(drv)}</div>
-          <div style="font-size:13px"><span style="color:var(--accent-green)">${driverStats[drv].count}</span> odbiorów, <span style="font-weight:600">${driverStats[drv].kg.toFixed(1)}kg</span></div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  var html = '<div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">' +
+    '<div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-blue)">' + totalKg.toFixed(1) + '</div><div style="font-size:12px;color:var(--text-tertiary)">Zabrane Kg</div></div>' +
+    '<div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-green)">' + completed.length + '</div><div style="font-size:12px;color:var(--text-tertiary)">Odebrane wpisy</div></div>' +
+    '<div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-orange)">' + clientsSet.size + '</div><div style="font-size:12px;color:var(--text-tertiary)">Obsłużeni klienci</div></div>' +
+    '</div>' +
+    '<div class="sec-label">Obciążenie w tygodniu (Kg)</div>' +
+    '<div class="card" style="margin-bottom:24px">' +
+      [1,2,3,4,5,6,0].map(function(d) { return '' +
+        '<div style="display:flex;align-items:center;margin-bottom:8px">' +
+          '<div style="width:100px;font-size:12px;color:var(--text-secondary)">' + dayNames[d] + '</div>' +
+          '<div style="flex:1;height:12px;background:var(--bg-secondary);border-radius:6px;overflow:hidden">' +
+            '<div style="width:' + ((dayStats[d]/maxDayKg)*100) + '%;height:100%;background:var(--accent-blue)"></div>' +
+          '</div>' +
+          '<div style="width:60px;text-align:right;font-size:12px;font-weight:600">' + dayStats[d].toFixed(0) + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+    '<div class="sec-label">Statystyki kierowców</div>' +
+    '<div class="card">' +
+      (Object.keys(driverStats).length === 0 ? '<div style="color:var(--text-tertiary);font-size:13px">Brak danych kierowców</div>' : '') +
+      Object.keys(driverStats).sort(function(a,b){return driverStats[b].kg-driverStats[a].kg;}).map(function(drv) { return '' +
+        '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<div style="font-weight:600;font-size:14px">' + esc(drv) + '</div>' +
+          '<div style="font-size:13px"><span style="color:var(--accent-green)">' + driverStats[drv].count + '</span> odbiorów, <span style="font-weight:600">' + driverStats[drv].kg.toFixed(1) + 'kg</span></div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
   document.getElementById('reportsContent').innerHTML = html;
 }
 
@@ -4261,21 +4257,20 @@ function loadLogs() {
   google.script.run.withFailureHandler(function(e){
     document.getElementById('logsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
   }).withSuccessHandler(function(logs) {
-    let html = `
-      <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--bg-card);border-radius:12px;overflow:hidden">
-        <tr style="background:var(--bg-secondary);text-align:left">
-          <th style="padding:10px">Data</th><th style="padding:10px">Kto</th><th style="padding:10px">Akcja</th><th style="padding:10px">ID/Szczegóły</th>
-        </tr>
-        ${logs.map(l => `
-          <tr style="border-top:1px solid var(--border)">
-            <td style="padding:8px 10px;white-space:nowrap;color:var(--text-secondary)">${esc(l.date)}</td>
-            <td style="padding:8px 10px;font-weight:600">${esc(l.user)}</td>
-            <td style="padding:8px 10px;color:var(--accent-blue)">${esc(l.action)}</td>
-            <td style="padding:8px 10px">${esc(l.target)} ${esc(l.details)}</td>
-          </tr>
-        `).join('')}
-      </table>
-    `;
+    var html = '' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--bg-card);border-radius:12px;overflow:hidden">' +
+        '<tr style="background:var(--bg-secondary);text-align:left">' +
+          '<th style="padding:10px">Data</th><th style="padding:10px">Kto</th><th style="padding:10px">Akcja</th><th style="padding:10px">ID/Szczegóły</th>' +
+        '</tr>' +
+        logs.map(function(l) { return '' +
+          '<tr style="border-top:1px solid var(--border)">' +
+            '<td style="padding:8px 10px;white-space:nowrap;color:var(--text-secondary)">' + esc(l.date) + '</td>' +
+            '<td style="padding:8px 10px;font-weight:600">' + esc(l.user) + '</td>' +
+            '<td style="padding:8px 10px;color:var(--accent-blue)">' + esc(l.action) + '</td>' +
+            '<td style="padding:8px 10px">' + esc(l.target) + ' ' + esc(l.details) + '</td>' +
+          '</tr>';
+        }).join('') +
+      '</table>';
     document.getElementById('logsContent').innerHTML = html;
   }).getLogs();
 }
@@ -4932,16 +4927,15 @@ function openClientHistory(clientName) {
     let html = '';
     Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(m => {
       let avg = byMonth[m].count > 0 ? (byMonth[m].kg / byMonth[m].count).toFixed(1) : 0;
-      html += `
-        <div class="card" style="margin-bottom:12px">
-          <div style="font-weight:600;font-size:15px;margin-bottom:8px">${m}</div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">
-            <span>Odbiorów: <strong style="color:var(--text-primary)">${byMonth[m].count}</strong></span>
-            <span>Suma: <strong style="color:var(--accent-blue)">${byMonth[m].kg.toFixed(1)} kg</strong></span>
-            <span>Średnio: <strong>${avg} kg</strong></span>
-          </div>
-        </div>
-      `;
+      html += '' +
+        '<div class="card" style="margin-bottom:12px">' +
+          '<div style="font-weight:600;font-size:15px;margin-bottom:8px">' + m + '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">' +
+            '<span>Odbiorów: <strong style="color:var(--text-primary)">' + byMonth[m].count + '</strong></span>' +
+            '<span>Suma: <strong style="color:var(--accent-blue)">' + byMonth[m].kg.toFixed(1) + ' kg</strong></span>' +
+            '<span>Średnio: <strong>' + avg + ' kg</strong></span>' +
+          '</div>' +
+        '</div>';
     });
     document.getElementById('chContent').innerHTML = html;
   }).getAllEntries();
