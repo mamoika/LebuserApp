@@ -2513,8 +2513,6 @@ function renderTlStats() {
   document.getElementById('tlStatsTable').innerHTML = html;
 }
 
-});
-
 // ══════════════════════════════════════════════════════
 //  GRAFIK EDITOR
 // ══════════════════════════════════════════════════════
