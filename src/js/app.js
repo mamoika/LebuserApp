@@ -690,7 +690,10 @@ function driverInitials(name) {
   return (name||'').split(/\s+/).map(n=>n[0]||'').slice(0,2).join('').toUpperCase() || '?';
 }
 
-function openDriverSelect() {
+let postLoginCallback = null;
+
+function openDriverSelect(callback = null) {
+  postLoginCallback = callback;
   const container = document.getElementById('driverButtonsContainer');
   const actions   = document.getElementById('driverSelectActions');
   container.innerHTML = '';
@@ -797,6 +800,13 @@ function selectDriver(id) {
   document.getElementById('driverSelectModal').style.display = 'none';
   unlockScroll();
   applyDriverState();
+  if (currentDriver && postLoginCallback) {
+    const cb = postLoginCallback;
+    postLoginCallback = null;
+    cb();
+  } else {
+    postLoginCallback = null;
+  }
 }
 
 function applyDriverState() {
@@ -1473,7 +1483,7 @@ function setSegmentedVal(pfx, val){
 function openAdd(dayIdx,offset){
   if (!isAdmin && !currentDriver) {
     toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca, aby dodać zamówienie'));
-    openDriverSelect();
+    openDriverSelect(() => openAdd(dayIdx, offset));
     return;
   }
   pendingTargetOffset=offset;
@@ -1703,7 +1713,7 @@ function performToggle(displayEntries, commentText) {
   tBtn.onclick=function(){
     if (!isAdmin && !currentDriver) {
       toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca'));
-      openDriverSelect();
+      openDriverSelect(() => tBtn.onclick());
       return;
     }
     closeViewEntry();
