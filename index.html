@@ -3021,6 +3021,21 @@ select.ap-input {
 <div class="toast" id="toast"></div>
 
 <script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  const errText = 'CRITICAL ERROR: ' + msg + ' at line ' + lineNo + ':' + columnNo;
+  const loader = document.querySelector('.loader');
+  if (loader) {
+    loader.textContent = errText;
+    loader.style.color = 'red';
+    loader.style.background = 'white';
+    loader.style.padding = '10px';
+    loader.style.border = '2px solid red';
+  } else {
+    document.body.innerHTML = '<div style="color:red;padding:20px;">' + errText + '</div>';
+  }
+  return false;
+};
+
 const TRANSLATIONS = {
   PL: {
     app_title: "Harmonogram",
@@ -5612,14 +5627,25 @@ document.addEventListener('keydown',function(e){
 
 // ══════════════════════════════════════════════════════
 
-// ── START ──
-google.script.run
-  .withFailureHandler(function(err){
-    const alertMsg = currentLang === 'DE' ? 'Fehler: Führen Sie die Funktion TEST_ZgodyGoogle im Editor aus! ' : (currentLang === 'UA' ? 'Помилка: Запустіть функцію TEST_ZgodyGoogle в редакторі! ' : 'Błąd: Uruchom funkcję TEST_ZgodyGoogle w edytorze! ');
-    alert(alertMsg + translateError(err.message));
-  })
-  .withSuccessHandler(function(data){
-    clients=data.clients||[];
+  // ── START ──
+  console.log("App initialization started...");
+  try {
+    google.script.run
+      .withFailureHandler(function(err){
+        const alertMsg = currentLang === 'DE' ? 'Fehler: Führen Sie die Funktion TEST_ZgodyGoogle im Editor aus! ' : (currentLang === 'UA' ? 'Помилка: Запустіть функцію TEST_ZgodyGoogle в редакторі! ' : 'Błąd: Uruchom funkcję TEST_ZgodyGoogle w edytorze! ');
+        const fullMsg = alertMsg + translateError(err ? err.message : 'Unknown');
+        const loader = document.querySelector('.loader');
+        if (loader) { loader.textContent = fullMsg; loader.style.color = 'red'; }
+        else alert(fullMsg);
+      })
+      .withSuccessHandler(function(data){
+        console.log("getAppData success", data);
+        if (!data) {
+          const loader = document.querySelector('.loader');
+          if (loader) { loader.textContent = "Błąd: data is null"; loader.style.color = 'red'; }
+          return;
+        }
+        clients=data.clients||[];
     drivers=data.drivers||[];
     // Wczytaj kierowcę z localStorage i zwaliduj czy nadal istnieje w bazie
     try {
@@ -5642,11 +5668,21 @@ google.script.run
     // Sprawdź sesję admin z localStorage
     const expires = checkAdminSession();
     applyAdminState(expires);
-    setLanguage(currentLang);
+    try {
+      setLanguage(currentLang);
+    } catch(e) {
+      console.error("setLanguage error", e);
+      const loader = document.querySelector('.loader');
+      if (loader) { loader.textContent = "Błąd: " + e.message; loader.style.color = 'red'; }
+    }
     if(!clients||!clients.length||!rts.length){
       google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': '+translateError(e.message))}).withSuccessHandler(function(){loadAppData(function(){switchView('main');});}).initSheets();
     }else{updateRouteDropdowns();switchView('main');}
   }).getAppData();
+  } catch(e) {
+    const loader = document.querySelector('.loader');
+    if (loader) { loader.textContent = "Błąd startu: " + e.message; loader.style.color = 'red'; }
+  }
 </script>
 </body>
 </html>
