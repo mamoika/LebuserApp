@@ -296,12 +296,12 @@ function initSheets() {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez', 'DataOdbioru', 'Komentarz', 'Pilne']);
+    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez', 'DataOdbioru', 'Komentarz', 'Pilne', 'SortOrder']);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 16).setFontWeight('bold');
+    sh.getRange(1, 1, 1, 17).setFontWeight('bold');
   } else {
     const maxCols = sh.getMaxColumns();
-    if (maxCols < 16) sh.insertColumnsAfter(maxCols, 16 - maxCols);
+    if (maxCols < 17) sh.insertColumnsAfter(maxCols, 17 - maxCols);
     if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Typ').setFontWeight('bold');
     if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('DodanePrzez').setFontWeight('bold');
     if (sh.getRange(1, 13).getValue() === '') sh.getRange(1, 13).setValue('OdebranePrzez').setFontWeight('bold');
