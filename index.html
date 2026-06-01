@@ -2650,20 +2650,6 @@ select.ap-input {
 
 <!-- ═══════════════ MODALS ═══════════════ -->
 
-<!-- COMMENT MODAL -->
-  <div class="overlay" id="commentModal" style="display:none">
-    <div class="ap-sheet">
-      <div class="modal-header">Dodaj komentarz do anulowania</div>
-      <div class="ap-sheet-content">
-        <input type="text" id="commentInput" class="ap-input" placeholder="Powód (np. brak paczek)...">
-        <div class="ap-btn-group" style="margin-top:16px">
-          <button class="ap-btn ap-btn-primary" onclick="confirmComment()">Potwierdź</button>
-          <button class="ap-btn ap-btn-secondary" onclick="cancelComment()">Wróć bez zmian</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- CLIENT HISTORY MODAL -->
   <div class="overlay" id="clientHistoryModal" style="display:none;z-index:9999">
     <div class="ap-sheet" style="max-height:80vh;display:flex;flex-direction:column">
@@ -2883,21 +2869,6 @@ select.ap-input {
     </div>
     <div class="modal-btns" style="margin-top:10px">
       <button onclick="closeViewEntry()" style="flex:1" class="ap-btn ap-btn-outline" data-t="btn_close">Zamknij</button>
-    </div>
-  </div>
-</div>
-
-<!-- Comment modal (przy cofaniu odbioru) -->
-<div class="overlay" id="commentModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h3>Dlaczego cofasz odbiór?</h3>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Opcjonalnie wpisz powód — będzie widoczny w szczegółach zamówienia.</p>
-    <label>Komentarz (opcjonalnie)</label>
-    <input type="text" id="commentInput" placeholder="np. klient nieobecny, brakuje towaru..." style="margin-bottom:4px">
-    <div class="modal-btns" style="margin-top:16px">
-      <button onclick="cancelComment()" data-t="btn_cancel">Anuluj</button>
-      <button class="primary" onclick="confirmComment()">Cofnij odbiór</button>
     </div>
   </div>
 </div>
@@ -4683,20 +4654,6 @@ function performToggle(displayEntries, commentText) {
   });
 }
 
-function cancelComment() {
-  document.getElementById('commentModal').style.display = 'none';
-  pendingToggleEntries = null;
-}
-
-function confirmComment() {
-  const commentText = document.getElementById('commentInput').value.trim();
-  document.getElementById('commentModal').style.display = 'none';
-  if (pendingToggleEntries) {
-    performToggle(pendingToggleEntries, commentText);
-    pendingToggleEntries = null;
-  }
-}
-
   tBtn.onclick=function(){
     if (!isAdmin && !currentDriver) {
       toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca'));
@@ -4705,14 +4662,8 @@ function confirmComment() {
     }
     closeViewEntry();
     
-    // Jeśli cofamy odbiór, zapytaj o komentarz
-    if (allDone) {
-      pendingToggleEntries = displayEntries;
-      document.getElementById('commentInput').value = displayEntries[0].comment || '';
-      document.getElementById('commentModal').style.display = 'flex';
-    } else {
-      performToggle(displayEntries);
-    }
+    // Zmieniamy status natychmiast (komentarz w logach będzie pusty, ale akcja "Cofnięcie odbioru" zostanie zapisana)
+    performToggle(displayEntries);
   };
 
   // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
