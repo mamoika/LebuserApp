@@ -53,7 +53,6 @@
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
 
   <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
-  <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
   <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
 </div>
 
@@ -181,24 +180,9 @@
   </div>
 </div>
 
-<!-- ── TIMELINE EDITOR VIEW (admin only) ── -->
-<div id="timelineView" style="display:none">
-  <div class="tl-nav">
-    <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
-      <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
-    </select>
-    <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
-  </div>
-  <div class="tl-day-tabs" id="tlDayTabs"></div>
-  <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
-  <div id="tlStats" class="tl-stats" style="display:none">
-    <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
-    <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
-  </div>
-</div>
-
-<!-- ── GRAFIK EDITOR VIEW (admin only) ── -->
+<!-- ── GRAFIK & TIMELINE VIEW (admin only) ── -->
 <div id="grafikEditorView" style="display:none">
+  <!-- Grafik Section -->
   <div class="grafik-nav">
     <button class="week-nav-btn" onclick="changeGrafikMonth(-1)">‹</button>
     <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
@@ -217,6 +201,23 @@
   </div>
   <div id="grafikStats" class="grafik-stats" style="display:none"></div>
   <div id="grafikEditorGrid"><div class="loader" data-t="grafik_choose_month_loader">Wybierz miesiąc i kliknij Załaduj</div></div>
+
+  <!-- Timeline Section -->
+  <div id="timelineSection" style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border);">
+    <h3 style="margin-bottom:12px; font-size:14px; color:var(--text-primary);" data-t="nav_timeline">Oś Czasu</h3>
+    <div class="tl-nav">
+      <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
+        <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
+      </select>
+      <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
+    </div>
+    <div class="tl-day-tabs" id="tlDayTabs"></div>
+    <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
+    <div id="tlStats" class="tl-stats" style="display:none">
+      <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
+      <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
+    </div>
+  </div>
 </div>
 
 

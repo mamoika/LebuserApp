@@ -2601,7 +2601,6 @@ select.ap-input {
   <button class="tab-btn admin-tab" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
 
   <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">📅</span><span data-t="nav_edytor">Grafik</span></button>
-  <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
   <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
 </div>
 
@@ -2729,24 +2728,9 @@ select.ap-input {
   </div>
 </div>
 
-<!-- ── TIMELINE EDITOR VIEW (admin only) ── -->
-<div id="timelineView" style="display:none">
-  <div class="tl-nav">
-    <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
-      <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
-    </select>
-    <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
-  </div>
-  <div class="tl-day-tabs" id="tlDayTabs"></div>
-  <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
-  <div id="tlStats" class="tl-stats" style="display:none">
-    <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
-    <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
-  </div>
-</div>
-
-<!-- ── GRAFIK EDITOR VIEW (admin only) ── -->
+<!-- ── GRAFIK & TIMELINE VIEW (admin only) ── -->
 <div id="grafikEditorView" style="display:none">
+  <!-- Grafik Section -->
   <div class="grafik-nav">
     <button class="week-nav-btn" onclick="changeGrafikMonth(-1)">‹</button>
     <input type="month" id="grafikYMInput" onchange="loadGrafikMonth()">
@@ -2765,6 +2749,23 @@ select.ap-input {
   </div>
   <div id="grafikStats" class="grafik-stats" style="display:none"></div>
   <div id="grafikEditorGrid"><div class="loader" data-t="grafik_choose_month_loader">Wybierz miesiąc i kliknij Załaduj</div></div>
+
+  <!-- Timeline Section -->
+  <div id="timelineSection" style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border);">
+    <h3 style="margin-bottom:12px; font-size:14px; color:var(--text-primary);" data-t="nav_timeline">Oś Czasu</h3>
+    <div class="tl-nav">
+      <select id="tlSheetSelect" class="tl-select" onchange="loadTimelineData()">
+        <option value="" data-t="tl_select_week">— wybierz tydzień —</option>
+      </select>
+      <button class="tl-load-btn" onclick="refreshTimelineSheets()">🔄 <span data-t="tl_refresh">Odśwież listę</span></button>
+    </div>
+    <div class="tl-day-tabs" id="tlDayTabs"></div>
+    <div id="tlGridContainer"><div class="loader" data-t="tl_choose_week_loader">Wybierz tydzień z listy</div></div>
+    <div id="tlStats" class="tl-stats" style="display:none">
+      <div class="tl-stats-header"><span data-t="tl_stats_title">📊 Statystyki dnia</span> — <span id="tlStatsDayLabel"></span></div>
+      <div style="overflow-x:auto"><table class="tl-stats-table" id="tlStatsTable"></table></div>
+    </div>
+  </div>
 </div>
 
 
@@ -4227,13 +4228,13 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
-  if(['grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
+  if(['grafikEditor','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
   }
 
-  const views=['main','history','clients','map','help','grafikEditor','timeline','reports','logs'];
-  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
+  const views=['main','history','clients','map','help','grafikEditor','reports','logs'];
+  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
     const idMap={main:'mainView',history:'histView'};
     const el=document.getElementById(idMap[x]||x+'View');
@@ -4246,20 +4247,19 @@ function switchView(v){
   const titleMap={
     main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
     map:'nav_mapa', help:'nav_help',
-    grafikEditor:'nav_edytor', timeline:'nav_timeline', reports:'nav_raporty', logs:'nav_logi'
+    grafikEditor:'nav_edytor', reports:'nav_raporty', logs:'nav_logi'
   };
   const titleEl=document.querySelector('.app-title');
   if(titleEl && titleMap[v]) titleEl.textContent=t(titleMap[v]);
 
   // Panel pliku grafiku — widoczny tylko w zakładkach grafiku
-  showGrafikFilePanel(v === 'grafikEditor' || v === 'timeline');
+  showGrafikFilePanel(v === 'grafikEditor');
 
   if(v==='main')loadWeek();
   else if(v==='history')loadHistory();
   else if(v==='map')initMap();
   else if(v==='clients')renderClientsList();
-  else if(v==='grafikEditor')initGrafikEditor();
-  else if(v==='timeline')initTimelineView();
+  else if(v==='grafikEditor') { initGrafikEditor(); initTimelineView(); }
   else if(v==='reports')loadReports();
   else if(v==='logs')loadLogs();
   else if(v==='help')renderHelp();

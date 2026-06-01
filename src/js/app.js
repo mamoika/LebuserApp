@@ -1091,13 +1091,13 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
-  if(['grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
+  if(['grafikEditor','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora'));
     v='main';
   }
 
-  const views=['main','history','clients','map','help','grafikEditor','timeline','reports','logs'];
-  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
+  const views=['main','history','clients','map','help','grafikEditor','reports','logs'];
+  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',grafikEditor:'btnViewGrafikEditor',reports:'btnViewReports',logs:'btnViewLogs'};
   views.forEach(function(x){
     const idMap={main:'mainView',history:'histView'};
     const el=document.getElementById(idMap[x]||x+'View');
@@ -1110,20 +1110,19 @@ function switchView(v){
   const titleMap={
     main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
     map:'nav_mapa', help:'nav_help',
-    grafikEditor:'nav_edytor', timeline:'nav_timeline', reports:'nav_raporty', logs:'nav_logi'
+    grafikEditor:'nav_edytor', reports:'nav_raporty', logs:'nav_logi'
   };
   const titleEl=document.querySelector('.app-title');
   if(titleEl && titleMap[v]) titleEl.textContent=t(titleMap[v]);
 
   // Panel pliku grafiku — widoczny tylko w zakładkach grafiku
-  showGrafikFilePanel(v === 'grafikEditor' || v === 'timeline');
+  showGrafikFilePanel(v === 'grafikEditor');
 
   if(v==='main')loadWeek();
   else if(v==='history')loadHistory();
   else if(v==='map')initMap();
   else if(v==='clients')renderClientsList();
-  else if(v==='grafikEditor')initGrafikEditor();
-  else if(v==='timeline')initTimelineView();
+  else if(v==='grafikEditor') { initGrafikEditor(); initTimelineView(); }
   else if(v==='reports')loadReports();
   else if(v==='logs')loadLogs();
   else if(v==='help')renderHelp();
