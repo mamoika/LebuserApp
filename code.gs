@@ -296,15 +296,27 @@ function initSheets() {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez']);
+    sh.appendRow(['ID', 'WeekKey', 'Klient', 'DzienPrzyjazdu', 'DzienOdbioru', 'Odebrane', 'DataDodania', 'PickWeekKey', 'Waga', 'Trasa', 'Typ', 'DodanePrzez', 'OdebranePrzez', 'DataOdbioru', 'Komentarz', 'Pilne']);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 13).setFontWeight('bold');
+    sh.getRange(1, 1, 1, 16).setFontWeight('bold');
   } else {
     const maxCols = sh.getMaxColumns();
-    if (maxCols < 13) sh.insertColumnsAfter(maxCols, 13 - maxCols);
+    if (maxCols < 16) sh.insertColumnsAfter(maxCols, 16 - maxCols);
     if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Typ').setFontWeight('bold');
     if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('DodanePrzez').setFontWeight('bold');
     if (sh.getRange(1, 13).getValue() === '') sh.getRange(1, 13).setValue('OdebranePrzez').setFontWeight('bold');
+    if (sh.getRange(1, 14).getValue() === '') sh.getRange(1, 14).setValue('DataOdbioru').setFontWeight('bold');
+    if (sh.getRange(1, 15).getValue() === '') sh.getRange(1, 15).setValue('Komentarz').setFontWeight('bold');
+    if (sh.getRange(1, 16).getValue() === '') sh.getRange(1, 16).setValue('Pilne').setFontWeight('bold');
+    if (sh.getRange(1, 17).getValue() === '') sh.getRange(1, 17).setValue('SortOrder').setFontWeight('bold');
+  }
+
+  let lk = ss.getSheetByName('Logi');
+  if (!lk) {
+    lk = ss.insertSheet('Logi');
+    lk.appendRow(['Data', 'Kto', 'Akcja', 'Wpis ID', 'Szczegóły']);
+    lk.setFrozenRows(1);
+    lk.getRange(1, 1, 1, 5).setFontWeight('bold');
   }
 
   let rk = ss.getSheetByName(ROUTES_SHEET);
@@ -391,9 +403,13 @@ function getAppData() {
   let drivers = [];
   if (dk) {
     const dData = dk.getDataRange().getValues();
-    drivers = dData.slice(1).map(r => {
-      // Parsuj trasy — obsługuje zarówno ID numeryczne ("1,2,3") jak i nazwy tras
-      const rawRoutes = String(r[2] || '').split(',').map(s => s.trim()).filter(s => s !== '');
+    const lastRow = dk.getLastRow();
+    // Wymuszamy odczyt kolumny C jako tekst (getDisplayValues)
+    const dDisplay = lastRow > 1 ? dk.getRange(2, 3, lastRow - 1, 1).getDisplayValues() : [];
+    drivers = dData.slice(1).map((r, idx) => {
+      // Parsuj trasy z wyświetlanej wartości (tekst), nie z getValues (może być liczba)
+      const rawRoutesStr = String(dDisplay[idx] ? dDisplay[idx][0] : (r[2] || ''));
+      const rawRoutes = rawRoutesStr.split(',').map(s => s.trim()).filter(s => s !== '');
       let parsedRoutes = [];
       rawRoutes.forEach(function(val) {
         const num = Number(val);
@@ -584,33 +600,62 @@ function getEntriesForWeeks(weeks) {
   return data.slice(1).map(r => {
     let aKey = parseDateToKey(r[1]).trim();
     let pKey = r[7] ? parseDateToKey(r[7]).trim() : aKey;
+    let addedAt = '';
+    if (r[6] instanceof Date) {
+      const dd = String(r[6].getDate()).padStart(2,'0');
+      const mm = String(r[6].getMonth()+1).padStart(2,'0');
+      const yy = r[6].getFullYear();
+      const hh = String(r[6].getHours()).padStart(2,'0');
+      const mi = String(r[6].getMinutes()).padStart(2,'0');
+      addedAt = dd+'.'+mm+'.'+yy+', '+hh+':'+mi;
+    } else if (r[6]) {
+      addedAt = String(r[6]);
+    }
     return {
       id: String(r[0]).trim(), weekKey: aKey, pickWeekKey: pKey, client: String(r[2]),
       arrDay: Number(r[3]), pickDay: Number(r[4]),
       done: r[5] === true || r[5] === 'TRUE' || String(r[5]).toUpperCase() === 'TRUE',
+      addedAt: addedAt,
       weight: Number(r[8]) || 0, route: Number(r[9]) || 1,
       type: r[10] ? String(r[10]).trim().toUpperCase() : 'P',
-      addedBy: r[11] ? String(r[11]).trim() : ''
+      addedBy: r[11] ? String(r[11]).trim() : '',
+      pickedBy: r[12] ? String(r[12]).trim() : '',
+      pickedAt: r[13] instanceof Date ? (String(r[13].getDate()).padStart(2,'0')+'.'+String(r[13].getMonth()+1).padStart(2,'0')+'.'+r[13].getFullYear()+', '+String(r[13].getHours()).padStart(2,'0')+':'+String(r[13].getMinutes()).padStart(2,'0')) : '',
+      comment: r[14] ? String(r[14]).trim() : '',
+      urgent: r[15] === true || r[15] === 'TRUE' || String(r[15]).toUpperCase() === 'TRUE',
+      order: r[16] !== '' && r[16] !== undefined ? Number(r[16]) : 9999
     };
   }).filter(e => weeks.includes(e.weekKey) || weeks.includes(e.pickWeekKey));
 }
 
-function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, route, type, driverName) {
+function logAction(user, action, targetId, details) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    let lk = ss.getSheetByName('Logi');
+    if (lk) {
+      lk.appendRow([new Date(), user || 'Nieznany', action, targetId || '', details || '']);
+    }
+  } catch(e) {}
+}
+
+function addEntry(arrWeekKey, client, arrDay, pickDay, pickWeekKey, weight, route, type, driverName, isUrgent, comment) {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SHEET_NAME);
-  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
+  if (sh.getMaxColumns() < 17) sh.insertColumnsAfter(sh.getMaxColumns(), 17 - sh.getMaxColumns());
   let parsedWeight = '';
   if (weight) {
     let num = parseFloat(String(weight).trim().replace(',', '.'));
     if (!isNaN(num) && num > 0) parsedWeight = num;
   }
   const id = 'ID_' + new Date().getTime().toString();
-  sh.appendRow([id, arrWeekKey, client, Number(arrDay), Number(pickDay), false, new Date(), pickWeekKey, parsedWeight, Number(route) || 1, type || 'P', driverName || '', '']);
+  // Columns: 1:ID, 2:WeekKey, 3:Klient, 4:ArrDay, 5:PickDay, 6:Done, 7:AddedAt, 8:PickWeekKey, 9:Waga, 10:Trasa, 11:Typ, 12:AddedBy, 13:PickedBy, 14:PickedAt, 15:Comment, 16:Urgent, 17:SortOrder
+  sh.appendRow([id, arrWeekKey, client, Number(arrDay), Number(pickDay), false, new Date(), pickWeekKey, parsedWeight, Number(route) || 1, type || 'P', driverName || '', '', '', comment || '', isUrgent ? true : false, 9999]);
   SpreadsheetApp.flush();
+  logAction(driverName, 'Dodanie', id, 'Klient: ' + client);
   return { ok: true, id };
 }
 
-function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback, adminToken, type) {
+function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback, adminToken, type, isUrgent, comment) {
   checkAuth(adminToken);
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAME);
@@ -637,7 +682,10 @@ function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback,
     sh.getRange(rowIdx + 1, 8).setValue(pickWkKey);
     sh.getRange(rowIdx + 1, 9).setValue(parsedWeight);
     sh.getRange(rowIdx + 1, 11).setValue(type || 'P');
+    if (comment !== undefined) sh.getRange(rowIdx + 1, 15).setValue(String(comment).trim());
+    if (isUrgent !== undefined) sh.getRange(rowIdx + 1, 16).setValue(isUrgent ? true : false);
     SpreadsheetApp.flush();
+    logAction('Admin', 'Edycja', existingId, 'Dzień odb: ' + newPickDay);
     return { ok: true };
   }
 
@@ -664,21 +712,45 @@ function updateEntry(id, newArrDay, newPickDay, isNextWeek, newWeight, fallback,
   return { error: 'Nie znaleziono wpisu' };
 }
 
-function toggleDone(id, driverName) {
+function toggleDone(id, driverName, comment) {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAME);
-  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
+  if (sh.getMaxColumns() < 16) sh.insertColumnsAfter(sh.getMaxColumns(), 16 - sh.getMaxColumns());
   const data = sh.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(id).trim()) {
       const isDone = !data[i][5];
       sh.getRange(i + 1, 6).setValue(isDone);
       sh.getRange(i + 1, 13).setValue(isDone ? (driverName || '') : '');
+      sh.getRange(i + 1, 14).setValue(isDone ? new Date() : '');
+      // Komentarz zapisujemy zawsze przy toggle (albo do pustego, albo z wartością)
+      if (comment !== undefined) {
+        sh.getRange(i + 1, 15).setValue(String(comment).trim());
+      }
       SpreadsheetApp.flush();
+      logAction(driverName, isDone ? 'Odbiór' : 'Cofnięcie odbioru', id, 'Komentarz: ' + (comment || ''));
       return { ok: true };
     }
   }
   return { error: 'Błąd' };
+}
+
+function updateEntriesOrder(orderedIds, adminToken) {
+  checkAuth(adminToken);
+  if (!orderedIds || !orderedIds.length) return {ok: true};
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAME);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const id = String(data[i][0]).trim();
+    const idx = orderedIds.indexOf(id);
+    if (idx !== -1) {
+      sh.getRange(i + 1, 17).setValue(idx + 1);
+    }
+  }
+  SpreadsheetApp.flush();
+  logAction('Admin', 'Sortowanie', '', 'Zmieniono kolejność: ' + orderedIds.length + ' wpisów');
+  return { ok: true };
 }
 
 function removeEntry(id, adminToken) {
@@ -690,6 +762,7 @@ function removeEntry(id, adminToken) {
     if (String(data[i][0]).trim() === String(id).trim()) {
       sh.deleteRow(i + 1);
       SpreadsheetApp.flush();
+      logAction('Admin', 'Usunięcie', id, '');
       return { ok: true };
     }
   }
@@ -710,6 +783,23 @@ function removeOwnEntry(id, driverName) {
       }
       sh.deleteRow(i + 1);
       SpreadsheetApp.flush();
+      logAction(driverName, 'Usunięcie własne', id, '');
+      return { ok: true };
+    }
+  }
+  return { error: 'Nie znaleziono wpisu' };
+}
+
+function setUrgent(id, isUrgent, adminToken) {
+  checkAuth(adminToken);
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAME);
+  if (sh.getMaxColumns() < 16) sh.insertColumnsAfter(sh.getMaxColumns(), 16 - sh.getMaxColumns());
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(id).trim()) {
+      sh.getRange(i + 1, 16).setValue(isUrgent ? true : false);
+      SpreadsheetApp.flush();
       return { ok: true };
     }
   }
@@ -722,12 +812,47 @@ function getAllEntries() {
   return sh.getDataRange().getValues().slice(1).map(r => {
     let aKey = parseDateToKey(r[1]).trim();
     let pKey = r[7] ? parseDateToKey(r[7]).trim() : aKey;
+    let addedAt = '';
+    if (r[6] instanceof Date) {
+      const dd = String(r[6].getDate()).padStart(2,'0');
+      const mm = String(r[6].getMonth()+1).padStart(2,'0');
+      const yy = r[6].getFullYear();
+      const hh = String(r[6].getHours()).padStart(2,'0');
+      const mi = String(r[6].getMinutes()).padStart(2,'0');
+      addedAt = dd+'.'+mm+'.'+yy+', '+hh+':'+mi;
+    } else if (r[6]) {
+      addedAt = String(r[6]);
+    }
     return {
       id: String(r[0]).trim(), weekKey: aKey, pickWeekKey: pKey, client: String(r[2]),
       arrDay: Number(r[3]), pickDay: Number(r[4]),
       done: r[5] === true || r[5] === 'TRUE' || String(r[5]).toUpperCase() === 'TRUE',
+      addedAt: addedAt,
       weight: Number(r[8]) || 0, route: Number(r[9]) || 1,
-      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P'
+      type: r[10] ? String(r[10]).trim().toUpperCase() : 'P',
+      addedBy: r[11] ? String(r[11]).trim() : '',
+      pickedBy: r[12] ? String(r[12]).trim() : '',
+      pickedAt: r[13] instanceof Date ? (String(r[13].getDate()).padStart(2,'0')+'.'+String(r[13].getMonth()+1).padStart(2,'0')+'.'+r[13].getFullYear()+', '+String(r[13].getHours()).padStart(2,'0')+':'+String(r[13].getMinutes()).padStart(2,'0')) : '',
+      comment: r[14] ? String(r[14]).trim() : '',
+      urgent: r[15] === true || r[15] === 'TRUE' || String(r[15]).toUpperCase() === 'TRUE',
+      order: r[16] !== '' && r[16] !== undefined ? Number(r[16]) : 9999
+    };
+  });
+}
+
+function getLogs() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('Logi');
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  // Return last 100 logs
+  return data.slice(1).slice(-100).reverse().map(r => {
+    return {
+      date: r[0] instanceof Date ? r[0].toLocaleString('pl-PL') : String(r[0]),
+      user: String(r[1]),
+      action: String(r[2]),
+      target: String(r[3]),
+      details: String(r[4])
     };
   });
 }
@@ -1032,7 +1157,9 @@ function updateDriverRoutes(driverId, routesStr, adminToken) {
   const data = dk.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(driverId).trim()) {
-      dk.getRange(i + 1, 3).setValue(routesStr);
+      const cell = dk.getRange(i + 1, 3);
+      cell.setNumberFormat('@'); // Wymuszenie formatu tekstowego
+      cell.setValue(String(routesStr));
       SpreadsheetApp.flush();
       return { ok: true };
     }

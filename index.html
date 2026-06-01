@@ -733,6 +733,7 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 .divider{height:0.5px;background:var(--border)}
 
 /* ── MODALS ── */
+body.modal-open { overflow:hidden; }
 .overlay {
   position:fixed;inset:0;
   background:rgba(0,0,0,0.45);
@@ -1710,7 +1711,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   color:#000;
   outline:none;
   box-shadow:0 0 0 0.5px rgba(0,0,0,0.08);
-  transition:box-shadow 0.2s;
+  transition:box-shadow:0.2s;
   -webkit-appearance:none;
   appearance:none;
   margin-bottom:8px;
@@ -1800,6 +1801,7 @@ select.ap-input {
   font-family:inherit;
   outline:none;
   -webkit-appearance:none;
+  appearance:none;
   transition:background 0.15s;
 }
 .ap-driver-search input::placeholder{color:rgba(60,60,67,0.4)}
@@ -1887,20 +1889,9 @@ select.ap-input {
 .ap-driver-routes {
   font-size:13px;font-weight:400;
   color:rgba(60,60,67,0.6);line-height:1.3;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:pre-line;
 }
 @media(prefers-color-scheme:dark){.ap-driver-routes{color:rgba(235,235,245,0.6)}}
-
-.ap-driver-status {
-  width:10px;height:10px;
-  border-radius:50%;
-  background:#34C759;
-  flex-shrink:0;
-  box-shadow:0 0 0 2px #fff, 0 0 6px rgba(52,199,89,0.4);
-}
-@media(prefers-color-scheme:dark){.ap-driver-status{box-shadow:0 0 0 2px #2C2C2E, 0 0 6px rgba(52,199,89,0.4)}}
 
 .ap-check-badge {
   position:absolute;top:50%;right:16px;
@@ -1910,7 +1901,6 @@ select.ap-input {
   display:flex;align-items:center;justify-content:center;
   font-size:12px;font-weight:800;
   box-shadow:0 2px 8px rgba(0,122,255,0.3);
-}
 }
 @media(prefers-color-scheme:dark){.ap-check-badge{background:#0A84FF}}
 
@@ -2450,9 +2440,11 @@ select.ap-input {
   <button class="tab-btn" id="btnViewClients" onclick="switchView('clients')"><span class="tab-icon">🗂</span><span data-t="nav_klienci">Klienci i Trasy</span></button>
   <button class="tab-btn" id="btnViewMap" onclick="switchView('map')"><span class="tab-icon">🗺</span><span data-t="nav_mapa">Mapa</span></button>
   <button class="tab-btn" id="btnViewHelp" onclick="switchView('help')"><span class="tab-icon">ℹ️</span><span data-t="nav_help">Instrukcja</span></button>
+  <button class="tab-btn" id="btnViewReports" onclick="switchView('reports')"><span class="tab-icon">📊</span><span data-t="nav_raporty">Raporty</span></button>
   <button class="tab-btn admin-tab" id="btnViewStaff" onclick="switchView('staff')"><span class="tab-icon">👷</span><span data-t="nav_grafik">Grafik Załogi</span></button>
   <button class="tab-btn admin-tab" id="btnViewGrafikEditor" onclick="switchView('grafikEditor')"><span class="tab-icon">✏️</span><span data-t="nav_edytor">Edytor Grafiku</span></button>
   <button class="tab-btn admin-tab" id="btnViewTimeline" onclick="switchView('timeline')"><span class="tab-icon">🕐</span><span data-t="nav_timeline">Oś Czasu</span></button>
+  <button class="tab-btn admin-tab" id="btnViewLogs" onclick="switchView('logs')"><span class="tab-icon">📝</span><span data-t="nav_logi">Logi</span></button>
 </div>
 
 <!-- ── MAIN VIEW ── -->
@@ -2461,6 +2453,10 @@ select.ap-input {
     <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
     <div class="week-label" id="weekLabel">Widok 2 tygodni</div>
     <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
+  </div>
+  
+  <div style="padding: 10px 16px 0; max-width: 600px; margin: 0 auto;">
+    <input type="text" id="scheduleSearch" class="ap-input" placeholder="🔍 Szukaj klienta w harmonogramie..." oninput="filterSchedule()" style="width: 100%; box-sizing: border-box;">
   </div>
 
 
@@ -2472,8 +2468,18 @@ select.ap-input {
   <div id="grid2" class="grid"></div>
 </div>
 
+<!-- ── REPORTS VIEW ── -->
+<div id="reportsView" style="display:none; padding:16px;">
+  <div id="reportsContent" class="loader" data-t="loading">Ładowanie raportów…</div>
+</div>
+
+<!-- ── LOGS VIEW ── -->
+<div id="logsView" style="display:none; padding:16px; overflow-x:auto;">
+  <div id="logsContent" class="loader" data-t="loading">Ładowanie logów…</div>
+</div>
+
 <!-- ── HISTORY VIEW ── -->
-<div class="history" id="histView">
+<div class="history" id="histView" style="display:none">
   <div id="histContent" class="loader" data-t="loading">Ładowanie historii…</div>
 </div>
 
@@ -2612,6 +2618,33 @@ select.ap-input {
 
 <!-- ═══════════════ MODALS ═══════════════ -->
 
+<!-- COMMENT MODAL -->
+  <div class="overlay" id="commentModal" style="display:none">
+    <div class="ap-sheet">
+      <div class="modal-header">Dodaj komentarz do anulowania</div>
+      <div class="ap-sheet-content">
+        <input type="text" id="commentInput" class="ap-input" placeholder="Powód (np. brak paczek)...">
+        <div class="ap-btn-group" style="margin-top:16px">
+          <button class="ap-btn ap-btn-primary" onclick="confirmComment()">Potwierdź</button>
+          <button class="ap-btn ap-btn-secondary" onclick="cancelComment()">Wróć bez zmian</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENT HISTORY MODAL -->
+  <div class="overlay" id="clientHistoryModal" style="display:none;z-index:9999">
+    <div class="ap-sheet" style="max-height:80vh;display:flex;flex-direction:column">
+      <div class="modal-header" id="chTitle">Historia: Klient</div>
+      <div class="ap-sheet-content" id="chContent" style="flex:1;overflow-y:auto">
+        <div class="loader">Ładowanie...</div>
+      </div>
+      <div class="modal-btns" style="padding:16px;background:var(--bg-card);border-top:1px solid var(--border)">
+        <button onclick="document.getElementById('clientHistoryModal').style.display='none'">Zamknij</button>
+      </div>
+    </div>
+  </div>
+
 <!-- Driver Admin Modal -->
 <div class="overlay" id="driverAdminModal">
   <div class="modal">
@@ -2733,7 +2766,7 @@ select.ap-input {
       </div>
 
       <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_client">Klient</div>
-      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px"></select>
+      <select id="mClient" class="ap-input" style="padding:12px 14px;margin-bottom:12px" onchange="updateDefaultPickup('add')"></select>
 
       <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_type">Rodzaj prania</div>
       <div class="segmented-control" style="margin-bottom:12px">
@@ -2769,10 +2802,18 @@ select.ap-input {
       </div>
 
       <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px" data-t="label_pick_week">Tydzień odbioru</div>
-      <select id="mPickWeek" class="ap-input" style="margin-bottom:4px">
+      <select id="mPickWeek" class="ap-input" style="margin-bottom:12px">
         <option value="0" data-t="week_same">Ten sam tydzień</option>
         <option value="1" data-t="week_next">Następny tydzień</option>
       </select>
+
+      <div style="font-size:11px;font-weight:600;color:rgba(60,60,67,0.5);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Komentarz — opcjonalnie</div>
+      <input type="text" id="mComment" class="ap-input" placeholder="np. klient prosił o tel." style="margin-bottom:12px">
+
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;cursor:pointer">
+        <input type="checkbox" id="mUrgent" style="width:18px;height:18px">
+        <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
+      </label>
 
       <div class="ap-btn-group" style="margin-top:18px">
         <button class="ap-btn ap-btn-primary" onclick="confirmAdd()" data-t="btn_add">Dodaj</button>
@@ -2792,7 +2833,16 @@ select.ap-input {
     <div class="info-row"><span class="info-label" data-t="label_pick_day">Dzień odbioru</span><span class="info-val" id="vePickDay"></span></div>
     <div class="info-row"><span class="info-label" data-t="label_type">Rodzaj prania</span><span class="info-val" id="veType"></span></div>
     <div class="info-row"><span class="info-label" data-t="label_weight_simple">Waga</span><span class="info-val" id="veWeight"></span></div>
-    <div class="info-row" style="border-bottom:none"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+    <div class="info-row" id="veAddedByRow" style="display:none"><span class="info-label" data-t="label_added_by">Przywiózł</span><span class="info-val" id="veAddedBy"></span></div>
+    <div class="info-row" id="veAddedAtRow" style="display:none"><span class="info-label" data-t="label_added_at">Wpisano</span><span class="info-val" id="veAddedAt"></span></div>
+    <div class="info-row"><span class="info-label" data-t="label_status">Status</span><span class="info-val" id="veStatus"></span></div>
+    <div class="info-row" id="veUrgentRow" style="display:none"><span class="info-label">Priorytet</span><span class="info-val" style="color:var(--accent-red)">🚩 Pilne</span></div>
+    <div class="info-row" id="veCommentRow" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
+      <span class="info-label">Komentarz</span>
+      <span class="info-val" id="veComment" style="font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);padding:6px 10px;border-radius:6px;width:100%;word-break:break-word"></span>
+    </div>
+    <div class="info-row" id="vePickedByRow" style="display:none"><span class="info-label" data-t="label_picked_by">Odebrał</span><span class="info-val" id="vePickedBy"></span></div>
+    <div class="info-row" id="vePickedAtRow" style="display:none;border-bottom:none"><span class="info-label" data-t="label_picked_at">Odebrano</span><span class="info-val" id="vePickedAt"></span></div>
     <div class="action-row" style="margin-top:18px">
       <button class="done-btn" id="veToggleBtn" data-t="btn_mark_done">Oznacz jako odebrane</button>
     </div>
@@ -2800,7 +2850,23 @@ select.ap-input {
       <button class="danger" id="veDeleteBtn" data-t="btn_delete">Usuń</button>
     </div>
     <div class="modal-btns" style="margin-top:10px">
+      <button onclick="copyEntry('view')" style="flex:0.5">📋 Kopiuj</button>
       <button onclick="closeViewEntry()" data-t="btn_close">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comment modal (przy cofaniu odbioru) -->
+<div class="overlay" id="commentModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Dlaczego cofasz odbiór?</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Opcjonalnie wpisz powód — będzie widoczny w szczegółach zamówienia.</p>
+    <label>Komentarz (opcjonalnie)</label>
+    <input type="text" id="commentInput" placeholder="np. klient nieobecny, brakuje towaru..." style="margin-bottom:4px">
+    <div class="modal-btns" style="margin-top:16px">
+      <button onclick="cancelComment()" data-t="btn_cancel">Anuluj</button>
+      <button class="primary" onclick="confirmComment()">Cofnij odbiór</button>
     </div>
   </div>
 </div>
@@ -2811,6 +2877,7 @@ select.ap-input {
     <div class="modal-handle"></div>
     <h3 data-t="modal_edit_title">Edytuj wpis</h3>
     <div id="eClientName" style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:4px"></div>
+    <div id="eMetaInfo" style="margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
     <label data-t="label_type">Rodzaj prania</label>
     <div class="segmented-control">
       <button type="button" class="seg-btn type-P active" id="eType_P" onclick="setSegmentedVal('eType', 'P')">Pościel</button>
@@ -2840,11 +2907,18 @@ select.ap-input {
       <option value="0" data-t="week_same">Ten sam tydzień</option>
       <option value="1" data-t="week_next">Następny tydzień</option>
     </select>
+    <label>Komentarz</label>
+    <input type="text" id="eComment" placeholder="np. klient prosił o tel.">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="eUrgent" style="width:18px;height:18px">
+      <span style="color:var(--accent-red)">🚩 Pilne (priorytet)</span>
+    </label>
     <div class="action-row">
       <button class="done-btn" id="eToggleBtn" onclick="toggleDoneFromEdit()" data-t="btn_mark_done">Oznacz jako odebrane</button>
       <button class="danger" onclick="deleteFromEdit()" data-t="btn_delete">Usuń</button>
     </div>
     <div class="modal-btns" style="margin-top:10px">
+      <button onclick="copyEntry('edit')" style="flex:0.5">📋 Kopiuj</button>
       <button onclick="closeEdit()" data-t="btn_cancel">Anuluj</button>
       <button class="primary" onclick="saveEdit()" data-t="btn_save">Zapisz</button>
     </div>
@@ -2987,6 +3061,10 @@ const TRANSLATIONS = {
     label_pick_week: "Tydzień odbioru",
     label_status: "Status",
     label_weight_simple: "Waga",
+    label_added_by: "Przywiózł",
+    label_added_at: "Wpisano",
+    label_picked_by: "Odebrał",
+    label_picked_at: "Odebrano",
     type_p: "Pościel",
     type_o: "Obrusy",
     week_same: "Ten sam tydzień",
@@ -3141,6 +3219,10 @@ const TRANSLATIONS = {
     label_pick_week: "Abholwoche",
     label_status: "Status",
     label_weight_simple: "Gewicht",
+    label_added_by: "Gebracht von",
+    label_added_at: "Eingetragen",
+    label_picked_by: "Abgeholt von",
+    label_picked_at: "Abgeholt am",
     type_p: "Bettwäsche",
     type_o: "Tischdecken",
     week_same: "Gleiche Woche",
@@ -3295,6 +3377,10 @@ const TRANSLATIONS = {
     label_pick_week: "Тиждень видачі",
     label_status: "Статус",
     label_weight_simple: "Вага",
+    label_added_by: "Привіз",
+    label_added_at: "Записано",
+    label_picked_by: "Забрав",
+    label_picked_at: "Забрано",
     type_p: "Постіль",
     type_o: "Скатертини",
     week_same: "Той самий тиждень",
@@ -3649,7 +3735,7 @@ function openDriverSelect() {
       const color = driverAvatarColor(d.id);
       const initials = driverInitials(d.name);
       const routeNames = (d.routes && d.routes.length > 0)
-        ? d.routes.map(function(r){ return getRouteName(r); }).join(' · ')
+        ? d.routes.map(function(r, i){ return getRouteName(r) + ((i % 2 === 1 && i < d.routes.length - 1) ? '\n' : (i < d.routes.length - 1 ? ' · ' : '')); }).join('')
         : (currentLang === 'DE' ? 'Keine Routen zugewiesen' : (currentLang === 'UA' ? 'Маршрути не призначені' : 'Brak przypisanych tras'));
 
       card.innerHTML =
@@ -3658,7 +3744,6 @@ function openDriverSelect() {
           '<div class="ap-driver-name">' + esc(d.name) + '</div>' +
           '<div class="ap-driver-routes">' + esc(routeNames) + '</div>' +
         '</div>' +
-        '<div class="ap-driver-status"></div>' +
         (isSelected ? '<div class="ap-check-badge">✓</div>' : '');
       card.onclick = function() { selectDriver(d.id); };
       listDiv.appendChild(card);
@@ -3680,10 +3765,11 @@ function openDriverSelect() {
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'ap-btn ap-btn-secondary';
   cancelBtn.textContent = currentLang === 'DE' ? 'Abbrechen' : (currentLang === 'UA' ? 'Скасувати' : 'Anuluj');
-  cancelBtn.onclick = function() { document.getElementById('driverSelectModal').style.display = 'none'; };
+  cancelBtn.onclick = function() { document.getElementById('driverSelectModal').style.display = 'none'; unlockScroll(); };
   actions.appendChild(cancelBtn);
 
   document.getElementById('driverSelectModal').style.display = 'flex';
+  lockScroll();
 
   // Focus na wyszukiwarkę
   setTimeout(function() {
@@ -3713,8 +3799,14 @@ function selectDriver(id) {
     }
     currentDriver = found;
     localStorage.setItem('currentDriver', JSON.stringify(currentDriver));
+    // Wyloguj admina przy logowaniu kierowcy
+    if (isAdmin) {
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+      applyAdminState(0);
+    }
   }
   document.getElementById('driverSelectModal').style.display = 'none';
+  unlockScroll();
   applyDriverState();
 }
 
@@ -3792,10 +3884,12 @@ function openDriverAdminModal() {
   }
   
   document.getElementById('driverAdminModal').style.display = 'flex';
+  lockScroll();
 }
 
 function closeDriverAdminModal() {
   document.getElementById('driverAdminModal').style.display = 'none';
+  unlockScroll();
 }
 
 function saveDriverRoutes() {
@@ -3807,7 +3901,7 @@ function saveDriverRoutes() {
     const newRoutes = editedDriverRoutes[d.id] || [];
     const oldRoutes = d.routes || [];
     // Sprawdzamy, czy tablice są różne
-    if (newRoutes.sort().join(',') === oldRoutes.sort().join(',')) {
+    if ([...newRoutes].sort().join(',') === [...oldRoutes].sort().join(',')) {
       return Promise.resolve();
     }
     
@@ -3829,6 +3923,7 @@ function saveDriverRoutes() {
     btn.disabled = false;
     btn.textContent = 'Zapisz zmiany';
     loadAppData(function() {
+      renderGrid();
       if(document.getElementById('clientsView').style.display === 'block') {
         renderClientsList();
       }
@@ -3917,20 +4012,24 @@ function openAdminLogin() {
     const hLeft = (msLeft / 3600000).toFixed(1).replace('.', ',');
     document.getElementById('logoutSessionTime').textContent = hLeft + ' h';
     document.getElementById('adminLogoutModal').style.display = 'flex';
+    lockScroll();
     return;
   }
   document.getElementById('adminPasswordInput').value = '';
   document.getElementById('adminLoginError').textContent = '';
   document.getElementById('adminLoginModal').style.display = 'flex';
+  lockScroll();
   setTimeout(function() { document.getElementById('adminPasswordInput').focus(); }, 100);
 }
 
 function closeAdminLogin() {
   document.getElementById('adminLoginModal').style.display = 'none';
+  unlockScroll();
 }
 
 function closeAdminLogout() {
   document.getElementById('adminLogoutModal').style.display = 'none';
+  unlockScroll();
 }
 
 function doAdminLogin() {
@@ -3949,6 +4048,9 @@ function doAdminLogin() {
       const expires = Date.now() + res.sessionHours * 3600 * 1000;
       localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({expires: expires, token: res.token}));
       closeAdminLogin();
+      // Wyloguj kierowcę przy logowaniu admina
+      currentDriver = null;
+      localStorage.removeItem('currentDriver');
       applyAdminState(expires);
       const loggedMsg = currentLang === 'DE' ? 'Als Administrator angemeldet (' + res.sessionHours + ' h)' : (currentLang === 'UA' ? 'Увійшов як адміністратор (' + res.sessionHours + ' год)' : 'Zalogowano jako administrator (' + res.sessionHours + ' h)');
       toast(loggedMsg);
@@ -3978,6 +4080,8 @@ function getMonday(offset){const d=new Date();const day=d.getDay();d.setDate(d.g
 function weekKey(offset){const d=getMonday(offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fmtDate(d){const loc = currentLang === 'DE' ? 'de-DE' : (currentLang === 'UA' ? 'uk-UA' : 'pl-PL'); return d.toLocaleDateString(loc,{day:'numeric',month:'short'});}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
+function lockScroll(){document.body.classList.add('modal-open');}
+function unlockScroll(){document.body.classList.remove('modal-open');}
 function getRouteName(id){return routeMap[id]||('Trasa '+id);}
 function getRouteColorIdx(routeId){return((Number(routeId)-1)%10)+1;}
 function getRouteColor(routeId){return ROUTE_COLORS[getRouteColorIdx(routeId)]||'#8E8E93';}
@@ -3996,29 +4100,24 @@ function updateRouteDropdowns(){
 }
 
 function switchView(v){
-  ['mainView','histView','mapView','clientsView','helpView','staffView','grafikEditorView','timelineView']
-    .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  ['btnViewMain','btnViewHist','btnViewMap','btnViewClients','btnViewHelp','btnViewStaff','btnViewGrafikEditor','btnViewTimeline']
-    .forEach(id=>{const el=document.getElementById(id);if(!el)return;el.className=el.className.replace(/\bactive\b/g,'').trim();});
+  const views=['main','history','clients','map','help','staff','grafikEditor','timeline','reports','logs'];
+  const btns={main:'btnViewMain',history:'btnViewHist',clients:'btnViewClients',map:'btnViewMap',help:'btnViewHelp',staff:'btnViewStaff',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline',reports:'btnViewReports',logs:'btnViewLogs'};
+  views.forEach(function(x){
+    const el=document.getElementById(x==='main'?'mainView':x+'View');
+    if(el)el.style.display=(x===v?'block':'none');
+    const b=document.getElementById(btns[x]);
+    if(b){if(x===v)b.classList.add('active');else b.classList.remove('active');}
+  });
 
-  const map={main:'mainView',history:'histView',map:'mapView',clients:'clientsView',help:'helpView',
-             staff:'staffView',grafikEditor:'grafikEditorView',timeline:'timelineView'};
-  const btnMap={main:'btnViewMain',history:'btnViewHist',map:'btnViewMap',clients:'btnViewClients',help:'btnViewHelp',
-                staff:'btnViewStaff',grafikEditor:'btnViewGrafikEditor',timeline:'btnViewTimeline'};
-
-  if(['staff','grafikEditor','timeline'].includes(v)&&!isAdmin){
+  if(['staff','grafikEditor','timeline','reports','logs'].includes(v)&&!isAdmin){
     toast(currentLang === 'DE' ? 'Dieser Tab ist nur für Administratoren verfügbar' : (currentLang === 'UA' ? 'Ця вкладка доступна тільки для адміністраторів' : 'Ta zakładka jest dostępna tylko dla administratora')); v='main';
   }
-
-  document.getElementById(map[v]).style.display='block';
-  const btn=document.getElementById(btnMap[v]);
-  if(btn)btn.className=btn.className+' active';
 
   // Dynamiczny tytuł strony
   const titleMap={
     main:'nav_harmonogram', history:'nav_historia', clients:'nav_klienci',
     map:'nav_mapa', help:'nav_help', staff:'nav_grafik',
-    grafikEditor:'nav_edytor', timeline:'nav_timeline'
+    grafikEditor:'nav_edytor', timeline:'nav_timeline', reports:'nav_raporty', logs:'nav_logi'
   };
   const titleEl=document.querySelector('.app-title');
   if(titleEl && titleMap[v]) titleEl.textContent=t(titleMap[v]);
@@ -4033,6 +4132,103 @@ function switchView(v){
   else if(v==='staff')loadStaffData();
   else if(v==='grafikEditor')initGrafikEditor();
   else if(v==='timeline')initTimelineView();
+  else if(v==='reports')loadReports();
+  else if(v==='logs')loadLogs();
+}
+
+// ── REPORTS & LOGS ──
+function loadReports() {
+  document.getElementById('reportsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
+  google.script.run.withFailureHandler(function(e){
+    document.getElementById('reportsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
+  }).withSuccessHandler(function(allEntries) {
+    renderReports(allEntries);
+  }).getAllEntries();
+}
+
+function renderReports(entries) {
+  // Aggregate data: total kg, total clients picked, driver stats, days stats
+  const completed = entries.filter(e => e.done);
+  let totalKg = 0;
+  const driverStats = {};
+  const dayStats = {1:0,2:0,3:0,4:0,5:0,6:0,0:0};
+  const clientsSet = new Set();
+  
+  completed.forEach(e => {
+    totalKg += e.weight || 0;
+    clientsSet.add(e.client);
+    
+    if (e.pickedBy) {
+      if (!driverStats[e.pickedBy]) driverStats[e.pickedBy] = {kg:0, count:0};
+      driverStats[e.pickedBy].kg += e.weight || 0;
+      driverStats[e.pickedBy].count += 1;
+    }
+    
+    if (e.pickedAt) {
+      // Very basic parsing to find day of week, or just use pickDay
+      dayStats[e.pickDay] = (dayStats[e.pickDay] || 0) + (e.weight || 0);
+    }
+  });
+
+  const dayNames = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+  let maxDayKg = Math.max(...Object.values(dayStats), 1);
+
+  let html = `
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-blue)">${totalKg.toFixed(1)}</div><div style="font-size:12px;color:var(--text-tertiary)">Zabrane Kg</div></div>
+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-green)">${completed.length}</div><div style="font-size:12px;color:var(--text-tertiary)">Odebrane wpisy</div></div>
+      <div class="card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent-orange)">${clientsSet.size}</div><div style="font-size:12px;color:var(--text-tertiary)">Obsłużeni klienci</div></div>
+    </div>
+    
+    <div class="sec-label">Obciążenie w tygodniu (Kg)</div>
+    <div class="card" style="margin-bottom:24px">
+      ${[1,2,3,4,5,6,0].map(d => `
+        <div style="display:flex;align-items:center;margin-bottom:8px">
+          <div style="width:100px;font-size:12px;color:var(--text-secondary)">${dayNames[d]}</div>
+          <div style="flex:1;height:12px;background:var(--bg-secondary);border-radius:6px;overflow:hidden">
+            <div style="width:${(dayStats[d]/maxDayKg)*100}%;height:100%;background:var(--accent-blue)"></div>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;font-weight:600">${dayStats[d].toFixed(0)}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sec-label">Statystyki kierowców</div>
+    <div class="card">
+      ${Object.keys(driverStats).length === 0 ? '<div style="color:var(--text-tertiary);font-size:13px">Brak danych kierowców</div>' : ''}
+      ${Object.keys(driverStats).sort((a,b)=>driverStats[b].kg-driverStats[a].kg).map(drv => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-weight:600;font-size:14px">${esc(drv)}</div>
+          <div style="font-size:13px"><span style="color:var(--accent-green)">${driverStats[drv].count}</span> odbiorów, <span style="font-weight:600">${driverStats[drv].kg.toFixed(1)}kg</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('reportsContent').innerHTML = html;
+}
+
+function loadLogs() {
+  document.getElementById('logsContent').innerHTML='<div class="loader">'+t('loading')+'</div>';
+  google.script.run.withFailureHandler(function(e){
+    document.getElementById('logsContent').innerHTML='<div style="color:var(--accent-red)">Błąd: '+e.message+'</div>';
+  }).withSuccessHandler(function(logs) {
+    let html = `
+      <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--bg-card);border-radius:12px;overflow:hidden">
+        <tr style="background:var(--bg-secondary);text-align:left">
+          <th style="padding:10px">Data</th><th style="padding:10px">Kto</th><th style="padding:10px">Akcja</th><th style="padding:10px">ID/Szczegóły</th>
+        </tr>
+        ${logs.map(l => `
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:8px 10px;white-space:nowrap;color:var(--text-secondary)">${esc(l.date)}</td>
+            <td style="padding:8px 10px;font-weight:600">${esc(l.user)}</td>
+            <td style="padding:8px 10px;color:var(--accent-blue)">${esc(l.action)}</td>
+            <td style="padding:8px 10px">${esc(l.target)} ${esc(l.details)}</td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+    document.getElementById('logsContent').innerHTML = html;
+  }).getLogs();
 }
 
 function loadStaffData(dateStr){
@@ -4059,11 +4255,22 @@ function renderStaffView(data){
     '</div></div>';
 }
 
-function changeWeek(d){weekOffset+=d;loadWeek();}
+function changeWeek(diff){weekOffset+=diff;renderGrid();}
+function filterSchedule() {
+  const q = document.getElementById('scheduleSearch').value.toLowerCase();
+  document.querySelectorAll('#grid1 .tag, #grid2 .tag').forEach(tag => {
+    const name = (tag.querySelector('.tag-name')?.textContent || '').toLowerCase();
+    if (name.includes(q)) {
+      tag.style.display = '';
+    } else {
+      tag.style.display = 'none';
+    }
+  });
+}
 function loadWeek(){
   document.getElementById('grid1').innerHTML='<div class="loader">'+t('loading')+'</div>';
   document.getElementById('grid2').innerHTML='';
-  google.script.run.withFailureHandler(function(err){alert(t('error_label') + ': '+err.message);}).withSuccessHandler(function(data){entries=data;renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
+  google.script.run.withFailureHandler(function(err){alert(t('error_label') + ': '+(err&&err.message?err.message:'Nieznany błąd'));}).withSuccessHandler(function(data){entries=data||[];renderGrid();}).getEntriesForWeeks([weekKey(weekOffset-1),weekKey(weekOffset),weekKey(weekOffset+1)]);
 }
 
 function renderGrid(){
@@ -4073,6 +4280,38 @@ function renderGrid(){
   document.getElementById('titleWk2').textContent=t('grid_next_week_pfx')+fmtDate(d2s)+' – '+fmtDate(d2e);
   document.getElementById('grid1').innerHTML=buildGridHTML(weekOffset,weekKey(weekOffset));
   document.getElementById('grid2').innerHTML=buildGridHTML(weekOffset+1,weekKey(weekOffset+1));
+  initSortables();
+}
+
+function initSortables() {
+  if (!isAdmin) return;
+  document.querySelectorAll('.sortable-arr, .sortable-pick').forEach(el => {
+    new Sortable(el, {
+      group: 'entries',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      delay: window.innerWidth <= 768 ? 200 : 0, // Delay for mobile
+      delayOnTouchOnly: true,
+      onEnd: function(evt) {
+        // Collect new order
+        const orderedIds = Array.from(evt.to.children).map(c => c.getAttribute('data-id')).filter(id => id);
+        if (orderedIds.length === 0) return;
+        toast(currentLang === 'DE' ? 'Reihenfolge wird gespeichert...' : (currentLang === 'UA' ? 'Збереження порядку…' : 'Zapisywanie kolejności…'));
+        
+        // Optymistycznie zaktualizuj lokalne entries
+        orderedIds.forEach((id, idx) => {
+          const entry = entries.find(e => e.id === id);
+          if(entry) entry.order = idx + 1;
+        });
+
+        google.script.run.withFailureHandler(e => {
+          alert(t('error_label') + ': ' + e.message); loadWeek();
+        }).withSuccessHandler(() => {
+          toast(currentLang === 'DE' ? 'Reihenfolge gespeichert' : (currentLang === 'UA' ? 'Порядок збережено' : 'Kolejność zapisana'));
+        }).updateEntriesOrder(orderedIds, getAdminToken());
+      }
+    });
+  });
 }
 
 function buildGridHTML(offset,targetWkKey){
@@ -4086,33 +4325,35 @@ function buildGridHTML(offset,targetWkKey){
     let washToday=i===0?entries.filter(e=>e.weekKey===prevWkKey&&e.arrDay===4):entries.filter(e=>e.weekKey===targetWkKey&&e.arrDay===i-1);
     const sumWash=washToday.reduce((s,e)=>s+e.weight,0);
     const pickups=entries.filter(e=>e.pickWeekKey===targetWkKey&&e.pickDay===i&&!(e.weekKey===targetWkKey&&e.arrDay===i));
-    const arrTags=arrived.map(e=>{
+    const arrTags=arrived.sort((a,b)=>a.order-b.order).map(e=>{
       const typeBadge='<span class="laundry-type-badge type-'+esc(e.type || 'P')+'">'+esc(e.type || 'P')+'</span>';
       const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
+      const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
       const checkPlaceholder='<span class="tag-check-placeholder"></span>';
-      return'<div class="tag tag-arr" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+      return'<div class="tag tag-arr'+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkPlaceholder+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
     }).join('');
     const pickTags=(function(){
       // Grupuj odbiory po kliencie — P+O tego samego klienta razem
       const byClient={};
       pickups.forEach(function(e){
         const key=e.client+'||'+e.route;
-        if(!byClient[key]) byClient[key]={client:e.client,route:e.route,entries:[e],totalWeight:e.weight,types:[e.type||'P'],allDone:e.done};
-        else{byClient[key].entries.push(e);byClient[key].totalWeight+=e.weight;if(byClient[key].types.indexOf(e.type||'P')===-1)byClient[key].types.push(e.type||'P');if(!e.done)byClient[key].allDone=false;}
+        if(!byClient[key]) byClient[key]={client:e.client,route:e.route,entries:[e],totalWeight:e.weight,types:[e.type||'P'],allDone:e.done,urgent:e.urgent,order:e.order,id:e.id};
+        else{byClient[key].entries.push(e);byClient[key].totalWeight+=e.weight;if(byClient[key].types.indexOf(e.type||'P')===-1)byClient[key].types.push(e.type||'P');if(!e.done)byClient[key].allDone=false;if(e.urgent)byClient[key].urgent=true;byClient[key].order=Math.min(byClient[key].order, e.order);}
       });
-      return Object.keys(byClient).map(function(key){
-        const g=byClient[key];
+      return Object.keys(byClient).map(key=>byClient[key]).sort((a,b)=>a.order-b.order).map(function(g){
         if(g.entries.length===1){
           const e=g.entries[0];
           const typeBadge='<span class="laundry-type-badge type-'+esc(e.type||'P')+'">'+esc(e.type||'P')+'</span>';
           const kg=e.weight>0?'<span class="kg-badge">'+esc(e.weight)+'kg</span>':'<span class="kg-placeholder"></span>';
           const checkBtn='<span class="tag-check">'+(e.done?'✓':'◯')+'</span>';
-          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(e.id)+')"><span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          const urgentFlag=e.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
+          return'<div class="tag '+(e.done?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(e.id)+'" onclick="openEdit('+jsArg(e.id)+')">'+urgentFlag+'<span class="tag-name">'+esc(e.client)+'</span>'+typeBadge+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(e.route)+'">T'+esc(e.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }else{
           const typesBadges=g.types.sort().map(function(tp){return'<span class="laundry-type-badge type-'+esc(tp)+'">'+esc(tp)+'</span>';}).join('');
           const kg=g.totalWeight>0?'<span class="kg-badge">'+g.totalWeight.toFixed(1)+'kg</span>':'<span class="kg-placeholder"></span>';
           const checkBtn='<span class="tag-check">'+(g.allDone?'✓':'◯')+'</span>';
-          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+'" onclick="openEdit('+jsArg(g.entries[0].id)+')"><span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
+          const urgentFlag=g.urgent?'<span style="color:var(--accent-red);font-size:11px;margin-right:2px">🚩</span>':'';
+          return'<div class="tag '+(g.allDone?'tag-done':'tag-pick')+(isAdmin?' draggable':'')+'" data-id="'+esc(g.id)+'" onclick="openEdit('+jsArg(g.entries[0].id)+')">'+urgentFlag+'<span class="tag-name">'+esc(g.client)+'</span>'+typesBadges+kg+checkBtn+'<span class="rt-badge rt-'+getRouteColorIdx(g.route)+'">T'+esc(g.route)+'</span><span style="opacity:0.3;font-size:16px;margin-left:auto;padding-left:2px">›</span></div>';
         }
       }).join('');
     })();
@@ -4122,16 +4363,42 @@ function buildGridHTML(offset,targetWkKey){
         '<div class="metric-chip arr"><div class="metric-chip-label">'+t('grid_arrival')+'</div><div class="metric-chip-val">'+(sumArr>0?sumArr.toFixed(1):0)+' kg</div></div>'+
         '<div class="metric-chip wash"><div class="metric-chip-label">'+t('grid_wash')+'</div><div class="metric-chip-val">'+(sumWash>0?sumWash.toFixed(1):0)+' kg</div></div>'+
       '</div>'+
-      '<div class="sec-label">'+t('grid_arrived_sec')+'</div>'+arrTags+
-      (pickTags?'<div class="divider"></div><div class="sec-label">'+t('grid_pickup_sec')+'</div>'+pickTags:'')+
+      '<div class="sec-label">'+t('grid_arrived_sec')+'</div>'+'<div class="sortable-arr">'+arrTags+'</div>'+
+      (pickTags?'<div class="divider"></div><div class="sec-label">'+t('grid_pickup_sec')+'</div>'+'<div class="sortable-pick">'+pickTags+'</div>':'')+
       '<button class="add-btn" onclick="openAdd('+i+','+offset+')">'+t('grid_add_btn')+'</button>'+
     '</div>';
   }).join('');
 }
 
+function isRouteDaily(routeId){
+  const name=(routeMap[routeId]||'').toLowerCase();
+  return name.includes('codzien') || name.includes('pn-pt') || name.includes('mo-fr') || name.includes('täglich');
+}
+
 function updateDefaultPickup(mode){
-  const pfx=mode==='add'?'m':'e';const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
-  let p=0,w=0;if(arr===0){p=2;w=0;}else if(arr===1){p=3;w=0;}else if(arr===2){p=4;w=0;}else if(arr===3){p=1;w=1;}else if(arr===4){p=0;w=1;}
+  const pfx=mode==='add'?'m':'e';
+  const arr=parseInt(document.getElementById(pfx+'ArrDay').value);
+
+  // Sprawdź trasę wybranego klienta
+  let routeId=null;
+  if(mode==='add'){
+    const cName=document.getElementById('mClient').value;
+    const cObj=clients.find(c=>c.name===cName);
+    if(cObj) routeId=cObj.route;
+  } else {
+    // W trybie edycji — weź trasę z edytowanego wpisu
+    const entry=entries.find(e=>e.id===editingId);
+    if(entry) routeId=entry.route;
+  }
+
+  let p=0,w=0;
+  if(routeId && isRouteDaily(routeId)){
+    // Trasa codzienna: odbiór następnego dnia
+    if(arr<4){p=arr+1;w=0;}else{p=0;w=1;} // Pt→Pn nast. tydzień
+  } else {
+    // Trasy co drugi dzień: +2 dni (stara logika)
+    if(arr===0){p=2;w=0;}else if(arr===1){p=3;w=0;}else if(arr===2){p=4;w=0;}else if(arr===3){p=1;w=1;}else if(arr===4){p=0;w=1;}
+  }
   document.getElementById(pfx+'PickDay').value=p;document.getElementById(pfx+'PickWeek').value=w;
 }
 
@@ -4178,17 +4445,22 @@ function openAdd(dayIdx,offset){
   document.getElementById('mClient').innerHTML=optionsHTML;
   if(!optionsHTML){toast(t('toast_add_client_first'));return;}
   document.getElementById('mArrDay').value=dayIdx;document.getElementById('mWeight').value='';
+  document.getElementById('mComment').value='';
+  document.getElementById('mUrgent').checked=false;
   setSegmentedVal('mType', 'P');
   // Pokaż hint z nazwą kierowcy
   const hintEl=document.getElementById('addModalDriverHint');
   if(hintEl) hintEl.textContent=currentDriver ? currentDriver.name : '';
   updateDefaultPickup('add');document.getElementById('addModal').style.display='flex';
+  lockScroll();
 }
-function closeAdd(){document.getElementById('addModal').style.display='none';}
+function closeAdd(){document.getElementById('addModal').style.display='none';unlockScroll();}
 function confirmAdd(){
   const cName=document.getElementById('mClient').value;const arrDay=parseInt(document.getElementById('mArrDay').value);const pickDay=parseInt(document.getElementById('mPickDay').value);
   const isNextWk=document.getElementById('mPickWeek').value==='1';const wt=document.getElementById('mWeight').value;
   const type=document.getElementById('mType').value;
+  const comment=document.getElementById('mComment').value;
+  const isUrgent=document.getElementById('mUrgent').checked;
   if(wt!==''){const wtNum=parseFloat(wt.replace(',','.'));if(isNaN(wtNum)||wtNum<=0){toast(t('toast_weight_error'));return;}}
   const cObj=clients.find(c=>c.name===cName);let arrWk=weekKey(pendingTargetOffset);let pickWk=isNextWk?weekKey(pendingTargetOffset+1):arrWk;
   const parsedWeight=wt?parseFloat(String(wt).replace(',','.')):0;
@@ -4197,7 +4469,7 @@ function confirmAdd(){
 
   // Optymistyczny update — dodaj do lokalnej tablicy od razu i przerenderuj
   const tempId='ID_'+Date.now();
-  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase(),addedBy:currentDriver?currentDriver.name:''};
+  const newEntry={id:tempId,weekKey:arrWk,pickWeekKey:pickWk,client:cName,arrDay:arrDay,pickDay:pickDay,done:false,weight:(parsedWeight>0?parsedWeight:0),route:route,type:(type||'P').toUpperCase(),addedBy:currentDriver?currentDriver.name:(isAdmin?'Admin':''),addedAt:new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),pickedBy:'',comment:comment,urgent:isUrgent,order:9999};
   entries.push(newEntry);
   renderGrid();
   toast(t('toast_added')+cName);
@@ -4219,7 +4491,7 @@ function confirmAdd(){
       if(idx!==-1) entries[idx].id=res.id;
       renderGrid();
     }
-  }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : '');
+  }).addEntry(arrWk,cName,arrDay,pickDay,pickWk,wt,route,type, currentDriver ? currentDriver.name : (isAdmin ? 'Admin' : ''), isUrgent, comment);
 }
 
 // ── OPEN EDIT — rozgałęzienie user / admin ──
@@ -4229,16 +4501,29 @@ function openEdit(id){
   // Admin: pełny modal edycji
   editingId=id;
   document.getElementById('eClientName').textContent=entry.client+' — '+getRouteName(entry.route);
+  // Meta info: kto przywiózł, kiedy, kto odebrał
+  let metaParts=[];
+  if(entry.addedBy) metaParts.push('<b>'+t('label_added_by')+':</b> '+esc(entry.addedBy));
+  if(entry.addedAt) metaParts.push('<b>'+t('label_added_at')+':</b> '+esc(entry.addedAt));
+  if(entry.pickedBy) metaParts.push('<b>'+t('label_picked_by')+':</b> '+esc(entry.pickedBy));
+  if(entry.pickedAt) metaParts.push('<b>'+t('label_picked_at')+':</b> '+esc(entry.pickedAt));
+  const metaEl=document.getElementById('eMetaInfo');
+  if(metaParts.length>0){metaEl.innerHTML=metaParts.join('<br>');metaEl.style.display='block';}
+  else{metaEl.style.display='none';}
   document.getElementById('eArrDay').value=entry.arrDay;document.getElementById('ePickDay').value=entry.pickDay;
   document.getElementById('ePickWeek').value=(entry.weekKey!==entry.pickWeekKey)?'1':'0';
   document.getElementById('eWeight').value=entry.weight>0?entry.weight:'';
+  document.getElementById('eComment').value=entry.comment||'';
+  document.getElementById('eUrgent').checked=entry.urgent||false;
   setSegmentedVal('eType', entry.type || 'P');
   const tBtn=document.getElementById('eToggleBtn');tBtn.textContent=entry.done ? t('btn_mark_undone') : t('btn_mark_done');
   document.getElementById('editModal').style.display='flex';
+  lockScroll();
 }
 
 // ── VIEW ENTRY (użytkownik) ──
 function openViewEntry(entry){
+  viewEntryId = entry.id;
   // Znajdź wszystkie wpisy tego klienta na ten sam dzień odbioru (grupowanie P+O)
   const grouped = entries.filter(function(e){
     return e.client === entry.client && e.route === entry.route &&
@@ -4279,9 +4564,87 @@ function openViewEntry(entry){
   const statusEl=document.getElementById('veStatus');
   statusEl.textContent=allDone ? t('status_done') : t('status_pending');
   statusEl.style.color=allDone?'var(--accent-green)':'var(--text-tertiary)';
+
+  // Pokaż kto przywiózł i kiedy wpisał
+  const addedByRow=document.getElementById('veAddedByRow');
+  const addedAtRow=document.getElementById('veAddedAtRow');
+  const pickedByRow=document.getElementById('vePickedByRow');
+  const addedByVal=entry.addedBy||'';
+  const addedAtVal=entry.addedAt||'';
+  const pickedByVal=entry.pickedBy||'';
+  if(addedByVal){
+    addedByRow.style.display='flex';
+    document.getElementById('veAddedBy').textContent=addedByVal;
+  } else { addedByRow.style.display='none'; }
+  if(addedAtVal){
+    addedAtRow.style.display='flex';
+    document.getElementById('veAddedAt').textContent=addedAtVal;
+  } else { addedAtRow.style.display='none'; }
+  if(pickedByVal){
+    pickedByRow.style.display='flex';
+    document.getElementById('vePickedBy').textContent=pickedByVal;
+  } else { pickedByRow.style.display='none'; }
+  const pickedAtRow=document.getElementById('vePickedAtRow');
+  const pickedAtVal=entry.pickedAt||'';
+  if(pickedAtVal){
+    pickedAtRow.style.display='flex';
+    document.getElementById('vePickedAt').textContent=pickedAtVal;
+  } else { pickedAtRow.style.display='none'; }
+  
+  const urgentRow = document.getElementById('veUrgentRow');
+  urgentRow.style.display = entry.urgent ? 'flex' : 'none';
+
+  const commentRow = document.getElementById('veCommentRow');
+  if (entry.comment) {
+    commentRow.style.display = 'flex';
+    document.getElementById('veComment').textContent = entry.comment;
+  } else {
+    commentRow.style.display = 'none';
+  }
+
   const tBtn=document.getElementById('veToggleBtn');
   tBtn.textContent=allDone ? t('btn_mark_undone') : t('btn_mark_done');
   tBtn.className='done-btn'+(allDone?' danger':'');
+// Zapamiętywanie wybranej paczki wpisów do komentarza
+let pendingToggleEntries = null;
+
+function performToggle(displayEntries, commentText) {
+  const allDone = displayEntries.every(function(e){return e.done;});
+  // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
+  displayEntries.forEach(function(de){
+    const idx=entries.findIndex(function(en){return en.id===de.id;});
+    if(idx!==-1){
+      entries[idx].done=!allDone;
+      entries[idx].pickedBy=(!allDone)?(currentDriver?currentDriver.name:''):'';
+      entries[idx].pickedAt=(!allDone)?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+      if (commentText !== undefined) entries[idx].comment = commentText;
+    }
+  });
+  renderGrid();
+  // Wyślij toggle dla każdego wpisu
+  displayEntries.forEach(function(de){
+    google.script.run.withFailureHandler(function(e){
+      loadWeek(); // Przy błędzie przeładuj
+    }).withSuccessHandler(function(res){
+      if(res&&res.error) loadWeek();
+    }).toggleDone(de.id, currentDriver ? currentDriver.name : '', commentText);
+  });
+}
+
+function cancelComment() {
+  document.getElementById('commentModal').style.display = 'none';
+  pendingToggleEntries = null;
+}
+
+function confirmComment() {
+  const commentText = document.getElementById('commentInput').value.trim();
+  document.getElementById('commentModal').style.display = 'none';
+  if (pendingToggleEntries) {
+    performToggle(pendingToggleEntries, commentText);
+    pendingToggleEntries = null;
+  }
+}
+
   tBtn.onclick=function(){
     if (!isAdmin && !currentDriver) {
       toast(currentLang === 'DE' ? 'Bitte melden Sie sich als Fahrer an' : (currentLang === 'UA' ? 'Увійдіть як водій' : 'Zaloguj się jako kierowca'));
@@ -4289,20 +4652,15 @@ function openViewEntry(entry){
       return;
     }
     closeViewEntry();
-    // Optymistyczny toggle — zmień stan wszystkich wpisów w grupie
-    displayEntries.forEach(function(de){
-      const idx=entries.findIndex(function(en){return en.id===de.id;});
-      if(idx!==-1) entries[idx].done=!allDone;
-    });
-    renderGrid();
-    // Wyślij toggle dla każdego wpisu
-    displayEntries.forEach(function(de){
-      google.script.run.withFailureHandler(function(e){
-        loadWeek(); // Przy błędzie przeładuj
-      }).withSuccessHandler(function(res){
-        if(res&&res.error) loadWeek();
-      }).toggleDone(de.id, currentDriver ? currentDriver.name : '');
-    });
+    
+    // Jeśli cofamy odbiór, zapytaj o komentarz
+    if (allDone) {
+      pendingToggleEntries = displayEntries;
+      document.getElementById('commentInput').value = displayEntries[0].comment || '';
+      document.getElementById('commentModal').style.display = 'flex';
+    } else {
+      performToggle(displayEntries);
+    }
   };
 
   // Przycisk Usuń — widoczny jeśli kierowca dodał WSZYSTKIE wpisy w grupie
@@ -4333,22 +4691,51 @@ function openViewEntry(entry){
   }
 
   document.getElementById('viewEntryModal').style.display='flex';
+  lockScroll();
 }
-function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';}
+function closeViewEntry(){document.getElementById('viewEntryModal').style.display='none';unlockScroll();}
 
-function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;}
+function closeEdit(){document.getElementById('editModal').style.display='none';editingId=null;unlockScroll();}
 function saveEdit(){
   if(!editingId)return;const arrDay=parseInt(document.getElementById('eArrDay').value);const pickDay=parseInt(document.getElementById('ePickDay').value);
   const id=editingId;
   const isNextWk=document.getElementById('ePickWeek').value==='1';const wt=document.getElementById('eWeight').value;
   const type=document.getElementById('eType').value;
+  const comment=document.getElementById('eComment').value;
+  const isUrgent=document.getElementById('eUrgent').checked;
   if(wt!==''){const wtNum=parseFloat(wt.replace(',','.'));if(isNaN(wtNum)||wtNum<=0){toast(t('toast_weight_error'));return;}}
   closeEdit();
   const original=entries.find(e=>e.id===id);
   const fallback=original?{client:original.client,weekKey:original.weekKey,pickWeekKey:original.pickWeekKey,arrDay:original.arrDay,pickDay:original.pickDay,type:original.type}:null;
-  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type);
+  google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + translateError(e.message))}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + translateError(res.error));else{toast(t('toast_saved'));loadWeek();}}).updateEntry(id,arrDay,pickDay,isNextWk,wt,fallback,getAdminToken(),type,isUrgent,comment);
 }
-function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1)entries[idx].done=!entries[idx].done;renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
+
+function copyEntry(source) {
+  let entry = null;
+  if (source === 'edit' && editingId) {
+    entry = entries.find(e => e.id === editingId);
+    closeEdit();
+  } else if (source === 'view' && viewEntryId) {
+    entry = entries.find(e => e.id === viewEntryId);
+    closeViewEntry();
+  }
+  if (!entry) return;
+  // Open Add modal but prefilled
+  openAdd(entry.arrDay, weekOffset);
+  setTimeout(() => {
+    document.getElementById('mClient').value = entry.client;
+    document.getElementById('mWeight').value = entry.weight > 0 ? entry.weight : '';
+    setSegmentedVal('mType', entry.type || 'P');
+    document.getElementById('mPickWeek').value = (entry.weekKey !== entry.pickWeekKey) ? '1' : '0';
+    document.getElementById('mPickDay').value = entry.pickDay;
+    document.getElementById('mComment').value = entry.comment || '';
+    document.getElementById('mUrgent').checked = entry.urgent || false;
+  }, 50);
+}
+
+let viewEntryId = null; // store current view id for copying
+
+function toggleDoneFromEdit(){if(!editingId)return;const id=editingId;closeEdit();const idx=entries.findIndex(function(en){return en.id===id;});if(idx!==-1){const newDone=!entries[idx].done;entries[idx].done=newDone;entries[idx].pickedBy=newDone?(currentDriver?currentDriver.name:''):'';entries[idx].pickedAt=newDone?new Date().toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';}renderGrid();google.script.run.withFailureHandler(function(e){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();alert(t('error_label')+': '+translateError(e.message));}).withSuccessHandler(function(res){if(res&&res.error){if(idx!==-1){entries[idx].done=!entries[idx].done;entries[idx].pickedBy='';entries[idx].pickedAt='';}renderGrid();}}).toggleDone(id, currentDriver ? currentDriver.name : '');}
 function deleteFromEdit(){
   if(!editingId)return;
   const entryToDel=entries.find(e=>e.id===editingId);
@@ -4417,6 +4804,7 @@ function renderClientsList(){
           const editBtnLbl = currentLang === 'DE' ? 'Bearbeiten' : (currentLang === 'UA' ? 'Редагувати' : 'Edytuj');
           html+='<span class="edit-icon" style="margin-left:8px" onclick="openEditClientModal('+jsArg(c.name)+','+Number(c.route)+','+jsArg(c.lat||'')+','+jsArg(c.lng||'')+')">' + editBtnLbl + '</span>';
         }
+        html+='<span class="edit-icon" style="margin-left:8px;color:var(--accent-blue)" onclick="openClientHistory('+jsArg(c.name)+')">Historia</span>';
         html+='</div>';
       });
       html+='</div><div style="flex:1"></div><div class="divider" style="margin:8px 0"></div>';
@@ -4444,27 +4832,73 @@ function renderClientsList(){
   }
 }
 
-function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';}
-function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';}
+function openAddRouteModal(){document.getElementById('rAddName').value='';document.getElementById('addRouteModal').style.display='flex';lockScroll();}
+function closeAddRouteModal(){document.getElementById('addRouteModal').style.display='none';unlockScroll();}
 function doAddRoute(){const name=document.getElementById('rAddName').value.trim();if(!name)return;closeAddRouteModal();toast(t('toast_creating'));google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_route_added'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addRoute(name,getAdminToken());}
 
-function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';}
-function closeRouteModal(){document.getElementById('routeModal').style.display='none';}
+function openRouteModal(id,name){document.getElementById('rEditId').value=id;document.getElementById('rEditName').value=name;document.getElementById('routeModal').style.display='flex';lockScroll();}
+function closeRouteModal(){document.getElementById('routeModal').style.display='none';unlockScroll();}
 function saveRouteEdit(){const id=document.getElementById('rEditId').value;const newName=document.getElementById('rEditName').value.trim();if(!newName)return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();if(document.getElementById('mainView').style.display==='block')renderGrid();});}}).updateRouteName(id,newName,getAdminToken());}
 function deleteRoute(){const id=document.getElementById('rEditId').value;const rName=document.getElementById('rEditName').value;const confirmMsg = currentLang === 'DE' ? 'Route "'+esc(rName)+'" löschen?' : (currentLang === 'UA' ? 'Вилучити маршрут "'+esc(rName)+'"?' : 'Usunąć trasę "'+esc(rName)+'"?');if(!confirm(confirmMsg))return;closeRouteModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeRoute(id,getAdminToken());}
 
-function openNewClient(routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';}
-function closeClientModal(){document.getElementById('clientModal').style.display='none';}
+function openNewClient(routeId){routeId=routeId||1;document.getElementById('newClientInput').value='';document.getElementById('newClientRoute').value=routeId;document.getElementById('clientModal').style.display='flex';lockScroll();}
+function closeClientModal(){document.getElementById('clientModal').style.display='none';unlockScroll();}
 function saveClient(){const name=document.getElementById('newClientInput').value.trim();const route=document.getElementById('newClientRoute').value;if(!name)return;closeClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)toast(t('error_label') + ': ' + res.error);else{toast(t('toast_added') + name);loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).addClient(name,route,getAdminToken());}
 
-function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';}
-function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';}
+function openClientHistory(clientName) {
+  document.getElementById('chTitle').textContent = 'Historia: ' + clientName;
+  document.getElementById('chContent').innerHTML = '<div class="loader">Ładowanie...</div>';
+  document.getElementById('clientHistoryModal').style.display = 'flex';
+  
+  google.script.run.withSuccessHandler(function(allEntries) {
+    const clientEntries = allEntries.filter(e => e.client === clientName && e.done);
+    if(clientEntries.length === 0) {
+      document.getElementById('chContent').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-tertiary)">Brak odebranych wpisów.</div>';
+      return;
+    }
+    
+    // Group by month
+    const byMonth = {};
+    clientEntries.forEach(e => {
+      // Very basic extraction of MM.YYYY from pickedAt
+      let mKey = 'Inne';
+      if(e.pickedAt) {
+        const parts = e.pickedAt.split(',')[0].split('.');
+        if(parts.length === 3) mKey = parts[1] + '.' + parts[2];
+      }
+      if(!byMonth[mKey]) byMonth[mKey] = {count:0, kg:0};
+      byMonth[mKey].count++;
+      byMonth[mKey].kg += (e.weight || 0);
+    });
+    
+    let html = '';
+    Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(m => {
+      let avg = byMonth[m].count > 0 ? (byMonth[m].kg / byMonth[m].count).toFixed(1) : 0;
+      html += `
+        <div class="card" style="margin-bottom:12px">
+          <div style="font-weight:600;font-size:15px;margin-bottom:8px">${m}</div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">
+            <span>Odbiorów: <strong style="color:var(--text-primary)">${byMonth[m].count}</strong></span>
+            <span>Suma: <strong style="color:var(--accent-blue)">${byMonth[m].kg.toFixed(1)} kg</strong></span>
+            <span>Średnio: <strong>${avg} kg</strong></span>
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('chContent').innerHTML = html;
+  }).getAllEntries();
+}
+
+function openEditClientModal(name,route,lat,lng){document.getElementById('ecOldName').value=name;document.getElementById('ecName').value=name;document.getElementById('ecRoute').value=route;document.getElementById('ecLat').value=lat||'';document.getElementById('ecLng').value=lng||'';document.getElementById('editClientModal').style.display='flex';lockScroll();}
+function closeEditClientModal(){document.getElementById('editClientModal').style.display='none';unlockScroll();}
 function doSaveClientEdit(){const oldName=document.getElementById('ecOldName').value;const newName=document.getElementById('ecName').value.trim();const newRoute=document.getElementById('ecRoute').value;const lat=document.getElementById('ecLat').value;const lng=document.getElementById('ecLng').value;if(!newName)return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_saved'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).updateClient(oldName,newName,newRoute,lat,lng,getAdminToken());}
 function doDeleteClient(){const name=document.getElementById('ecOldName').value;const confirmMsg = currentLang === 'DE' ? '"' + esc(name) + '" löschen?' : (currentLang === 'UA' ? 'Вилучити "' + esc(name) + '"?' : 'Usunąć "' + esc(name) + '"?');if(!confirm(confirmMsg))return;closeEditClientModal();google.script.run.withFailureHandler(function(e){alert(t('error_label') + ': ' + e.message)}).withSuccessHandler(function(res){if(res&&res.error)alert(t('error_label') + ': ' + res.error);else{toast(t('toast_deleted'));loadAppData(function(){if(document.getElementById('clientsView').style.display==='block')renderClientsList();});}}).removeClient(name,getAdminToken());}
 
 function loadAppData(callback){
   google.script.run.withFailureHandler(function(e){alert((currentLang === 'DE' ? 'Verbindungsfehler: ' : (currentLang === 'UA' ? 'Помилка з\'єднання: ' : 'Błąd łączenia: ')) + e.message)}).withSuccessHandler(function(data){
     clients=data.clients||[];const rts=data.routes||[];routeMap={};rts.forEach(r=>{routeMap[r.id]=r.name;});
+    drivers=data.drivers||[];
+    if(currentDriver){var fresh=drivers.find(function(d){return d.id===currentDriver.id;});if(fresh)currentDriver=fresh;}
     updateRouteDropdowns();if(callback)callback();
   }).getAppData();
 }
