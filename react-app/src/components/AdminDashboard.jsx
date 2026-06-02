@@ -9,7 +9,6 @@ export default function AdminDashboard() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      // Pobieramy listę użytkowników przez RPC (bo tabela users jest zablokowana przez RLS)
       const { data, error } = await supabase.rpc('get_all_users');
       if (error) throw error;
       setUsers(data || []);
@@ -51,55 +50,60 @@ export default function AdminDashboard() {
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
 
   return (
-    <div className="schedule-container" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-      <h2 style={{ color: 'var(--text-primary)', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Zarządzanie Użytkownikami</h2>
+    <div>
+      <div className="route-group-header">Zarządzanie Użytkownikami</div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
         {users.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)' }}>Brak zarejestrowanych użytkowników.</div>
+          <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>Brak użytkowników</div>
         ) : (
           users.map(u => (
-            <div key={u.id} style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div>
-                <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{u.name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>@{u.username}</div>
-                <div style={{ fontSize: '11px', marginTop: '4px' }}>
-                  <span 
-                    onClick={() => handleChangeRole(u.id, u.role === 'admin' ? 'driver' : 'admin')}
-                    style={{ 
-                      background: u.role === 'admin' ? 'var(--accent-blue)' : 'var(--accent-orange)', 
-                      color: 'white', 
-                      padding: '2px 8px', 
-                      borderRadius: '4px', 
-                      fontSize: '10px', 
-                      cursor: 'pointer',
-                      textTransform: 'uppercase'
-                    }}
-                  >
-                    {u.role}
-                  </span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div key={u.id} className="col">
+              <div className="col-header" style={{ justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>Przypisane Trasy:</div>
+                  <span className="col-day-name">{u.name}</span>
+                  <span className="col-date" style={{ marginLeft: '8px' }}>@{u.username}</span>
+                </div>
+                <span 
+                  onClick={() => handleChangeRole(u.id, u.role === 'admin' ? 'driver' : 'admin')}
+                  className={`rt-badge ${u.role === 'admin' ? 'rt-4' : 'rt-6'}`}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {u.role}
+                </span>
+              </div>
+              
+              <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Przypisane Trasy (np. 1, 2, 3)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     id={`routes-${u.id}`}
                     type="text" 
                     defaultValue={u.routes || ''}
-                    placeholder="np. 1, 2, 3"
-                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-primary)', width: '150px' }}
+                    placeholder="Wpisz ID tras"
+                    style={{ 
+                      flex: 1, 
+                      padding: '8px 12px', 
+                      borderRadius: 'var(--radius-md)', 
+                      border: '1px solid var(--border-strong)', 
+                      background: 'var(--bg-tertiary)', 
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font)',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
                   />
+                  <button 
+                    className="add-btn"
+                    style={{ width: 'auto', minHeight: 'auto', padding: '8px 16px', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent)', borderStyle: 'solid' }}
+                    onClick={() => {
+                      const input = document.getElementById(`routes-${u.id}`);
+                      handleSaveRoutes(u.id, input.value);
+                    }}
+                  >
+                    Zapisz
+                  </button>
                 </div>
-                <button 
-                  onClick={() => {
-                    const input = document.getElementById(`routes-${u.id}`);
-                    handleSaveRoutes(u.id, input.value);
-                  }}
-                  style={{ marginTop: '20px', background: 'var(--accent-green)', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                >
-                  Zapisz
-                </button>
               </div>
             </div>
           ))

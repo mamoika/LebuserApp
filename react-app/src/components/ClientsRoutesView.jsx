@@ -7,31 +7,31 @@ export default function ClientsRoutesView() {
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
 
   return (
-    <div className="schedule-container" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-      <h2 style={{ color: 'var(--text-primary)', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Klienci i Trasy</h2>
+    <div>
+      <div className="route-group-header">Klienci i Trasy</div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
         {routes.map(route => {
           const routeClients = clients.filter(c => c.route_id === route.id);
           
           return (
-            <div key={route.id} style={{ background: 'var(--bg-primary)', borderRadius: '8px', padding: '15px' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--accent-blue)', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ background: 'var(--accent-blue)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>T{route.id}</span>
-                {route.name}
-              </h3>
+            <div key={route.id} className="col">
+              <div className="col-header">
+                <span className={`rt-badge rt-${(route.id % 10) || 1}`}>T{route.id}</span>
+                <span className="col-day-name">{route.name}</span>
+              </div>
               
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {routeClients.length === 0 ? (
-                  <li style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Brak klientów na trasie</li>
+                  <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>Brak klientów</div>
                 ) : (
                   routeClients.map(client => (
-                    <li key={client.id} style={{ fontSize: '13px', color: 'var(--text-primary)', background: 'var(--bg-card)', padding: '8px', borderRadius: '4px', borderLeft: '3px solid var(--border-color)' }}>
-                      {client.name}
-                    </li>
+                    <div key={client.id} className="tag" style={{ cursor: 'default' }}>
+                      <div className="tag-name">{client.name}</div>
+                    </div>
                   ))
                 )}
-              </ul>
+              </div>
             </div>
           );
         })}
