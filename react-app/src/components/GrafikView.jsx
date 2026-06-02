@@ -31,6 +31,16 @@ function getCellStyle(value, isWeekendOrHoliday) {
 function parseHours(value) {
   const v = String(value || '').trim().toUpperCase();
   if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NN' || v === 'I' || v === 'END') return 0;
+  
+  if (v.includes('-')) {
+    const parts = v.split('-');
+    const st = parseFloat(parts[0].replace(',', '.'));
+    const en = parseFloat(parts[1].replace(',', '.'));
+    if (!isNaN(st) && !isNaN(en)) {
+      return en >= st ? en - st : (24 - st) + en;
+    }
+  }
+
   if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
   return parseFloat(v.replace(',', '.')) || 0;
 }
