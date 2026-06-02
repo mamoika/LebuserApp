@@ -48,7 +48,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setType('P');
       setUrgent(false);
     }
-  }, [isOpen, defaultArrDay, clients]);
+  }, [isOpen, defaultArrDay, clients, routes]);
 
   if (!isOpen) return null;
 
