@@ -379,12 +379,19 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           {entry.done && entry.picked_by && <ROW label="Odebrał" value={`${entry.picked_by} · ${fmtDateTime(entry.picked_at)}`} valueColor="var(--accent-green)" />}
           {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
 
-          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
-            <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
-              {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
-            </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
-          </div>
+          {(() => {
+            const canUndone = !entry.done || isAdmin || entry.picked_by === user?.name;
+            return (
+              <div className="ap-btn-group" style={{ marginTop: '16px' }}>
+                {canUndone && (
+                  <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
+                    {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
+                  </button>
+                )}
+                <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
+              </div>
+            );
+          })()}
           
           {canEdit && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
