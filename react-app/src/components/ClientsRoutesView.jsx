@@ -42,7 +42,7 @@ function AddRouteModal({ onClose, onSave }) {
   };
 
   return (
-    <div className="ap-sheet-overlay" onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-sheet-header">
           <div className="ap-sheet-title">Nowa trasa</div>
@@ -90,7 +90,7 @@ function EditRouteModal({ route, onClose, onSave }) {
   };
 
   return (
-    <div className="ap-sheet-overlay" onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-sheet-header">
           <div className="ap-sheet-title">Edytuj trasę</div>
@@ -137,7 +137,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   };
 
   return (
-    <div className="ap-sheet-overlay" onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-sheet-header">
           <div className="ap-sheet-title">Nowy klient</div>
@@ -197,7 +197,7 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
   };
 
   return (
-    <div className="ap-sheet-overlay" onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-sheet-header">
           <div className="ap-sheet-title">Edytuj klienta</div>
@@ -258,7 +258,7 @@ function DeleteRouteModal({ route, onClose, onConfirm }) {
     setSaving(false);
   };
   return (
-    <div className="ap-sheet-overlay" onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-sheet-header">
           <div className="ap-sheet-title">Usuń trasę</div>
