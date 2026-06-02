@@ -64,11 +64,11 @@ export default function Dashboard() {
 
       {/* Header */}
       <header className="app-header">
-        <div className="app-header-top">
-          <img src={iconImg} alt="Ikona LEBUSER" className="app-logo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
-          <div>
-            <div className="app-title">LEBUSER <span style={{ fontWeight: 400 }}>Harmonogram</span></div>
-            <div className="app-subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
+        <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
+          <img src={logoImg} alt="Logo LEBUSER" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className="app-title" style={{ fontSize: '22px' }}>Harmonogram</div>
+            <div className="app-subtitle">Zarządzanie logistyką</div>
           </div>
         </div>
         <div className="app-header-actions">
