@@ -128,8 +128,16 @@ export default function TimelineView() {
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(null); // { empId, dateStr, hour, currentRole }
 
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const weekNum = getWeekNum(monday);
+
+  // So/Nd pokazuj tylko jeśli ktoś ma przypisane stanowisko
+  const weekDays = allWeekDays.filter(d => {
+    const dw = d.getDay();
+    if (dw !== 0 && dw !== 6) return true; // Pn-Pt zawsze
+    const ds = toDateStr(d);
+    return Object.keys(entries).some(k => k.includes(`_${ds}_`));
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
