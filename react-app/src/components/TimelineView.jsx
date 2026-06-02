@@ -162,10 +162,31 @@ export default function TimelineView() {
       if (!dayDate) return;
       const ds = toDateStr(dayDate);
       const v = String(e.value || '').toUpperCase();
-      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN';
+      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'END';
+      
+      let finalStart = parseHour(emp.default_start);
+      let finalEnd = parseHour(emp.default_end);
+      
+      if (isWorking && v && !isNaN(parseFloat(v.replace(',', '.')))) {
+        if (v.includes('+')) {
+          const parts = v.split('+');
+          const st = parseFloat(parts[0].replace(',', '.'));
+          const dur = parseFloat(parts[1].replace(',', '.'));
+          if (!isNaN(st) && !isNaN(dur)) {
+            finalStart = st;
+            finalEnd = st + dur;
+          }
+        } else {
+          const dur = parseFloat(v.replace(',', '.'));
+          if (!isNaN(dur)) {
+            finalEnd = finalStart + dur;
+          }
+        }
+      }
+
       sm[`${e.employee_id}_${ds}`] = {
-        start: parseHour(emp.default_start),
-        end: parseHour(emp.default_end),
+        start: finalStart,
+        end: finalEnd,
         working: isWorking,
       };
     });
