@@ -1,114 +1,279 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
+
+function AddUserModal({ onClose, onSave }) {
+  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('driver');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    if (!username.trim() || !name.trim()) return;
+    setSaving(true);
+    setError('');
+    const result = await onSave(username.trim(), name.trim(), role);
+    setSaving(false);
+    if (result?.error) setError(result.error);
+  };
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>👤</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowy użytkownik</div>
+          </div>
+
+          {error && <div className="ap-error" style={{ marginBottom: '12px' }}>{error}</div>}
+
+          <div style={LABEL_STYLE}>Login</div>
+          <input
+            className="ap-input"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="np. jan.kowalski"
+            style={{ marginBottom: '12px' }}
+            autoFocus
+            autoComplete="off"
+          />
+
+          <div style={LABEL_STYLE}>Imię i nazwisko</div>
+          <input
+            className="ap-input"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Jan Kowalski"
+            style={{ marginBottom: '12px' }}
+          />
+
+          <div style={LABEL_STYLE}>Rola</div>
+          <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
+            <option value="driver">Kierowca</option>
+            <option value="admin">Administrator</option>
+          </select>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !username.trim() || !name.trim()}>
+              {saving ? 'Tworzenie…' : 'Utwórz użytkownika'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Anuluj</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditUserModal({ user, onClose, onSave, onResetPassword }) {
+  const [name, setName] = useState(user.name);
+  const [role, setRole] = useState(user.role);
+  const [routes, setRoutes] = useState(user.routes || '');
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(user.id, name.trim(), role, routes.trim());
+    setSaving(false);
+  };
+
+  const handleReset = async () => {
+    if (!user.has_password) return;
+    setResetting(true);
+    await onResetPassword(user.id);
+    setResetting(false);
+    setResetDone(true);
+  };
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
+            <div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj użytkownika</div>
+              <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>@{user.username}</div>
+            </div>
+          </div>
+
+          <div style={LABEL_STYLE}>Imię i nazwisko</div>
+          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: '12px' }} autoFocus />
+
+          <div style={LABEL_STYLE}>Rola</div>
+          <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
+            <option value="driver">Kierowca</option>
+            <option value="admin">Administrator</option>
+          </select>
+
+          <div style={LABEL_STYLE}>Trasy (numery ID, przecinek)</div>
+          <input
+            className="ap-input"
+            value={routes}
+            onChange={e => setRoutes(e.target.value)}
+            placeholder="np. 1,2,5"
+            style={{ marginBottom: '12px' }}
+          />
+
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px', background: '#fff', borderRadius: '13px',
+            marginBottom: '16px', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.08)',
+          }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>Status hasła</div>
+              <div style={{ fontSize: '12px', fontWeight: 500, marginTop: '2px', color: resetDone ? '#CC6600' : user.has_password ? '#25A244' : '#CC6600' }}>
+                {resetDone
+                  ? '⚠️ Zresetowane — user ustawi przy następnym logowaniu'
+                  : user.has_password ? '✓ Ustawione' : '— Nie ustawione jeszcze'}
+              </div>
+            </div>
+            {user.has_password && !resetDone && (
+              <button
+                onClick={handleReset}
+                disabled={resetting}
+                style={{
+                  background: 'rgba(255,59,48,0.1)', color: '#FF3B30',
+                  border: 'none', borderRadius: '8px', padding: '6px 12px',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                {resetting ? '…' : 'Resetuj hasło'}
+              </button>
+            )}
+          </div>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [addUserOpen, setAddUserOpen] = useState(false);
+  const [editUser, setEditUser] = useState(null);
 
   const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.rpc('get_all_users');
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const { data, error } = await supabase.rpc('get_all_users');
+    if (error) setError(error.message);
+    else setUsers(data || []);
+    setLoading(false);
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleSaveRoutes = async (userId, routesInput) => {
-    const { error } = await supabase.rpc('update_user_routes', {
-      p_user_id: userId,
-      p_routes: routesInput,
+  const handleAddUser = async (username, name, role) => {
+    const { data, error } = await supabase.rpc('admin_create_user', {
+      p_username: username,
+      p_name: name,
+      p_role: role,
     });
-    if (error) {
-      alert('Błąd: ' + error.message);
-    } else {
-      alert('Trasy zapisane!');
-      fetchUsers();
-    }
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    setAddUserOpen(false);
+    fetchUsers();
+    return { ok: true };
   };
 
-  const handleChangeRole = async (userId, newRole) => {
-    const { error } = await supabase.rpc('update_user_role', {
-      p_user_id: userId,
-      p_role: newRole,
-    });
-    if (error) {
-      alert('Błąd: ' + error.message);
-    } else {
-      fetchUsers();
-    }
+  const handleSaveUser = async (userId, name, role, routes) => {
+    const { error: e1 } = await supabase.rpc('update_user_role', { p_user_id: userId, p_role: role });
+    if (e1) { alert('Błąd zapisu roli: ' + e1.message); return; }
+    const { error: e2 } = await supabase.rpc('update_user_routes', { p_user_id: userId, p_routes: routes });
+    if (e2) { alert('Błąd zapisu tras: ' + e2.message); return; }
+    setEditUser(null);
+    fetchUsers();
   };
 
-  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Ładowanie danych...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
+  const handleResetPassword = async (userId) => {
+    const { data, error } = await supabase.rpc('admin_reset_password', { p_user_id: userId });
+    if (error || data?.error) {
+      alert('Błąd resetu: ' + (error?.message || data?.error));
+      return;
+    }
+    fetchUsers();
+  };
+
+  if (loading) return <div className="loader">Ładowanie użytkowników…</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
 
   return (
-    <div>
-      <div className="route-group-header">Zarządzanie Użytkownikami</div>
-      
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-        {users.length === 0 ? (
-          <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>Brak użytkowników</div>
-        ) : (
-          users.map(u => (
-            <div key={u.id} className="col">
-              <div className="col-header" style={{ justifyContent: 'space-between' }}>
-                <div>
-                  <span className="col-day-name">{u.name}</span>
-                  <span className="col-date" style={{ marginLeft: '8px' }}>@{u.username}</span>
-                </div>
-                <span 
-                  onClick={() => handleChangeRole(u.id, u.role === 'admin' ? 'driver' : 'admin')}
-                  className={`rt-badge ${u.role === 'admin' ? 'rt-4' : 'rt-6'}`}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {u.role}
-                </span>
-              </div>
-              
-              <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Przypisane Trasy (np. 1, 2, 3)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    id={`routes-${u.id}`}
-                    type="text" 
-                    defaultValue={u.routes || ''}
-                    placeholder="Wpisz ID tras"
-                    style={{ 
-                      flex: 1, 
-                      padding: '8px 12px', 
-                      borderRadius: 'var(--radius-md)', 
-                      border: '1px solid var(--border-strong)', 
-                      background: 'var(--bg-tertiary)', 
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font)',
-                      fontSize: '14px',
-                      outline: 'none'
-                    }}
-                  />
-                  <button 
-                    className="add-btn"
-                    style={{ width: 'auto', minHeight: 'auto', padding: '8px 16px', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent)', borderStyle: 'solid' }}
-                    onClick={() => {
-                      const input = document.getElementById(`routes-${u.id}`);
-                      handleSaveRoutes(u.id, input.value);
-                    }}
-                  >
-                    Zapisz
-                  </button>
-                </div>
+    <div style={{ maxWidth: '600px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>Użytkownicy ({users.length})</div>
+        <button
+          onClick={() => setAddUserOpen(true)}
+          style={{
+            background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: '10px',
+            padding: '8px 14px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          + Nowy użytkownik
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {users.map(u => (
+          <div
+            key={u.id}
+            onClick={() => setEditUser(u)}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '14px', padding: '14px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                @{u.username} · {u.role === 'admin' ? '⚙️ Admin' : '🚛 Kierowca'}
+                {u.routes ? ` · Trasy: ${u.routes}` : ''}
               </div>
             </div>
-          ))
-        )}
+            <div style={{
+              fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px',
+              background: u.has_password ? 'rgba(52,199,89,0.12)' : 'rgba(255,149,0,0.12)',
+              color: u.has_password ? '#25A244' : '#CC6600',
+              flexShrink: 0,
+            }}>
+              {u.has_password ? 'Aktywny' : 'Brak hasła'}
+            </div>
+          </div>
+        ))}
       </div>
+
+      {addUserOpen && (
+        <AddUserModal onClose={() => setAddUserOpen(false)} onSave={handleAddUser} />
+      )}
+
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSave={handleSaveUser}
+          onResetPassword={handleResetPassword}
+        />
+      )}
     </div>
   );
 }

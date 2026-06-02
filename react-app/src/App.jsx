@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
-import RegisterPage from './pages/Register';
 import Dashboard from './pages/Dashboard';
 
 const ProtectedRoute = ({ children }) => {
@@ -30,11 +29,7 @@ function App() {
               <LoginPage />
             </PublicRoute>
           } />
-          <Route path="/register" element={
-            <PublicRoute>
-              <RegisterPage />
-            </PublicRoute>
-          } />
+          <Route path="/register" element={<Navigate to="/login" replace />} />
           <Route path="/*" element={
             <ProtectedRoute>
               <Dashboard />
