@@ -9,7 +9,21 @@ function toDateStr(d) {
 
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 
-const FMT = (num) => typeof num === 'number' ? num.toFixed(2) : '---';
+const FMT = (num) => typeof num === 'number' ? num.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
+
+// iOS 18 Design Constants
+const IOS_THEME = {
+  bg: '#F2F2F7',
+  cardBg: '#FFFFFF',
+  textPrimary: '#000000',
+  textSecondary: '#3C3C4399',
+  accent: '#007AFF',
+  success: '#34C759',
+  warning: '#FF9500',
+  border: 'rgba(60, 60, 67, 0.12)',
+  radius: '16px',
+  shadow: '0 4px 20px rgba(0,0,0,0.06)'
+};
 
 export default function CostsView() {
   const { isAdmin } = useAuth();
@@ -100,19 +114,17 @@ export default function CostsView() {
 
   const saveAll = async () => {
     setSaving(true);
-    // Zapisz ustawienia
     await supabase.from('cost_settings').upsert({
       ...settings, month_key: monthKey, updated_at: new Date().toISOString()
     });
-    // Zapisz dane codzienne (filtrowanie tylko tych zmodyfikowanych lub z wpisami)
-    const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1); // ma coś poza entry_date
+    const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
     if (toSave.length > 0) {
       await supabase.from('daily_costs').upsert(
         toSave.map(d => ({ ...d, updated_at: new Date().toISOString() }))
       );
     }
     setSaving(false);
-    fetchData(); // odśwież
+    fetchData();
   };
 
   if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
@@ -122,7 +134,6 @@ export default function CostsView() {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => toDateStr(new Date(year, month - 1, i + 1)));
 
-  // Obliczenia kosztów dla jednego dnia
   const calcDay = (dStr) => {
     const d = dailyData[dStr] || {};
     const fiat_km = (d.fiat_end || 0) - (d.fiat_start || 0);
@@ -131,99 +142,136 @@ export default function CostsView() {
     const iveco_km = (d.iveco_end || 0) - (d.iveco_start || 0);
     
     const transportCost = ((fiat_km * settings.fiat_l_100km) + (isuzu_km * settings.isuzu_l_100km) + (merc_km * settings.merc_l_100km) + (iveco_km * settings.iveco_l_100km)) / 100 * settings.fuel_price;
-    
     const elec_usage = ((d.elec_end || 0) - (d.elec_start || 0)) * settings.elec_multiplier;
     const elec_cost = elec_usage * settings.elec_price_kwh + (settings.elec_fixed_monthly / daysInMonth);
-    
     const gas_prod_usage = (d.gas_prod_end || 0) - (d.gas_prod_start || 0);
     const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + settings.gas_prod_fixed_daily;
-    
     const gas_heat_usage = (d.gas_heat_end || 0) - (d.gas_heat_start || 0);
     const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (settings.gas_heat_fixed_monthly / daysInMonth);
-    
     const water_usage = (d.water_end || 0) - (d.water_start || 0);
     const water_cost = water_usage * settings.water_price_m3 + (settings.water_fixed_monthly / daysInMonth);
-    
     const hrs = timelineStats[dStr]?.total_hours || 0;
     const worker_cost = hrs * settings.worker_hourly_rate;
-    
     const other_cost = d.other_costs || 0;
-    
     const total_cost = transportCost + elec_cost + gas_prod_cost + gas_heat_cost + water_cost + worker_cost + other_cost;
     
     return { transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost };
   };
 
+  // Calculate Monthly Totals
+  const monthlyTotals = days.reduce((acc, dStr) => {
+    const c = calcDay(dStr);
+    acc.transport += c.transportCost;
+    acc.elec += c.elec_cost;
+    acc.gas += (c.gas_prod_cost + c.gas_heat_cost);
+    acc.water += c.water_cost;
+    acc.workers += c.worker_cost;
+    acc.total += c.total_cost;
+    return acc;
+  }, { transport: 0, elec: 0, gas: 0, water: 0, workers: 0, total: 0 });
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '2px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
       
-      {/* HEADER & TABS */}
-      <div style={{ display: 'flex', gap: '12px', background: 'var(--bg-card)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
-        <button onClick={() => setCurrentDate(new Date(year, month - 2, 1))} style={{ padding: '8px 12px', borderRadius: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontWeight: 600, cursor: 'pointer' }}>‹</button>
-        <div style={{ fontWeight: 700, fontSize: '15px', flex: 1, textAlign: 'center', color: 'var(--text-primary)' }}>
-          {MONTHS_PL[month - 1]} {year}
+      {/* iOS 18 HEADER & SEGMENTED CONTROL */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        background: IOS_THEME.cardBg,
+        padding: '16px 20px',
+        borderRadius: IOS_THEME.radius,
+        boxShadow: IOS_THEME.shadow,
+        border: `1px solid ${IOS_THEME.border}`
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => setCurrentDate(new Date(year, month - 2, 1))} style={navBtnStyle}>‹</button>
+          <div style={{ fontWeight: 700, fontSize: '17px', minWidth: '140px', textAlign: 'center' }}>
+            {MONTHS_PL[month - 1]} {year}
+          </div>
+          <button onClick={() => setCurrentDate(new Date(year, month, 1))} style={navBtnStyle}>›</button>
         </div>
-        <button onClick={() => setCurrentDate(new Date(year, month, 1))} style={{ padding: '8px 12px', borderRadius: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontWeight: 600, cursor: 'pointer' }}>›</button>
-        
-        <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 8px' }}></div>
-        
-        <button 
-          onClick={() => setActiveTab('costs')}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', fontWeight: 600, border: 'none', cursor: 'pointer', background: activeTab === 'costs' ? 'var(--accent)' : 'transparent', color: activeTab === 'costs' ? '#fff' : 'var(--text-secondary)' }}
-        ><Zap size={16}/> Koszty</button>
-        
-        <button 
-          onClick={() => setActiveTab('performance')}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', fontWeight: 600, border: 'none', cursor: 'pointer', background: activeTab === 'performance' ? '#FF9500' : 'transparent', color: activeTab === 'performance' ? '#fff' : 'var(--text-secondary)' }}
-        ><Activity size={16}/> Wydajność</button>
-        
-        <div style={{ flex: 1 }}></div>
-        <button onClick={saveAll} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#34C759', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-          <Save size={16}/> {saving ? 'Zapisuję...' : 'Zapisz dane'}
+
+        <div style={{ 
+          display: 'flex', 
+          background: '#EEEEEE', 
+          padding: '2px', 
+          borderRadius: '10px',
+          gap: '2px'
+        }}>
+          <button 
+            onClick={() => setActiveTab('costs')}
+            style={{ ...segmentBtnStyle, background: activeTab === 'costs' ? '#FFFFFF' : 'transparent', boxShadow: activeTab === 'costs' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
+          >Koszty</button>
+          <button 
+            onClick={() => setActiveTab('performance')}
+            style={{ ...segmentBtnStyle, background: activeTab === 'performance' ? '#FFFFFF' : 'transparent', boxShadow: activeTab === 'performance' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
+          >Wydajność</button>
+        </div>
+
+        <button onClick={saveAll} disabled={saving} style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          background: IOS_THEME.success, 
+          color: '#fff', 
+          border: 'none', 
+          padding: '10px 24px', 
+          borderRadius: '12px', 
+          fontWeight: 700, 
+          fontSize: '14px',
+          cursor: 'pointer', 
+          opacity: saving ? 0.7 : 1,
+          transition: 'transform 0.1s active'
+        }}>
+          <Save size={18}/> {saving ? 'Zapisuję...' : 'Zapisz'}
         </button>
       </div>
 
-      <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+      {/* SUMMARY CARDS */}
+      {!loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
+          <SummaryCard title="Transport" value={monthlyTotals.transport} icon={<Truck size={20}/>} color="#E65100" />
+          <SummaryCard title="Energia" value={monthlyTotals.elec} icon={<Zap size={20}/>} color="#F57F17" />
+          <SummaryCard title="Gaz" value={monthlyTotals.gas} icon={<Flame size={20}/>} color="#6A1B9A" />
+          <SummaryCard title="Woda" value={monthlyTotals.water} icon={<Droplet size={20}/>} color="#0277BD" />
+          <SummaryCard title="Pracownicy" value={monthlyTotals.workers} icon={<Users size={20}/>} color="#1B5E20" />
+          <SummaryCard title="RAZEM" value={monthlyTotals.total} color={IOS_THEME.accent} isTotal />
+        </div>
+      )}
+
+      {/* DATA GRID */}
+      <div style={{ 
+        background: IOS_THEME.cardBg, 
+        borderRadius: IOS_THEME.radius, 
+        boxShadow: IOS_THEME.shadow,
+        border: `1px solid ${IOS_THEME.border}`,
+        overflow: 'hidden'
+      }}>
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Ładowanie danych...</div>
+          <div style={{ padding: '60px', textAlign: 'center', color: IOS_THEME.textSecondary, fontSize: '15px' }}>Ładowanie danych finansowych...</div>
         ) : (
-          <div style={{ overflowX: 'auto', paddingBottom: '20px' }}>
-            
-            {/* WIDOK KOSZTÓW */}
+          <div style={{ overflowX: 'auto' }}>
             {activeTab === 'costs' && (
-              <table className="costs-table" style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>
-                    <th rowSpan={2} style={thStyle}>Data</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}><Truck size={12}/> Auta (km)</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#FFF9C4', color: '#F57F17' }}><Zap size={12}/> Prąd (kWh)</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#F3E5F5', color: '#6A1B9A' }}><Flame size={12}/> Gaz Prod. (m³)</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#E1BEE7', color: '#4A148C' }}><Flame size={12}/> Gaz Ogrz. (m³)</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#E1F5FE', color: '#0277BD' }}><Droplet size={12}/> Woda (m³)</th>
-                    <th rowSpan={2} style={{ ...thStyle, background: '#E8F5E9', color: '#1B5E20' }}><Users size={12}/><br/>Ludzie<br/>(zł)</th>
-                    <th rowSpan={2} style={thStyle}>Inne (zł)</th>
-                    <th rowSpan={2} style={{ ...thStyle, background: '#2E7D32', color: '#fff' }}>RAZEM<br/>(zł)</th>
-                  </tr>
-                  <tr>
-                    <th style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}>Start</th>
-                    <th style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}>Koniec</th>
-                    <th style={{ ...thStyle, background: '#FFE0B2', color: '#E65100' }}>Koszt (zł)</th>
-
-                    <th style={{ ...thStyle, background: '#FFF9C4', color: '#F57F17' }}>Start</th>
-                    <th style={{ ...thStyle, background: '#FFF9C4', color: '#F57F17' }}>Koniec</th>
-                    <th style={{ ...thStyle, background: '#FFF59D', color: '#F57F17' }}>Koszt (zł)</th>
-
-                    <th style={{ ...thStyle, background: '#F3E5F5', color: '#6A1B9A' }}>Start</th>
-                    <th style={{ ...thStyle, background: '#F3E5F5', color: '#6A1B9A' }}>Koniec</th>
-                    <th style={{ ...thStyle, background: '#E1BEE7', color: '#6A1B9A' }}>Koszt (zł)</th>
-
-                    <th style={{ ...thStyle, background: '#E1BEE7', color: '#4A148C' }}>Start</th>
-                    <th style={{ ...thStyle, background: '#E1BEE7', color: '#4A148C' }}>Koniec</th>
-                    <th style={{ ...thStyle, background: '#CE93D8', color: '#4A148C' }}>Koszt (zł)</th>
-
-                    <th style={{ ...thStyle, background: '#E1F5FE', color: '#0277BD' }}>Start</th>
-                    <th style={{ ...thStyle, background: '#E1F5FE', color: '#0277BD' }}>Koniec</th>
-                    <th style={{ ...thStyle, background: '#B3E5FC', color: '#0277BD' }}>Koszt (zł)</th>
+                  <tr style={{ background: '#F9F9FB', borderBottom: `1px solid ${IOS_THEME.border}` }}>
+                    <th style={newThStyle}>Data</th>
+                    <th style={newThStyle}><Truck size={14}/> Auto Start</th>
+                    <th style={newThStyle}><Truck size={14}/> Auto Koniec</th>
+                    <th style={{ ...newThStyle, color: '#E65100' }}>Koszt Auta</th>
+                    <th style={newThStyle}><Zap size={14}/> Prąd S</th>
+                    <th style={newThStyle}><Zap size={14}/> Prąd K</th>
+                    <th style={{ ...newThStyle, color: '#F57F17' }}>Koszt Prąd</th>
+                    <th style={newThStyle}><Flame size={14}/> Gaz S</th>
+                    <th style={newThStyle}><Flame size={14}/> Gaz K</th>
+                    <th style={{ ...newThStyle, color: '#6A1B9A' }}>Koszt Gaz</th>
+                    <th style={newThStyle}><Droplet size={14}/> Woda S</th>
+                    <th style={newThStyle}><Droplet size={14}/> Woda K</th>
+                    <th style={{ ...newThStyle, color: '#0277BD' }}>Koszt Woda</th>
+                    <th style={{ ...newThStyle, color: '#1B5E20' }}>Ludzie</th>
+                    <th style={newThStyle}>Inne</th>
+                    <th style={{ ...newThStyle, background: '#F2F2F7', fontWeight: 800 }}>SUMA</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -232,50 +280,26 @@ export default function CostsView() {
                     const isOff = d.getDay() === 0 || d.getDay() === 6;
                     const c = calcDay(dStr);
                     const dt = dailyData[dStr] || {};
-                    
                     return (
-                      <tr key={dStr} style={{ background: isOff ? '#f8f9fa' : 'transparent', borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ ...tdStyle, fontWeight: 700, textAlign: 'center', background: isOff ? '#eee' : '#f0f4f8' }}>
+                      <tr key={dStr} style={{ borderBottom: `1px solid ${IOS_THEME.border}`, background: isOff ? 'rgba(60, 60, 67, 0.03)' : 'transparent' }}>
+                        <td style={{ ...newTdStyle, fontWeight: 700, color: isOff ? IOS_THEME.textSecondary : IOS_THEME.textPrimary }}>
                           {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
                         </td>
-                        
-                        {/* AUTA (sumarycznie dla uproszczenia widoku, można rozbić później) */}
-                        <td style={tdStyle}><input type="number" value={dt.fiat_start || ''} onChange={(e) => handleCostChange(dStr, 'fiat_start', e.target.value)} style={inpStyle} placeholder="Fiat S"/></td>
-                        <td style={tdStyle}><input type="number" value={dt.fiat_end || ''} onChange={(e) => handleCostChange(dStr, 'fiat_end', e.target.value)} style={inpStyle} placeholder="Fiat K"/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#fff8f0', color: '#E65100', fontWeight: 600, textAlign: 'right' }}>{FMT(c.transportCost)}</td>
-
-                        {/* PRĄD */}
-                        <td style={tdStyle}><input type="number" value={dt.elec_start || ''} onChange={(e) => handleCostChange(dStr, 'elec_start', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.elec_end || ''} onChange={(e) => handleCostChange(dStr, 'elec_end', e.target.value)} style={inpStyle}/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#fffde7', color: '#F57F17', fontWeight: 600, textAlign: 'right' }}>{FMT(c.elec_cost)}</td>
-
-                        {/* GAZ PROD */}
-                        <td style={tdStyle}><input type="number" value={dt.gas_prod_start || ''} onChange={(e) => handleCostChange(dStr, 'gas_prod_start', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.gas_prod_end || ''} onChange={(e) => handleCostChange(dStr, 'gas_prod_end', e.target.value)} style={inpStyle}/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#f3e5f5', color: '#6A1B9A', fontWeight: 600, textAlign: 'right' }}>{FMT(c.gas_prod_cost)}</td>
-
-                        {/* GAZ OGRZ */}
-                        <td style={tdStyle}><input type="number" value={dt.gas_heat_start || ''} onChange={(e) => handleCostChange(dStr, 'gas_heat_start', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.gas_heat_end || ''} onChange={(e) => handleCostChange(dStr, 'gas_heat_end', e.target.value)} style={inpStyle}/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#f3e5f5', color: '#4A148C', fontWeight: 600, textAlign: 'right' }}>{FMT(c.gas_heat_cost)}</td>
-
-                        {/* WODA */}
-                        <td style={tdStyle}><input type="number" value={dt.water_start || ''} onChange={(e) => handleCostChange(dStr, 'water_start', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.water_end || ''} onChange={(e) => handleCostChange(dStr, 'water_end', e.target.value)} style={inpStyle}/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#e1f5fe', color: '#0277BD', fontWeight: 600, textAlign: 'right' }}>{FMT(c.water_cost)}</td>
-
-                        {/* LUDZIE */}
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#e8f5e9', color: '#1B5E20', fontWeight: 600, textAlign: 'right' }}>
-                          {c.worker_cost > 0 ? FMT(c.worker_cost) : '-'}
-                        </td>
-                        
-                        {/* INNE */}
-                        <td style={tdStyle}><input type="number" value={dt.other_costs || ''} onChange={(e) => handleCostChange(dStr, 'other_costs', e.target.value)} style={inpStyle}/></td>
-
-                        {/* RAZEM */}
-                        <td style={{ ...tdStyle, background: isOff ? '#ddd' : '#2E7D32', color: isOff ? '#555' : '#fff', fontWeight: 700, textAlign: 'right' }}>
-                          {FMT(c.total_cost)}
-                        </td>
+                        <td style={newTdStyle}><input type="number" value={dt.fiat_start || ''} onChange={(e) => handleCostChange(dStr, 'fiat_start', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.fiat_end || ''} onChange={(e) => handleCostChange(dStr, 'fiat_end', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 600, color: '#E65100', textAlign: 'right' }}>{FMT(c.transportCost)}</td>
+                        <td style={newTdStyle}><input type="number" value={dt.elec_start || ''} onChange={(e) => handleCostChange(dStr, 'elec_start', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.elec_end || ''} onChange={(e) => handleCostChange(dStr, 'elec_end', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 600, color: '#F57F17', textAlign: 'right' }}>{FMT(c.elec_cost)}</td>
+                        <td style={newTdStyle}><input type="number" value={dt.gas_prod_start || ''} onChange={(e) => handleCostChange(dStr, 'gas_prod_start', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.gas_prod_end || ''} onChange={(e) => handleCostChange(dStr, 'gas_prod_end', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 600, color: '#6A1B9A', textAlign: 'right' }}>{FMT(c.gas_prod_cost + c.gas_heat_cost)}</td>
+                        <td style={newTdStyle}><input type="number" value={dt.water_start || ''} onChange={(e) => handleCostChange(dStr, 'water_start', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.water_end || ''} onChange={(e) => handleCostChange(dStr, 'water_end', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 600, color: '#0277BD', textAlign: 'right' }}>{FMT(c.water_cost)}</td>
+                        <td style={{ ...newTdStyle, fontWeight: 600, color: '#1B5E20', textAlign: 'right' }}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '-'}</td>
+                        <td style={newTdStyle}><input type="number" value={dt.other_costs || ''} onChange={(e) => handleCostChange(dStr, 'other_costs', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 800, background: '#F9F9FB', textAlign: 'right' }}>{FMT(c.total_cost)}</td>
                       </tr>
                     );
                   })}
@@ -283,30 +307,20 @@ export default function CostsView() {
               </table>
             )}
 
-            {/* WIDOK WYDAJNOŚCI */}
             {activeTab === 'performance' && (
-              <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>
-                    <th rowSpan={2} style={thStyle}>Data</th>
-                    <th colSpan={4} style={{ ...thStyle, background: '#E8F5E9', color: '#1B5E20' }}>Tonaż (kg)</th>
-                    <th colSpan={4} style={{ ...thStyle, background: '#E3F2FD', color: '#1565C0' }}>Godziny z Osi (h)</th>
-                    <th colSpan={3} style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}>Wydajność (kg / h)</th>
-                  </tr>
-                  <tr>
-                    <th style={{ ...thStyle, background: '#E8F5E9', color: '#1B5E20' }}>ZD1</th>
-                    <th style={{ ...thStyle, background: '#E8F5E9', color: '#1B5E20' }}>ZD2</th>
-                    <th style={{ ...thStyle, background: '#E8F5E9', color: '#1B5E20' }}>Pralki</th>
-                    <th style={{ ...thStyle, background: '#C8E6C9', color: '#1B5E20' }}>SUMA</th>
-
-                    <th style={{ ...thStyle, background: '#E3F2FD', color: '#1565C0' }}>ZD1</th>
-                    <th style={{ ...thStyle, background: '#E3F2FD', color: '#1565C0' }}>ZD2</th>
-                    <th style={{ ...thStyle, background: '#E3F2FD', color: '#1565C0' }}>Kier.</th>
-                    <th style={{ ...thStyle, background: '#BBDEFB', color: '#1565C0' }}>SUMA</th>
-
-                    <th style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}>KG/H ZD1</th>
-                    <th style={{ ...thStyle, background: '#FFF3E0', color: '#E65100' }}>KG/H ZD2</th>
-                    <th style={{ ...thStyle, background: '#FFE0B2', color: '#E65100' }}>KG/H WSP.</th>
+                  <tr style={{ background: '#F9F9FB', borderBottom: `1px solid ${IOS_THEME.border}` }}>
+                    <th style={newThStyle}>Data</th>
+                    <th style={newThStyle}>ZD1 (kg)</th>
+                    <th style={newThStyle}>ZD2 (kg)</th>
+                    <th style={newThStyle}>Pralki (kg)</th>
+                    <th style={{ ...newThStyle, color: '#1B5E20' }}>SUMA KG</th>
+                    <th style={newThStyle}>ZD1 (h)</th>
+                    <th style={newThStyle}>ZD2 (h)</th>
+                    <th style={newThStyle}>Kier. (h)</th>
+                    <th style={{ ...newThStyle, color: '#1565C0' }}>SUMA H</th>
+                    <th style={{ ...newThStyle, color: '#E65100' }}>KG / H</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,50 +329,30 @@ export default function CostsView() {
                     const isOff = d.getDay() === 0 || d.getDay() === 6;
                     const dt = dailyData[dStr] || {};
                     const ts = timelineStats[dStr]?.roles || { ZD1: { hrs: 0 }, ZD2: { hrs: 0 }, Kierowcy: { hrs: 0 } };
-                    
-                    const t_zd1 = dt.ton_zd1 || 0;
-                    const t_zd2 = dt.ton_zd2 || 0;
-                    const t_pralki = dt.ton_pralki || 0;
-                    const t_suma = t_zd1 + t_zd2 + t_pralki;
-
-                    const h_zd1 = ts.ZD1?.hrs || 0;
-                    const h_zd2 = ts.ZD2?.hrs || 0;
-                    const h_kier = ts.Kierowcy?.hrs || 0;
-                    const h_suma = h_zd1 + h_zd2 + h_kier;
-
-                    const wyd_zd1 = h_zd1 > 0 ? (t_zd1 / h_zd1) : 0;
-                    const wyd_zd2 = h_zd2 > 0 ? (t_zd2 / h_zd2) : 0;
+                    const t_suma = (dt.ton_zd1 || 0) + (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+                    const h_suma = (ts.ZD1?.hrs || 0) + (ts.ZD2?.hrs || 0) + (ts.Kierowcy?.hrs || 0);
                     const wyd_wsp = h_suma > 0 ? (t_suma / h_suma) : 0;
 
                     return (
-                      <tr key={dStr} style={{ background: isOff ? '#f8f9fa' : 'transparent', borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ ...tdStyle, fontWeight: 700, textAlign: 'center', background: isOff ? '#eee' : '#f0f4f8' }}>
+                      <tr key={dStr} style={{ borderBottom: `1px solid ${IOS_THEME.border}`, background: isOff ? 'rgba(60, 60, 67, 0.03)' : 'transparent' }}>
+                        <td style={{ ...newTdStyle, fontWeight: 700, color: isOff ? IOS_THEME.textSecondary : IOS_THEME.textPrimary }}>
                           {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
                         </td>
-
-                        {/* TONAŻ (Wpisywany) */}
-                        <td style={tdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => handleCostChange(dStr, 'ton_zd1', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => handleCostChange(dStr, 'ton_zd2', e.target.value)} style={inpStyle}/></td>
-                        <td style={tdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => handleCostChange(dStr, 'ton_pralki', e.target.value)} style={inpStyle}/></td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#C8E6C9', color: '#1B5E20', fontWeight: 700, textAlign: 'center' }}>{t_suma > 0 ? t_suma : '-'}</td>
-
-                        {/* GODZINY (Automatyczne) */}
-                        <td style={{ ...tdStyle, textAlign: 'center', color: '#1565C0', fontWeight: h_zd1 > 0 ? 700 : 400 }}>{h_zd1 > 0 ? h_zd1 : '-'}</td>
-                        <td style={{ ...tdStyle, textAlign: 'center', color: '#1565C0', fontWeight: h_zd2 > 0 ? 700 : 400 }}>{h_zd2 > 0 ? h_zd2 : '-'}</td>
-                        <td style={{ ...tdStyle, textAlign: 'center', color: '#1565C0', fontWeight: h_kier > 0 ? 700 : 400 }}>{h_kier > 0 ? h_kier : '-'}</td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#BBDEFB', color: '#0D47A1', fontWeight: 700, textAlign: 'center' }}>{h_suma > 0 ? h_suma : '-'}</td>
-
-                        {/* WYDAJNOŚĆ */}
-                        <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: wyd_zd1 > 8 ? '#2E7D32' : '#E65100' }}>{wyd_zd1 > 0 ? wyd_zd1.toFixed(1) : '-'}</td>
-                        <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: wyd_zd2 > 25 ? '#2E7D32' : '#E65100' }}>{wyd_zd2 > 0 ? wyd_zd2.toFixed(1) : '-'}</td>
-                        <td style={{ ...tdStyle, background: isOff ? '#eee' : '#FFE0B2', color: '#E65100', fontWeight: 700, textAlign: 'center' }}>{wyd_wsp > 0 ? wyd_wsp.toFixed(1) : '-'}</td>
+                        <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => handleCostChange(dStr, 'ton_zd1', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => handleCostChange(dStr, 'ton_zd2', e.target.value)} style={newInpStyle}/></td>
+                        <td style={newTdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => handleCostChange(dStr, 'ton_pralki', e.target.value)} style={newInpStyle}/></td>
+                        <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center' }}>{t_suma > 0 ? t_suma : '-'}</td>
+                        <td style={{ ...newTdStyle, textAlign: 'center' }}>{ts.ZD1?.hrs || '-'}</td>
+                        <td style={{ ...newTdStyle, textAlign: 'center' }}>{ts.ZD2?.hrs || '-'}</td>
+                        <td style={{ ...newTdStyle, textAlign: 'center' }}>{ts.Kierowcy?.hrs || '-'}</td>
+                        <td style={{ ...newTdStyle, fontWeight: 700, color: '#1565C0', textAlign: 'center' }}>{h_suma > 0 ? h_suma : '-'}</td>
+                        <td style={{ ...newTdStyle, fontWeight: 800, color: '#E65100', textAlign: 'center' }}>{wyd_wsp > 0 ? wyd_wsp.toFixed(1) : '-'}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             )}
-
           </div>
         )}
       </div>
@@ -366,17 +360,47 @@ export default function CostsView() {
   );
 }
 
+// COMPONENTS
+function SummaryCard({ title, value, icon, color, isTotal }) {
+  return (
+    <div style={{ 
+      background: isTotal ? color : IOS_THEME.cardBg, 
+      padding: '16px', 
+      borderRadius: IOS_THEME.radius, 
+      boxShadow: IOS_THEME.shadow,
+      border: isTotal ? 'none' : `1px solid ${IOS_THEME.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isTotal ? '#fff' : color, opacity: isTotal ? 0.9 : 1 }}>
+        {icon}
+        <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</span>
+      </div>
+      <div style={{ fontSize: '20px', fontWeight: 800, color: isTotal ? '#fff' : IOS_THEME.textPrimary }}>
+        {FMT(value)} <span style={{ fontSize: '12px', fontWeight: 600 }}>zł</span>
+      </div>
+    </div>
+  );
+}
+
 // STYLES
-const thStyle = {
-  padding: '6px 8px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)',
-  textAlign: 'center', fontWeight: 700, fontSize: '11px', whiteSpace: 'nowrap'
+const navBtnStyle = {
+  padding: '6px 14px', borderRadius: '10px', background: '#F2F2F7', border: 'none', fontWeight: 700, fontSize: '18px', cursor: 'pointer'
 };
 
-const tdStyle = {
-  padding: '4px', borderRight: '1px solid var(--border)'
+const segmentBtnStyle = {
+  padding: '6px 20px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
 };
 
-const inpStyle = {
-  width: '100%', minWidth: '50px', padding: '4px 2px', border: 'none', background: 'transparent',
-  textAlign: 'center', fontSize: '12px', color: 'var(--text-primary)', outline: 'none'
+const newThStyle = {
+  padding: '12px 8px', textAlign: 'center', fontWeight: 600, fontSize: '12px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap'
+};
+
+const newTdStyle = {
+  padding: '8px 6px', fontSize: '13px'
+};
+
+const newInpStyle = {
+  width: '100%', padding: '6px 4px', border: 'none', background: 'rgba(60, 60, 67, 0.05)', borderRadius: '6px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'background 0.2s'
 };
