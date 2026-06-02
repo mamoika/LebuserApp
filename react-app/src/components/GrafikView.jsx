@@ -22,6 +22,7 @@ function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
   if (!v) return { bg: isWeekendOrHoliday ? '#fcfcfc' : '#fff', color: '#ccc' };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
+  if (v.includes('-')) return { bg: '#e3f2fd', color: '#0d47a1' }; // niebieski dla przedziałów
   if (v.includes('+')) return { bg: '#fff3e0', color: '#e65100' };
   if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#e8f5e9', color: '#2e7d32' };
   return { bg: '#fff', color: '#333' };
@@ -363,7 +364,7 @@ export default function GrafikView() {
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieob.'],['I','Planowany'],['END','Zakończono'],['8','Godz.'],['6+8','Start+Godz']].map(([sym, label]) => {
+        {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieob.'],['I','Planowany'],['END','Zakończono'],['8','Godz.'],['6-14','Od-Do (godz)']].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           return (
             <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600 }}>

@@ -167,19 +167,27 @@ export default function TimelineView() {
       let finalStart = parseHour(emp.default_start);
       let finalEnd = parseHour(emp.default_end);
       
-      if (isWorking && v && !isNaN(parseFloat(v.replace(',', '.')))) {
-        if (v.includes('+')) {
+      if (isWorking && v) {
+        if (v.includes('-')) {
+          const parts = v.split('-');
+          const st = parseFloat(parts[0].replace(',', '.'));
+          const en = parseFloat(parts[1].replace(',', '.'));
+          if (!isNaN(st) && !isNaN(en)) {
+            finalStart = st;
+            finalEnd = en;
+          }
+        } else if (v.includes('+')) {
           const parts = v.split('+');
           const st = parseFloat(parts[0].replace(',', '.'));
           const dur = parseFloat(parts[1].replace(',', '.'));
           if (!isNaN(st) && !isNaN(dur)) {
             finalStart = st;
-            finalEnd = st + dur;
+            finalEnd = (st + dur) % 24;
           }
-        } else {
+        } else if (!isNaN(parseFloat(v.replace(',', '.')))) {
           const dur = parseFloat(v.replace(',', '.'));
           if (!isNaN(dur)) {
-            finalEnd = finalStart + dur;
+            finalEnd = (finalStart + dur) % 24;
           }
         }
       }
@@ -332,7 +340,7 @@ export default function TimelineView() {
                           ...HOURS.map(h => {
                             const key = `${emp.id}_${dateStr}_${h}`;
                             const role = entries[key];
-                            const inShift = working && h >= startH && h < endH;
+                            const inShift = working && (startH <= endH ? (h >= startH && h < endH) : (h >= startH || h < endH));
                             const rData = role ? ROLES[role] : null;
 
                             let bg, color;
