@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { DAY_NAMES, formatWeekKey } from '../../lib/dateUtils';
 import { toastError } from '../../lib/toast';
+import { logAction } from '../../lib/logger';
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -82,6 +83,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       }]);
 
       if (error) throw error;
+      await logAction({ userName: user.name, action: 'added', clientName, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
       onAdded();
       onClose();
     } catch (err) {
@@ -204,6 +206,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
+      await logAction({ userName: user.name, action: isDone ? 'done' : 'undone', clientName: entry.client_name, entryId: entry.id });
       onUpdated();
       onClose();
     } catch (err) {
@@ -237,7 +240,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
-      
+      await logAction({ userName: user.name, action: 'edited', clientName: entry.client_name, entryId: entry.id, details: `waga: ${weight || '—'}, komentarz: ${comment || '—'}` });
       onUpdated();
       onClose();
     } catch (err) {
@@ -254,6 +257,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       setLoading(true);
       const { error } = await supabase.from('entries').delete().eq('id', entry.id);
       if (error) throw error;
+      await logAction({ userName: user.name, action: 'deleted', clientName: entry.client_name, entryId: entry.id });
       onDeleted();
       onClose();
     } catch (err) {

@@ -233,6 +233,49 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImp
   );
 }
 
+const ACTION_LABELS = {
+  added:   { label: 'Dodał',    color: '#34C759' },
+  edited:  { label: 'Edytował', color: '#FF9500' },
+  done:    { label: 'Odebrał',  color: '#007AFF' },
+  undone:  { label: 'Cofnął',   color: '#FF3B30' },
+  deleted: { label: 'Usunął',   color: '#FF3B30' },
+};
+
+function LogsSection() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(100)
+      .then(({ data }) => { setLogs(data || []); setLoading(false); });
+  }, []);
+
+  const fmt = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  };
+
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie logów…</div>;
+  if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Brak logów</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {logs.map(log => {
+        const meta = ACTION_LABELS[log.action] || { label: log.action, color: '#636366' };
+        return (
+          <div key={log.id} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '10px 14px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>{meta.label}</span>
+            <span style={{ fontWeight: 600, fontSize: '13px', flex: 1 }}>{log.client_name || '—'}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', flexShrink: 0 }}>{log.user_name}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', flexShrink: 0 }}>{fmt(log.created_at)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { impersonate } = useAuth();
   const [users, setUsers] = useState([]);
@@ -240,6 +283,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [tab, setTab] = useState('users'); // 'users' | 'logs'
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -305,6 +349,14 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ maxWidth: '600px' }}>
+      <div className="segmented-control" style={{ marginBottom: '16px' }}>
+        <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>Użytkownicy</button>
+        <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>Logi aktywności</button>
+      </div>
+
+      {tab === 'logs' && <LogsSection />}
+
+      {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ fontSize: '17px', fontWeight: 700 }}>Użytkownicy ({users.length})</div>
         <button
@@ -365,6 +417,7 @@ export default function AdminDashboard() {
           onImpersonate={() => handleImpersonate(editUser.id)}
         />
       )}
+      </>}
     </div>
   );
 }
