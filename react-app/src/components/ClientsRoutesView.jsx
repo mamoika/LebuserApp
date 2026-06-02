@@ -56,7 +56,7 @@ function AddRouteModal({ onClose, onSave }) {
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-              placeholder="np. Trasa 11"
+              placeholder="np. Trasa Północna"
               autoFocus
             />
           </div>
@@ -67,9 +67,12 @@ function AddRouteModal({ onClose, onSave }) {
             </select>
           </div>
         </div>
-        <div className="ap-sheet-footer">
+        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
+          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>
+            Anuluj
+          </button>
           <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie…' : 'Dodaj trasę'}
+            {saving ? 'Zapisywanie…' : 'Dodaj'}
           </button>
         </div>
       </div>
@@ -114,7 +117,10 @@ function EditRouteModal({ route, onClose, onSave }) {
             </select>
           </div>
         </div>
-        <div className="ap-sheet-footer">
+        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
+          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>
+            Anuluj
+          </button>
           <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? 'Zapisywanie…' : 'Zapisz'}
           </button>
