@@ -165,7 +165,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes }) {
-  const { isAdmin, canEdit, user } = useAuth();
+  const { isAdmin, canEdit, isDriver, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
@@ -176,6 +176,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [routeId, setRouteId] = useState(1);
+  const [pickupComment, setPickupComment] = useState('');
+  const [showPickupComment, setShowPickupComment] = useState(false);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -188,22 +190,29 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       setUrgent(entry.urgent || false);
       setComment(entry.comment || '');
       setRouteId(entry.route_id || 1);
+      setPickupComment('');
+      setShowPickupComment(false);
     }
   }, [isOpen, entry]);
 
   if (!isOpen || !entry) return null;
 
   const toggleDone = async () => {
+    const isDone = !entry.done;
+    // Przy oznaczaniu jako odebrane — najpierw pokaż pole komentarza
+    if (isDone && !showPickupComment) {
+      setShowPickupComment(true);
+      return;
+    }
     try {
       setLoading(true);
-      const isDone = !entry.done;
       const pickedAt = isDone ? new Date().toISOString() : null;
       const pickedBy = isDone ? user.name : null;
-      
-      const { error } = await supabase.from('entries')
-        .update({ done: isDone, picked_by: pickedBy, picked_at: pickedAt })
-        .eq('id', entry.id);
-        
+      const updates = { done: isDone, picked_by: pickedBy, picked_at: pickedAt };
+      if (isDone && pickupComment.trim()) updates.comment = pickupComment.trim();
+      if (!isDone) { updates.comment = null; }
+
+      const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
       onUpdated();
       onClose();
@@ -278,52 +287,56 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
               </div>
             </div>
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
-            <div className="segmented-control" style={{ marginBottom: '14px' }}>
-              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
-              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
-            </div>
+            {/* Pola dostępne tylko dla admina */}
+            {isAdmin && (<>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
+              <div className="segmented-control" style={{ marginBottom: '14px' }}>
+                <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
+                <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
+              </div>
 
-            <div className="ap-field" style={{ marginBottom: '14px' }}>
-              <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>Trasa logistyczna</label>
-              <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
-                {routes.map((r, index) => (
-                  <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
-                ))}
+              <div className="ap-field" style={{ marginBottom: '14px' }}>
+                <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>Trasa logistyczna</label>
+                <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
+                  {routes.map((r, index) => (
+                    <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przyjazd</div>
+                  <select className="ap-input" value={arrDay} onChange={e => setArrDay(e.target.value)}>
+                    {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
+                  <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
+                    {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+              <select className="ap-input" style={{ marginBottom: '14px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+                <option value={0}>Ten sam tydzień</option>
+                <option value={1}>Następny tydzień</option>
               </select>
-            </div>
 
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '14px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
+                <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
+                <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
+              </label>
+            </>)}
+
+            {/* Pola dostępne dla wszystkich (admin + kierowca) */}
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg)</div>
             <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przyjazd</div>
-                <select className="ap-input" value={arrDay} onChange={e => setArrDay(e.target.value)}>
-                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
-                <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
-                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-            <select className="ap-input" style={{ marginBottom: '14px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
-              <option value={0}>Ten sam tydzień</option>
-              <option value={1}>Następny tydzień</option>
-            </select>
-
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz</div>
-            <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '14px' }} />
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '18px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
-              <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
-              <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
-            </label>
+            <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '18px' }} />
 
             <div className="ap-btn-group">
               <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading}>Zapisz</button>
@@ -366,11 +379,31 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             <span style={{ fontWeight: 600 }}>{entry.weight ? `${entry.weight} kg` : 'Brak'}</span>
           </div>
 
-          <div className="ap-btn-group" style={{ marginTop: '24px' }}>
+          {showPickupComment && !entry.done && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz przy odbiorze (opcjonalnie)</div>
+              <input
+                type="text"
+                className="ap-input"
+                value={pickupComment}
+                onChange={e => setPickupComment(e.target.value)}
+                placeholder="np. brakuje 2 worków"
+                style={{ marginBottom: '10px' }}
+                autoFocus
+              />
+            </div>
+          )}
+
+          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
             <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
-              {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
+              {entry.done ? 'Cofnij odbiór' : showPickupComment ? 'Potwierdź odbiór' : 'Oznacz jako odebrane'}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
+            {showPickupComment && !entry.done && (
+              <button className="ap-btn ap-btn-secondary" onClick={() => setShowPickupComment(false)} disabled={loading}>Wróć</button>
+            )}
+            {!showPickupComment && (
+              <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
+            )}
           </div>
           
           {canEdit && (
