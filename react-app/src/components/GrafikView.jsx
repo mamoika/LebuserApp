@@ -452,8 +452,11 @@ export default function GrafikView() {
                   const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafafa';
                   return (
                     <tr key={emp.id} style={{ height: '26px' }}>
-                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, fontWeight: 500, fontSize: '11px', padding: '0 8px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '1px solid rgba(0,0,0,0.08)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {emp.name}
+                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <span style={{ fontWeight: 500, fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
+                          <span style={{ fontSize: '9px', color: 'var(--text-quaternary)', fontWeight: 600, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}-{emp.default_end}</span>
+                        </div>
                       </td>
                       {days.map(d => {
                         const dateObj = new Date(year, month - 1, d);
@@ -531,10 +534,7 @@ export default function GrafikView() {
                   const total = employees.reduce((sum, e) => sum + parseHours(getValue(e, d)), 0);
                   return formatTotalHours(total);
                 }
-              },
-              { label: 'L4', bg: '#fcf3cf', color: '#856404', fn: (d) => countSymbol(employees, getValue, d, 'L4') },
-              { label: 'Urlopy (UW)', bg: '#d6eaf8', color: '#0c5460', fn: (d) => countSymbol(employees, getValue, d, 'UW') },
-              { label: 'Nieob. (NN)', bg: '#fadbd8', color: '#721c24', fn: (d) => countSymbol(employees, getValue, d, 'NN') },
+              }
             ].map(({ label, bg, color, fn }) => (
               <tr key={label} style={{ height: '28px' }}>
                 <td style={{ position: 'sticky', left: 0, zIndex: 1, background: bg, color, fontWeight: 700, fontSize: '11px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '2px solid var(--border)' }}>
