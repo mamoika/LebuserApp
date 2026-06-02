@@ -7,6 +7,7 @@ import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
 import MapView from '../components/MapView';
 import HistoryView from '../components/HistoryView';
+import GrafikView from '../components/GrafikView';
 import ToastContainer from '../components/ToastContainer';
 
 export default function Dashboard() {
@@ -86,6 +87,7 @@ export default function Dashboard() {
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/history" element={<HistoryView />} />
+          <Route path="/grafik" element={<GrafikView />} />
           <Route path="/map" element={<MapView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

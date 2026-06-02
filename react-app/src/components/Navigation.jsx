@@ -12,6 +12,7 @@ export default function Navigation() {
   ];
 
   if (isAdmin) {
+    navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });
     navItems.push({ to: '/admin', icon: '⚙️', label: 'Panel Admina' });
   }
 
