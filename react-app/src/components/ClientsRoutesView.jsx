@@ -20,13 +20,17 @@ export default function ClientsRoutesView() {
     setLocalClients(clients);
   }, [clients]);
 
-  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Ładowanie danych...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
+  if (loading) return <div className="loader">Ładowanie danych...</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
 
   const routeColors = [
     '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6', 
     '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
   ];
+
+  const getRouteColor = (index) => {
+    return routeColors[index % 10] || routeColors[0];
+  };
 
   const onDragEnd = async (result) => {
     if (!isAdmin) return;
@@ -38,27 +42,18 @@ export default function ClientsRoutesView() {
     const sourceRouteId = parseInt(source.droppableId.replace('route-', ''));
     const destRouteId = parseInt(destination.droppableId.replace('route-', ''));
 
-    // Znajdź przesuwanego klienta
     const clientToMove = localClients.find(c => c.id === draggableId);
     if (!clientToMove) return;
 
-    // Utwórz nową listę klientów dla lokalnego stanu
     const newClients = Array.from(localClients);
-    
-    // Usuń z poprzedniej pozycji
     const sourceIndex = newClients.findIndex(c => c.id === draggableId);
     newClients.splice(sourceIndex, 1);
 
-    // Pobierz klientów z docelowej trasy, żeby wyliczyć nowy index w całej tablicy
-    const destRouteClients = newClients.filter(c => c.route_id === destRouteId);
+    const destRouteClients = newClients.filter(c => c.route_id === destRouteId).sort((a, b) => a.sort_order - b.sort_order);
     
-    // Zaktualizuj trasę przesuwanego klienta
     const updatedClient = { ...clientToMove, route_id: destRouteId };
-    
-    // Wstaw w nowe miejsce (symulacja)
     destRouteClients.splice(destination.index, 0, updatedClient);
     
-    // Złóż nową listę: nowi klienci docelowi + reszta, i nadaj nowy sort_order docelowym
     const finalClients = newClients.filter(c => c.route_id !== destRouteId);
     
     const updatesToDb = destRouteClients.map((c, index) => {
@@ -70,13 +65,12 @@ export default function ClientsRoutesView() {
     setLocalClients(finalClients);
 
     try {
-      // Wyślij zmiany do Supabase w tle
       const { error } = await supabase.from('clients').upsert(updatesToDb);
       if (error) throw error;
       refetch();
     } catch (err) {
       alert("Błąd zapisu kolejności: " + err.message);
-      refetch(); // przywróć stan
+      refetch();
     }
   };
 
@@ -91,7 +85,6 @@ export default function ClientsRoutesView() {
       setEditingRouteId(null);
       return;
     }
-    
     try {
       const { error } = await supabase.from('routes').update({ name: editRouteName }).eq('id', routeId);
       if (error) throw error;
@@ -104,16 +97,12 @@ export default function ClientsRoutesView() {
 
   const handleDeleteRoute = async (route) => {
     if (!isAdmin) return;
-    
-    // Sprawdź czy są przypisani klienci
     const hasClients = localClients.some(c => c.route_id === route.id);
     if (hasClients) {
       alert("Nie można usunąć trasy, do której są przypisani klienci!");
       return;
     }
-    
     if (!window.confirm(`Czy na pewno chcesz usunąć trasę "${route.name}"?`)) return;
-    
     try {
       const { error } = await supabase.from('routes').delete().eq('id', route.id);
       if (error) throw error;
@@ -130,7 +119,6 @@ export default function ClientsRoutesView() {
     
     const maxId = routes.length > 0 ? Math.max(...routes.map(r => r.id)) : 0;
     const newId = maxId + 1;
-    // Domyślnie na koniec
     const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order || r.id)) : 0;
     const newSortOrder = maxSort + 1;
     
@@ -141,32 +129,6 @@ export default function ClientsRoutesView() {
     } catch (err) {
       alert("Błąd dodawania trasy: " + err.message);
     }
-  };
-
-  const handleMoveRoute = async (index, direction) => {
-    if (!isAdmin) return;
-    if (direction === -1 && index === 0) return;
-    if (direction === 1 && index === routes.length - 1) return;
-
-    const route1 = routes[index];
-    const route2 = routes[index + direction];
-
-    // Zamiana sort_order
-    const sort1 = route1.sort_order || route1.id;
-    const sort2 = route2.sort_order || route2.id;
-
-    try {
-      await supabase.from('routes').update({ sort_order: sort2 }).eq('id', route1.id);
-      await supabase.from('routes').update({ sort_order: sort1 }).eq('id', route2.id);
-      refetch();
-    } catch (err) {
-      alert("Błąd zmiany kolejności: " + err.message);
-    }
-  };
-
-  const handleRouteKeyDown = (e, routeId) => {
-    if (e.key === 'Enter') saveRouteName(routeId);
-    if (e.key === 'Escape') setEditingRouteId(null);
   };
 
   const handleAddClient = async (routeId) => {
@@ -213,154 +175,146 @@ export default function ClientsRoutesView() {
     }
   };
 
+  const renderRouteCol = (route, routeIndex) => {
+    const routeClients = localClients.filter(c => c.route_id === route.id).sort((a, b) => a.sort_order - b.sort_order);
+    const displayNum = routes.findIndex(r => r.id === route.id) + 1;
+    const routeColor = getRouteColor(displayNum);
+
+    return (
+      <div key={route.id} className="col route-card" style={{ borderTopColor: routeColor }}>
+        <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '4px' }}>
+          <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
+          
+          {editingRouteId === route.id ? (
+            <input 
+              type="text" 
+              value={editRouteName}
+              onChange={(e) => setEditRouteName(e.target.value)}
+              onBlur={() => saveRouteName(route.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveRouteName(route.id);
+                if (e.key === 'Escape') setEditingRouteId(null);
+              }}
+              autoFocus
+              style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 600, color: routeColor, border: `1px solid ${routeColor}`, borderRadius: '4px', padding: '2px 4px', outline: 'none', background: 'transparent' }}
+            />
+          ) : (
+            <span className="route-title" style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px' }} onDoubleClick={() => startEditRoute(route)}>
+              {route.name}
+            </span>
+          )}
+
+          {isAdmin && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+              <span className="edit-icon" onClick={() => startEditRoute(route)} title="Edytuj nazwę">✏️</span>
+              <span className="edit-icon" onClick={() => handleDeleteRoute(route)} title="Usuń trasę" style={{ color: 'var(--accent-red)' }}>🗑️</span>
+            </div>
+          )}
+        </div>
+        
+        <Droppable droppableId={`route-${route.id}`}>
+          {(provided, snapshot) => (
+            <div 
+              ref={provided.innerRef} 
+              {...provided.droppableProps}
+              className="sortable-list"
+              style={{ minHeight: '40px', background: snapshot.isDraggingOver ? 'rgba(0,0,0,0.02)' : 'transparent', borderRadius: '8px' }}
+            >
+              {routeClients.length === 0 ? (
+                <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', margin: '10px 0' }}>Brak klientów</div>
+              ) : (
+                routeClients.map((client, index) => (
+                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
+                    {(provided, snapshot) => {
+                      const dotClass = (client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing';
+                      return (
+                        <div 
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={`tag-client ${isAdmin ? 'draggable' : ''}`}
+                          style={{
+                            ...provided.draggableProps.style,
+                            boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
+                            opacity: snapshot.isDragging ? 0.9 : 1
+                          }}
+                        >
+                          {isAdmin && <span className="drag-handle">⠿</span>}
+                          <span className="client-order">{index + 1}</span>
+                          <span className="client-name">{client.name}</span>
+                          <span className={dotClass} title={(client.lat && client.lng) ? 'ma GPS' : 'brak GPS'}></span>
+                          {isAdmin && (
+                            <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => openClientEdit(client)}>Edytuj</span>
+                          )}
+                        </div>
+                      )
+                    }}
+                  </Draggable>
+                ))
+              )}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+        
+        <div style={{ flex: 1 }}></div>
+        <div className="divider" style={{ margin: '8px 0' }}></div>
+        {isAdmin && (
+          <button className="add-btn" onClick={() => handleAddClient(route.id)}>+ dodaj klienta</button>
+        )}
+      </div>
+    );
+  };
+
+  // Grouping logic equivalent to index.html
+  const groups = [
+    { title: '🗓 Trasy codzienne (Pn–Pt)', keywords: ['codzien', 'pn-pt'], routes: [] },
+    { title: '🗓 Trasy Pn – Śr – Pt', keywords: ['pn', 'śr', 'sr', 'pt'], routes: [] },
+    { title: '🗓 Trasy Wt – Czw', keywords: ['wt', 'cz'], routes: [] },
+    { title: '📦 Pozostałe trasy', keywords: [], routes: [] }
+  ];
+
+  const sortedRoutes = [...routes].sort((a, b) => a.sort_order - b.sort_order);
+
+  sortedRoutes.forEach(route => {
+    let name = route.name.toLowerCase();
+    let matched = false;
+    for (let j = 0; j < 3; j++) {
+      if (groups[j].keywords.some(kw => name.includes(kw))) {
+        groups[j].routes.push(route);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) groups[3].routes.push(route);
+  });
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div>
-        <div className="clients-hint" style={{ marginBottom: '16px', fontSize: '12px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-          {isAdmin && <span style={{ marginRight: '8px', fontWeight: 500 }}>☰ Przeciągaj klientów między trasami <span style={{ margin: '0 8px', opacity: 0.5 }}>·</span> </span>}
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 4px' }}></span>
-          ma GPS
-          <span style={{ margin: '0 8px', opacity: 0.5 }}>·</span>
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 4px', opacity: 0.6 }}></span>
-          brak GPS
-        </div>
-        
-        <div className="grid">
-          {routes.map((route, routeIndex) => {
-            // Sort clients by sort_order
-            const routeClients = localClients.filter(c => c.route_id === route.id).sort((a, b) => a.sort_order - b.sort_order);
-            const displayNum = routeIndex + 1;
-            const routeColor = routeColors[displayNum % 10] || routeColors[0];
-            
-            return (
-              <div key={route.id} className="col" style={{ padding: '12px 14px 10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '16px' }}>
-                <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '8px', borderBottom: 'none', display: 'flex', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{displayNum}</span>
-                  </div>
-                  
-                  {editingRouteId === route.id ? (
-                    <input 
-                      type="text" 
-                      value={editRouteName}
-                      onChange={(e) => setEditRouteName(e.target.value)}
-                      onBlur={() => saveRouteName(route.id)}
-                      onKeyDown={(e) => handleRouteKeyDown(e, route.id)}
-                      autoFocus
-                      style={{ marginLeft: '8px', fontSize: '14px', fontWeight: 800, color: routeColor, border: `1px solid ${routeColor}`, borderRadius: '6px', padding: '2px 6px', outline: 'none', background: 'transparent' }}
-                    />
-                  ) : (
-                    <span 
-                      className="route-title" 
-                      style={{ color: routeColor, fontWeight: 800, fontSize: '14px', marginLeft: '8px', cursor: isAdmin ? 'pointer' : 'default', flex: 1 }}
-                      onDoubleClick={() => startEditRoute(route)}
-                      title={isAdmin ? "Kliknij dwukrotnie, aby edytować" : ""}
-                    >
-                      {route.name}
-                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); startEditRoute(route); }}>✏️</span>}
-                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleDeleteRoute(route); }} title="Usuń trasę">🗑️</span>}
-                    </span>
-                  )}
-                  
-                  {isAdmin && (
-                    <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
-                      <button onClick={() => handleMoveRoute(routeIndex, -1)} disabled={routeIndex === 0} style={{ opacity: routeIndex === 0 ? 0.2 : 0.6, background: 'none', border: 'none', cursor: routeIndex === 0 ? 'default' : 'pointer', fontSize: '14px' }}>◀</button>
-                      <button onClick={() => handleMoveRoute(routeIndex, 1)} disabled={routeIndex === routes.length - 1} style={{ opacity: routeIndex === routes.length - 1 ? 0.2 : 0.6, background: 'none', border: 'none', cursor: routeIndex === routes.length - 1 ? 'default' : 'pointer', fontSize: '14px' }}>▶</button>
-                    </div>
-                  )}
-                </div>
-                
-                <Droppable droppableId={`route-${route.id}`}>
-                  {(provided, snapshot) => (
-                    <div 
-                      ref={provided.innerRef} 
-                      {...provided.droppableProps}
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '8px', 
-                        minHeight: '40px',
-                        background: snapshot.isDraggingOver ? 'rgba(0,0,0,0.02)' : 'transparent',
-                        borderRadius: '8px',
-                        padding: snapshot.isDraggingOver ? '4px' : '0'
-                      }}
-                    >
-                      {routeClients.length === 0 ? (
-                        <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', marginTop: '10px', marginBottom: '10px' }}>Brak klientów</div>
-                      ) : (
-                        routeClients.map((client, index) => (
-                          <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
-                            {(provided, snapshot) => (
-                              <div 
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`tag-client ${isAdmin ? 'draggable' : ''}`} 
-                                style={{ 
-                                  background: snapshot.isDragging ? 'var(--bg-secondary)' : 'var(--bg-tertiary)', 
-                                  borderRadius: '8px', 
-                                  padding: '8px 10px', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: '8px',
-                                  border: '1px solid var(--border)',
-                                  boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
-                                  opacity: snapshot.isDragging ? 0.9 : 1,
-                                  ...provided.draggableProps.style
-                                }}
-                              >
-                                {isAdmin && <span style={{ opacity: 0.3, cursor: 'grab' }}>⋮⋮</span>}
-                                <div className="tag-name" style={{ fontWeight: 600, fontSize: '13px' }}>{client.name}</div>
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                  {isAdmin && (
-                                    <span 
-                                      style={{ cursor: 'pointer', fontSize: '12px', opacity: 0.4, marginRight: '4px' }}
-                                      onClick={() => openClientEdit(client)}
-                                      title="Edytuj klienta"
-                                    >
-                                      ✏️
-                                    </span>
-                                  )}
-                                  <span style={{ 
-                                    width: '8px', height: '8px', borderRadius: '50%', 
-                                    background: (client.lat && client.lng) ? 'var(--accent-green)' : 'var(--accent-orange)',
-                                    opacity: (client.lat && client.lng) ? 1 : 0.5
-                                  }}></span>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))
-                      )}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-                
-                {isAdmin && (
-                  <button 
-                    className="add-btn" 
-                    style={{ marginTop: '8px' }}
-                    onClick={() => handleAddClient(route.id)}
-                  >
-                    ＋ Dodaj klienta
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
         {isAdmin && (
-          <div style={{ marginTop: '24px', textAlign: 'center' }}>
-            <button 
-              onClick={handleAddRoute}
-              style={{ background: 'var(--accent-blue)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
-            >
-              ＋ Dodaj nową trasę
-            </button>
+          <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <button className="add-route-btn" onClick={handleAddRoute}>＋ Nowa trasa</button>
           </div>
         )}
+
+        <div className="clients-hint" style={{ marginBottom: '16px' }}>
+          {isAdmin && <span><span data-t="clients_drag_hint">☰ Przeciągaj klientów między trasami</span> &nbsp;·&nbsp;</span>}
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }}></span> <span>ma GPS</span> &nbsp;·&nbsp;
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }}></span> <span>brak GPS</span>
+        </div>
+        
+        {groups.map((g, i) => {
+          if (g.routes.length === 0) return null;
+          return (
+            <div key={i} style={{ width: '100%' }}>
+              <div className="route-group-header">{g.title}</div>
+              <div className="grid" style={{ marginBottom: '8px' }}>
+                {g.routes.map((route, routeIndex) => renderRouteCol(route, routeIndex))}
+              </div>
+            </div>
+          );
+        })}
 
         {clientModalOpen && (
           <div className="ap-sheet-overlay" onClick={() => setClientModalOpen(false)}>
@@ -381,8 +335,8 @@ export default function ClientsRoutesView() {
                 </div>
               </div>
               <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-                <button className="ap-btn" style={{ background: '#FF3B30', color: 'white' }} onClick={deleteClient}>
-                  Usuń klienta
+                <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--accent-red)', border: '1px solid var(--border)' }} onClick={deleteClient}>
+                  Usuń
                 </button>
                 <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={saveClientName}>
                   Zapisz

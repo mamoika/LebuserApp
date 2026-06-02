@@ -20,7 +20,9 @@ function formatDate(date) {
 export default function ScheduleView() {
   const { entries, clients, routes, loading, error, refetch } = useAppData();
   const { isAdmin } = useAuth();
-  const [activeWeekTab, setActiveWeekTab] = useState(0); // 0 = current, 1 = next
+  
+  // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
@@ -28,58 +30,39 @@ export default function ScheduleView() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   
-  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Ładowanie danych...</div>;
+  if (loading) return <div className="loader">Ładowanie danych...</div>;
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
 
-  const currentMonday = getCurrentMonday();
+  const currentMonday = addDays(getCurrentMonday(), weekOffset * 7);
   const nextMonday = addDays(currentMonday, 7);
 
-  const displayMonday = activeWeekTab === 0 ? currentMonday : nextMonday;
-  const displayWeekKey = formatWeekKey(displayMonday);
+  const week1Key = formatWeekKey(currentMonday);
+  const week2Key = formatWeekKey(nextMonday);
+  
+  const w1End = addDays(currentMonday, 4);
+  const w2End = addDays(nextMonday, 4);
 
-  return (
-    <div>
-      <div className="week-nav">
-        <button 
-          className="week-nav-btn" 
-          onClick={() => setActiveWeekTab(activeWeekTab === 0 ? 0 : activeWeekTab - 1)}
-          style={{ opacity: activeWeekTab === 0 ? 0.5 : 1 }}
-        >
-          ‹
-        </button>
-        <div className="week-label">
-          {activeWeekTab === 0 ? `Tydzień bieżący (${displayWeekKey})` : `Następny tydzień (${displayWeekKey})`}
-        </div>
-        <button 
-          className="week-nav-btn" 
-          onClick={() => setActiveWeekTab(activeWeekTab === 1 ? 1 : activeWeekTab + 1)}
-          style={{ opacity: activeWeekTab === 1 ? 0.5 : 1 }}
-        >
-          ›
-        </button>
-      </div>
-
-      {/* Legenda u góry na wzór starej aplikacji */}
-      <div className="legend-box" style={{ margin: '12px 0 24px', padding: '10px 14px' }}>
-        <div className="legend-item"><span className="legend-dot green"></span> Dostarczone</div>
-        <div className="legend-item"><span className="legend-dot blue"></span> Do odbioru</div>
-        <div className="legend-item"><span className="legend-dot gray"></span> Odebrane</div>
-        <span style={{ borderLeft: '1px solid var(--border)', margin: '0 4px', height: '14px' }}></span>
-        <div className="legend-item"><span className="laundry-type-badge type-P" style={{ margin: 0, fontSize: '9px' }}>P</span> Pościel</div>
-        <div className="legend-item"><span className="laundry-type-badge type-O" style={{ margin: 0, fontSize: '9px' }}>O</span> Obrusy</div>
-      </div>
-
+  const renderGrid = (monday, weekKey, isWeek2) => {
+    return (
       <div className="grid">
         {DAY_NAMES.map((dayName, dayIndex) => {
-          const dayDate = addDays(displayMonday, dayIndex);
-          const isToday = activeWeekTab === 0 && new Date().toDateString() === dayDate.toDateString();
+          const dayDate = addDays(monday, dayIndex);
+          const isToday = new Date().toDateString() === dayDate.toDateString();
           
-          // Przyjazdy (arr) i Odbiory (pick)
-          const arrived = entries.filter(e => e.arr_day === (dayIndex + 1) && e.week_key === displayWeekKey);
-          const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === displayWeekKey);
+          const arrived = entries.filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey);
+          
+          // Odbiory logic:
+          const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey && !(e.week_key === weekKey && e.arr_day === (dayIndex + 1)));
 
           const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
-          const sumPick = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+          
+          // Wash dzisiaj - przyjazdy wczoraj (lub pt w nast tyg)
+          const prevWeekKey = formatWeekKey(addDays(monday, -7));
+          let washToday = dayIndex === 0 
+            ? entries.filter(e => e.week_key === prevWeekKey && e.arr_day === 5) // piątek
+            : entries.filter(e => e.week_key === weekKey && e.arr_day === dayIndex); // wczoraj
+          
+          const sumWash = washToday.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
           
           return (
             <div key={dayName} className={`col ${isToday ? 'col-today' : ''}`}>
@@ -96,43 +79,42 @@ export default function ScheduleView() {
                 </div>
                 <div className="metric-chip wash">
                   <div className="metric-chip-label">Odbiór</div>
-                  <div className="metric-chip-val">{sumPick > 0 ? sumPick.toFixed(1) : 0} kg</div>
+                  <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0} kg</div>
                 </div>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {arrived.length === 0 && picked.length === 0 ? (
-                  <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>Brak zadań</div>
-                ) : (
-                  <>
-                    {/* Render przyjazdy */}
-                    {arrived.length > 0 && <div className="sec-label">PRZYJAZD</div>}
-                    {arrived.map(entry => {
-                      const tagClass = entry.done ? 'tag-done' : 'tag-arr';
-                      const routeId = entry.route_id || 1;
-                      const rIndex = routes.findIndex(r => r.id === routeId);
-                      const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
-                      const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
-                      const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
-                      
-                      return (
-                        <div 
-                          key={entry.id} 
-                          className={`tag ${tagClass}`}
-                          onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
-                        >
-                          {entry.urgent && <span style={{ marginRight: '4px' }}>🚩</span>}
-                          <span className="tag-name">{entry.client_name}</span>
-                          <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
-                          {entry.weight ? <span className="kg-badge">{entry.weight} kg</span> : null}
-                          <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
-                          <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
-                        </div>
-                      )
-                    })}
+              <div className="sec-label">PRZYJAZD</div>
+              <div className="sortable-arr" style={{ minHeight: '10px' }}>
+                {arrived.map(entry => {
+                  const tagClass = entry.done ? 'tag-done' : 'tag-arr';
+                  const routeId = entry.route_id || 1;
+                  const rIndex = routes.findIndex(r => r.id === routeId);
+                  const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
+                  const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
+                  const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
+                  
+                  return (
+                    <div 
+                      key={entry.id} 
+                      className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
+                      onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
+                    >
+                      {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
+                      <span className="tag-name">{entry.client_name}</span>
+                      <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
+                      {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
+                      <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
+                      <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
+                    </div>
+                  )
+                })}
+              </div>
 
-                    {/* Render odbiory */}
-                    {picked.length > 0 && <div className="sec-label" style={{ marginTop: '8px' }}>ODBIÓR</div>}
+              {picked.length > 0 && (
+                <>
+                  <div className="divider"></div>
+                  <div className="sec-label">ODBIÓR</div>
+                  <div className="sortable-pick" style={{ minHeight: '10px' }}>
                     {picked.map(entry => {
                       const tagClass = entry.done ? 'tag-done' : 'tag-pick';
                       const routeId = entry.route_id || 1;
@@ -140,50 +122,82 @@ export default function ScheduleView() {
                       const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
                       const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
                       const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
-                      
+
                       return (
                         <div 
-                          key={`pick-${entry.id}`} 
-                          className={`tag ${tagClass}`}
+                          key={entry.id} 
+                          className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
                           onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
                         >
-                          {entry.urgent && <span style={{ marginRight: '4px' }}>🚩</span>}
+                          {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
                           <span className="tag-name">{entry.client_name}</span>
                           <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
-                          {entry.weight ? <span className="kg-badge">{entry.weight} kg</span> : null}
+                          {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
                           <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
                           <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
                         </div>
                       )
                     })}
-                  </>
-                )}
-              </div>
-              <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>
-                ＋ Dodaj zadanie
-              </button>
+                  </div>
+                </>
+              )}
+              
+              <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>+ dodaj przyjazd</button>
             </div>
           )
         })}
       </div>
+    );
+  };
 
-      <AddEntryModal 
-        isOpen={addModalOpen} 
-        onClose={() => setAddModalOpen(false)} 
-        defaultArrDay={selectedDay}
-        weekKey={displayWeekKey}
-        clients={clients}
-        routes={routes}
-        onAdded={refetch}
-      />
+  return (
+    <div id="mainView">
+      <div className="week-nav">
+        <button className="week-nav-btn" onClick={() => setWeekOffset(weekOffset - 1)}>‹</button>
+        <div className="week-label" id="weekLabel">Widok 2 tygodni</div>
+        <button className="week-nav-btn" onClick={() => setWeekOffset(weekOffset + 1)}>›</button>
+      </div>
 
-      <ViewEditEntryModal
-        isOpen={viewModalOpen}
-        onClose={() => { setViewModalOpen(false); setSelectedEntry(null); }}
-        entry={selectedEntry}
-        onUpdated={refetch}
-        onDeleted={refetch}
-      />
+      <div className="section-heading" id="titleWk1">
+        📅 {formatDate(currentMonday)} – {formatDate(w1End)}
+      </div>
+      {renderGrid(currentMonday, week1Key, false)}
+
+      <div className="section-heading" id="titleWk2" style={{ marginTop: '28px' }}>
+        📅 Następny tydzień: {formatDate(nextMonday)} – {formatDate(w2End)}
+      </div>
+      {renderGrid(nextMonday, week2Key, true)}
+
+      {addModalOpen && (
+        <AddEntryModal 
+          isOpen={addModalOpen} 
+          onClose={() => setAddModalOpen(false)} 
+          defaultArrDay={selectedDay}
+          weekKey={week1Key} // Możemy chcieć dać poprawny week key w zależności na co kliknięto, na razie uproszczone
+          clients={clients.filter(c => c.route_id)} // Tylko przypisani do tras
+          onAdded={() => {
+            setAddModalOpen(false);
+            refetch();
+          }}
+        />
+      )}
+
+      {viewModalOpen && selectedEntry && (
+        <ViewEditEntryModal 
+          isOpen={viewModalOpen} 
+          onClose={() => { setViewModalOpen(false); setSelectedEntry(null); }} 
+          entry={selectedEntry}
+          onUpdated={() => {
+            setViewModalOpen(false);
+            refetch();
+          }}
+          onDeleted={() => {
+            setViewModalOpen(false);
+            refetch();
+          }}
+          clients={clients}
+        />
+      )}
     </div>
   );
 }
