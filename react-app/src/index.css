@@ -1,9 +1,3 @@
-@keyframes mesh {
-  0% { background-position: 0% 0%; }
-  50% { background-position: 100% 100%; }
-  100% { background-position: 0% 0%; }
-}
-
 :root {
   --bg: radial-gradient(at 0% 0%, hsla(210,100%,92%,1) 0px, transparent 50%),
         radial-gradient(at 100% 0%, hsla(240,100%,94%,1) 0px, transparent 50%),
@@ -80,8 +74,6 @@ html{font-size:16px}
 body{
   font-family:var(--font);
   background:var(--bg);
-  background-size: 200% 200%;
-  animation: mesh 30s ease infinite;
   background-attachment: fixed;
   color:var(--text-primary);
   padding:24px 18px 40px;
