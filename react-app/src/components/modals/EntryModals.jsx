@@ -197,20 +197,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
 
   if (!isOpen || !entry) return null;
 
-  const toggleDone = async () => {
-    const isDone = !entry.done;
-    // Przy oznaczaniu jako odebrane — najpierw pokaż pole komentarza
-    if (isDone && !showPickupComment) {
-      setShowPickupComment(true);
-      return;
-    }
+  const toggleDone = async (commentOverride) => {
     try {
       setLoading(true);
+      const isDone = !entry.done;
       const pickedAt = isDone ? new Date().toISOString() : null;
       const pickedBy = isDone ? user.name : null;
       const updates = { done: isDone, picked_by: pickedBy, picked_at: pickedAt };
-      if (isDone && pickupComment.trim()) updates.comment = pickupComment.trim();
-      if (!isDone) { updates.comment = null; }
+      if (isDone && (commentOverride ?? pickupComment).trim()) updates.comment = (commentOverride ?? pickupComment).trim();
+      if (!isDone) updates.comment = null;
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
@@ -389,32 +384,43 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           {entry.done && entry.picked_by && <ROW label="Odebrał" value={`${entry.picked_by} · ${fmtDateTime(entry.picked_at)}`} valueColor="var(--accent-green)" />}
           {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
 
-          {showPickupComment && !entry.done && (
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz przy odbiorze (opcjonalnie)</div>
-              <input
-                type="text"
-                className="ap-input"
-                value={pickupComment}
-                onChange={e => setPickupComment(e.target.value)}
-                placeholder="np. brakuje 2 worków"
-                style={{ marginBottom: '10px' }}
-                autoFocus
-              />
+          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
+            <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={() => toggleDone()} disabled={loading}>
+              {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
+          </div>
+
+          {!entry.done && (
+            <div style={{ marginTop: '10px' }}>
+              {!showPickupComment ? (
+                <button
+                  style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: '13px', cursor: 'pointer', padding: '4px 0' }}
+                  onClick={() => setShowPickupComment(true)}
+                >
+                  + Dodaj notatkę do odbioru
+                </button>
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    className="ap-input"
+                    value={pickupComment}
+                    onChange={e => setPickupComment(e.target.value)}
+                    placeholder="np. brakuje 2 worków"
+                    style={{ marginBottom: '6px' }}
+                    autoFocus
+                  />
+                  <button
+                    style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: '13px', cursor: 'pointer', padding: '2px 0' }}
+                    onClick={() => { setShowPickupComment(false); setPickupComment(''); }}
+                  >
+                    Anuluj notatkę
+                  </button>
+                </div>
+              )}
             </div>
           )}
-
-          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
-            <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
-              {entry.done ? 'Cofnij odbiór' : showPickupComment ? 'Potwierdź odbiór' : 'Oznacz jako odebrane'}
-            </button>
-            {showPickupComment && !entry.done && (
-              <button className="ap-btn ap-btn-secondary" onClick={() => setShowPickupComment(false)} disabled={loading}>Wróć</button>
-            )}
-            {!showPickupComment && (
-              <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
-            )}
-          </div>
           
           {canEdit && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
