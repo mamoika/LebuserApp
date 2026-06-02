@@ -30,7 +30,14 @@ export default function Dashboard() {
           fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
           gap: '12px',
         }}>
-          <span>👁 Przeglądasz jako: <strong>{user?.name}</strong> (@{user?.username})</span>
+          <span>
+            👁 Przeglądasz jako: <strong>{user?.name}</strong> (@{user?.username})
+            {user?.has_password === false && (
+              <span style={{ marginLeft: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>
+                ⚠️ Brak hasła — user nie zalogował się jeszcze
+              </span>
+            )}
+          </span>
           <button
             onClick={stopImpersonating}
             style={{

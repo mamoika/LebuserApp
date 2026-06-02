@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
     setAdminBackup(backup);
 
-    const targetUser = { id: data.id, username: data.username, name: data.name, role: data.role, routes: data.routes };
+    const targetUser = { id: data.id, username: data.username, name: data.name, role: data.role, routes: data.routes, has_password: data.has_password };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(targetUser));
     setUser(targetUser);
     return { ok: true };
