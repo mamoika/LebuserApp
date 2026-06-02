@@ -136,7 +136,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes }) {
   const { isAdmin, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [type, setType] = useState('P');
@@ -147,6 +147,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   const [urgent, setUrgent] = useState(false);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [routeId, setRouteId] = useState(1);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -158,6 +159,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       setPickWeek(entry.week_key === entry.pick_week_key ? 0 : 1);
       setUrgent(entry.urgent || false);
       setComment(entry.comment || '');
+      setRouteId(entry.route_id || 1);
     }
   }, [isOpen, entry]);
 
@@ -202,7 +204,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
         pick_day: parseInt(pickDay),
         pick_week_key: pickWeekKey,
         urgent,
-        comment
+        comment,
+        route_id: routeId
       };
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
@@ -249,6 +252,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             <div className="segmented-control" style={{ marginBottom: '14px' }}>
               <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
               <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
+            </div>
+
+            <div className="ap-field" style={{ marginBottom: '14px' }}>
+              <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>Trasa logistyczna</label>
+              <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
+                {routes.map((r, index) => (
+                  <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
+                ))}
+              </select>
             </div>
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg)</div>

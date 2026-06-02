@@ -229,13 +229,14 @@ export default function ClientsRoutesView() {
           {routes.map((route, routeIndex) => {
             // Sort clients by sort_order
             const routeClients = localClients.filter(c => c.route_id === route.id).sort((a, b) => a.sort_order - b.sort_order);
-            const routeColor = routeColors[route.id % 10] || routeColors[0];
+            const displayNum = routeIndex + 1;
+            const routeColor = routeColors[displayNum % 10] || routeColors[0];
             
             return (
               <div key={route.id} className="col" style={{ padding: '12px 14px 10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '16px' }}>
                 <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '8px', borderBottom: 'none', display: 'flex', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{route.id}</span>
+                    <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{displayNum}</span>
                   </div>
                   
                   {editingRouteId === route.id ? (

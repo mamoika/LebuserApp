@@ -110,6 +110,9 @@ export default function ScheduleView() {
                     {arrived.map(entry => {
                       const tagClass = entry.done ? 'tag-done' : 'tag-arr';
                       const routeId = entry.route_id || 1;
+                      const rIndex = routes.findIndex(r => r.id === routeId);
+                      const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
+                      const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
                       const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
                       
                       return (
@@ -122,7 +125,7 @@ export default function ScheduleView() {
                           <span className="tag-name">{entry.client_name}</span>
                           <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
                           {entry.weight ? <span className="kg-badge">{entry.weight} kg</span> : null}
-                          <span className={`rt-badge rt-${(routeId % 10) || 1}`}>T{routeId}</span>
+                          <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
                           <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
                         </div>
                       )
@@ -133,6 +136,9 @@ export default function ScheduleView() {
                     {picked.map(entry => {
                       const tagClass = entry.done ? 'tag-done' : 'tag-pick';
                       const routeId = entry.route_id || 1;
+                      const rIndex = routes.findIndex(r => r.id === routeId);
+                      const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
+                      const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
                       const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
                       
                       return (
@@ -145,7 +151,7 @@ export default function ScheduleView() {
                           <span className="tag-name">{entry.client_name}</span>
                           <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
                           {entry.weight ? <span className="kg-badge">{entry.weight} kg</span> : null}
-                          <span className={`rt-badge rt-${(routeId % 10) || 1}`}>T{routeId}</span>
+                          <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
                           <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
                         </div>
                       )
