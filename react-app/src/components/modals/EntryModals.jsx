@@ -393,7 +393,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             );
           })()}
           
-          {canEdit && (
+          {(isAdmin || entry.added_by === user?.name) && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
               {isAdmin && (
