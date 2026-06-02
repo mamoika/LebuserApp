@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import logoImg from '../assets/logo.png';
 
 // Fazy: 'username' → 'set_password' (pierwsze logowanie) | 'password' (normalne)
 export default function LoginPage() {
@@ -55,8 +56,8 @@ export default function LoginPage() {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="auth-logo-section">
-          <div className="auth-logo-icon">🚛</div>
-          <h1 className="auth-title">LEBUSER</h1>
+          <img src={logoImg} alt="Logo LEBUSER" style={{ height: '48px', objectFit: 'contain', marginBottom: '8px' }} />
+          <h1 className="auth-title" style={{ display: 'none' }}>LEBUSER</h1>
           <p className="auth-subtitle">Harmonogram Logistyki</p>
         </div>
 

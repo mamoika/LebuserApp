@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import logoImg from '../assets/logo.png';
 import ScheduleView from '../components/ScheduleView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
@@ -63,7 +64,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="app-header">
         <div className="app-header-top">
-          <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" className="app-logo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
+          <img src={logoImg} alt="Logo LEBUSER" className="app-logo" />
           <div>
             <div className="app-title">LEBUSER <span style={{ fontWeight: 400 }}>Harmonogram</span></div>
             <div className="app-subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>
