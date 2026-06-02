@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
@@ -146,7 +146,8 @@ function RolePicker({ onSelect, onClear, onClose, selCount }) {
 
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, todayStr, scheduleMap, entries, selectedCells, isAdmin, onCellClick, rowBg
+  emp, weekDays, todayStr, scheduleMap, entries, selectedCells, isAdmin, onCellClick, rowBg,
+  brushRole, onBrushCell, isPaintingRef
 }) => {
   let empWeekHours = 0;
   let empWeekDays = 0;
@@ -192,14 +193,26 @@ const TimelineRow = React.memo(({
           }
 
           const isSelectable = isAdmin && !dayStatus && working && isShiftHour && confirmed;
-          
+          const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
+
           return (
             <td key={h}
-              className={`tl-cell ${isSelected ? 'selected' : ''} ${isSelectable ? 'selectable' : ''}`}
-              onClick={() => isSelectable && onCellClick(emp.id, dateStr, h, dayStatus)}
-              style={{
-                cursor: isSelectable ? 'pointer' : 'default',
+              className={`tl-cell ${isSelected ? 'selected' : ''} ${isSelectable && !brushRole ? 'selectable' : ''} ${isBrushable ? 'brushable' : ''}`}
+              onClick={() => !brushRole && isSelectable && onCellClick(emp.id, dateStr, h, dayStatus)}
+              onMouseDown={() => {
+                if (!isBrushable) return;
+                isPaintingRef.current = true;
+                onBrushCell(emp.id, dateStr, h, dayStatus, working, confirmed, isShiftHour);
               }}
+              onMouseEnter={() => {
+                if (!isPaintingRef.current || !isBrushable) return;
+                onBrushCell(emp.id, dateStr, h, dayStatus, working, confirmed, isShiftHour);
+              }}
+              onContextMenu={(e) => {
+                if (!brushRole || !isAdmin) return;
+                e.preventDefault();
+              }}
+              style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : isSelectable && !brushRole ? 'pointer' : 'default' }}
             >
               <div className="tl-cell-inner" style={cellStyle}>
                 {!dayStatus && (role || '')}
@@ -229,6 +242,7 @@ const TimelineRow = React.memo(({
 }, (prev, next) => {
   if (prev.emp.id !== next.emp.id) return false;
   if (prev.isAdmin !== next.isAdmin) return false;
+  if (prev.brushRole !== next.brushRole) return false;
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
@@ -263,6 +277,9 @@ export default function TimelineView() {
   const [loading, setLoading] = useState(true);
   const [selectedCells, setSelectedCells] = useState(new Set());
   const [showPicker, setShowPicker] = useState(false);
+  const [brushRole, setBrushRole] = useState(null);
+  const isPainting = useRef(false);
+  const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
 
   const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const weekNum = getWeekNum(monday);
@@ -322,6 +339,43 @@ export default function TimelineView() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { setSelectedCells(new Set()); }, [monday]);
+
+  // Brush mode: keyboard escape to exit
+  useEffect(() => {
+    if (!brushRole) return;
+    const onKey = (e) => { if (e.key === 'Escape') setBrushRole(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [brushRole]);
+
+  // Stop painting on mouseup anywhere
+  useEffect(() => {
+    const stop = () => { isPainting.current = false; paintedInStroke.current.clear(); };
+    window.addEventListener('mouseup', stop);
+    return () => window.removeEventListener('mouseup', stop);
+  }, []);
+
+  const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
+    if (!isAdmin || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
+    const key = `${empId}_${dateStr}_${hour}`;
+    const isErase = brushRole === '__erase__';
+    const newRole = isErase ? null : brushRole;
+    const current = entries[key];
+    if (current === newRole) return;
+    setEntries(prev => {
+      const next = { ...prev };
+      if (newRole) next[key] = newRole; else delete next[key];
+      return next;
+    });
+    if (newRole) {
+      supabase.from('timeline_entries').upsert(
+        { employee_id: empId, entry_date: dateStr, hour, role: newRole, updated_at: new Date().toISOString(), updated_by: user?.name },
+        { onConflict: 'employee_id,entry_date,hour' }
+      );
+    } else {
+      supabase.from('timeline_entries').delete().eq('employee_id', empId).eq('entry_date', dateStr).eq('hour', hour);
+    }
+  }, [isAdmin, brushRole, entries, user]);
 
   const prevWeek = () => setMonday(m => addDays(m, -7));
   const nextWeek = () => setMonday(m => addDays(m, 7));
@@ -434,6 +488,61 @@ export default function TimelineView() {
         <button onClick={nextWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-primary)' }}>Następny ›</button>
       </div>
 
+      {/* Pasek pędzla */}
+      {isAdmin && (
+        <div className="print-hide" style={{
+          display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap',
+          background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
+          padding: '10px 14px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)'
+        }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-quaternary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px', whiteSpace: 'nowrap' }}>
+            Pędzel:
+          </span>
+          {Object.entries(ROLES).map(([key, r]) => {
+            const isActive = brushRole === key;
+            return (
+              <button key={key} onClick={() => setBrushRole(isActive ? null : key)} style={{
+                background: isActive ? r.bg : `${r.bg}18`,
+                color: isActive ? r.fc : r.bg,
+                border: isActive ? `2px solid ${r.bg}` : '2px solid transparent',
+                borderRadius: '10px', padding: '4px 8px',
+                fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                transition: 'all 0.15s', boxShadow: isActive ? `0 0 0 3px ${r.bg}35` : 'none',
+                transform: isActive ? 'scale(1.08)' : 'scale(1)',
+              }}>
+                {key}
+              </button>
+            );
+          })}
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-strong)', margin: '0 4px' }} />
+          <button onClick={() => setBrushRole(brushRole === '__erase__' ? null : '__erase__')} style={{
+            background: brushRole === '__erase__' ? '#ef4444' : 'rgba(239,68,68,0.1)',
+            color: brushRole === '__erase__' ? '#fff' : '#ef4444',
+            border: brushRole === '__erase__' ? '2px solid #ef4444' : '2px solid transparent',
+            borderRadius: '10px', padding: '4px 10px',
+            fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+            boxShadow: brushRole === '__erase__' ? '0 0 0 3px rgba(239,68,68,0.25)' : 'none',
+            transform: brushRole === '__erase__' ? 'scale(1.08)' : 'scale(1)',
+          }}>
+            ✕ Gumka
+          </button>
+          {brushRole && (
+            <button onClick={() => setBrushRole(null)} style={{
+              background: 'transparent', color: 'var(--text-tertiary)',
+              border: '1px dashed var(--border-strong)', borderRadius: '10px', padding: '4px 10px',
+              fontSize: '11px', cursor: 'pointer', marginLeft: '4px',
+            }}>
+              Esc / wyłącz
+            </button>
+          )}
+          {!brushRole && (
+            <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', marginLeft: '4px' }}>
+              Wybierz stanowisko i maluj po komórkach
+            </span>
+          )}
+        </div>
+      )}
+
 
 
       {/* Tabela połączona */}
@@ -493,7 +602,7 @@ export default function TimelineView() {
                 const rowBg = isDark ? '#1C1C1E' : '#ffffff';
                 
                 return (
-                  <TimelineRow 
+                  <TimelineRow
                     key={emp.id}
                     emp={emp}
                     weekDays={weekDays}
@@ -504,6 +613,9 @@ export default function TimelineView() {
                     isAdmin={isAdmin}
                     onCellClick={handleCellClick}
                     rowBg={rowBg}
+                    brushRole={brushRole}
+                    onBrushCell={handleBrushCell}
+                    isPaintingRef={isPainting}
                   />
                 );
               })}

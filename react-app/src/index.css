@@ -2846,6 +2846,15 @@ select.ap-input {
   .tl-cell.selectable:hover .tl-cell-inner { filter: brightness(1.2); }
 }
 
+.tl-cell.brushable:hover .tl-cell-inner {
+  filter: brightness(1.15);
+  outline: 2px solid rgba(255,255,255,0.6) inset;
+  transition: filter 0.05s;
+}
+@media(prefers-color-scheme: dark) {
+  .tl-cell.brushable:hover .tl-cell-inner { filter: brightness(0.8); }
+}
+
 .tl-cell.selected .tl-cell-inner {
   box-shadow: 0 0 0 2px var(--accent-orange) inset, 0 4px 12px rgba(255, 149, 0, 0.3);
   z-index: 2;
