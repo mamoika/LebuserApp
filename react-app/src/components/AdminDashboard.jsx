@@ -234,13 +234,13 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImp
 }
 
 const GROUP_COLORS = {
-  'BIURO / BÜRO':           '#d35400',
-  'TECHNICZNY / TECHNIKER': '#607d8b',
-  'KIEROWCY / FAHRER':      '#1565c0',
+  'BIURO':           '#d35400',
+  'TECHNICZNY': '#607d8b',
+  'KIEROWCY':      '#1565c0',
   'ZD 1':                   '#2e7d32',
   'ZD 2':                   '#c62828',
 };
-const GROUP_ORDER = ['BIURO / BÜRO', 'TECHNICZNY / TECHNIKER', 'ZD 1', 'ZD 2', 'KIEROWCY / FAHRER'];
+const GROUP_ORDER = ['BIURO', 'TECHNICZNY', 'ZD 1', 'ZD 2', 'KIEROWCY'];
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 
 function EmployeeModal({ employee, onClose, onSave, onDelete }) {
@@ -286,7 +286,6 @@ function EmployeeModal({ employee, onClose, onSave, onDelete }) {
           <div style={LABEL_STYLE}>Grupa</div>
           <select className="ap-input" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '12px' }}>
             {GROUP_ORDER.map(g => <option key={g} value={g}>{g}</option>)}
-            <option value="BIURO / BÜRO">BIURO / BÜRO</option>
           </select>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>

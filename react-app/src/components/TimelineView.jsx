@@ -19,13 +19,13 @@ const ROLES = {
 };
 
 const GROUP_COLORS = {
-  'BIURO / BÜRO':           '#d35400',
-  'TECHNICZNY / TECHNIKER': '#607d8b',
-  'KIEROWCY / FAHRER':      '#1565c0',
+  'BIURO':           '#d35400',
+  'TECHNICZNY': '#607d8b',
+  'KIEROWCY':      '#1565c0',
   'ZD 1':                   '#2e7d32',
   'ZD 2':                   '#c62828',
 };
-const GROUP_ORDER = ['BIURO / BÜRO', 'TECHNICZNY / TECHNIKER', 'ZD 1', 'ZD 2', 'KIEROWCY / FAHRER'];
+const GROUP_ORDER = ['BIURO', 'TECHNICZNY', 'ZD 1', 'ZD 2', 'KIEROWCY'];
 const DAY_NAMES = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'];
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 5); // 5-21
 

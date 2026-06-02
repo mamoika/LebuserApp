@@ -6,13 +6,13 @@ import * as XLSX from 'xlsx';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
 
 const GROUP_COLORS = {
-  'BIURO / BÜRO':           '#d35400',
-  'TECHNICZNY / TECHNIKER': '#607d8b',
-  'KIEROWCY / FAHRER':      '#1565c0',
+  'BIURO':           '#d35400',
+  'TECHNICZNY': '#607d8b',
+  'KIEROWCY':      '#1565c0',
   'ZD 1':                   '#2e7d32',
   'ZD 2':                   '#c62828',
 };
-const GROUP_ORDER = ['BIURO / BÜRO', 'TECHNICZNY / TECHNIKER', 'ZD 1', 'ZD 2', 'KIEROWCY / FAHRER'];
+const GROUP_ORDER = ['BIURO', 'TECHNICZNY', 'ZD 1', 'ZD 2', 'KIEROWCY'];
 const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
