@@ -81,15 +81,23 @@ function AddRouteModal({ onClose, onSave }) {
   );
 }
 
-function EditRouteModal({ route, onClose, onSave }) {
+function EditRouteModal({ route, onClose, onSave, onDelete }) {
   const [name, setName] = useState(route.name);
   const [schedule, setSchedule] = useState(route.schedule || 'other');
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
     await onSave(route.id, name.trim(), schedule);
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setSaving(true);
+    await onDelete(route);
     setSaving(false);
   };
 
@@ -121,6 +129,9 @@ function EditRouteModal({ route, onClose, onSave }) {
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
               {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            </button>
+            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
+              {confirmDelete ? 'Na pewno usunąć trasę?' : 'Usuń trasę'}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
           </div>
@@ -249,35 +260,7 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
   );
 }
 
-function DeleteRouteModal({ route, onClose, onConfirm }) {
-  const [saving, setSaving] = useState(false);
-  const handleConfirm = async () => {
-    setSaving(true);
-    await onConfirm(route);
-    setSaving(false);
-  };
-  return (
-    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-sheet-header">
-          <div className="ap-sheet-title">Usuń trasę</div>
-          <button className="ap-sheet-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="ap-sheet-content">
-          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-            Czy na pewno usunąć trasę <strong>"{route.name}"</strong>?
-          </p>
-        </div>
-        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>Anuluj</button>
-          <button className="ap-btn" style={{ flex: 1, background: 'var(--accent-red)', color: '#fff' }} onClick={handleConfirm} disabled={saving}>
-            {saving ? 'Usuwanie…' : 'Usuń'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 // ---- Main component ----
 
@@ -293,7 +276,6 @@ export default function ClientsRoutesView() {
   const [editRouteModal, setEditRouteModal] = useState(null);
   const [addClientForRoute, setAddClientForRoute] = useState(null); // routeId
   const [editClient, setEditClient] = useState(null);
-  const [deleteRoute, setDeleteRoute] = useState(null);
 
   useEffect(() => {
     setLocalClients(clients);
@@ -349,13 +331,12 @@ export default function ClientsRoutesView() {
     const hasClients = localClients.some(c => c.route_id === route.id);
     if (hasClients) {
       alert('Nie można usunąć trasy, do której są przypisani klienci!');
-      setDeleteRoute(null);
       return;
     }
     try {
       const { error } = await supabase.from('routes').delete().eq('id', route.id);
       if (error) throw error;
-      setDeleteRoute(null);
+      setEditRouteModal(null);
       refetch();
     } catch (err) {
       alert('Błąd usuwania trasy: ' + err.message);
@@ -515,9 +496,8 @@ export default function ClientsRoutesView() {
           )}
 
           {isAdmin && (
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+            <div style={{ marginLeft: 'auto' }}>
               <span className="edit-icon" onClick={() => setEditRouteModal(route)} title="Edytuj trasę">✏️</span>
-              <span className="edit-icon" onClick={() => setDeleteRoute(route)} title="Usuń trasę" style={{ color: 'var(--accent-red)' }}>🗑️</span>
             </div>
           )}
         </div>
@@ -613,6 +593,7 @@ export default function ClientsRoutesView() {
           route={editRouteModal}
           onClose={() => setEditRouteModal(null)}
           onSave={handleSaveRoute}
+          onDelete={handleDeleteRoute}
         />
       )}
 
@@ -635,13 +616,7 @@ export default function ClientsRoutesView() {
         />
       )}
 
-      {deleteRoute && (
-        <DeleteRouteModal
-          route={deleteRoute}
-          onClose={() => setDeleteRoute(null)}
-          onConfirm={handleDeleteRoute}
-        />
-      )}
+
     </DragDropContext>
   );
 }
