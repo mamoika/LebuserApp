@@ -4,202 +4,448 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
+const ROUTE_COLORS = [
+  '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6',
+  '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
+];
+
+function getRouteColor(displayNum) {
+  return ROUTE_COLORS[(displayNum - 1) % ROUTE_COLORS.length];
+}
+
+// ---- Modals ----
+
+function AddRouteModal({ onClose, onSave }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave(name.trim());
+    setSaving(false);
+  };
+
+  return (
+    <div className="ap-sheet-overlay" onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-sheet-header">
+          <div className="ap-sheet-title">Nowa trasa</div>
+          <button className="ap-sheet-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="ap-sheet-content">
+          <div className="ap-field">
+            <label className="ap-label">Nazwa trasy</label>
+            <input
+              className="ap-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+              placeholder="np. Trasa 11 / Pn-Śr-Pt"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="ap-sheet-footer">
+          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving ? 'Zapisywanie…' : 'Dodaj trasę'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
+  const [name, setName] = useState('');
+  const [routeId, setRouteId] = useState(defaultRouteId);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave(name.trim(), routeId);
+    setSaving(false);
+  };
+
+  return (
+    <div className="ap-sheet-overlay" onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-sheet-header">
+          <div className="ap-sheet-title">Nowy klient</div>
+          <button className="ap-sheet-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="ap-sheet-content">
+          <div className="ap-field">
+            <label className="ap-label">Nazwa klienta</label>
+            <input
+              className="ap-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+              placeholder="Nazwa klienta"
+              autoFocus
+            />
+          </div>
+          <div className="ap-field">
+            <label className="ap-label">Trasa</label>
+            <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
+              {routes.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="ap-sheet-footer">
+          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving ? 'Zapisywanie…' : 'Dodaj klienta'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(client.name);
+  const [routeId, setRouteId] = useState(client.route_id);
+  const [lat, setLat] = useState(client.lat != null ? String(client.lat) : '');
+  const [lng, setLng] = useState(client.lng != null ? String(client.lng) : '');
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave({ id: client.id, name: name.trim(), routeId: Number(routeId), lat, lng, oldName: client.name, oldRouteId: client.route_id });
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setSaving(true);
+    await onDelete(client);
+    setSaving(false);
+  };
+
+  return (
+    <div className="ap-sheet-overlay" onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-sheet-header">
+          <div className="ap-sheet-title">Edytuj klienta</div>
+          <button className="ap-sheet-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="ap-sheet-content">
+          <div className="ap-field">
+            <label className="ap-label">Nazwa klienta</label>
+            <input
+              className="ap-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="ap-field">
+            <label className="ap-label">Trasa</label>
+            <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
+              {routes.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="ap-field" style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ flex: 1 }}>
+              <label className="ap-label">Szerokość (lat)</label>
+              <input className="ap-input" value={lat} onChange={e => setLat(e.target.value)} placeholder="np. 52.2297" inputMode="decimal" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="ap-label">Długość (lng)</label>
+              <input className="ap-input" value={lng} onChange={e => setLng(e.target.value)} placeholder="np. 21.0122" inputMode="decimal" />
+            </div>
+          </div>
+        </div>
+        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="ap-btn"
+            style={{ background: 'var(--bg-secondary)', color: 'var(--accent-red)', border: '1px solid var(--border)', minWidth: 80 }}
+            onClick={handleDelete}
+            disabled={saving}
+          >
+            {confirmDelete ? 'Na pewno?' : 'Usuń'}
+          </button>
+          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving ? 'Zapisywanie…' : 'Zapisz'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteRouteModal({ route, onClose, onConfirm }) {
+  const [saving, setSaving] = useState(false);
+  const handleConfirm = async () => {
+    setSaving(true);
+    await onConfirm(route);
+    setSaving(false);
+  };
+  return (
+    <div className="ap-sheet-overlay" onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-sheet-header">
+          <div className="ap-sheet-title">Usuń trasę</div>
+          <button className="ap-sheet-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="ap-sheet-content">
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            Czy na pewno usunąć trasę <strong>"{route.name}"</strong>?
+          </p>
+        </div>
+        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
+          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>Anuluj</button>
+          <button className="ap-btn" style={{ flex: 1, background: 'var(--accent-red)', color: '#fff' }} onClick={handleConfirm} disabled={saving}>
+            {saving ? 'Usuwanie…' : 'Usuń'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Main component ----
+
 export default function ClientsRoutesView() {
   const { clients, routes, loading, error, refetch } = useAppData();
   const { isAdmin } = useAuth();
-  
+
   const [localClients, setLocalClients] = useState([]);
   const [editingRouteId, setEditingRouteId] = useState(null);
   const [editRouteName, setEditRouteName] = useState('');
 
-  const [clientModalOpen, setClientModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [clientEditName, setClientEditName] = useState('');
+  const [addRouteOpen, setAddRouteOpen] = useState(false);
+  const [addClientForRoute, setAddClientForRoute] = useState(null); // routeId
+  const [editClient, setEditClient] = useState(null);
+  const [deleteRoute, setDeleteRoute] = useState(null);
 
   useEffect(() => {
     setLocalClients(clients);
   }, [clients]);
 
-  if (loading) return <div className="loader">Ładowanie danych...</div>;
+  if (loading) return <div className="loader">Ładowanie danych…</div>;
   if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
 
-  const routeColors = [
-    '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6', 
-    '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
-  ];
+  // ---- Route actions ----
 
-  const getRouteColor = (index) => {
-    return routeColors[index % 10] || routeColors[0];
-  };
-
-  const onDragEnd = async (result) => {
-    if (!isAdmin) return;
-    const { source, destination, draggableId } = result;
-
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
-    const sourceRouteId = parseInt(source.droppableId.replace('route-', ''));
-    const destRouteId = parseInt(destination.droppableId.replace('route-', ''));
-
-    const clientToMove = localClients.find(c => c.id === draggableId);
-    if (!clientToMove) return;
-
-    const newClients = Array.from(localClients);
-    const sourceIndex = newClients.findIndex(c => c.id === draggableId);
-    newClients.splice(sourceIndex, 1);
-
-    const destRouteClients = newClients.filter(c => c.route_id === destRouteId).sort((a, b) => a.sort_order - b.sort_order);
-    
-    const updatedClient = { ...clientToMove, route_id: destRouteId };
-    destRouteClients.splice(destination.index, 0, updatedClient);
-    
-    const finalClients = newClients.filter(c => c.route_id !== destRouteId);
-    
-    const updatesToDb = destRouteClients.map((c, index) => {
-      const newSortOrder = index + 1;
-      finalClients.push({ ...c, sort_order: newSortOrder });
-      return { id: c.id, route_id: c.route_id, sort_order: newSortOrder, name: c.name };
-    });
-
-    setLocalClients(finalClients);
-
+  const handleAddRoute = async (name) => {
     try {
-      const { error } = await supabase.from('clients').upsert(updatesToDb);
+      // Niech SERIAL w DB sam nada ID — nie podajemy id
+      const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
+      const { error } = await supabase.from('routes').insert({ name, sort_order: maxSort + 1 });
       if (error) throw error;
+      setAddRouteOpen(false);
       refetch();
     } catch (err) {
-      alert("Błąd zapisu kolejności: " + err.message);
-      refetch();
+      alert('Błąd dodawania trasy: ' + err.message);
     }
   };
 
   const startEditRoute = (route) => {
-    if (!isAdmin) return;
     setEditingRouteId(route.id);
     setEditRouteName(route.name);
   };
 
   const saveRouteName = async (routeId) => {
-    if (!editRouteName.trim()) {
-      setEditingRouteId(null);
-      return;
-    }
+    if (!editRouteName.trim()) { setEditingRouteId(null); return; }
     try {
-      const { error } = await supabase.from('routes').update({ name: editRouteName }).eq('id', routeId);
+      const { error } = await supabase.from('routes').update({ name: editRouteName.trim() }).eq('id', routeId);
       if (error) throw error;
       setEditingRouteId(null);
       refetch();
     } catch (err) {
-      alert("Błąd zapisu nazwy trasy: " + err.message);
+      alert('Błąd zapisu nazwy trasy: ' + err.message);
     }
   };
 
   const handleDeleteRoute = async (route) => {
-    if (!isAdmin) return;
     const hasClients = localClients.some(c => c.route_id === route.id);
     if (hasClients) {
-      alert("Nie można usunąć trasy, do której są przypisani klienci!");
+      alert('Nie można usunąć trasy, do której są przypisani klienci!');
+      setDeleteRoute(null);
       return;
     }
-    if (!window.confirm(`Czy na pewno chcesz usunąć trasę "${route.name}"?`)) return;
     try {
       const { error } = await supabase.from('routes').delete().eq('id', route.id);
       if (error) throw error;
+      setDeleteRoute(null);
       refetch();
     } catch (err) {
-      alert("Błąd usuwania trasy: " + err.message);
+      alert('Błąd usuwania trasy: ' + err.message);
     }
   };
 
-  const handleAddRoute = async () => {
-    if (!isAdmin) return;
-    const newName = window.prompt("Podaj nazwę nowej trasy (np. Trasa 11):");
-    if (!newName || !newName.trim()) return;
-    
-    const maxId = routes.length > 0 ? Math.max(...routes.map(r => r.id)) : 0;
-    const newId = maxId + 1;
-    const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order || r.id)) : 0;
-    const newSortOrder = maxSort + 1;
-    
+  // ---- Client actions ----
+
+  const handleAddClient = async (name, routeId) => {
+    const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
+    if (duplicate) { alert('Klient o tej nazwie już istnieje!'); return; }
     try {
-      const { error } = await supabase.from('routes').insert({ id: newId, name: newName.trim(), sort_order: newSortOrder });
+      const { error } = await supabase.from('clients').insert({ name, route_id: routeId, sort_order: 9999 });
+      if (error) throw error;
+      setAddClientForRoute(null);
+      refetch();
+    } catch (err) {
+      alert('Błąd dodawania klienta: ' + err.message);
+    }
+  };
+
+  const handleSaveClient = async ({ id, name, routeId, lat, lng, oldName, oldRouteId }) => {
+    const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
+    if (duplicate) { alert('Klient o tej nazwie już istnieje!'); return; }
+
+    const parsedLat = lat !== '' ? parseFloat(String(lat).replace(',', '.')) : null;
+    const parsedLng = lng !== '' ? parseFloat(String(lng).replace(',', '.')) : null;
+
+    const updates = {
+      name,
+      route_id: routeId,
+      lat: !isNaN(parsedLat) ? parsedLat : null,
+      lng: !isNaN(parsedLng) ? parsedLng : null,
+    };
+    // Gdy zmiana trasy — przesuń na koniec nowej trasy
+    if (routeId !== oldRouteId) updates.sort_order = 9999;
+
+    try {
+      const { error: clientErr } = await supabase.from('clients').update(updates).eq('id', id);
+      if (clientErr) throw clientErr;
+
+      // Cascade: aktualizuj client_name w entries gdy nazwa się zmieniła
+      if (name !== oldName) {
+        const { error: entryErr } = await supabase.from('entries').update({ client_name: name }).eq('client_name', oldName);
+        if (entryErr) console.error('Cascade entries update failed:', entryErr.message);
+      }
+
+      setEditClient(null);
+      refetch();
+    } catch (err) {
+      alert('Błąd zapisu klienta: ' + err.message);
+    }
+  };
+
+  const handleDeleteClient = async (client) => {
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', client.id);
+      if (error) throw error;
+      setEditClient(null);
+      refetch();
+    } catch (err) {
+      alert('Błąd usuwania klienta: ' + err.message);
+    }
+  };
+
+  // ---- Drag & Drop ----
+
+  const onDragEnd = async (result) => {
+    if (!isAdmin) return;
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const sourceRouteId = parseInt(source.droppableId.replace('route-', ''));
+    const destRouteId = parseInt(destination.droppableId.replace('route-', ''));
+    const clientToMove = localClients.find(c => c.id === draggableId);
+    if (!clientToMove) return;
+
+    // Buduj nowy stan lokalny
+    let working = localClients.filter(c => c.id !== draggableId);
+
+    // Przelicz source route sort_order
+    const sourceClients = working
+      .filter(c => c.route_id === sourceRouteId)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((c, i) => ({ ...c, sort_order: i + 1 }));
+
+    // Przelicz dest route sort_order z wstawionym klientem
+    const destClients = working
+      .filter(c => c.route_id === destRouteId)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    destClients.splice(destination.index, 0, { ...clientToMove, route_id: destRouteId });
+    const destClientsOrdered = destClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
+
+    const unchanged = working.filter(c => c.route_id !== sourceRouteId && c.route_id !== destRouteId);
+    const newLocalClients = [...unchanged, ...sourceClients, ...destClientsOrdered];
+    setLocalClients(newLocalClients);
+
+    // Zapisz do DB — tylko zmienione (source + dest)
+    const toUpsert = [
+      ...sourceClients.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
+      ...destClientsOrdered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
+    ];
+
+    try {
+      const { error } = await supabase.from('clients').upsert(toUpsert);
       if (error) throw error;
       refetch();
     } catch (err) {
-      alert("Błąd dodawania trasy: " + err.message);
-    }
-  };
-
-  const handleAddClient = async (routeId) => {
-    if (!isAdmin) return;
-    const name = window.prompt("Podaj nazwę nowego klienta:");
-    if (!name || !name.trim()) return;
-    try {
-      const { error } = await supabase.from('clients').insert({ name: name.trim(), route_id: routeId, sort_order: 9999 });
-      if (error) throw error;
+      alert('Błąd zapisu kolejności: ' + err.message);
       refetch();
-    } catch (err) {
-      alert("Błąd dodawania klienta: " + err.message);
     }
   };
 
-  const openClientEdit = (client) => {
-    if (!isAdmin) return;
-    setSelectedClient(client);
-    setClientEditName(client.name);
-    setClientModalOpen(true);
-  };
+  // ---- Render ----
 
-  const saveClientName = async () => {
-    if (!clientEditName.trim()) return;
-    try {
-      const { error } = await supabase.from('clients').update({ name: clientEditName }).eq('id', selectedClient.id);
-      if (error) throw error;
-      setClientModalOpen(false);
-      refetch();
-    } catch(err) { 
-      alert("Błąd zapisu klienta: " + err.message); 
+  const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  const groups = [
+    { title: 'Trasy codzienne (Pn–Pt)', keywords: ['codzien', 'pn-pt'], routes: [] },
+    { title: 'Trasy Pn – Śr – Pt', keywords: ['pn', 'śr', 'sr', 'pt'], routes: [] },
+    { title: 'Trasy Wt – Czw', keywords: ['wt', 'cz'], routes: [] },
+    { title: 'Pozostałe trasy', keywords: [], routes: [] },
+  ];
+
+  sortedRoutes.forEach(route => {
+    const nameLow = route.name.toLowerCase();
+    let matched = false;
+    for (let j = 0; j < 3; j++) {
+      if (groups[j].keywords.some(kw => nameLow.includes(kw))) {
+        groups[j].routes.push(route);
+        matched = true;
+        break;
+      }
     }
-  };
+    if (!matched) groups[3].routes.push(route);
+  });
 
-  const deleteClient = async () => {
-    if (!window.confirm(`Czy na pewno usunąć klienta "${selectedClient.name}"?`)) return;
-    try {
-      const { error } = await supabase.from('clients').delete().eq('id', selectedClient.id);
-      if (error) throw error;
-      setClientModalOpen(false);
-      refetch();
-    } catch(err) { 
-      alert("Błąd usuwania klienta: " + err.message); 
-    }
-  };
-
-  const renderRouteCol = (route, routeIndex) => {
-    const routeClients = localClients.filter(c => c.route_id === route.id).sort((a, b) => a.sort_order - b.sort_order);
-    const displayNum = routes.findIndex(r => r.id === route.id) + 1;
+  const renderRouteCol = (route) => {
+    const routeClients = localClients
+      .filter(c => c.route_id === route.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColor(displayNum);
 
     return (
       <div key={route.id} className="col route-card" style={{ borderTopColor: routeColor }}>
         <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '4px' }}>
           <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
-          
+
           {editingRouteId === route.id ? (
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={editRouteName}
-              onChange={(e) => setEditRouteName(e.target.value)}
+              onChange={e => setEditRouteName(e.target.value)}
               onBlur={() => saveRouteName(route.id)}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === 'Enter') saveRouteName(route.id);
                 if (e.key === 'Escape') setEditingRouteId(null);
               }}
               autoFocus
-              style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 600, color: routeColor, border: `1px solid ${routeColor}`, borderRadius: '4px', padding: '2px 4px', outline: 'none', background: 'transparent' }}
+              style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 600, color: routeColor, border: `1px solid ${routeColor}`, borderRadius: '4px', padding: '2px 4px', outline: 'none', background: 'transparent', flex: 1 }}
             />
           ) : (
-            <span className="route-title" style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px' }} onDoubleClick={() => startEditRoute(route)}>
+            <span
+              className="route-title"
+              style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px', flex: 1 }}
+              onDoubleClick={() => isAdmin && startEditRoute(route)}
+            >
               {route.name}
             </span>
           )}
@@ -207,15 +453,15 @@ export default function ClientsRoutesView() {
           {isAdmin && (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
               <span className="edit-icon" onClick={() => startEditRoute(route)} title="Edytuj nazwę">✏️</span>
-              <span className="edit-icon" onClick={() => handleDeleteRoute(route)} title="Usuń trasę" style={{ color: 'var(--accent-red)' }}>🗑️</span>
+              <span className="edit-icon" onClick={() => setDeleteRoute(route)} title="Usuń trasę" style={{ color: 'var(--accent-red)' }}>🗑️</span>
             </div>
           )}
         </div>
-        
+
         <Droppable droppableId={`route-${route.id}`}>
           {(provided, snapshot) => (
-            <div 
-              ref={provided.innerRef} 
+            <div
+              ref={provided.innerRef}
               {...provided.droppableProps}
               className="sortable-list"
               style={{ minHeight: '40px', background: snapshot.isDraggingOver ? 'rgba(0,0,0,0.02)' : 'transparent', borderRadius: '8px' }}
@@ -225,30 +471,30 @@ export default function ClientsRoutesView() {
               ) : (
                 routeClients.map((client, index) => (
                   <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
-                    {(provided, snapshot) => {
-                      const dotClass = (client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing';
-                      return (
-                        <div 
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className={`tag-client ${isAdmin ? 'draggable' : ''}`}
-                          style={{
-                            ...provided.draggableProps.style,
-                            boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
-                            opacity: snapshot.isDragging ? 0.9 : 1
-                          }}
-                        >
-                          {isAdmin && <span className="drag-handle">⠿</span>}
-                          <span className="client-order">{index + 1}</span>
-                          <span className="client-name">{client.name}</span>
-                          <span className={dotClass} title={(client.lat && client.lng) ? 'ma GPS' : 'brak GPS'}></span>
-                          {isAdmin && (
-                            <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => openClientEdit(client)}>Edytuj</span>
-                          )}
-                        </div>
-                      )
-                    }}
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={`tag-client ${isAdmin ? 'draggable' : ''}`}
+                        style={{
+                          ...provided.draggableProps.style,
+                          boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
+                          opacity: snapshot.isDragging ? 0.9 : 1,
+                        }}
+                      >
+                        {isAdmin && <span className="drag-handle">⠿</span>}
+                        <span className="client-order">{index + 1}</span>
+                        <span className="client-name">{client.name}</span>
+                        <span
+                          className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
+                          title={(client.lat && client.lng) ? 'ma GPS' : 'brak GPS'}
+                        />
+                        {isAdmin && (
+                          <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => setEditClient(client)}>Edytuj</span>
+                        )}
+                      </div>
+                    )}
                   </Draggable>
                 ))
               )}
@@ -256,96 +502,74 @@ export default function ClientsRoutesView() {
             </div>
           )}
         </Droppable>
-        
-        <div style={{ flex: 1 }}></div>
-        <div className="divider" style={{ margin: '8px 0' }}></div>
+
+        <div style={{ flex: 1 }} />
+        <div className="divider" style={{ margin: '8px 0' }} />
         {isAdmin && (
-          <button className="add-btn" onClick={() => handleAddClient(route.id)}>+ dodaj klienta</button>
+          <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>+ dodaj klienta</button>
         )}
       </div>
     );
   };
-
-  // Grouping logic equivalent to index.html
-  const groups = [
-    { title: '🗓 Trasy codzienne (Pn–Pt)', keywords: ['codzien', 'pn-pt'], routes: [] },
-    { title: '🗓 Trasy Pn – Śr – Pt', keywords: ['pn', 'śr', 'sr', 'pt'], routes: [] },
-    { title: '🗓 Trasy Wt – Czw', keywords: ['wt', 'cz'], routes: [] },
-    { title: '📦 Pozostałe trasy', keywords: [], routes: [] }
-  ];
-
-  const sortedRoutes = [...routes].sort((a, b) => a.sort_order - b.sort_order);
-
-  sortedRoutes.forEach(route => {
-    let name = route.name.toLowerCase();
-    let matched = false;
-    for (let j = 0; j < 3; j++) {
-      if (groups[j].keywords.some(kw => name.includes(kw))) {
-        groups[j].routes.push(route);
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) groups[3].routes.push(route);
-  });
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div>
         {isAdmin && (
           <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <button className="add-route-btn" onClick={handleAddRoute}>＋ Nowa trasa</button>
+            <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>＋ Nowa trasa</button>
           </div>
         )}
 
         <div className="clients-hint" style={{ marginBottom: '16px' }}>
-          {isAdmin && <span><span data-t="clients_drag_hint">☰ Przeciągaj klientów między trasami</span> &nbsp;·&nbsp;</span>}
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }}></span> <span>ma GPS</span> &nbsp;·&nbsp;
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }}></span> <span>brak GPS</span>
+          {isAdmin && <span>☰ Przeciągaj klientów między trasami &nbsp;·&nbsp;</span>}
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>ma GPS</span> &nbsp;·&nbsp;
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>brak GPS</span>
         </div>
-        
+
         {groups.map((g, i) => {
           if (g.routes.length === 0) return null;
           return (
             <div key={i} style={{ width: '100%' }}>
               <div className="route-group-header">{g.title}</div>
               <div className="grid" style={{ marginBottom: '8px' }}>
-                {g.routes.map((route, routeIndex) => renderRouteCol(route, routeIndex))}
+                {g.routes.map(route => renderRouteCol(route))}
               </div>
             </div>
           );
         })}
-
-        {clientModalOpen && (
-          <div className="ap-sheet-overlay" onClick={() => setClientModalOpen(false)}>
-            <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-              <div className="ap-sheet-header">
-                <div className="ap-sheet-title">Edytuj Klienta</div>
-                <button className="ap-sheet-close" onClick={() => setClientModalOpen(false)}>✕</button>
-              </div>
-              <div className="ap-sheet-content">
-                <div className="ap-field">
-                  <label className="ap-label">Nazwa klienta</label>
-                  <input 
-                    className="ap-input" 
-                    value={clientEditName} 
-                    onChange={e => setClientEditName(e.target.value)} 
-                    autoFocus 
-                  />
-                </div>
-              </div>
-              <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-                <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--accent-red)', border: '1px solid var(--border)' }} onClick={deleteClient}>
-                  Usuń
-                </button>
-                <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={saveClientName}>
-                  Zapisz
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {addRouteOpen && (
+        <AddRouteModal onClose={() => setAddRouteOpen(false)} onSave={handleAddRoute} />
+      )}
+
+      {addClientForRoute !== null && (
+        <AddClientModal
+          routes={routes}
+          defaultRouteId={addClientForRoute}
+          onClose={() => setAddClientForRoute(null)}
+          onSave={handleAddClient}
+        />
+      )}
+
+      {editClient && (
+        <EditClientModal
+          client={editClient}
+          routes={routes}
+          onClose={() => setEditClient(null)}
+          onSave={handleSaveClient}
+          onDelete={handleDeleteClient}
+        />
+      )}
+
+      {deleteRoute && (
+        <DeleteRouteModal
+          route={deleteRoute}
+          onClose={() => setDeleteRoute(null)}
+          onConfirm={handleDeleteRoute}
+        />
+      )}
     </DragDropContext>
   );
 }
