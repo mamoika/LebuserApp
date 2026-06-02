@@ -228,7 +228,7 @@ export default function GrafikView() {
     const { empIdx, day } = selectedCell;
     const emp = allEmps[empIdx];
     if (emp) saveCell(emp.id, day, val);
-    setSelectedCell({ empIdx, day: Math.min(day + 1, daysInMonth) });
+    setSelectedCell({ empIdx: Math.min(empIdx + 1, allEmps.length - 1), day });
     containerRef.current?.focus();
   };
 
