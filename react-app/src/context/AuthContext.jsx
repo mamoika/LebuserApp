@@ -60,6 +60,8 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const role = user?.role ?? null;
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -67,7 +69,10 @@ export const AuthProvider = ({ children }) => {
       checkUsername,
       setFirstPassword,
       signOut,
-      isAdmin: user?.role === 'admin',
+      isAdmin:  role === 'admin',
+      isDriver: role === 'driver',
+      isViewer: role === 'viewer',
+      canEdit:  role === 'admin' || role === 'driver', // viewer nie może edytować
     }}>
       {!loading && children}
     </AuthContext.Provider>

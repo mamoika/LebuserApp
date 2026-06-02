@@ -137,7 +137,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes }) {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, canEdit, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
@@ -233,8 +233,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
     }
   };
 
-  // Widok Edycji (tylko dla Admina po kliknięciu 'Edytuj')
-  if (editing && isAdmin) {
+  // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
+  if (editing && canEdit) {
     return (
       <div className="ap-overlay" style={{ display: 'flex' }}>
         <div className="ap-sheet">
@@ -343,10 +343,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
           </div>
           
-          {isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+          {canEdit && (
+            <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
-              <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>Usuń</button>
+              {isAdmin && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>Usuń</button>}
             </div>
           )}
         </div>

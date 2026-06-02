@@ -19,7 +19,7 @@ function formatDate(date) {
 
 export default function ScheduleView() {
   const { entries, clients, routes, loading, error, refetch } = useAppData();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canEdit } = useAuth();
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
   const [weekOffset, setWeekOffset] = useState(0);
@@ -142,7 +142,7 @@ export default function ScheduleView() {
                 </>
               )}
               
-              <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>+ dodaj przyjazd</button>
+              {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
             </div>
           )
         })}
