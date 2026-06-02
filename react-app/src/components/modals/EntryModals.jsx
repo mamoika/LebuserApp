@@ -219,8 +219,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
     }
   };
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const handleDelete = async () => {
-    if (!window.confirm("Czy na pewno chcesz usunąć ten wpis?")) return;
+    if (!confirmDelete) { setConfirmDelete(true); return; }
     try {
       setLoading(true);
       const { error } = await supabase.from('entries').delete().eq('id', entry.id);
@@ -346,7 +348,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           {canEdit && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
-              {isAdmin && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>Usuń</button>}
+              {isAdmin && (
+                <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>
+                  {confirmDelete ? 'Na pewno?' : 'Usuń'}
+                </button>
+              )}
             </div>
           )}
         </div>

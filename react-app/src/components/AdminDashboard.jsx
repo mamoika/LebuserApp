@@ -119,13 +119,14 @@ function AddUserModal({ onClose, onSave }) {
   );
 }
 
-function EditUserModal({ user, onClose, onSave, onResetPassword }) {
+function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [routes, setRoutes] = useState(user.routes || '');
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -139,6 +140,13 @@ function EditUserModal({ user, onClose, onSave, onResetPassword }) {
     await onResetPassword(user.id);
     setResetting(false);
     setResetDone(true);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setSaving(true);
+    await onDelete(user.id);
+    setSaving(false);
   };
 
   return (
@@ -204,6 +212,9 @@ function EditUserModal({ user, onClose, onSave, onResetPassword }) {
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
             </button>
+            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
+              {confirmDelete ? 'Na pewno usunąć użytkownika?' : 'Usuń użytkownika'}
+            </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
           </div>
         </div>
@@ -257,6 +268,13 @@ export default function AdminDashboard() {
       alert('Błąd resetu: ' + (error?.message || data?.error));
       return;
     }
+    fetchUsers();
+  };
+
+  const handleDeleteUser = async (userId) => {
+    const { error } = await supabase.from('users').delete().eq('id', userId);
+    if (error) { alert('Błąd usuwania: ' + error.message); return; }
+    setEditUser(null);
     fetchUsers();
   };
 
@@ -321,6 +339,7 @@ export default function AdminDashboard() {
           onClose={() => setEditUser(null)}
           onSave={handleSaveUser}
           onResetPassword={handleResetPassword}
+          onDelete={handleDeleteUser}
         />
       )}
     </div>

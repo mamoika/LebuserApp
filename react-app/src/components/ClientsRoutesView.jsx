@@ -371,8 +371,6 @@ export default function ClientsRoutesView() {
     : rawData;
 
   const [localClients, setLocalClients] = useState([]);
-  const [editingRouteId, setEditingRouteId] = useState(null);
-  const [editRouteName, setEditRouteName] = useState('');
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
   const [editRouteModal, setEditRouteModal] = useState(null);
@@ -409,24 +407,6 @@ export default function ClientsRoutesView() {
       refetch();
     } catch (err) {
       alert('Błąd zapisu trasy: ' + err.message);
-    }
-  };
-
-  // inline edit name only (double-click) — kept for quick rename
-  const startEditRoute = (route) => {
-    setEditingRouteId(route.id);
-    setEditRouteName(route.name);
-  };
-
-  const saveRouteName = async (routeId) => {
-    if (!editRouteName.trim()) { setEditingRouteId(null); return; }
-    try {
-      const { error } = await supabase.from('routes').update({ name: editRouteName.trim() }).eq('id', routeId);
-      if (error) throw error;
-      setEditingRouteId(null);
-      refetch();
-    } catch (err) {
-      alert('Błąd zapisu nazwy trasy: ' + err.message);
     }
   };
 
@@ -590,28 +570,13 @@ export default function ClientsRoutesView() {
         <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '4px' }}>
           <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
 
-          {editingRouteId === route.id ? (
-            <input
-              type="text"
-              value={editRouteName}
-              onChange={e => setEditRouteName(e.target.value)}
-              onBlur={() => saveRouteName(route.id)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') saveRouteName(route.id);
-                if (e.key === 'Escape') setEditingRouteId(null);
-              }}
-              autoFocus
-              style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 600, color: routeColor, border: `1px solid ${routeColor}`, borderRadius: '4px', padding: '2px 4px', outline: 'none', background: 'transparent', flex: 1 }}
-            />
-          ) : (
-            <span
-              className="route-title"
-              style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px', flex: 1 }}
-              onDoubleClick={() => isAdmin && startEditRoute(route)}
-            >
-              {route.name}
-            </span>
-          )}
+          <span
+            className="route-title"
+            style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px', flex: 1 }}
+            onDoubleClick={() => isAdmin && setEditRouteModal(route)}
+          >
+            {route.name}
+          </span>
 
           {isAdmin && (
             <div style={{ marginLeft: 'auto' }}>
