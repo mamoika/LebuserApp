@@ -14,11 +14,17 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const result = await login(username, password);
-    if (result.error) {
-      setError(result.error);
+    try {
+      const result = await login(username, password);
+      if (result.error) {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError("Błąd logowania: " + err.message);
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

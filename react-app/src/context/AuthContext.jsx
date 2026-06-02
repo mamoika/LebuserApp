@@ -25,25 +25,29 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
-    const { data, error } = await supabase.rpc('login_user', {
-      p_username: username,
-      p_password: password,
-    });
+    try {
+      const { data, error } = await supabase.rpc('login_user', {
+        p_username: username,
+        p_password: password,
+      });
 
-    if (error) return { error: error.message };
-    if (data?.error) return { error: data.error };
+      if (error) return { error: error.message };
+      if (data?.error) return { error: data.error };
 
-    const userData = {
-      id: data.id,
-      username: data.username,
-      name: data.name,
-      role: data.role,
-      routes: data.routes,
-    };
+      const userData = {
+        id: data.id,
+        username: data.username,
+        name: data.name,
+        role: data.role,
+        routes: data.routes,
+      };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    setUser(userData);
-    return { ok: true };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+      setUser(userData);
+      return { ok: true };
+    } catch (err) {
+      return { error: "Wystąpił błąd sieciowy lub serwera: " + err.message };
+    }
   };
 
   const register = async (username, password, name) => {
