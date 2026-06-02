@@ -158,7 +158,8 @@ const TRANSLATIONS = {
     loading_grafik_file: "Łączenie z plikiem grafiku…",
     error_label: "Błąd",
     loading_timeline: "Ładowanie osi czasu…",
-    loading_grafik: "Ładowanie grafiku…"
+    loading_grafik: "Ładowanie grafiku…",
+    grafik_fractions_hint: "💡 <strong>Wskazówka:</strong> Ułamki godzinowe (np. pół godziny) wpisuj z użyciem kropki lub przecinka (np. <strong>7.5</strong> lub <strong>7,5</strong>). System automatycznie przeliczy to na <strong>7h 30m</strong> we wszystkich sumach."
   },
   DE: {
     app_title: "Zeitplan",
@@ -316,7 +317,8 @@ const TRANSLATIONS = {
     loading_grafik_file: "Verbindung mit Dienstplandatei...",
     error_label: "Fehler",
     loading_timeline: "Zeitachse wird geladen...",
-    loading_grafik: "Dienstplan wird geladen..."
+    loading_grafik: "Dienstplan wird geladen...",
+    grafik_fractions_hint: "💡 <strong>Hinweis:</strong> Geben Sie Stundenbruchteile (z. B. eine halbe Stunde) mit einem Punkt oder Komma ein (z. B. <strong>7.5</strong> oder <strong>7,5</strong>). Das System rechnet dies in allen Summen automatisch in <strong>7h 30m</strong> um."
   },
   UA: {
     app_title: "Розклад",
@@ -475,7 +477,8 @@ const TRANSLATIONS = {
     loading_grafik_file: "З'єднання з файлом графіка…",
     error_label: "Помилка",
     loading_timeline: "Завантаження шкали часу…",
-    loading_grafik: "Завантаження графіка…"
+    loading_grafik: "Завантаження графіка…",
+    grafik_fractions_hint: "💡 <strong>Підказка:</strong> Вводьте дробові години (наприклад, півгодини) через крапку або кому (наприклад, <strong>7.5</strong> або <strong>7,5</strong>). Система автоматично перерахує це в <strong>7 год 30 хв</strong> у всіх сумах."
   }
 };
 

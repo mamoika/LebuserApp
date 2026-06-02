@@ -555,6 +555,9 @@ export default function GrafikView() {
         </table>
       </div>
 
+      <div className="print-hide" style={{ fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-card-solid)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', display: 'inline-block', width: 'fit-content', marginTop: '8px' }}>
+        💡 <strong>Wskazówka:</strong> Ułamki godzinowe (np. pół godziny) wpisuj z użyciem kropki lub przecinka (np. <strong>7.5</strong> lub <strong>7,5</strong>). System automatycznie przeliczy to na <strong>7h 30m</strong> we wszystkich sumach.
+      </div>
       
     </div>
   );
