@@ -9,19 +9,19 @@ const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Li
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
 const VALUE_STYLE = {
-  'W':  { bg: '#f4f6f7', color: '#aaaaaa' },
-  'UW': { bg: '#d6eaf8', color: '#0c5460' },
-  'L4': { bg: '#fcf3cf', color: '#856404' },
-  'NN': { bg: '#fadbd8', color: '#721c24' },
-  'I':  { bg: '#ebdef0', color: '#432874' },
+  'W':  { bg: '#fbfbfb', color: '#bbbbbb' },
+  'UW': { bg: '#e1f5fe', color: '#0277bd' },
+  'L4': { bg: '#fff9c4', color: '#fbc02d' },
+  'NN': { bg: '#fce4ec', color: '#c2185b' },
+  'I':  { bg: '#f3e5f5', color: '#7b1fa2' },
 };
 
 function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
-  if (!v) return { bg: isWeekendOrHoliday ? '#fdf2f2' : '#fff', color: '#999' };
+  if (!v) return { bg: isWeekendOrHoliday ? '#fcfcfc' : '#fff', color: '#ccc' };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
-  if (v.includes('+')) return { bg: '#ffe0b2', color: '#e65100' };
-  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#d4edda', color: '#155724' };
+  if (v.includes('+')) return { bg: '#fff3e0', color: '#e65100' };
+  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#e8f5e9', color: '#2e7d32' };
   return { bg: '#fff', color: '#333' };
 }
 
@@ -252,9 +252,9 @@ export default function GrafikView() {
     transition: 'all 0.15s ease'
   };
 
-  const thBase  = { padding: '8px 2px', fontSize: '11px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', border: '1px solid var(--border)' };
-  const nameColW = 160;
-  const dayColW  = 38;
+  const thBase  = { padding: '4px 2px', fontSize: '10px', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', border: '1px solid rgba(0,0,0,0.04)' };
+  const nameColW = 140;
+  const dayColW  = 28;
 
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
 
@@ -282,7 +282,7 @@ export default function GrafikView() {
         </div>
 
         <div className="action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
             <Info size={14} />
             <span>Dni robocze: <strong style={{color:'var(--text-primary)'}}>{workingDays}</strong> | Norma: <strong style={{color:'var(--text-primary)'}}>{norm} h</strong></span>
           </div>
@@ -322,7 +322,7 @@ export default function GrafikView() {
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 280}px`, width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, background: '#f2f2f7', textAlign: 'left', paddingLeft: '12px', color: '#1c1c1e', borderRight: '2px solid var(--border)' }}>Pracownik</th>
+              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, background: '#fafafa', textAlign: 'left', paddingLeft: '8px', color: '#333', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Pracownik</th>
               {days.map(d => {
                 const dateObj = new Date(year, month - 1, d);
                 const dw = dateObj.getDay();
@@ -330,35 +330,38 @@ export default function GrafikView() {
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
                 
-                let bg = '#f2f2f7';
-                let color = '#1c1c1e';
+                let bg = '#fafafa';
+                let color = '#333';
                 if (isToday) { bg = 'var(--accent)'; color = '#fff'; }
-                else if (hol) { bg = '#ffefef'; color = '#d70015'; }
-                else if (isWe) { bg = '#f8d7da'; color = '#721c24'; }
+                else if (hol) { bg = '#fcfcfc'; color = '#d70015'; }
+                else if (isWe) { bg = '#fcfcfc'; color = '#d70015'; }
 
                 return (
                   <th key={d} title={hol ? hol.name : ''} style={{ ...thBase, width: `${dayColW}px`, background: bg, color: color, position: 'relative' }}>
                     <div style={{ fontSize: '12px' }}>{d}</div>
-                    <div style={{ fontSize: '9px', fontWeight: 600, opacity: 0.8 }}>{DAY_NAMES[dw]}</div>
+                    <div style={{ fontSize: '8px', fontWeight: 500, opacity: 0.7 }}>{DAY_NAMES[dw]}</div>
                     {hol && <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '4px', background: '#d70015', borderRadius: '50%', margin: '2px' }} />}
                   </th>
                 );
               })}
               {/* Statystyki po prawej */}
-              <th style={{ ...thBase, width: '46px', background: '#e8f5e9', color: '#1b5e20', borderLeft: '2px solid var(--border)' }}>Σ h</th>
-              <th style={{ ...thBase, width: '46px', background: '#fff8e1', color: '#6d4c00' }}>Norma</th>
-              <th style={{ ...thBase, width: '46px', background: '#fce4ec', color: '#880e4f' }}>Różn.</th>
-              <th style={{ ...thBase, width: '40px', background: '#fcf3cf', color: '#856404', fontSize: '10px' }}>L4</th>
-              <th style={{ ...thBase, width: '40px', background: '#d6eaf8', color: '#0c5460', fontSize: '10px' }}>UW</th>
-              <th style={{ ...thBase, width: '40px', background: '#fadbd8', color: '#721c24', fontSize: '10px' }}>NN</th>
+              <th style={{ ...thBase, width: '40px', background: '#f5f9f5', color: '#2e7d32', borderLeft: '1px solid rgba(0,0,0,0.08)' }}>Σ h</th>
+              <th style={{ ...thBase, width: '40px', background: '#fffcf5', color: '#f57f17' }}>Norma</th>
+              <th style={{ ...thBase, width: '40px', background: '#fdf5f6', color: '#c62828' }}>Różn.</th>
+              <th style={{ ...thBase, width: '30px', background: '#fff9c4', color: '#fbc02d', fontSize: '9px' }}>L4</th>
+              <th style={{ ...thBase, width: '30px', background: '#e1f5fe', color: '#0277bd', fontSize: '9px' }}>UW</th>
+              <th style={{ ...thBase, width: '30px', background: '#fce4ec', color: '#c2185b', fontSize: '9px' }}>NN</th>
             </tr>
           </thead>
           <tbody>
             {groups.map(({ g, color: grpColor, members }) => {
               return [
                 <tr key={`grp-${g}`}>
-                  <td colSpan={daysInMonth + 7} style={{ background: grpColor, color: '#fff', fontWeight: 700, fontSize: '12px', padding: '6px 12px', letterSpacing: '0.5px' }}>
-                    {g}
+                  <td colSpan={daysInMonth + 7} style={{ background: '#fdfdfd', color: grpColor, fontWeight: 700, fontSize: '10px', padding: '4px 8px', letterSpacing: '0.5px', borderBottom: `1px solid ${grpColor}40`, borderTop: `1px solid ${grpColor}40`, textTransform: 'uppercase' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: grpColor }} />
+                      {g}
+                    </div>
                   </td>
                 </tr>,
                 ...members.map((emp) => {
@@ -371,8 +374,8 @@ export default function GrafikView() {
                   
                   const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafafa';
                   return (
-                    <tr key={emp.id} style={{ height: '32px' }}>
-                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, fontWeight: 600, fontSize: '12px', padding: '0 12px', border: '1px solid var(--border)', borderRight: '2px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <tr key={emp.id} style={{ height: '26px' }}>
+                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, fontWeight: 500, fontSize: '11px', padding: '0 8px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '1px solid rgba(0,0,0,0.08)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {emp.name}
                       </td>
                       {days.map(d => {
@@ -390,8 +393,8 @@ export default function GrafikView() {
                             style={{
                               background: isSelected ? '#e5f1ff' : cs.bg,
                               color: cs.color,
-                              textAlign: 'center', fontWeight: 700, fontSize: '11px',
-                              border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                              textAlign: 'center', fontWeight: 600, fontSize: '10px',
+                              border: isSelected ? '2px solid var(--accent)' : '1px solid rgba(0,0,0,0.04)',
                               cursor: isAdmin ? 'text' : 'default',
                               padding: 0, width: `${dayColW}px`,
                               boxSizing: 'border-box',
@@ -410,32 +413,32 @@ export default function GrafikView() {
                                   if (e.key === 'ArrowRight' && e.target.selectionEnd === e.target.value.length) { commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.min(d + 1, daysInMonth) }); containerRef.current?.focus(); }
                                   if (e.key === 'ArrowLeft' && e.target.selectionStart === 0) { commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.max(d - 1, 1) }); containerRef.current?.focus(); }
                                 }}
-                                style={{ width: '100%', height: '100%', border: 'none', background: '#fff', textAlign: 'center', fontSize: '12px', fontWeight: 800, padding: 0, outline: '2px solid var(--accent)', color: 'var(--accent)', boxSizing: 'border-box' }}
+                                style={{ width: '100%', height: '100%', border: 'none', background: '#fff', textAlign: 'center', fontSize: '11px', fontWeight: 700, padding: 0, outline: '2px solid var(--accent)', color: 'var(--accent)', boxSizing: 'border-box' }}
                               />
                             ) : val}
                           </td>
                         );
                       })}
                       {/* Σ godzin */}
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '12px', background: '#e8f5e9', color: '#1b5e20', border: '1px solid var(--border)', borderLeft: '2px solid var(--border)', padding: '0 2px' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: '#f5f9f5', color: '#2e7d32', border: '1px solid rgba(0,0,0,0.04)', borderLeft: '1px solid rgba(0,0,0,0.08)', padding: '0 2px' }}>
                         {totalHours > 0 ? totalHours : '—'}
                       </td>
                       {/* Norma */}
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '11px', background: '#fff8e1', color: '#6d4c00', border: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: '#fffcf5', color: '#f57f17', border: '1px solid rgba(0,0,0,0.04)' }}>
                         {norm}
                       </td>
                       {/* Różnica */}
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: totalHours === 0 ? '#fafafa' : diff >= 0 ? '#e8f5e9' : '#fce4ec', color: totalHours === 0 ? '#aaa' : diff >= 0 ? '#1b5e20' : '#c62828', border: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', background: totalHours === 0 ? '#fafafa' : diff >= 0 ? '#f5f9f5' : '#fdf5f6', color: totalHours === 0 ? '#ccc' : diff >= 0 ? '#2e7d32' : '#c62828', border: '1px solid rgba(0,0,0,0.04)' }}>
                         {totalHours === 0 ? '—' : (diff >= 0 ? '+' : '') + diff}
                       </td>
                       {/* Stats: L4, UW, NN */}
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '11px', background: l4Count > 0 ? '#fcf3cf' : '#fafafa', color: '#856404', border: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: l4Count > 0 ? '#fff9c4' : '#fafafa', color: '#fbc02d', border: '1px solid rgba(0,0,0,0.04)' }}>
                         {l4Count || ''}
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '11px', background: uwCount > 0 ? '#d6eaf8' : '#fafafa', color: '#0c5460', border: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: uwCount > 0 ? '#e1f5fe' : '#fafafa', color: '#0277bd', border: '1px solid rgba(0,0,0,0.04)' }}>
                         {uwCount || ''}
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '11px', background: nnCount > 0 ? '#fadbd8' : '#fafafa', color: '#721c24', border: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: nnCount > 0 ? '#fce4ec' : '#fafafa', color: '#c2185b', border: '1px solid rgba(0,0,0,0.04)' }}>
                         {nnCount || ''}
                       </td>
                     </tr>
@@ -452,13 +455,13 @@ export default function GrafikView() {
               { label: 'Nieob. (NN)', bg: '#fadbd8', color: '#721c24', fn: (d) => countSymbol(employees, getValue, d, 'NN') },
             ].map(({ label, bg, color, fn }) => (
               <tr key={label} style={{ height: '28px' }}>
-                <td style={{ position: 'sticky', left: 0, zIndex: 1, background: bg, color, fontWeight: 700, fontSize: '11px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.1)', borderRight: '2px solid var(--border)' }}>
+                <td style={{ position: 'sticky', left: 0, zIndex: 1, background: bg, color, fontWeight: 700, fontSize: '11px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '2px solid var(--border)' }}>
                   {label}
                 </td>
                 {days.map(d => {
                   const cnt = fn(d);
                   return (
-                    <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, border: '1px solid rgba(0,0,0,0.08)' }}>
+                    <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, border: '1px solid rgba(0,0,0,0.04)' }}>
                       {cnt || ''}
                     </td>
                   );
