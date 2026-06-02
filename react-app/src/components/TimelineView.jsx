@@ -18,14 +18,6 @@ const ROLES = {
   "K":  { bg: "#1155cc", fc: "#fff", name: "Kierowca" },
 };
 
-const GROUP_COLORS = {
-  'BIURO':           '#d35400',
-  'TECHNICZNY': '#607d8b',
-  'KIEROWCY':      '#1565c0',
-  'ZD 1':                   '#2e7d32',
-  'ZD 2':                   '#c62828',
-};
-const GROUP_ORDER = ['BIURO', 'TECHNICZNY', 'ZD 1', 'ZD 2', 'KIEROWCY'];
 const DAY_NAMES = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'];
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 5); // 5-21
 
@@ -123,6 +115,7 @@ export default function TimelineView() {
   const { user, isAdmin } = useAuth();
   const [monday, setMonday] = useState(() => getMondayOfWeek(new Date()));
   const [employees, setEmployees] = useState([]);
+  const [groupData, setGroupData] = useState([]);
   const [entries, setEntries] = useState({});   // key: `${empId}_${dateStr}_${hour}`
   const [scheduleMap, setScheduleMap] = useState({}); // key: `${empId}_${dateStr}` → { start, end }
   const [loading, setLoading] = useState(true);
@@ -144,15 +137,17 @@ export default function TimelineView() {
     const dateFrom = toDateStr(monday);
     const dateTo = toDateStr(addDays(monday, 6));
 
-    const [{ data: emps }, { data: tl }, { data: sched }] = await Promise.all([
+    const [{ data: emps }, { data: tl }, { data: sched }, { data: grps }] = await Promise.all([
       supabase.from('employees').select('*').eq('active', true).order('sort_order').order('name'),
       supabase.from('timeline_entries').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
       supabase.from('schedule_entries').select('employee_id,day,value')
         .eq('year', monday.getFullYear())
         .eq('month', monday.getMonth() + 1),
+      supabase.from('groups').select('*').order('sort_order').order('name')
     ]);
 
     setEmployees(emps || []);
+    setGroupData(grps || []);
 
     const map = {};
     (tl || []).forEach(e => { map[`${e.employee_id}_${e.entry_date}_${e.hour}`] = e.role; });
@@ -208,11 +203,13 @@ export default function TimelineView() {
   };
 
   // Group employees
-  const groups = GROUP_ORDER
-    .map(g => ({ g, members: employees.filter(e => e.group_name === g) }))
+  const groups = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
     .filter(({ members }) => members.length > 0);
-  [...new Set(employees.map(e => e.group_name))].filter(g => !GROUP_ORDER.includes(g))
-    .forEach(g => { const m = employees.filter(e => e.group_name === g); if (m.length) groups.push({ g, members: m }); });
+  const extraNames = [...new Set(employees.map(e => e.group_name))].filter(name => !groupData.find(g => g.name === name));
+  extraNames.forEach(name => {
+    const m = employees.filter(e => e.group_name === name);
+    if (m.length) groups.push({ g: name, color: '#455a64', members: m });
+  });
 
   if (loading) return <div className="loader">Ładowanie osi czasu…</div>;
 
@@ -279,8 +276,7 @@ export default function TimelineView() {
             </tr>
           </thead>
           <tbody>
-            {groups.map(({ g, members }) => {
-              const grpColor = GROUP_COLORS[g] || '#455a64';
+            {groups.map(({ g, color: grpColor, members }) => {
               return [
                 <tr key={`grp-${g}`}>
                   <td colSpan={1 + 7 * (HOURS.length + 1)} style={{ background: grpColor, color: '#fff', fontWeight: 700, fontSize: '11px', padding: '4px 10px', letterSpacing: '0.3px' }}>

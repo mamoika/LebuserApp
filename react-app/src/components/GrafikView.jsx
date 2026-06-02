@@ -5,14 +5,6 @@ import { isHoliday } from '../utils/holidays';
 import * as XLSX from 'xlsx';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
 
-const GROUP_COLORS = {
-  'BIURO':           '#d35400',
-  'TECHNICZNY': '#607d8b',
-  'KIEROWCY':      '#1565c0',
-  'ZD 1':                   '#2e7d32',
-  'ZD 2':                   '#c62828',
-};
-const GROUP_ORDER = ['BIURO', 'TECHNICZNY', 'ZD 1', 'ZD 2', 'KIEROWCY'];
 const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
@@ -59,6 +51,7 @@ export default function GrafikView() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [employees, setEmployees] = useState([]);
+  const [groupData, setGroupData] = useState([]);
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
@@ -85,11 +78,13 @@ export default function GrafikView() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: emps }, { data: sched }] = await Promise.all([
+    const [{ data: emps }, { data: sched }, { data: grps }] = await Promise.all([
       supabase.from('employees').select('*').eq('active', true).order('sort_order').order('name'),
       supabase.from('schedule_entries').select('*').eq('year', year).eq('month', month),
+      supabase.from('groups').select('*').order('sort_order').order('name')
     ]);
     setEmployees(emps || []);
+    setGroupData(grps || []);
     const map = {};
     (sched || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
     setEntries(map);
@@ -103,13 +98,16 @@ export default function GrafikView() {
   }, [editingCell]);
 
   const groups = useMemo(() => {
-    const g = GROUP_ORDER
-      .map(g => ({ g, members: employees.filter(e => e.group_name === g) }))
+    const res = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
       .filter(({ members }) => members.length > 0);
-    [...new Set(employees.map(e => e.group_name))].filter(g => !GROUP_ORDER.includes(g))
-      .forEach(g => { const m = employees.filter(e => e.group_name === g); if (m.length) g.push({ g, members: m }); });
-    return g;
-  }, [employees]);
+    
+    const extraNames = [...new Set(employees.map(e => e.group_name))].filter(name => !groupData.find(g => g.name === name));
+    extraNames.forEach(name => {
+      const members = employees.filter(e => e.group_name === name);
+      if (members.length) res.push({ g: name, color: '#455a64', members });
+    });
+    return res;
+  }, [employees, groupData]);
 
   const allEmps = useMemo(() => groups.flatMap(({ members }) => members), [groups]);
 
@@ -356,8 +354,7 @@ export default function GrafikView() {
             </tr>
           </thead>
           <tbody>
-            {groups.map(({ g, members }) => {
-              const grpColor = GROUP_COLORS[g] || '#455a64';
+            {groups.map(({ g, color: grpColor, members }) => {
               return [
                 <tr key={`grp-${g}`}>
                   <td colSpan={daysInMonth + 7} style={{ background: grpColor, color: '#fff', fontWeight: 700, fontSize: '12px', padding: '6px 12px', letterSpacing: '0.5px' }}>
