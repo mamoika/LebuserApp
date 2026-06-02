@@ -415,31 +415,46 @@ export default function ClientsRoutesView() {
     const clientToMove = localClients.find(c => c.id === draggableId);
     if (!clientToMove) return;
 
-    // Buduj nowy stan lokalny
-    let working = localClients.filter(c => c.id !== draggableId);
+    const rest = localClients.filter(c => c.id !== draggableId);
 
-    // Przelicz source route sort_order
-    const sourceClients = working
-      .filter(c => c.route_id === sourceRouteId)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((c, i) => ({ ...c, sort_order: i + 1 }));
+    let toUpsert;
+    let newLocalClients;
 
-    // Przelicz dest route sort_order z wstawionym klientem
-    const destClients = working
-      .filter(c => c.route_id === destRouteId)
-      .sort((a, b) => a.sort_order - b.sort_order);
-    destClients.splice(destination.index, 0, { ...clientToMove, route_id: destRouteId });
-    const destClientsOrdered = destClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
+    if (sourceRouteId === destRouteId) {
+      // Reorder w tej samej trasie
+      const routeClients = rest
+        .filter(c => c.route_id === sourceRouteId)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      routeClients.splice(destination.index, 0, { ...clientToMove });
+      const reordered = routeClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
 
-    const unchanged = working.filter(c => c.route_id !== sourceRouteId && c.route_id !== destRouteId);
-    const newLocalClients = [...unchanged, ...sourceClients, ...destClientsOrdered];
+      newLocalClients = [...rest.filter(c => c.route_id !== sourceRouteId), ...reordered];
+      toUpsert = reordered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name }));
+    } else {
+      // Przeniesienie między trasami
+      const sourceClients = rest
+        .filter(c => c.route_id === sourceRouteId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((c, i) => ({ ...c, sort_order: i + 1 }));
+
+      const destClients = rest
+        .filter(c => c.route_id === destRouteId)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      destClients.splice(destination.index, 0, { ...clientToMove, route_id: destRouteId });
+      const destClientsOrdered = destClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
+
+      newLocalClients = [
+        ...rest.filter(c => c.route_id !== sourceRouteId && c.route_id !== destRouteId),
+        ...sourceClients,
+        ...destClientsOrdered,
+      ];
+      toUpsert = [
+        ...sourceClients.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
+        ...destClientsOrdered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
+      ];
+    }
+
     setLocalClients(newLocalClients);
-
-    // Zapisz do DB — tylko zmienione (source + dest)
-    const toUpsert = [
-      ...sourceClients.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
-      ...destClientsOrdered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
-    ];
 
     try {
       const { error } = await supabase.from('clients').upsert(toUpsert);
