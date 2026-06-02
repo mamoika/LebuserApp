@@ -233,6 +233,173 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImp
   );
 }
 
+const GROUP_COLORS = {
+  'BIURO / BÜRO':           '#d35400',
+  'TECHNICZNY / TECHNIKER': '#607d8b',
+  'KIEROWCY / FAHRER':      '#1565c0',
+  'ZD 1':                   '#2e7d32',
+  'ZD 2':                   '#c62828',
+};
+const GROUP_ORDER = ['BIURO / BÜRO', 'TECHNICZNY / TECHNIKER', 'ZD 1', 'ZD 2', 'KIEROWCY / FAHRER'];
+const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
+
+function EmployeeModal({ employee, onClose, onSave, onDelete }) {
+  const isNew = !employee;
+  const [name, setName] = useState(employee?.name || '');
+  const [groupName, setGroupName] = useState(employee?.group_name || 'ZD 1');
+  const [contractType, setContractType] = useState(employee?.contract_type || 'UoP');
+  const [defaultStart, setDefaultStart] = useState(employee?.default_start || '7');
+  const [defaultEnd, setDefaultEnd] = useState(employee?.default_end || '15');
+  const [active, setActive] = useState(employee?.active !== false);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave({ id: employee?.id, name: name.trim(), group_name: groupName, contract_type: contractType, default_start: defaultStart, default_end: defaultEnd, active });
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setSaving(true);
+    await onDelete(employee.id);
+    setSaving(false);
+  };
+
+  const grpColor = GROUP_COLORS[groupName] || '#455a64';
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${grpColor}, ${grpColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? 'Nowy pracownik' : 'Edytuj pracownika'}</div>
+          </div>
+
+          <div style={LABEL_STYLE}>Nazwisko i imię</div>
+          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder="np. Kowalski Jan" style={{ marginBottom: '12px' }} autoFocus />
+
+          <div style={LABEL_STYLE}>Grupa</div>
+          <select className="ap-input" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '12px' }}>
+            {GROUP_ORDER.map(g => <option key={g} value={g}>{g}</option>)}
+            <option value="BIURO / BÜRO">BIURO / BÜRO</option>
+          </select>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={LABEL_STYLE}>Umowa</div>
+              <select className="ap-input" value={contractType} onChange={e => setContractType(e.target.value)}>
+                {CONTRACT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>Start</div>
+              <input className="ap-input" value={defaultStart} onChange={e => setDefaultStart(e.target.value)} placeholder="7" />
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>Koniec</div>
+              <input className="ap-input" value={defaultEnd} onChange={e => setDefaultEnd(e.target.value)} placeholder="15" />
+            </div>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+            Aktywny
+          </label>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? 'Zapisywanie…' : 'Zapisz'}</button>
+            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? 'Na pewno usunąć?' : 'Usuń'}</button>}
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeesSection() {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null); // null | 'new' | employee obj
+
+  const fetch = async () => {
+    const { data } = await supabase.from('employees').select('*').order('sort_order').order('name');
+    setEmployees(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetch(); }, []);
+
+  const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active }) => {
+    if (id) {
+      await supabase.from('employees').update({ name, group_name, contract_type, default_start, default_end, active }).eq('id', id);
+    } else {
+      const maxOrder = employees.length > 0 ? Math.max(...employees.map(e => e.sort_order || 0)) : 0;
+      await supabase.from('employees').insert({ name, group_name, contract_type, default_start, default_end, active, sort_order: maxOrder + 1 });
+    }
+    setModal(null);
+    fetch();
+  };
+
+  const handleDelete = async (id) => {
+    await supabase.from('employees').delete().eq('id', id);
+    setModal(null);
+    fetch();
+  };
+
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie…</div>;
+
+  const groups = GROUP_ORDER.map(g => ({ g, members: employees.filter(e => e.group_name === g) }))
+    .filter(({ members }) => members.length > 0);
+  // grupy spoza listy
+  const extraGroups = [...new Set(employees.map(e => e.group_name))].filter(g => !GROUP_ORDER.includes(g));
+  extraGroups.forEach(g => groups.push({ g, members: employees.filter(e => e.group_name === g) }));
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>Pracownicy ({employees.filter(e => e.active).length} aktywnych)</div>
+        <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Dodaj</button>
+      </div>
+
+      {groups.map(({ g, members }) => {
+        const color = GROUP_COLORS[g] || '#455a64';
+        return (
+          <div key={g} style={{ marginBottom: '12px' }}>
+            <div style={{ background: color, color: '#fff', fontWeight: 700, fontSize: '12px', padding: '6px 12px', borderRadius: '8px 8px 0 0' }}>{g}</div>
+            <div style={{ border: `1px solid ${color}40`, borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+              {members.map((emp, i) => (
+                <div key={emp.id} onClick={() => setModal(emp)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer', opacity: emp.active ? 1 : 0.45 }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 600, fontSize: '14px' }}>{emp.name}</span>
+                    {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>nieaktywny</span>}
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: emp.contract_type === 'UoP' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.12)', color: emp.contract_type === 'UoP' ? '#007AFF' : '#CC6600' }}>{emp.contract_type}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{emp.default_start}–{emp.default_end}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {(modal === 'new' || (modal && typeof modal === 'object')) && (
+        <EmployeeModal
+          employee={modal === 'new' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        />
+      )}
+    </div>
+  );
+}
+
 const ACTION_LABELS = {
   added:   { label: 'Dodał',    color: '#34C759' },
   edited:  { label: 'Edytował', color: '#FF9500' },
@@ -283,7 +450,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [tab, setTab] = useState('users'); // 'users' | 'logs'
+  const [tab, setTab] = useState('users'); // 'users' | 'employees' | 'logs'
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -351,10 +518,12 @@ export default function AdminDashboard() {
     <div style={{ maxWidth: '600px' }}>
       <div className="segmented-control" style={{ marginBottom: '16px' }}>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>Użytkownicy</button>
-        <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>Logi aktywności</button>
+        <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Pracownicy</button>
+        <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>Logi</button>
       </div>
 
       {tab === 'logs' && <LogsSection />}
+      {tab === 'employees' && <EmployeesSection />}
 
       {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
