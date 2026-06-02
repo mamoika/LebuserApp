@@ -37,7 +37,13 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
-      setClientName(clients[0]?.name || '');
+      // Pierwszy klient wg kolejności grup (sort_order trasy, potem klienta)
+      const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const firstRoute = sortedRoutes.find(r => clients.some(c => c.route_id === r.id));
+      const firstClient = firstRoute
+        ? [...clients].filter(c => c.route_id === firstRoute.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
+        : clients[0];
+      setClientName(firstClient?.name || '');
       setWeight('');
       setType('P');
       setUrgent(false);
