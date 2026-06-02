@@ -59,45 +59,16 @@ function isPresent(value) {
 }
 
 
-function ValuePicker({ selectedValue, onSelect, onCancel, todayRef }) {
+function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const [customValue, setCustomValue] = useState('');
-  const [pos, setPos] = useState(null);
   useEffect(() => { setCustomValue(''); }, [selectedValue]);
-
-  useEffect(() => {
-    if (!todayRef?.current) return;
-    const update = () => {
-      const r = todayRef.current.getBoundingClientRect();
-      const container = todayRef.current.closest('div[tabindex="0"]');
-      const cr = container ? container.getBoundingClientRect() : null;
-      const visibleInContainer = !cr || (r.left >= cr.left - r.width && r.right <= cr.right + r.width);
-      const visibleInViewport = r.top > 0 && r.top < window.innerHeight;
-      if (visibleInContainer && visibleInViewport) {
-        setPos({ top: r.top - 48, left: r.left + r.width / 2 });
-      } else {
-        setPos(null);
-      }
-    };
-    update();
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
-  }, [todayRef]);
-
-  if (!pos) return null;
-
-  const PICKER_W = 430;
-  let left = pos.left - PICKER_W / 2;
-  if (left + PICKER_W > window.innerWidth - 8) left = window.innerWidth - PICKER_W - 8;
-  if (left < 8) left = 8;
-  const top = Math.max(8, pos.top);
 
   return (
     <div className="print-hide" style={{
-      position: 'fixed', top, left, zIndex: 9999,
+      position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999,
       background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid rgba(0,0,0,0.12)', borderRadius: '12px', padding: '6px 10px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+      border: '1px solid rgba(0,0,0,0.12)', borderRadius: '16px', padding: '8px 12px',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
       display: 'flex', alignItems: 'center', gap: '5px',
     }}>
       {[['8', getCellStyle('8', false)], ...['W','UW','L4','NN','I','END'].map(b => [b, getCellStyle(b, false)])].map(([b, st], idx) => {
@@ -130,10 +101,14 @@ function ValuePicker({ selectedValue, onSelect, onCancel, todayRef }) {
       })}
       {onCancel && (
         <>
-          <div style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />
+          <div style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
           <button onClick={onCancel} style={{
-            background: 'transparent', color: '#999', border: 'none', fontWeight: 500, cursor: 'pointer', fontSize: '12px', padding: '4px 6px'
-          }}>Anuluj</button>
+            background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '50%',
+            width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'all 0.2s',
+          }} onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'} onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}>
+            ✕
+          </button>
         </>
       )}
     </div>
@@ -371,12 +346,11 @@ export default function GrafikView() {
 
   return (
     <div className="grafik-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {isAdmin && (
+      {isAdmin && selectedCell && (
         <ValuePicker
-          selectedValue={selectedCell && allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
+          selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
           onSelect={handlePickerSelect}
-          onCancel={selectedCell ? () => { setSelectedCell(null); containerRef.current?.focus(); } : null}
-          todayRef={todayRef}
+          onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
         />
       )}
 
