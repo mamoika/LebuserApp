@@ -4,6 +4,20 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
+const SCHEDULE_OPTIONS = [
+  { value: 'daily', label: 'Codziennie (Pn–Pt)' },
+  { value: 'mwf',   label: 'Pn – Śr – Pt' },
+  { value: 'tth',   label: 'Wt – Czw' },
+  { value: 'other', label: 'Pozostałe' },
+];
+
+const SCHEDULE_GROUPS = [
+  { value: 'daily', title: 'Trasy codzienne (Pn–Pt)' },
+  { value: 'mwf',   title: 'Trasy Pn – Śr – Pt' },
+  { value: 'tth',   title: 'Trasy Wt – Czw' },
+  { value: 'other', title: 'Pozostałe trasy' },
+];
+
 const ROUTE_COLORS = [
   '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6',
   '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
@@ -17,12 +31,13 @@ function getRouteColor(displayNum) {
 
 function AddRouteModal({ onClose, onSave }) {
   const [name, setName] = useState('');
+  const [schedule, setSchedule] = useState('daily');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave(name.trim());
+    await onSave(name.trim(), schedule);
     setSaving(false);
   };
 
@@ -41,14 +56,67 @@ function AddRouteModal({ onClose, onSave }) {
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-              placeholder="np. Trasa 11 / Pn-Śr-Pt"
+              placeholder="np. Trasa 11"
               autoFocus
             />
+          </div>
+          <div className="ap-field">
+            <label className="ap-label">Harmonogram</label>
+            <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)}>
+              {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
         </div>
         <div className="ap-sheet-footer">
           <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? 'Zapisywanie…' : 'Dodaj trasę'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditRouteModal({ route, onClose, onSave }) {
+  const [name, setName] = useState(route.name);
+  const [schedule, setSchedule] = useState(route.schedule || 'other');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave(route.id, name.trim(), schedule);
+    setSaving(false);
+  };
+
+  return (
+    <div className="ap-sheet-overlay" onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-sheet-header">
+          <div className="ap-sheet-title">Edytuj trasę</div>
+          <button className="ap-sheet-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="ap-sheet-content">
+          <div className="ap-field">
+            <label className="ap-label">Nazwa trasy</label>
+            <input
+              className="ap-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+              autoFocus
+            />
+          </div>
+          <div className="ap-field">
+            <label className="ap-label">Harmonogram</label>
+            <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)}>
+              {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="ap-sheet-footer">
+          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving ? 'Zapisywanie…' : 'Zapisz'}
           </button>
         </div>
       </div>
@@ -223,6 +291,7 @@ export default function ClientsRoutesView() {
   const [editRouteName, setEditRouteName] = useState('');
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
+  const [editRouteModal, setEditRouteModal] = useState(null);
   const [addClientForRoute, setAddClientForRoute] = useState(null); // routeId
   const [editClient, setEditClient] = useState(null);
   const [deleteRoute, setDeleteRoute] = useState(null);
@@ -236,11 +305,10 @@ export default function ClientsRoutesView() {
 
   // ---- Route actions ----
 
-  const handleAddRoute = async (name) => {
+  const handleAddRoute = async (name, schedule) => {
     try {
-      // Niech SERIAL w DB sam nada ID — nie podajemy id
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
-      const { error } = await supabase.from('routes').insert({ name, sort_order: maxSort + 1 });
+      const { error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 });
       if (error) throw error;
       setAddRouteOpen(false);
       refetch();
@@ -249,6 +317,18 @@ export default function ClientsRoutesView() {
     }
   };
 
+  const handleSaveRoute = async (routeId, name, schedule) => {
+    try {
+      const { error } = await supabase.from('routes').update({ name, schedule }).eq('id', routeId);
+      if (error) throw error;
+      setEditRouteModal(null);
+      refetch();
+    } catch (err) {
+      alert('Błąd zapisu trasy: ' + err.message);
+    }
+  };
+
+  // inline edit name only (double-click) — kept for quick rename
   const startEditRoute = (route) => {
     setEditingRouteId(route.id);
     setEditRouteName(route.name);
@@ -395,25 +475,10 @@ export default function ClientsRoutesView() {
 
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  const groups = [
-    { title: 'Trasy codzienne (Pn–Pt)', keywords: ['codzien', 'pn-pt'], routes: [] },
-    { title: 'Trasy Pn – Śr – Pt', keywords: ['pn', 'śr', 'sr', 'pt'], routes: [] },
-    { title: 'Trasy Wt – Czw', keywords: ['wt', 'cz'], routes: [] },
-    { title: 'Pozostałe trasy', keywords: [], routes: [] },
-  ];
-
-  sortedRoutes.forEach(route => {
-    const nameLow = route.name.toLowerCase();
-    let matched = false;
-    for (let j = 0; j < 3; j++) {
-      if (groups[j].keywords.some(kw => nameLow.includes(kw))) {
-        groups[j].routes.push(route);
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) groups[3].routes.push(route);
-  });
+  const groups = SCHEDULE_GROUPS.map(g => ({
+    ...g,
+    routes: sortedRoutes.filter(r => (r.schedule || 'other') === g.value),
+  }));
 
   const renderRouteCol = (route) => {
     const routeClients = localClients
@@ -452,7 +517,7 @@ export default function ClientsRoutesView() {
 
           {isAdmin && (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-              <span className="edit-icon" onClick={() => startEditRoute(route)} title="Edytuj nazwę">✏️</span>
+              <span className="edit-icon" onClick={() => setEditRouteModal(route)} title="Edytuj trasę">✏️</span>
               <span className="edit-icon" onClick={() => setDeleteRoute(route)} title="Usuń trasę" style={{ color: 'var(--accent-red)' }}>🗑️</span>
             </div>
           )}
@@ -542,6 +607,14 @@ export default function ClientsRoutesView() {
 
       {addRouteOpen && (
         <AddRouteModal onClose={() => setAddRouteOpen(false)} onSave={handleAddRoute} />
+      )}
+
+      {editRouteModal && (
+        <EditRouteModal
+          route={editRouteModal}
+          onClose={() => setEditRouteModal(null)}
+          onSave={handleSaveRoute}
+        />
       )}
 
       {addClientForRoute !== null && (
