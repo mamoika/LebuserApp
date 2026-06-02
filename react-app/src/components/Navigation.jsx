@@ -14,6 +14,7 @@ export default function Navigation() {
   if (isAdmin) {
     navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });
     navItems.push({ to: '/timeline', icon: '⏱', label: 'Oś czasu' });
+    navItems.push({ to: '/costs', icon: '💰', label: 'Koszty' });
     navItems.push({ to: '/admin', icon: '⚙️', label: 'Panel Admina' });
   }
 

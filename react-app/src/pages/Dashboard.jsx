@@ -9,6 +9,7 @@ import MapView from '../components/MapView';
 import HistoryView from '../components/HistoryView';
 import GrafikView from '../components/GrafikView';
 import TimelineView from '../components/TimelineView';
+import CostsView from '../components/CostsView';
 import ToastContainer from '../components/ToastContainer';
 
 export default function Dashboard() {
@@ -91,6 +92,7 @@ export default function Dashboard() {
           <Route path="/grafik" element={<GrafikView />} />
           <Route path="/timeline" element={<TimelineView />} />
           <Route path="/map" element={<MapView />} />
+          <Route path="/costs" element={<CostsView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
