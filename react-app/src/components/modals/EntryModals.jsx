@@ -5,12 +5,6 @@ import { DAY_NAMES, formatWeekKey } from '../../lib/dateUtils';
 import { toastError } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
 // PN→ŚR(0), WT→CZ(0), ŚR→PT(0), CZ→WT(1), PT→PN(1)
 function getDefaultPickInfo(arrDay) {
@@ -68,7 +62,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         pickWeekKey = formatWeekKey(d);
       }
 
-      const { data, error } = await supabase.from('entries').insert([{
+      const { error } = await supabase.from('entries').insert([{
         id: 'ID_' + new Date().getTime(),
         week_key: weekKey,
         client_name: clientName,
@@ -167,7 +161,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes }) {
-  const { isAdmin, canEdit, isDriver, user } = useAuth();
+  const { isAdmin, canEdit, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
@@ -178,6 +172,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [routeId, setRouteId] = useState(1);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -213,12 +208,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       toastError("Błąd: " + err.message);
       setLoading(false);
     }
-  };
+    };
 
-  const handleSaveEdit = async () => {
+    const handleSaveEdit = async () => {
     try {
       setLoading(true);
-      
+
       let pickWeekKey = entry.week_key;
       if (pickWeek === 1) {
         const parts = entry.week_key.split('-');
@@ -247,11 +242,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       toastError("Błąd edycji: " + err.message);
       setLoading(false);
     }
-  };
+    };
 
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const handleDelete = async () => {
+    const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     try {
       setLoading(true);
@@ -264,10 +257,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       toastError("Błąd: " + err.message);
       setLoading(false);
     }
-  };
+    };
 
-  // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
-  if (editing && canEdit) {
+    // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
+    if (editing && canEdit) {
     return (
       <div className="ap-overlay" style={{ display: 'flex' }}>
         <div className="ap-sheet">
@@ -344,22 +337,6 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
 
   // Widok Szczegółów (Domyślny)
   const routeName = routes?.find(r => r.id === entry.route_id)?.name || '—';
-  const fmtDateTime = (iso) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const hh = String(d.getHours()).padStart(2,'0');
-    const min = String(d.getMinutes()).padStart(2,'0');
-    return `${dd}.${mm} ${hh}:${min}`;
-  };
-
-  const ROW = ({ label, value, valueColor }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 0' }}>
-      <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>{label}</span>
-      <span style={{ fontWeight: 600, fontSize: '13px', color: valueColor || 'var(--text-primary)', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
-    </div>
-  );
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }}>
@@ -412,3 +389,20 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
     </div>
   );
 }
+
+const fmtDateTime = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}.${mm} ${hh}:${min}`;
+};
+
+const ROW = ({ label, value, valueColor }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 0' }}>
+    <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>{label}</span>
+    <span style={{ fontWeight: 600, fontSize: '13px', color: valueColor || 'var(--text-primary)', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
+  </div>
+);

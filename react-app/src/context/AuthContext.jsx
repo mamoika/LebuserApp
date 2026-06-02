@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext({});
@@ -8,21 +8,17 @@ const STORAGE_KEY = 'lebuser_user';
 const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impersonacji
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [adminBackup, setAdminBackup] = useState(null); // oryginalna sesja admina
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  const [user, setUser] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem(STORAGE_KEY); }
-    }
+    if (!stored) return null;
+    try { return JSON.parse(stored); } catch { localStorage.removeItem(STORAGE_KEY); return null; }
+  });
+
+  const [adminBackup, setAdminBackup] = useState(() => {
     const backup = localStorage.getItem(BACKUP_KEY);
-    if (backup) {
-      try { setAdminBackup(JSON.parse(backup)); } catch { localStorage.removeItem(BACKUP_KEY); }
-    }
-    setLoading(false);
-  }, []);
+    if (!backup) return null;
+    try { return JSON.parse(backup); } catch { localStorage.removeItem(BACKUP_KEY); return null; }
+  });
 
   const checkUsername = async (username) => {
     const { data, error } = await supabase.rpc('check_username', { p_username: username });
@@ -103,7 +99,7 @@ export const AuthProvider = ({ children }) => {
       isViewer: role === 'viewer',
       canEdit:  role === 'admin' || role === 'driver',
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

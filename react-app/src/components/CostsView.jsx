@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Settings, Droplet, Zap, Flame, Truck, Users, Activity, Save } from 'lucide-react';
+import { Droplet, Zap, Flame, Truck, Users, Activity, Save } from 'lucide-react';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -12,7 +12,7 @@ const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipi
 const FMT = (num) => typeof num === 'number' ? num.toFixed(2) : '---';
 
 export default function CostsView() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
@@ -96,11 +96,6 @@ export default function CostsView() {
       ...prev,
       [dateStr]: { ...prev[dateStr], entry_date: dateStr, [field]: num }
     }));
-  };
-
-  const handleSettingsChange = (field, value) => {
-    const num = value === '' ? null : parseFloat(value);
-    setSettings(prev => ({ ...prev, [field]: num }));
   };
 
   const saveAll = async () => {
