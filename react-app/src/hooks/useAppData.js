@@ -35,9 +35,11 @@ export function useAppData() {
   useEffect(() => {
     fetchData();
 
-    // Nasłuchuj na zmiany w tabeli wpisów (Realtime updates)
+    // Nasłuchuj na zmiany w tabelach (Realtime updates)
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, fetchData)
       .subscribe();
 
     return () => {
