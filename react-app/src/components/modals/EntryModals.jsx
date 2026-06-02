@@ -10,6 +10,15 @@ function addDays(date, days) {
   return d;
 }
 
+// arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
+// PN→ŚR(0), WT→CZ(0), ŚR→PT(0), CZ→WT(1), PT→PN(1)
+function getDefaultPickInfo(arrDay) {
+  const d = parseInt(arrDay);
+  if (d <= 3) return { pickDay: d + 2, pickWeek: 0 };
+  if (d === 4) return { pickDay: 2, pickWeek: 1 }; // CZ → WT nast.
+  return { pickDay: 1, pickWeek: 1 }; // PT → PN nast.
+}
+
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded }) {
   const { user } = useAuth();
   const [clientName, setClientName] = useState('');
@@ -23,12 +32,14 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
   useEffect(() => {
     if (isOpen) {
-      setArrDay(defaultArrDay || 1);
-      setPickDay(defaultArrDay || 1);
+      const day = defaultArrDay || 1;
+      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day);
+      setArrDay(day);
+      setPickDay(pd);
+      setPickWeek(pw);
       setClientName(clients[0]?.name || '');
       setWeight('');
       setType('P');
-      setPickWeek(0);
       setUrgent(false);
     }
   }, [isOpen, defaultArrDay, clients]);
@@ -104,7 +115,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień przyjazdu</div>
-              <select className="ap-input" value={arrDay} onChange={e => { setArrDay(e.target.value); setPickDay(e.target.value); }}>
+              <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
                 {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
               </select>
             </div>
