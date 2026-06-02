@@ -12,6 +12,10 @@ export default function ClientsRoutesView() {
   const [editingRouteId, setEditingRouteId] = useState(null);
   const [editRouteName, setEditRouteName] = useState('');
 
+  const [clientModalOpen, setClientModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientEditName, setClientEditName] = useState('');
+
   useEffect(() => {
     setLocalClients(clients);
   }, [clients]);
@@ -141,6 +145,50 @@ export default function ClientsRoutesView() {
     if (e.key === 'Escape') setEditingRouteId(null);
   };
 
+  const handleAddClient = async (routeId) => {
+    if (!isAdmin) return;
+    const name = window.prompt("Podaj nazwę nowego klienta:");
+    if (!name || !name.trim()) return;
+    try {
+      const { error } = await supabase.from('clients').insert({ name: name.trim(), route_id: routeId, sort_order: 9999 });
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      alert("Błąd dodawania klienta: " + err.message);
+    }
+  };
+
+  const openClientEdit = (client) => {
+    if (!isAdmin) return;
+    setSelectedClient(client);
+    setClientEditName(client.name);
+    setClientModalOpen(true);
+  };
+
+  const saveClientName = async () => {
+    if (!clientEditName.trim()) return;
+    try {
+      const { error } = await supabase.from('clients').update({ name: clientEditName }).eq('id', selectedClient.id);
+      if (error) throw error;
+      setClientModalOpen(false);
+      refetch();
+    } catch(err) { 
+      alert("Błąd zapisu klienta: " + err.message); 
+    }
+  };
+
+  const deleteClient = async () => {
+    if (!window.confirm(`Czy na pewno usunąć klienta "${selectedClient.name}"?`)) return;
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', selectedClient.id);
+      if (error) throw error;
+      setClientModalOpen(false);
+      refetch();
+    } catch(err) { 
+      alert("Błąd usuwania klienta: " + err.message); 
+    }
+  };
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div>
@@ -229,7 +277,16 @@ export default function ClientsRoutesView() {
                               >
                                 {isAdmin && <span style={{ opacity: 0.3, cursor: 'grab' }}>⋮⋮</span>}
                                 <div className="tag-name" style={{ fontWeight: 600, fontSize: '13px' }}>{client.name}</div>
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  {isAdmin && (
+                                    <span 
+                                      style={{ cursor: 'pointer', fontSize: '12px', opacity: 0.4, marginRight: '4px' }}
+                                      onClick={() => openClientEdit(client)}
+                                      title="Edytuj klienta"
+                                    >
+                                      ✏️
+                                    </span>
+                                  )}
                                   <span style={{ 
                                     width: '8px', height: '8px', borderRadius: '50%', 
                                     background: (client.lat && client.lng) ? 'var(--accent-green)' : 'var(--accent-orange)',
@@ -245,6 +302,16 @@ export default function ClientsRoutesView() {
                     </div>
                   )}
                 </Droppable>
+                
+                {isAdmin && (
+                  <button 
+                    className="add-btn" 
+                    style={{ marginTop: '8px' }}
+                    onClick={() => handleAddClient(route.id)}
+                  >
+                    ＋ Dodaj klienta
+                  </button>
+                )}
               </div>
             );
           })}
@@ -258,6 +325,36 @@ export default function ClientsRoutesView() {
             >
               ＋ Dodaj nową trasę
             </button>
+          </div>
+        )}
+
+        {clientModalOpen && (
+          <div className="ap-sheet-overlay" onClick={() => setClientModalOpen(false)}>
+            <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+              <div className="ap-sheet-header">
+                <div className="ap-sheet-title">Edytuj Klienta</div>
+                <button className="ap-sheet-close" onClick={() => setClientModalOpen(false)}>✕</button>
+              </div>
+              <div className="ap-sheet-content">
+                <div className="ap-field">
+                  <label className="ap-label">Nazwa klienta</label>
+                  <input 
+                    className="ap-input" 
+                    value={clientEditName} 
+                    onChange={e => setClientEditName(e.target.value)} 
+                    autoFocus 
+                  />
+                </div>
+              </div>
+              <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
+                <button className="ap-btn" style={{ background: '#FF3B30', color: 'white' }} onClick={deleteClient}>
+                  Usuń klienta
+                </button>
+                <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={saveClientName}>
+                  Zapisz
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
