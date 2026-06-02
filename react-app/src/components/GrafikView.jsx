@@ -9,11 +9,13 @@ const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Li
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
 const VALUE_STYLE = {
+
   'W':  { bg: '#fbfbfb', color: '#bbbbbb' },
   'UW': { bg: '#e1f5fe', color: '#0277bd' },
   'L4': { bg: '#fff9c4', color: '#fbc02d' },
   'NN': { bg: '#fce4ec', color: '#c2185b' },
   'I':  { bg: '#f3e5f5', color: '#7b1fa2' },
+  'END': { bg: '#eeeeee', color: '#888888' },
 };
 
 function getCellStyle(value, isWeekendOrHoliday) {
@@ -27,7 +29,7 @@ function getCellStyle(value, isWeekendOrHoliday) {
 
 function parseHours(value) {
   const v = String(value || '').trim().toUpperCase();
-  if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NN' || v === 'I') return 0;
+  if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NN' || v === 'I' || v === 'END') return 0;
   if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
   return parseFloat(v.replace(',', '.')) || 0;
 }
@@ -42,7 +44,47 @@ function countSymbolForEmployee(emp, days, getValue, sym) {
 
 function isPresent(value) {
   const v = String(value || '').trim().toUpperCase();
-  return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'I' && v !== '';
+  return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
+}
+
+
+function FloatingValuePicker({ selectedValue, onSelect }) {
+  const [customValue, setCustomValue] = useState('');
+  useEffect(() => { setCustomValue(''); }, [selectedValue]);
+
+  const btns = ['8', '10', '12', 'W', 'UW', 'L4', 'NN', 'I', 'END'];
+  return (
+    <div className="print-hide" style={{
+      position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(0,0,0,0.1)', borderRadius: '16px', padding: '10px 14px',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 9999
+    }}>
+      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginRight: '4px', textTransform: 'uppercase' }}>Wybierz:</div>
+      {btns.map(b => (
+        <button key={b} onClick={() => onSelect(b)} style={{
+          background: selectedValue === b ? 'var(--accent)' : 'var(--bg-card-solid)',
+          color: selectedValue === b ? '#fff' : 'var(--text-primary)',
+          border: selectedValue === b ? '1px solid var(--accent)' : '1px solid rgba(0,0,0,0.06)', 
+          borderRadius: '10px', padding: '8px 12px',
+          fontSize: '13px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.04)',
+          transition: 'all 0.15s'
+        }}>
+          {b}
+        </button>
+      ))}
+      <div style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
+      <input 
+        value={customValue} onChange={e => setCustomValue(e.target.value)}
+        placeholder="Inna..."
+        onKeyDown={e => { if(e.key === 'Enter' && customValue.trim()) onSelect(customValue.trim()); }}
+        style={{ width: '64px', padding: '8px 10px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, textAlign: 'center', outline: 'none', background: 'var(--bg-card-solid)' }}
+      />
+      <button onClick={() => { if(customValue.trim()) onSelect(customValue.trim()); }} style={{
+        background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '14px', padding: '6px 8px'
+      }}>Zapisz</button>
+    </div>
+  );
 }
 
 export default function GrafikView() {
@@ -181,6 +223,15 @@ export default function GrafikView() {
     }
   };
 
+    const handlePickerSelect = (val) => {
+    if (!selectedCell || !isAdmin) return;
+    const { empIdx, day } = selectedCell;
+    const emp = allEmps[empIdx];
+    if (emp) saveCell(emp.id, day, val);
+    setSelectedCell({ empIdx, day: Math.min(day + 1, daysInMonth) });
+    containerRef.current?.focus();
+  };
+
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
 
@@ -260,6 +311,13 @@ export default function GrafikView() {
 
   return (
     <div className="grafik-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {isAdmin && selectedCell && !editingCell && (
+        <FloatingValuePicker 
+          selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null} 
+          onSelect={handlePickerSelect} 
+        />
+      )}
+
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide" style={{ 
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
@@ -297,7 +355,7 @@ export default function GrafikView() {
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieobecny'],['I','Planowany'],['8','Godz. pracy'],['6+8','Start+Godz']].map(([sym, label]) => {
+        {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieob.'],['I','Planowany'],['END','Zakończono'],['8','Godz.'],['6+8','Start+Godz']].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           return (
             <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600 }}>
