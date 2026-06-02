@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData, filterForDriver } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -265,8 +265,11 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
 // ---- Main component ----
 
 export default function ClientsRoutesView() {
-  const { clients, routes, loading, error, refetch } = useAppData();
-  const { isAdmin } = useAuth();
+  const rawData = useAppData();
+  const { isAdmin, isDriver, user } = useAuth();
+  const { clients, routes, loading, error, refetch } = isDriver
+    ? filterForDriver(rawData, user?.routes)
+    : rawData;
 
   const [localClients, setLocalClients] = useState([]);
   const [editingRouteId, setEditingRouteId] = useState(null);

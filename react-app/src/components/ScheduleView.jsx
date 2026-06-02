@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData, filterForDriver } from '../hooks/useAppData';
 import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -18,8 +18,11 @@ function formatDate(date) {
 }
 
 export default function ScheduleView() {
-  const { entries, clients, routes, loading, error, refetch } = useAppData();
-  const { isAdmin, canEdit } = useAuth();
+  const rawData = useAppData();
+  const { isAdmin, isDriver, canEdit, user } = useAuth();
+  const { entries, clients, routes, loading, error, refetch } = isDriver
+    ? filterForDriver(rawData, user?.routes)
+    : rawData;
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
   const [weekOffset, setWeekOffset] = useState(0);

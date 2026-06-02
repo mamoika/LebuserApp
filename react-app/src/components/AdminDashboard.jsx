@@ -3,6 +3,55 @@ import { supabase } from '../lib/supabaseClient';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
+// Picker tras — pokazuje wszystkie trasy jako chip-toggley
+function RoutesPicker({ value, onChange }) {
+  const [allRoutes, setAllRoutes] = useState([]);
+
+  useEffect(() => {
+    supabase.from('routes').select('id,name').order('sort_order').then(({ data }) => {
+      if (data) setAllRoutes(data);
+    });
+  }, []);
+
+  // value = string "1,3,5"
+  const selected = new Set(
+    (value || '').split(',').map(s => s.trim()).filter(Boolean).map(Number)
+  );
+
+  const toggle = (id) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange([...next].sort((a, b) => a - b).join(','));
+  };
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+      {allRoutes.map(r => {
+        const on = selected.has(r.id);
+        return (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => toggle(r.id)}
+            style={{
+              padding: '6px 12px', borderRadius: '20px', border: 'none',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              background: on ? 'var(--accent)' : 'rgba(0,0,0,0.06)',
+              color: on ? '#fff' : 'var(--text-secondary)',
+              transition: 'all 0.12s',
+            }}
+          >
+            {r.name}
+          </button>
+        );
+      })}
+      {allRoutes.length === 0 && (
+        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Ładowanie tras…</span>
+      )}
+    </div>
+  );
+}
+
 function AddUserModal({ onClose, onSave }) {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
@@ -115,14 +164,12 @@ function EditUserModal({ user, onClose, onSave, onResetPassword }) {
             <option value="admin">Administrator</option>
           </select>
 
-          <div style={LABEL_STYLE}>Trasy (numery ID, przecinek)</div>
-          <input
-            className="ap-input"
-            value={routes}
-            onChange={e => setRoutes(e.target.value)}
-            placeholder="np. 1,2,5"
-            style={{ marginBottom: '12px' }}
-          />
+          {role === 'driver' && (
+            <>
+              <div style={LABEL_STYLE}>Przypisane trasy</div>
+              <RoutesPicker value={routes} onChange={setRoutes} />
+            </>
+          )}
 
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
