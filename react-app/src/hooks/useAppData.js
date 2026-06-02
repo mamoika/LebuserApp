@@ -15,7 +15,7 @@ export function useAppData() {
         { data: entries }
       ] = await Promise.all([
         supabase.from('clients').select('*').order('sort_order'),
-        supabase.from('routes').select('*').order('id'),
+        supabase.from('routes').select('*').order('sort_order'),
         supabase.from('entries').select('*')
       ]);
 

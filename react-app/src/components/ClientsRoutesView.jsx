@@ -130,13 +130,37 @@ export default function ClientsRoutesView() {
     
     const maxId = routes.length > 0 ? Math.max(...routes.map(r => r.id)) : 0;
     const newId = maxId + 1;
+    // Domyślnie na koniec
+    const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order || r.id)) : 0;
+    const newSortOrder = maxSort + 1;
     
     try {
-      const { error } = await supabase.from('routes').insert({ id: newId, name: newName.trim() });
+      const { error } = await supabase.from('routes').insert({ id: newId, name: newName.trim(), sort_order: newSortOrder });
       if (error) throw error;
       refetch();
     } catch (err) {
       alert("Błąd dodawania trasy: " + err.message);
+    }
+  };
+
+  const handleMoveRoute = async (index, direction) => {
+    if (!isAdmin) return;
+    if (direction === -1 && index === 0) return;
+    if (direction === 1 && index === routes.length - 1) return;
+
+    const route1 = routes[index];
+    const route2 = routes[index + direction];
+
+    // Zamiana sort_order
+    const sort1 = route1.sort_order || route1.id;
+    const sort2 = route2.sort_order || route2.id;
+
+    try {
+      await supabase.from('routes').update({ sort_order: sort2 }).eq('id', route1.id);
+      await supabase.from('routes').update({ sort_order: sort1 }).eq('id', route2.id);
+      refetch();
+    } catch (err) {
+      alert("Błąd zmiany kolejności: " + err.message);
     }
   };
 
@@ -202,7 +226,7 @@ export default function ClientsRoutesView() {
         </div>
         
         <div className="grid">
-          {routes.map((route) => {
+          {routes.map((route, routeIndex) => {
             // Sort clients by sort_order
             const routeClients = localClients.filter(c => c.route_id === route.id).sort((a, b) => a.sort_order - b.sort_order);
             const routeColor = routeColors[route.id % 10] || routeColors[0];
@@ -210,7 +234,9 @@ export default function ClientsRoutesView() {
             return (
               <div key={route.id} className="col" style={{ padding: '12px 14px 10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '16px' }}>
                 <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '8px', borderBottom: 'none', display: 'flex', alignItems: 'center' }}>
-                  <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{route.id}</span>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{route.id}</span>
+                  </div>
                   
                   {editingRouteId === route.id ? (
                     <input 
@@ -225,14 +251,21 @@ export default function ClientsRoutesView() {
                   ) : (
                     <span 
                       className="route-title" 
-                      style={{ color: routeColor, fontWeight: 800, fontSize: '14px', marginLeft: '8px', cursor: isAdmin ? 'pointer' : 'default' }}
+                      style={{ color: routeColor, fontWeight: 800, fontSize: '14px', marginLeft: '8px', cursor: isAdmin ? 'pointer' : 'default', flex: 1 }}
                       onDoubleClick={() => startEditRoute(route)}
                       title={isAdmin ? "Kliknij dwukrotnie, aby edytować" : ""}
                     >
                       {route.name}
-                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px' }} onClick={(e) => { e.stopPropagation(); startEditRoute(route); }}>✏️</span>}
-                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px' }} onClick={(e) => { e.stopPropagation(); handleDeleteRoute(route); }} title="Usuń trasę">🗑️</span>}
+                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); startEditRoute(route); }}>✏️</span>}
+                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleDeleteRoute(route); }} title="Usuń trasę">🗑️</span>}
                     </span>
+                  )}
+                  
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
+                      <button onClick={() => handleMoveRoute(routeIndex, -1)} disabled={routeIndex === 0} style={{ opacity: routeIndex === 0 ? 0.2 : 0.6, background: 'none', border: 'none', cursor: routeIndex === 0 ? 'default' : 'pointer', fontSize: '14px' }}>◀</button>
+                      <button onClick={() => handleMoveRoute(routeIndex, 1)} disabled={routeIndex === routes.length - 1} style={{ opacity: routeIndex === routes.length - 1 ? 0.2 : 0.6, background: 'none', border: 'none', cursor: routeIndex === routes.length - 1 ? 'default' : 'pointer', fontSize: '14px' }}>▶</button>
+                    </div>
                   )}
                 </div>
                 
