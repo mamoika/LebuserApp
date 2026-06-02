@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/logo-icon.png';
 import iconImg from '../assets/favicon.ico';
 import ScheduleView from '../components/ScheduleView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
