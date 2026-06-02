@@ -5,6 +5,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ScheduleView from '../components/ScheduleView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
+import MapView from '../components/MapView';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -40,7 +41,7 @@ export default function Dashboard() {
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/history" element={<div style={{ padding: '20px', color: 'var(--text-tertiary)' }}>Historia (W budowie)</div>} />
-          <Route path="/map" element={<div style={{ padding: '20px', color: 'var(--text-tertiary)' }}>Mapa (W budowie)</div>} />
+          <Route path="/map" element={<MapView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
