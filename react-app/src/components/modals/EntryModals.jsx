@@ -349,35 +349,45 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   }
 
   // Widok Szczegółów (Domyślny)
+  const routeName = routes?.find(r => r.id === entry.route_id)?.name || '—';
+  const fmtDateTime = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const min = String(d.getMinutes()).padStart(2,'0');
+    return `${dd}.${mm} ${hh}:${min}`;
+  };
+
+  const ROW = ({ label, value, valueColor }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 0' }}>
+      <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>{label}</span>
+      <span style={{ fontWeight: 600, fontSize: '13px', color: valueColor || 'var(--text-primary)', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
+    </div>
+  );
+
   return (
     <div className="ap-overlay" style={{ display: 'flex' }}>
       <div className="ap-sheet">
         <div className="ap-handle"></div>
         <div className="ap-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>📋</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Szczegóły wpisu</div>
-              <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{entry.client_name}</div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>{entry.client_name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{routeName}{entry.urgent ? ' · 🚩 Pilne' : ''}</div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Status</span>
-            <span style={{ fontWeight: 600, color: entry.done ? 'var(--accent-green)' : 'var(--text-primary)' }}>{entry.done ? 'Odebrane' : 'W toku'}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Dzień przyjazdu</span>
-            <span style={{ fontWeight: 600 }}>{DAY_NAMES[entry.arr_day - 1]}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Dzień odbioru</span>
-            <span style={{ fontWeight: 600 }}>{DAY_NAMES[entry.pick_day - 1]}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Waga</span>
-            <span style={{ fontWeight: 600 }}>{entry.weight ? `${entry.weight} kg` : 'Brak'}</span>
-          </div>
+          <ROW label="Status" value={entry.done ? 'Odebrane ✓' : 'W toku'} valueColor={entry.done ? 'var(--accent-green)' : undefined} />
+          <ROW label="Rodzaj" value={entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
+          <ROW label="Waga" value={entry.weight ? `${entry.weight} kg` : '—'} />
+          <ROW label="Przyjazd" value={DAY_NAMES[entry.arr_day - 1]} />
+          <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
+          {entry.added_by && <ROW label="Dodał" value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
+          {entry.done && entry.picked_by && <ROW label="Odebrał" value={`${entry.picked_by} · ${fmtDateTime(entry.picked_at)}`} valueColor="var(--accent-green)" />}
+          {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
 
           {showPickupComment && !entry.done && (
             <div style={{ marginTop: '16px' }}>

@@ -200,6 +200,7 @@ export default function ScheduleView() {
             refetch();
           }}
           clients={clients}
+          routes={routes}
         />
       )}
     </div>
