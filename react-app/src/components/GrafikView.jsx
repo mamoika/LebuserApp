@@ -87,6 +87,14 @@ function FloatingValuePicker({ selectedValue, onSelect }) {
   );
 }
 
+function formatTotalHours(totalNum) {
+  if (!totalNum) return '';
+  const h = Math.floor(totalNum);
+  const m = Math.round((totalNum - h) * 60);
+  if (m === 0) return h;
+  return `${h}:${m.toString().padStart(2, '0')}`;
+}
+
 export default function GrafikView() {
   const { user, isAdmin } = useAuth();
   const today = new Date();
@@ -479,7 +487,7 @@ export default function GrafikView() {
                       })}
                       {/* Σ godzin */}
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: '#f5f9f5', color: '#2e7d32', border: '1px solid rgba(0,0,0,0.04)', borderLeft: '1px solid rgba(0,0,0,0.08)', padding: '0 2px' }}>
-                        {totalHours > 0 ? totalHours : '—'}
+                        {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
                       <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: '#fffcf5', color: '#f57f17', border: '1px solid rgba(0,0,0,0.04)' }}>
@@ -508,6 +516,11 @@ export default function GrafikView() {
             {/* Wiersze podsumowania */}
             {[
               { label: 'Obecni', bg: '#004b79', color: '#fff', fn: (d) => employees.filter(e => isPresent(getValue(e, d))).length },
+              { label: 'Godz. łącznie', bg: '#f5f9f5', color: '#2e7d32', fn: (d) => {
+                  const total = employees.reduce((sum, e) => sum + parseHours(getValue(e, d)), 0);
+                  return formatTotalHours(total);
+                }
+              },
               { label: 'L4', bg: '#fcf3cf', color: '#856404', fn: (d) => countSymbol(employees, getValue, d, 'L4') },
               { label: 'Urlopy (UW)', bg: '#d6eaf8', color: '#0c5460', fn: (d) => countSymbol(employees, getValue, d, 'UW') },
               { label: 'Nieob. (NN)', bg: '#fadbd8', color: '#721c24', fn: (d) => countSymbol(employees, getValue, d, 'NN') },
@@ -531,9 +544,7 @@ export default function GrafikView() {
         </table>
       </div>
 
-      <div className="print-hide" style={{ fontSize: '11px', color: 'var(--text-quaternary)', textAlign: 'right', paddingRight: '4px' }}>
-        {employees.length} pracowników · Apple UI Engine · Skróty klawiszowe aktywne
-      </div>
+      
     </div>
   );
 }
