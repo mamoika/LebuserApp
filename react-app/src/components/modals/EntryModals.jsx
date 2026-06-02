@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { DAY_NAMES, formatWeekKey } from '../../lib/dateUtils';
+import { toastError } from '../../lib/toast';
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -67,7 +68,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       onAdded();
       onClose();
     } catch (err) {
-      alert("Błąd dodawania: " + err.message);
+      toastError("Błąd dodawania: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -180,7 +181,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       onUpdated();
       onClose();
     } catch (err) {
-      alert("Błąd: " + err.message);
+      toastError("Błąd: " + err.message);
       setLoading(false);
     }
   };
@@ -214,7 +215,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       onUpdated();
       onClose();
     } catch (err) {
-      alert("Błąd edycji: " + err.message);
+      toastError("Błąd edycji: " + err.message);
       setLoading(false);
     }
   };
@@ -230,7 +231,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       onDeleted();
       onClose();
     } catch (err) {
-      alert("Błąd: " + err.message);
+      toastError("Błąd: " + err.message);
       setLoading(false);
     }
   };

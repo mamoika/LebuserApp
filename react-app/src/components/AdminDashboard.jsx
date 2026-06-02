@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { toastError, toastSuccess } from '../lib/toast';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
@@ -255,26 +256,29 @@ export default function AdminDashboard() {
 
   const handleSaveUser = async (userId, name, role, routes) => {
     const { error: e1 } = await supabase.rpc('update_user_role', { p_user_id: userId, p_role: role });
-    if (e1) { alert('Błąd zapisu roli: ' + e1.message); return; }
+    if (e1) { toastError('Błąd zapisu roli: ' + e1.message); return; }
     const { error: e2 } = await supabase.rpc('update_user_routes', { p_user_id: userId, p_routes: routes });
-    if (e2) { alert('Błąd zapisu tras: ' + e2.message); return; }
+    if (e2) { toastError('Błąd zapisu tras: ' + e2.message); return; }
     setEditUser(null);
+    toastSuccess('Zapisano');
     fetchUsers();
   };
 
   const handleResetPassword = async (userId) => {
     const { data, error } = await supabase.rpc('admin_reset_password', { p_user_id: userId });
     if (error || data?.error) {
-      alert('Błąd resetu: ' + (error?.message || data?.error));
+      toastError('Błąd resetu: ' + (error?.message || data?.error));
       return;
     }
+    toastSuccess('Hasło zresetowane');
     fetchUsers();
   };
 
   const handleDeleteUser = async (userId) => {
-    const { error } = await supabase.from('users').delete().eq('id', userId);
-    if (error) { alert('Błąd usuwania: ' + error.message); return; }
+    const { data, error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+    if (error || data?.error) { toastError('Błąd usuwania: ' + (error?.message || data?.error)); return; }
     setEditUser(null);
+    toastSuccess('Użytkownik usunięty');
     fetchUsers();
   };
 

@@ -3,6 +3,7 @@ import { useAppData, filterForDriver } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 
 const SCHEDULE_OPTIONS = [
   { value: 'daily', label: 'Codziennie (Pn–Pt)' },
@@ -395,7 +396,7 @@ export default function ClientsRoutesView() {
       setAddRouteOpen(false);
       refetch();
     } catch (err) {
-      alert('Błąd dodawania trasy: ' + err.message);
+      toastError('Błąd dodawania trasy: ' + err.message);
     }
   };
 
@@ -406,14 +407,14 @@ export default function ClientsRoutesView() {
       setEditRouteModal(null);
       refetch();
     } catch (err) {
-      alert('Błąd zapisu trasy: ' + err.message);
+      toastError('Błąd zapisu trasy: ' + err.message);
     }
   };
 
   const handleDeleteRoute = async (route) => {
     const hasClients = localClients.some(c => c.route_id === route.id);
     if (hasClients) {
-      alert('Nie można usunąć trasy, do której są przypisani klienci!');
+      toastWarn('Nie można usunąć trasy — ma przypisanych klientów');
       return;
     }
     try {
@@ -422,7 +423,7 @@ export default function ClientsRoutesView() {
       setEditRouteModal(null);
       refetch();
     } catch (err) {
-      alert('Błąd usuwania trasy: ' + err.message);
+      toastError('Błąd usuwania trasy: ' + err.message);
     }
   };
 
@@ -430,20 +431,20 @@ export default function ClientsRoutesView() {
 
   const handleAddClient = async (name, routeId) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
-    if (duplicate) { alert('Klient o tej nazwie już istnieje!'); return; }
+    if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
     try {
       const { error } = await supabase.from('clients').insert({ name, route_id: routeId, sort_order: 9999 });
       if (error) throw error;
       setAddClientForRoute(null);
       refetch();
     } catch (err) {
-      alert('Błąd dodawania klienta: ' + err.message);
+      toastError('Błąd dodawania klienta: ' + err.message);
     }
   };
 
   const handleSaveClient = async ({ id, name, routeId, lat, lng, oldName, oldRouteId }) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
-    if (duplicate) { alert('Klient o tej nazwie już istnieje!'); return; }
+    if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
 
     const parsedLat = lat !== '' ? parseFloat(String(lat).replace(',', '.')) : null;
     const parsedLng = lng !== '' ? parseFloat(String(lng).replace(',', '.')) : null;
@@ -470,7 +471,7 @@ export default function ClientsRoutesView() {
       setEditClient(null);
       refetch();
     } catch (err) {
-      alert('Błąd zapisu klienta: ' + err.message);
+      toastError('Błąd zapisu klienta: ' + err.message);
     }
   };
 
@@ -481,7 +482,7 @@ export default function ClientsRoutesView() {
       setEditClient(null);
       refetch();
     } catch (err) {
-      alert('Błąd usuwania klienta: ' + err.message);
+      toastError('Błąd usuwania klienta: ' + err.message);
     }
   };
 
@@ -544,7 +545,7 @@ export default function ClientsRoutesView() {
       if (error) throw error;
       refetch();
     } catch (err) {
-      alert('Błąd zapisu kolejności: ' + err.message);
+      toastError('Błąd zapisu kolejności: ' + err.message);
       refetch();
     }
   };

@@ -7,6 +7,7 @@ import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
 import MapView from '../components/MapView';
 import HistoryView from '../components/HistoryView';
+import ToastContainer from '../components/ToastContainer';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -46,6 +47,7 @@ export default function Dashboard() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <ToastContainer />
     </div>
   );
 }
