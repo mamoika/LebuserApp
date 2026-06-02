@@ -29,6 +29,8 @@ function getRouteColor(displayNum) {
 
 // ---- Modals ----
 
+const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
+
 function AddRouteModal({ onClose, onSave }) {
   const [name, setName] = useState('');
   const [schedule, setSchedule] = useState('daily');
@@ -44,36 +46,35 @@ function AddRouteModal({ onClose, onSave }) {
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-sheet-header">
-          <div className="ap-sheet-title">Nowa trasa</div>
-          <button className="ap-sheet-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="ap-sheet-content">
-          <div className="ap-field">
-            <label className="ap-label">Nazwa trasy</label>
-            <input
-              className="ap-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-              placeholder="np. Trasa Północna"
-              autoFocus
-            />
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>🗺</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowa trasa</div>
           </div>
-          <div className="ap-field">
-            <label className="ap-label">Harmonogram</label>
-            <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)}>
-              {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+
+          <div style={LABEL_STYLE}>Nazwa trasy</div>
+          <input
+            className="ap-input"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+            placeholder="np. Trasa Północna"
+            style={{ marginBottom: '12px' }}
+            autoFocus
+          />
+
+          <div style={LABEL_STYLE}>Harmonogram</div>
+          <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
+            {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? 'Zapisywanie…' : 'Dodaj trasę'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
           </div>
-        </div>
-        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>
-            Anuluj
-          </button>
-          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie…' : 'Dodaj'}
-          </button>
         </div>
       </div>
     </div>
@@ -95,35 +96,34 @@ function EditRouteModal({ route, onClose, onSave }) {
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-sheet-header">
-          <div className="ap-sheet-title">Edytuj trasę</div>
-          <button className="ap-sheet-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="ap-sheet-content">
-          <div className="ap-field">
-            <label className="ap-label">Nazwa trasy</label>
-            <input
-              className="ap-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-              autoFocus
-            />
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Edytuj trasę</div>
           </div>
-          <div className="ap-field">
-            <label className="ap-label">Harmonogram</label>
-            <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)}>
-              {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+
+          <div style={LABEL_STYLE}>Nazwa trasy</div>
+          <input
+            className="ap-input"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+            style={{ marginBottom: '12px' }}
+            autoFocus
+          />
+
+          <div style={LABEL_STYLE}>Harmonogram</div>
+          <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
+            {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
           </div>
-        </div>
-        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-          <button className="ap-btn" style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} onClick={onClose}>
-            Anuluj
-          </button>
-          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie…' : 'Zapisz'}
-          </button>
         </div>
       </div>
     </div>
@@ -145,35 +145,35 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-sheet-header">
-          <div className="ap-sheet-title">Nowy klient</div>
-          <button className="ap-sheet-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="ap-sheet-content">
-          <div className="ap-field">
-            <label className="ap-label">Nazwa klienta</label>
-            <input
-              className="ap-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-              placeholder="Nazwa klienta"
-              autoFocus
-            />
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>👤</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowy klient</div>
           </div>
-          <div className="ap-field">
-            <label className="ap-label">Trasa</label>
-            <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
-              {routes.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
+
+          <div style={LABEL_STYLE}>Nazwa klienta</div>
+          <input
+            className="ap-input"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+            placeholder="Nazwa klienta"
+            style={{ marginBottom: '12px' }}
+            autoFocus
+          />
+
+          <div style={LABEL_STYLE}>Trasa</div>
+          <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ marginBottom: '12px' }}>
+            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? 'Zapisywanie…' : 'Dodaj klienta'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
           </div>
-        </div>
-        <div className="ap-sheet-footer">
-          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie…' : 'Dodaj klienta'}
-          </button>
         </div>
       </div>
     </div>
@@ -205,51 +205,44 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-sheet-header">
-          <div className="ap-sheet-title">Edytuj klienta</div>
-          <button className="ap-sheet-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="ap-sheet-content">
-          <div className="ap-field">
-            <label className="ap-label">Nazwa klienta</label>
-            <input
-              className="ap-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="ap-field">
-            <label className="ap-label">Trasa</label>
-            <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
-              {routes.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="ap-field" style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ flex: 1 }}>
-              <label className="ap-label">Szerokość (lat)</label>
-              <input className="ap-input" value={lat} onChange={e => setLat(e.target.value)} placeholder="np. 52.2297" inputMode="decimal" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label className="ap-label">Długość (lng)</label>
-              <input className="ap-input" value={lng} onChange={e => setLng(e.target.value)} placeholder="np. 21.0122" inputMode="decimal" />
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
+            <div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj klienta</div>
+              <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>{client.name}</div>
             </div>
           </div>
-        </div>
-        <div className="ap-sheet-footer" style={{ display: 'flex', gap: '8px' }}>
-          <button
-            className="ap-btn"
-            style={{ background: 'var(--bg-secondary)', color: 'var(--accent-red)', border: '1px solid var(--border)', minWidth: 80 }}
-            onClick={handleDelete}
-            disabled={saving}
-          >
-            {confirmDelete ? 'Na pewno?' : 'Usuń'}
-          </button>
-          <button className="ap-btn ap-btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie…' : 'Zapisz'}
-          </button>
+
+          <div style={LABEL_STYLE}>Nazwa klienta</div>
+          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: '12px' }} autoFocus />
+
+          <div style={LABEL_STYLE}>Trasa</div>
+          <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ marginBottom: '12px' }}>
+            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={LABEL_STYLE}>Szerokość (lat)</div>
+              <input className="ap-input" value={lat} onChange={e => setLat(e.target.value)} placeholder="52.2297" inputMode="decimal" />
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>Długość (lng)</div>
+              <input className="ap-input" value={lng} onChange={e => setLng(e.target.value)} placeholder="21.0122" inputMode="decimal" />
+            </div>
+          </div>
+
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            </button>
+            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
+              {confirmDelete ? 'Na pewno usunąć?' : 'Usuń klienta'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+          </div>
         </div>
       </div>
     </div>
