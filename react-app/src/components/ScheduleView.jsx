@@ -177,7 +177,8 @@ export default function ScheduleView() {
           onClose={() => setAddModalOpen(false)} 
           defaultArrDay={selectedDay}
           weekKey={week1Key} // Możemy chcieć dać poprawny week key w zależności na co kliknięto, na razie uproszczone
-          clients={clients.filter(c => c.route_id)} // Tylko przypisani do tras
+          clients={clients.filter(c => c.route_id)}
+          routes={routes}
           onAdded={() => {
             setAddModalOpen(false);
             refetch();
