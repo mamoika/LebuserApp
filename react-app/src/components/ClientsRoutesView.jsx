@@ -31,6 +31,105 @@ function getRouteColor(displayNum) {
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
+function DriverRoutesModal({ routes, onClose }) {
+  const [drivers, setDrivers] = useState([]);
+  const [edited, setEdited] = useState({}); // { driverId: Set of routeIds }
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.rpc('get_all_users').then(({ data }) => {
+      const driverList = (data || []).filter(u => u.role === 'driver');
+      setDrivers(driverList);
+      const init = {};
+      driverList.forEach(d => {
+        init[d.id] = new Set(
+          (d.routes || '').split(',').map(s => s.trim()).filter(Boolean).map(Number)
+        );
+      });
+      setEdited(init);
+    });
+  }, []);
+
+  const toggle = (driverId, routeId) => {
+    setEdited(prev => {
+      const next = new Set(prev[driverId]);
+      next.has(routeId) ? next.delete(routeId) : next.add(routeId);
+      return { ...prev, [driverId]: next };
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    for (const driver of drivers) {
+      const routesStr = [...edited[driver.id]].sort((a, b) => a - b).join(',');
+      await supabase.rpc('update_user_routes', { p_user_id: driver.id, p_routes: routesStr });
+    }
+    setSaving(false);
+    onClose();
+  };
+
+  const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#5856D6,#3634A3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(88,86,214,0.3)' }}>👨‍✈️</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Trasy kierowców</div>
+          </div>
+
+          {drivers.length === 0 && (
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>Brak kierowców w bazie</div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '55vh', overflowY: 'auto', paddingRight: '4px' }}>
+            {drivers.map(driver => (
+              <div key={driver.id} style={{
+                background: '#fff', borderRadius: '14px',
+                padding: '12px 14px', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.08)',
+              }}>
+                <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px' }}>
+                  {driver.name}
+                  <span style={{ fontWeight: 400, color: 'rgba(60,60,67,0.5)', fontSize: '12px', marginLeft: '6px' }}>@{driver.username}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {sortedRoutes.map(r => {
+                    const on = edited[driver.id]?.has(r.id);
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => toggle(driver.id, r.id)}
+                        style={{
+                          padding: '5px 11px', borderRadius: '20px', border: 'none',
+                          fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                          background: on ? 'var(--accent)' : 'rgba(0,0,0,0.06)',
+                          color: on ? '#fff' : 'var(--text-secondary)',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {r.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Anuluj</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddRouteModal({ onClose, onSave }) {
   const [name, setName] = useState('');
   const [schedule, setSchedule] = useState('daily');
@@ -277,8 +376,9 @@ export default function ClientsRoutesView() {
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
   const [editRouteModal, setEditRouteModal] = useState(null);
-  const [addClientForRoute, setAddClientForRoute] = useState(null); // routeId
+  const [addClientForRoute, setAddClientForRoute] = useState(null);
   const [editClient, setEditClient] = useState(null);
+  const [driverRoutesOpen, setDriverRoutesOpen] = useState(false);
 
   useEffect(() => {
     setLocalClients(clients);
@@ -580,6 +680,7 @@ export default function ClientsRoutesView() {
         {isAdmin && (
           <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
             <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>＋ Nowa trasa</button>
+            <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>👨‍✈️ Trasy kierowców</button>
           </div>
         )}
 
@@ -631,6 +732,13 @@ export default function ClientsRoutesView() {
           onClose={() => setEditClient(null)}
           onSave={handleSaveClient}
           onDelete={handleDeleteClient}
+        />
+      )}
+
+      {driverRoutesOpen && (
+        <DriverRoutesModal
+          routes={rawData.allRoutes}
+          onClose={() => setDriverRoutesOpen(false)}
         />
       )}
 
