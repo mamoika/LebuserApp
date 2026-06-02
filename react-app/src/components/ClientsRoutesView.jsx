@@ -98,6 +98,44 @@ export default function ClientsRoutesView() {
     }
   };
 
+  const handleDeleteRoute = async (route) => {
+    if (!isAdmin) return;
+    
+    // Sprawdź czy są przypisani klienci
+    const hasClients = localClients.some(c => c.route_id === route.id);
+    if (hasClients) {
+      alert("Nie można usunąć trasy, do której są przypisani klienci!");
+      return;
+    }
+    
+    if (!window.confirm(`Czy na pewno chcesz usunąć trasę "${route.name}"?`)) return;
+    
+    try {
+      const { error } = await supabase.from('routes').delete().eq('id', route.id);
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      alert("Błąd usuwania trasy: " + err.message);
+    }
+  };
+
+  const handleAddRoute = async () => {
+    if (!isAdmin) return;
+    const newName = window.prompt("Podaj nazwę nowej trasy (np. Trasa 11):");
+    if (!newName || !newName.trim()) return;
+    
+    const maxId = routes.length > 0 ? Math.max(...routes.map(r => r.id)) : 0;
+    const newId = maxId + 1;
+    
+    try {
+      const { error } = await supabase.from('routes').insert({ id: newId, name: newName.trim() });
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      alert("Błąd dodawania trasy: " + err.message);
+    }
+  };
+
   const handleRouteKeyDown = (e, routeId) => {
     if (e.key === 'Enter') saveRouteName(routeId);
     if (e.key === 'Escape') setEditingRouteId(null);
@@ -145,6 +183,7 @@ export default function ClientsRoutesView() {
                     >
                       {route.name}
                       {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px' }} onClick={(e) => { e.stopPropagation(); startEditRoute(route); }}>✏️</span>}
+                      {isAdmin && <span style={{ opacity: 0.3, marginLeft: '6px', fontSize: '12px' }} onClick={(e) => { e.stopPropagation(); handleDeleteRoute(route); }} title="Usuń trasę">🗑️</span>}
                     </span>
                   )}
                 </div>
@@ -210,6 +249,17 @@ export default function ClientsRoutesView() {
             );
           })}
         </div>
+        
+        {isAdmin && (
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <button 
+              onClick={handleAddRoute}
+              style={{ background: 'var(--accent-blue)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
+            >
+              ＋ Dodaj nową trasę
+            </button>
+          </div>
+        )}
       </div>
     </DragDropContext>
   );
