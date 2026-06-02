@@ -3,10 +3,7 @@ import { Calendar, History, Map as MapIcon, Users, Settings } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
-  const { user } = useAuth();
-  
-  // Tu później pobierzemy z bazy czy jest adminem, na razie na sztywno załóżmy dla pokazu
-  const isAdmin = user?.email?.includes('admin') || true; 
+  const { isAdmin } = useAuth();
 
   const navItems = [
     { to: "/", icon: Calendar, label: "Harmonogram" },

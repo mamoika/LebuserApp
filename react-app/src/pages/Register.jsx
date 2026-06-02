@@ -1,44 +1,41 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    // 1. Rejestracja w auth
-    const { data, error: signUpError } = await supabase.auth.signUp({ 
-      email, 
-      password,
-    });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    // Walidacja username
+    const trimmedUsername = username.trim().toLowerCase();
+    if (!/^[a-z0-9._]+$/.test(trimmedUsername)) {
+      setError('Nazwa użytkownika może zawierać tylko małe litery, cyfry, kropki i podkreślenia');
+      setLoading(false);
+      return;
+    }
+    if (trimmedUsername.length < 3) {
+      setError('Nazwa użytkownika musi mieć co najmniej 3 znaki');
       setLoading(false);
       return;
     }
 
-    // 2. Aktualizacja wygenerowanego profilu kierowcy (zmieniamy name na to co wpisal uzytkownik)
-    // Trigger stworzyl profil z domyslnym name = email_prefix.
-    if (data.user) {
-      const { error: updateError } = await supabase
-        .from('drivers')
-        .update({ name: name })
-        .eq('auth_id', data.user.id);
-        
-      if (updateError) {
-        console.error("Błąd aktualizacji imienia:", updateError);
-      }
+    const result = await register(trimmedUsername, password, name);
+
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
     }
 
     setSuccess(true);
@@ -76,18 +73,22 @@ export default function RegisterPage() {
               value={name} 
               onChange={e => setName(e.target.value)} 
               required 
+              placeholder="np. Jan Kowalski"
               style={{ width: '100%', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)', fontSize: '14px' }}>Adres Email</label>
+            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)', fontSize: '14px' }}>Nazwa użytkownika</label>
             <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
               required 
+              autoComplete="username"
+              placeholder="np. jan.kowalski"
               style={{ width: '100%', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
             />
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Małe litery, cyfry, kropki i podkreślenia. Min. 3 znaki.</div>
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)', fontSize: '14px' }}>Hasło (min. 6 znaków)</label>
@@ -97,6 +98,7 @@ export default function RegisterPage() {
               onChange={e => setPassword(e.target.value)} 
               required 
               minLength={6}
+              autoComplete="new-password"
               style={{ width: '100%', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
             />
           </div>

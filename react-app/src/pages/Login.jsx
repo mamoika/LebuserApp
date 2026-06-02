@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+
+    const result = await login(username, password);
+    if (result.error) {
+      setError(result.error);
     }
     setLoading(false);
   };
@@ -28,12 +30,14 @@ export default function LoginPage() {
         
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)', fontSize: '14px' }}>Adres Email</label>
+            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)', fontSize: '14px' }}>Nazwa użytkownika</label>
             <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
               required 
+              autoComplete="username"
+              placeholder="np. jan.kowalski"
               style={{ width: '100%', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
             />
           </div>
@@ -44,6 +48,7 @@ export default function LoginPage() {
               value={password} 
               onChange={e => setPassword(e.target.value)} 
               required 
+              autoComplete="current-password"
               style={{ width: '100%', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
             />
           </div>

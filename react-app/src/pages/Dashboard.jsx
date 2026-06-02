@@ -22,7 +22,7 @@ export default function Dashboard() {
         </div>
         <div className="header-right">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}><b>{user?.email}</b></span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}><b>{user?.name}</b> <span style={{ fontSize: '12px', opacity: 0.7 }}>({user?.username})</span></span>
             <button 
               onClick={signOut}
               className="btn btn-outline"

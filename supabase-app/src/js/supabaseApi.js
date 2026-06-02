@@ -1,23 +1,22 @@
 import { supabase } from './supabaseClient.js';
 
-function checkAuth(token) {
-  if (token !== '123') throw new Error('Brak uprawnień'); // Zastąpienie prostym sprawdzeniem, docelowo Auth
-}
-
 export const api = {
   getAppData: async () => {
-    const [{data: clients}, {data: routes}, {data: drivers}] = await Promise.all([
+    const [{data: clients}, {data: routes}] = await Promise.all([
       supabase.from('clients').select('*').order('sort_order'),
-      supabase.from('routes').select('*').order('id'),
-      supabase.from('drivers').select('*')
+      supabase.from('routes').select('*').order('id')
     ]);
+    // Użytkownicy/kierowcy pobierani przez RPC (tabela users zablokowana przez RLS)
+    const { data: users } = await supabase.rpc('get_all_users');
     return { 
       clients: (clients || []).map(c => ({ name: c.name, route: c.route_id, order: c.sort_order, lat: c.lat, lng: c.lng })), 
       routes: routes || [], 
-      drivers: (drivers || []).map(d => ({
-        id: d.id,
-        name: d.name,
-        routes: (d.routes || '').split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
+      users: (users || []).map(u => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role,
+        routes: (u.routes || '').split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
       }))
     };
   },
@@ -49,8 +48,7 @@ export const api = {
     return { ok: true, id: data[0].id };
   },
 
-  updateEntry: async (id, newArrDay, newPickDay, isNextWeek, newWeight, fallback, adminToken, type, isUrgent, comment) => {
-    checkAuth(adminToken);
+  updateEntry: async (id, newArrDay, newPickDay, isNextWeek, newWeight, fallback, type, isUrgent, comment) => {
     let parsedWeight = newWeight ? parseFloat(String(newWeight).trim().replace(',', '.')) : null;
     let updates = { arr_day: newArrDay, pick_day: newPickDay, type: type || 'P', urgent: !!isUrgent };
     if (parsedWeight !== null) updates.weight = parsedWeight;
@@ -87,8 +85,7 @@ export const api = {
     return { ok: true };
   },
 
-  removeEntry: async (id, adminToken) => {
-    checkAuth(adminToken);
+  removeEntry: async (id) => {
     const { error } = await supabase.from('entries').delete().eq('id', id);
     if (error) return { error: error.message };
     await supabase.from('logs').insert([{ user_name: 'Admin', action: 'Usunięcie', target_id: id }]);
@@ -115,22 +112,19 @@ export const api = {
     return { ok: true };
   },
 
-  addRoute: async (name, adminToken) => {
-    checkAuth(adminToken);
+  addRoute: async (name) => {
     const { data, error } = await supabase.from('routes').insert([{ name: name }]).select();
     if (error) return { error: error.message };
     return { ok: true, newId: data[0].id };
   },
 
-  updateRouteName: async (id, newName, adminToken) => {
-    checkAuth(adminToken);
+  updateRouteName: async (id, newName) => {
     const { error } = await supabase.from('routes').update({ name: newName }).eq('id', id);
     if (error) return { error: error.message };
     return { ok: true };
   },
 
-  removeRoute: async (id, adminToken) => {
-    checkAuth(adminToken);
+  removeRoute: async (id) => {
     const { count } = await supabase.from('clients').select('id', { count: 'exact', head: true }).eq('route_id', id);
     if (count > 0) return { error: 'Nie można usunąć trasy z przypisanymi klientami' };
     
@@ -139,15 +133,13 @@ export const api = {
     return { ok: true };
   },
 
-  addClient: async (name, route, adminToken) => {
-    checkAuth(adminToken);
+  addClient: async (name, route) => {
     const { error } = await supabase.from('clients').insert([{ name: name, route_id: route }]);
     if (error) return { error: error.message };
     return { ok: true };
   },
 
-  updateClient: async (oldName, newName, newRoute, lat, lng, adminToken) => {
-    checkAuth(adminToken);
+  updateClient: async (oldName, newName, newRoute, lat, lng) => {
     const updates = { name: newName, route_id: newRoute };
     if (lat !== undefined && lat !== '') updates.lat = parseFloat(String(lat).replace(',', '.'));
     if (lng !== undefined && lng !== '') updates.lng = parseFloat(String(lng).replace(',', '.'));
@@ -160,15 +152,13 @@ export const api = {
     return { ok: true };
   },
 
-  removeClient: async (name, adminToken) => {
-    checkAuth(adminToken);
+  removeClient: async (name) => {
     const { error } = await supabase.from('clients').delete().eq('name', name);
     if (error) return { error: error.message };
     return { ok: true };
   },
 
-  updateRoutesOrder: async (fromRouteId, fromNames, toRouteId, toNames, adminToken) => {
-    checkAuth(adminToken);
+  updateRoutesOrder: async (fromRouteId, fromNames, toRouteId, toNames) => {
     for (let i = 0; i < fromNames.length; i++) {
       await supabase.from('clients').update({ route_id: fromRouteId, sort_order: i+1 }).eq('name', fromNames[i]);
     }
@@ -180,11 +170,13 @@ export const api = {
     return { ok: true };
   },
 
-  updateDriverRoutes: async (driverId, routesStr, adminToken) => {
-    checkAuth(adminToken);
-    const { error } = await supabase.from('drivers').update({ routes: routesStr }).eq('id', driverId);
+  updateUserRoutes: async (userId, routesStr) => {
+    const { data, error } = await supabase.rpc('update_user_routes', {
+      p_user_id: userId,
+      p_routes: routesStr,
+    });
     if (error) return { error: error.message };
-    return { ok: true };
+    return data;
   },
 
   getLogs: async () => {
@@ -199,8 +191,7 @@ export const api = {
     }));
   },
 
-  archiveOldData: async (adminToken) => {
-    checkAuth(adminToken);
+  archiveOldData: async () => {
     return { archivedEntries: 0, archivedLogs: 0 }; // TODO: implement archiving logic in Supabase if needed
   },
 
