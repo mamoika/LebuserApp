@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
+import { useAuth } from '../context/AuthContext';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
@@ -120,7 +121,7 @@ function AddUserModal({ onClose, onSave }) {
   );
 }
 
-function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete }) {
+function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [routes, setRoutes] = useState(user.routes || '');
@@ -213,6 +214,14 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete }) {
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
             </button>
+            <button
+              className="ap-btn"
+              style={{ background: 'rgba(88,86,214,0.1)', color: '#5856D6', fontWeight: 600 }}
+              onClick={onImpersonate}
+              disabled={saving}
+            >
+              👁 Zaloguj jako ten użytkownik
+            </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
               {confirmDelete ? 'Na pewno usunąć użytkownika?' : 'Usuń użytkownika'}
             </button>
@@ -225,6 +234,7 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete }) {
 }
 
 export default function AdminDashboard() {
+  const { impersonate } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -280,6 +290,14 @@ export default function AdminDashboard() {
     setEditUser(null);
     toastSuccess('Użytkownik usunięty');
     fetchUsers();
+  };
+
+  const handleImpersonate = async (userId) => {
+    const result = await impersonate(userId);
+    if (result?.error) { toastError('Błąd: ' + result.error); return; }
+    setEditUser(null);
+    // Przekieruj na stronę główną
+    window.location.href = '/';
   };
 
   if (loading) return <div className="loader">Ładowanie użytkowników…</div>;
@@ -344,6 +362,7 @@ export default function AdminDashboard() {
           onSave={handleSaveUser}
           onResetPassword={handleResetPassword}
           onDelete={handleDeleteUser}
+          onImpersonate={() => handleImpersonate(editUser.id)}
         />
       )}
     </div>
