@@ -100,7 +100,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
           <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '12px' }} value={clientName} onChange={e => setClientName(e.target.value)}>
-            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            {routes
+              .filter(r => clients.some(c => c.route_id === r.id))
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map(r => (
+                <optgroup key={r.id} label={r.name}>
+                  {clients
+                    .filter(c => c.route_id === r.id)
+                    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                    .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </optgroup>
+              ))}
           </select>
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
