@@ -79,7 +79,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         <div className="ap-handle"></div>
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>📦</div>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>📦</div>
             <div>
               <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Dodaj przyjazd</div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)', fontWeight: 400 }}>{user?.name}</div>
@@ -121,7 +121,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             <option value={1}>Następny tydzień</option>
           </select>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '4px', cursor: 'pointer', padding: '12px 14px', background: 'var(--accent-red-light)', borderRadius: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '4px', cursor: 'pointer' }}>
             <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} />
             <span style={{ color: 'var(--accent-red)' }}>🚩 Pilne (priorytet)</span>
           </label>
@@ -241,7 +241,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           <div className="ap-handle"></div>
           <div className="ap-content">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>✏️</div>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>✏️</div>
               <div>
                 <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj wpis</div>
                 <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{entry.client_name}</div>
@@ -290,7 +290,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz</div>
             <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '14px' }} />
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '18px', cursor: 'pointer', padding: '12px 14px', background: 'var(--accent-red-light)', borderRadius: '12px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '18px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
               <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
               <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
             </label>
@@ -312,7 +312,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
         <div className="ap-handle"></div>
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>📋</div>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>📋</div>
             <div>
               <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Szczegóły wpisu</div>
               <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{entry.client_name}</div>
@@ -337,7 +337,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           </div>
 
           <div className="ap-btn-group" style={{ marginTop: '24px' }}>
-            <button className="ap-btn" style={{ background: 'var(--accent-green)', color: '#fff' }} onClick={toggleDone} disabled={loading}>
+            <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
               {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
@@ -345,7 +345,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           
           {isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-              <button className="ap-btn" style={{ background: 'rgba(142, 142, 147, 0.12)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
+              <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
               <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>Usuń</button>
             </div>
           )}

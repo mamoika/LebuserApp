@@ -233,8 +233,8 @@ export default function ClientsRoutesView() {
             const routeColor = routeColors[displayNum % 10] || routeColors[0];
             
             return (
-              <div key={route.id} className="col" style={{ padding: '0', overflow: 'hidden' }}>
-                <div className="col-header" style={{ padding: '14px 14px 10px', marginBottom: '0', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+              <div key={route.id} className="col" style={{ padding: '12px 14px 10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '8px', borderBottom: 'none', display: 'flex', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <span className="route-id-badge" style={{ background: routeColor, color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>T{displayNum}</span>
                   </div>
@@ -297,12 +297,14 @@ export default function ClientsRoutesView() {
                                 {...provided.dragHandleProps}
                                 className={`tag-client ${isAdmin ? 'draggable' : ''}`} 
                                 style={{ 
-                                  background: snapshot.isDragging ? 'var(--bg-secondary)' : 'var(--bg-card)', 
-                                  padding: '12px 14px', 
+                                  background: snapshot.isDragging ? 'var(--bg-secondary)' : 'var(--bg-tertiary)', 
+                                  borderRadius: '8px', 
+                                  padding: '8px 10px', 
                                   display: 'flex', 
                                   alignItems: 'center', 
                                   gap: '8px',
-                                  borderBottom: '0.5px solid var(--border)',
+                                  border: '1px solid var(--border)',
+                                  boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
                                   opacity: snapshot.isDragging ? 0.9 : 1,
                                   ...provided.draggableProps.style
                                 }}
@@ -353,7 +355,7 @@ export default function ClientsRoutesView() {
           <div style={{ marginTop: '24px', textAlign: 'center' }}>
             <button 
               onClick={handleAddRoute}
-              style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '14px', fontWeight: 600, cursor: 'pointer', fontSize: '15px' }}
+              style={{ background: 'var(--accent-blue)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
             >
               ＋ Dodaj nową trasę
             </button>
@@ -361,7 +363,7 @@ export default function ClientsRoutesView() {
         )}
 
         {clientModalOpen && (
-          <div className="ap-overlay" onClick={() => setClientModalOpen(false)}>
+          <div className="ap-sheet-overlay" onClick={() => setClientModalOpen(false)}>
             <div className="ap-sheet" onClick={e => e.stopPropagation()}>
               <div className="ap-sheet-header">
                 <div className="ap-sheet-title">Edytuj Klienta</div>
