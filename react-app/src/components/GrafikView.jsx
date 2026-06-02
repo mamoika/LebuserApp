@@ -9,23 +9,23 @@ const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Li
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
 const VALUE_STYLE = {
-
-  'W':  { bg: '#fbfbfb', color: '#bbbbbb' },
-  'UW': { bg: '#e1f5fe', color: '#0277bd' },
-  'L4': { bg: '#fff9c4', color: '#fbc02d' },
-  'NN': { bg: '#fce4ec', color: '#c2185b' },
-  'I':  { bg: '#f3e5f5', color: '#7b1fa2' },
-  'END': { bg: '#eeeeee', color: '#888888' },
+  'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
+  'UW':  { bg: '#bfdbfe', color: '#1e40af', pattern: false },
+  'L4':  { bg: '#ffe4e6', color: '#be123c', pattern: false },
+  'NN':  { bg: '#ff0000', color: '#fff', pattern: false },
+  'I':   { bg: null, color: '#6d28d9', pattern: true },
+  'END': { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
+  '8':   { bg: '#dcfce7', color: '#15803d', pattern: false },
 };
 
 function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
-  if (!v) return { bg: isWeekendOrHoliday ? '#fcfcfc' : '#fff', color: '#ccc' };
+  if (!v) return { bg: isWeekendOrHoliday ? '#f4f4f6' : '#fff', color: '#d1d5db', pattern: false };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
-  if (v.includes('-')) return { bg: '#e3f2fd', color: '#0d47a1' }; // niebieski dla przedziałów
-  if (v.includes('+')) return { bg: '#fff3e0', color: '#e65100' };
-  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#e8f5e9', color: '#2e7d32' };
-  return { bg: '#fff', color: '#333' };
+  if (v.includes('-')) return { bg: '#dbeafe', color: '#1d4ed8', pattern: false };
+  if (v.includes('+')) return { bg: '#fff7ed', color: '#c2410c', pattern: false };
+  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#fef3c7', color: '#b45309', pattern: false };
+  return { bg: '#fff', color: '#374151', pattern: false };
 }
 
 function parseHours(value) {
@@ -59,51 +59,99 @@ function isPresent(value) {
 }
 
 
-function FloatingValuePicker({ selectedValue, onSelect }) {
+function ValuePicker({ selectedValue, onSelect, onCancel, todayRef }) {
   const [customValue, setCustomValue] = useState('');
+  const [pos, setPos] = useState(null);
   useEffect(() => { setCustomValue(''); }, [selectedValue]);
 
-  const btns = ['8', '10', '12', 'W', 'UW', 'L4', 'NN', 'I', 'END'];
+  useEffect(() => {
+    if (!todayRef?.current) return;
+    const update = () => {
+      const r = todayRef.current.getBoundingClientRect();
+      const container = todayRef.current.closest('div[tabindex="0"]');
+      const cr = container ? container.getBoundingClientRect() : null;
+      const visibleInContainer = !cr || (r.left >= cr.left - r.width && r.right <= cr.right + r.width);
+      const visibleInViewport = r.top > 0 && r.top < window.innerHeight;
+      if (visibleInContainer && visibleInViewport) {
+        setPos({ top: r.top - 48, left: r.left + r.width / 2 });
+      } else {
+        setPos(null);
+      }
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
+  }, [todayRef]);
+
+  if (!pos) return null;
+
+  const PICKER_W = 430;
+  let left = pos.left - PICKER_W / 2;
+  if (left + PICKER_W > window.innerWidth - 8) left = window.innerWidth - PICKER_W - 8;
+  if (left < 8) left = 8;
+  const top = Math.max(8, pos.top);
+
   return (
     <div className="print-hide" style={{
-      position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
-      background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(0,0,0,0.1)', borderRadius: '16px', padding: '10px 14px',
-      boxShadow: '0 10px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 9999
+      position: 'fixed', top, left, zIndex: 9999,
+      background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      border: '1px solid rgba(0,0,0,0.12)', borderRadius: '12px', padding: '6px 10px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+      display: 'flex', alignItems: 'center', gap: '5px',
     }}>
-      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginRight: '4px', textTransform: 'uppercase' }}>Wybierz:</div>
-      {btns.map(b => (
-        <button key={b} onClick={() => onSelect(b)} style={{
-          background: selectedValue === b ? 'var(--accent)' : 'var(--bg-card-solid)',
-          color: selectedValue === b ? '#fff' : 'var(--text-primary)',
-          border: selectedValue === b ? '1px solid var(--accent)' : '1px solid rgba(0,0,0,0.06)', 
-          borderRadius: '10px', padding: '8px 12px',
-          fontSize: '13px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.04)',
-          transition: 'all 0.15s'
-        }}>
-          {b}
-        </button>
-      ))}
-      <div style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
-      <input 
-        value={customValue} onChange={e => setCustomValue(e.target.value)}
-        placeholder="Inna..."
-        onKeyDown={e => { if(e.key === 'Enter' && customValue.trim()) onSelect(customValue.trim()); }}
-        style={{ width: '64px', padding: '8px 10px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, textAlign: 'center', outline: 'none', background: 'var(--bg-card-solid)' }}
-      />
-      <button onClick={() => { if(customValue.trim()) onSelect(customValue.trim()); }} style={{
-        background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '14px', padding: '6px 8px'
-      }}>Zapisz</button>
+      {[['8', getCellStyle('8', false)], ...['W','UW','L4','NN','I','END'].map(b => [b, getCellStyle(b, false)])].map(([b, st], idx) => {
+        const isActive = selectedValue === b;
+        const btnBg = st.pattern
+          ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
+          : (st.bg || '#f5f5f5');
+        return [
+          <button key={b} onClick={() => onSelect(b)} style={{
+            background: btnBg, color: st.color,
+            border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: '8px', padding: '4px 9px',
+            fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+            transition: 'all 0.12s', lineHeight: 1.4,
+            opacity: isActive ? 0.65 : 1,
+          }}>{b}</button>,
+          idx === 0 && [
+            <input key="inna"
+              value={customValue} onChange={e => setCustomValue(e.target.value)}
+              placeholder="Inna…"
+              onKeyDown={e => { if (e.key === 'Enter' && customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }}
+              style={{ width: '52px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
+            />,
+            <button key="ok" onClick={() => { if (customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }} style={{
+              background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', padding: '4px 4px'
+            }}>OK</button>,
+            <div key="sep" style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />,
+          ]
+        ];
+      })}
+      {onCancel && (
+        <>
+          <div style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />
+          <button onClick={onCancel} style={{
+            background: 'transparent', color: '#999', border: 'none', fontWeight: 500, cursor: 'pointer', fontSize: '12px', padding: '4px 6px'
+          }}>Anuluj</button>
+        </>
+      )}
     </div>
   );
 }
 
 function formatTotalHours(totalNum) {
   if (!totalNum) return '';
-  const h = Math.floor(totalNum);
-  const m = Math.round((totalNum - h) * 60);
-  if (m === 0) return h;
-  return `${h}:${m.toString().padStart(2, '0')}`;
+  const rounded = Math.round(totalNum * 10) / 10;
+  return `${rounded}`;
+}
+
+function formatDiff(diff) {
+  if (diff === 0) return '0';
+  const sign = diff > 0 ? '+' : '-';
+  const abs = Math.abs(diff);
+  const rounded = Math.round(abs * 10) / 10;
+  return `${sign}${rounded}`;
 }
 
 export default function GrafikView() {
@@ -120,6 +168,7 @@ export default function GrafikView() {
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
+  const todayRef = useRef(null);
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
@@ -157,6 +206,7 @@ export default function GrafikView() {
   useEffect(() => {
     if (editingCell && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
   }, [editingCell]);
+
 
   const groups = useMemo(() => {
     const res = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
@@ -230,16 +280,7 @@ export default function GrafikView() {
     else if (e.key === 'ArrowDown')  move(1, 0);
     else if (e.key === 'ArrowUp')    move(-1, 0);
     else if (e.key === 'Tab') { e.preventDefault(); move(0, e.shiftKey ? -1 : 1); }
-    else if (e.key === 'Enter' || e.key === 'F2') startEdit(empIdx, day);
-    else if (e.key === 'Delete' || e.key === 'Backspace') {
-      const emp = allEmps[empIdx];
-      if (emp) saveCell(emp.id, day, getDefaultValue(emp, day));
-      e.preventDefault();
-    }
     else if (e.key === 'Escape') setSelectedCell(null);
-    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      startEdit(empIdx, day, e.key.toUpperCase());
-    }
   };
 
     const handlePickerSelect = (val) => {
@@ -322,18 +363,20 @@ export default function GrafikView() {
     transition: 'all 0.15s ease'
   };
 
-  const thBase  = { padding: '4px 2px', fontSize: '10px', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', border: '1px solid rgba(0,0,0,0.04)' };
-  const nameColW = 140;
-  const dayColW  = 28;
+  const thBase  = { padding: '6px 2px', fontSize: '10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '2px solid #e8e8e8', background: '#f8f8f9' };
+  const nameColW = 148;
+  const dayColW  = 30;
 
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
 
   return (
     <div className="grafik-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {isAdmin && selectedCell && !editingCell && (
-        <FloatingValuePicker 
-          selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null} 
-          onSelect={handlePickerSelect} 
+            {isAdmin && (
+        <ValuePicker
+          selectedValue={selectedCell && allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
+          onSelect={handlePickerSelect}
+          onCancel={selectedCell ? () => { setSelectedCell(null); containerRef.current?.focus(); } : null}
+          todayRef={todayRef}
         />
       )}
 
@@ -376,9 +419,12 @@ export default function GrafikView() {
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
         {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieob.'],['I','Planowany'],['END','Zakończono'],['8','Godz.'],['6-14','Od-Do (godz)']].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
+          const chipBg = st.pattern
+            ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
+            : (st.bg || '#f5f5f5');
           return (
-            <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600 }}>
-              <span style={{ background: st.bg, color: st.color, padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.07)' }}>{sym}</span>
+            <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600 }}>
+              <span style={{ background: chipBg, color: st.color, padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.07)', minWidth: '28px', textAlign: 'center' }}>{sym}</span>
               <span style={{ color: 'var(--text-tertiary)', paddingRight: '8px' }}>{label}</span>
             </div>
           );
@@ -390,56 +436,65 @@ export default function GrafikView() {
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleContainerKeyDown}
-        style={{ 
-          overflowX: 'auto', borderRadius: '16px', 
-          boxShadow: 'var(--shadow-md)', border: '1px solid var(--border)', 
-          outline: 'none', background: 'var(--bg-card-solid)' 
+        style={{
+          overflowX: 'auto', borderRadius: '16px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)',
+          border: '1px solid #e8e8ec',
+          outline: 'none', background: '#fff'
         }}
       >
-        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 280}px`, width: '100%' }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 220}px`, width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, background: '#fafafa', textAlign: 'left', paddingLeft: '8px', color: '#333', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Pracownik</th>
+              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '12px', color: '#555', borderRight: '1px solid #e8e8ec', fontSize: '11px' }}>
+                Pracownik
+              </th>
               {days.map(d => {
                 const dateObj = new Date(year, month - 1, d);
                 const dw = dateObj.getDay();
                 const isWe = dw === 0 || dw === 6;
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
-                
-                let bg = '#fafafa';
-                let color = '#333';
-                if (isToday) { bg = 'var(--accent)'; color = '#fff'; }
-                else if (hol) { bg = '#fcfcfc'; color = '#d70015'; }
-                else if (isWe) { bg = '#fcfcfc'; color = '#d70015'; }
+
+                let bg = '#f8f8f9', color = '#444', borderBottomColor = '#e8e8e8';
+                if (isToday) { bg = 'var(--accent)'; color = '#fff'; borderBottomColor = 'var(--accent)'; }
+                else if (isWe || hol) { bg = '#f4f4f6'; color = '#d32f2f'; }
 
                 return (
-                  <th key={d} title={hol ? hol.name : ''} style={{ ...thBase, width: `${dayColW}px`, background: bg, color: color, position: 'relative' }}>
-                    <div style={{ fontSize: '12px' }}>{d}</div>
-                    <div style={{ fontSize: '8px', fontWeight: 500, opacity: 0.7 }}>{DAY_NAMES[dw]}</div>
-                    {hol && <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '4px', background: '#d70015', borderRadius: '50%', margin: '2px' }} />}
+                  <th key={d} ref={isToday ? todayRef : null} title={hol ? hol.name : ''} style={{ ...thBase, width: `${dayColW}px`, background: bg, color, borderBottom: `2px solid ${borderBottomColor}`, position: 'relative' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1.2 }}>{d}</div>
+                    <div style={{ fontSize: '8px', fontWeight: 500, opacity: isToday ? 0.85 : 0.55, marginTop: '1px' }}>{DAY_NAMES[dw]}</div>
+                    {hol && !isToday && <div style={{ position: 'absolute', top: 2, right: 3, width: '4px', height: '4px', background: '#d32f2f', borderRadius: '50%' }} />}
                   </th>
                 );
               })}
-              {/* Statystyki po prawej */}
-              <th style={{ ...thBase, width: '40px', background: '#f5f9f5', color: '#2e7d32', borderLeft: '1px solid rgba(0,0,0,0.08)' }}>Σ h</th>
-              <th style={{ ...thBase, width: '40px', background: '#fffcf5', color: '#f57f17' }}>Norma</th>
-              <th style={{ ...thBase, width: '40px', background: '#fdf5f6', color: '#c62828' }}>Różn.</th>
-              <th style={{ ...thBase, width: '30px', background: '#fff9c4', color: '#fbc02d', fontSize: '9px' }}>L4</th>
-              <th style={{ ...thBase, width: '30px', background: '#e1f5fe', color: '#0277bd', fontSize: '9px' }}>UW</th>
-              <th style={{ ...thBase, width: '30px', background: '#fce4ec', color: '#c2185b', fontSize: '9px' }}>NN</th>
+              <th style={{ ...thBase, width: '44px', color: '#2e7d32', borderLeft: '2px solid #e8e8ec', fontSize: '10px' }}>Σ h</th>
+              <th style={{ ...thBase, width: '38px', color: '#888', fontSize: '10px' }}>Norm.</th>
+              <th style={{ ...thBase, width: '38px', color: '#c62828', fontSize: '10px' }}>Różn.</th>
+              <th style={{ ...thBase, width: '28px', color: '#f57f17', fontSize: '9px', borderLeft: '1px solid #e8e8ec' }}>L4</th>
+              <th style={{ ...thBase, width: '28px', color: '#1565c0', fontSize: '9px' }}>UW</th>
+              <th style={{ ...thBase, width: '28px', color: '#b71c1c', fontSize: '9px' }}>NN</th>
             </tr>
           </thead>
           <tbody>
             {groups.map(({ g, color: grpColor, members }) => {
               return [
-                <tr key={`grp-${g}`}>
-                  <td colSpan={daysInMonth + 7} style={{ background: '#fdfdfd', color: grpColor, fontWeight: 700, fontSize: '10px', padding: '4px 8px', letterSpacing: '0.5px', borderBottom: `1px solid ${grpColor}40`, borderTop: `1px solid ${grpColor}40`, textTransform: 'uppercase' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: grpColor }} />
-                      {g}
+                <tr key={`grp-${g}`} style={{ height: '26px' }}>
+                  <td style={{
+                    position: 'sticky', left: 0, zIndex: 2,
+                    background: `${grpColor}12`, padding: '0 10px',
+                    borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30`,
+                    borderRight: '1px solid #e8e8ec', width: `${nameColW}px`,
+                  }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: grpColor, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 700, fontSize: '10px', color: grpColor, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{g}</span>
                     </div>
                   </td>
+                  <td colSpan={daysInMonth + 6} style={{
+                    background: `${grpColor}08`,
+                    borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20`,
+                  }} />
                 </tr>,
                 ...members.map((emp) => {
                   const empIdx = allEmps.indexOf(emp);
@@ -448,79 +503,74 @@ export default function GrafikView() {
                   const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
                   const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
                   const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
-                  
-                  const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafafa';
+
+                  const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafbfc';
+
                   return (
-                    <tr key={emp.id} style={{ height: '26px' }}>
-                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                          <span style={{ fontWeight: 500, fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
-                          <span style={{ fontSize: '9px', color: 'var(--text-quaternary)', fontWeight: 600, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}-{emp.default_end}</span>
+                    <tr key={emp.id} style={{ height: '30px' }}>
+                      <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 12px', borderRight: '1px solid #e8e8ec', borderBottom: '1px solid #f0f0f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
+                          <span style={{ fontWeight: 600, fontSize: '11px', color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
+                          <span style={{ fontSize: '9px', color: '#bbb', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
                         </div>
                       </td>
                       {days.map(d => {
                         const dateObj = new Date(year, month - 1, d);
-                        const isWeOrHol = dateObj.getDay() === 0 || dateObj.getDay() === 6 || isHoliday(dateObj);
+                        const dw = dateObj.getDay();
+                        const isWeOrHol = dw === 0 || dw === 6 || !!isHoliday(dateObj);
+                        const isToday = d === todayDay;
                         const val = getValue(emp, d);
                         const cs = getCellStyle(val, isWeOrHol);
-                        const isEditing = editingCell?.empIdx === empIdx && editingCell?.day === d;
-                        const isSelected = !isEditing && selectedCell?.empIdx === empIdx && selectedCell?.day === d;
-                        
+                        const isSelected = selectedCell?.empIdx === empIdx && selectedCell?.day === d;
+
+                        const hasVal = val && String(val).trim();
+                        const isPattern = hasVal && cs.pattern;
+                        const cellBg = isPattern
+                          ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
+                          : hasVal ? cs.bg
+                          : isToday ? '#eff6ff'
+                          : isWeOrHol ? '#f0f0f2'
+                          : rowBg;
+
                         return (
                           <td key={d}
+                            data-cell={`${empIdx}-${d}`}
                             onClick={() => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); }}
-                            onDoubleClick={() => startEdit(empIdx, d)}
+                            onDoubleClick={() => {}}
                             style={{
-                              background: isSelected ? '#e5f1ff' : cs.bg,
+                              background: cellBg,
                               color: cs.color,
-                              textAlign: 'center', fontWeight: 600, fontSize: '10px',
-                              border: isSelected ? '2px solid var(--accent)' : '1px solid rgba(0,0,0,0.04)',
-                              cursor: isAdmin ? 'text' : 'default',
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              fontSize: '10px',
+                              borderBottom: '1px solid rgba(0,0,0,0.06)',
+                              borderRight: '1px solid rgba(0,0,0,0.06)',
+                              boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
+                              cursor: 'default',
                               padding: 0, width: `${dayColW}px`,
                               boxSizing: 'border-box',
                               position: 'relative'
                             }}>
-                            {isEditing ? (
-                              <input
-                                ref={inputRef}
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                onBlur={() => commitEdit(empIdx, d)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') { commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.min(d + 1, daysInMonth) }); e.preventDefault(); containerRef.current?.focus(); }
-                                  if (e.key === 'Escape') { setEditingCell(null); containerRef.current?.focus(); }
-                                  if (e.key === 'Tab') { e.preventDefault(); commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.min(d + 1, daysInMonth) }); containerRef.current?.focus(); }
-                                  if (e.key === 'ArrowRight' && e.target.selectionEnd === e.target.value.length) { commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.min(d + 1, daysInMonth) }); containerRef.current?.focus(); }
-                                  if (e.key === 'ArrowLeft' && e.target.selectionStart === 0) { commitEdit(empIdx, d); setSelectedCell({ empIdx, day: Math.max(d - 1, 1) }); containerRef.current?.focus(); }
-                                }}
-                                style={{ width: '100%', height: '100%', border: 'none', background: '#fff', textAlign: 'center', fontSize: '11px', fontWeight: 700, padding: 0, outline: '2px solid var(--accent)', color: 'var(--accent)', boxSizing: 'border-box' }}
-                              />
-                            ) : val}
+                            {val || null}
                           </td>
                         );
                       })}
                       {/* Σ godzin */}
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: '#f5f9f5', color: '#2e7d32', border: '1px solid rgba(0,0,0,0.04)', borderLeft: '1px solid rgba(0,0,0,0.08)', padding: '0 2px' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#2e7d32' : '#ccc', borderLeft: '2px solid #e8e8ec', borderBottom: '1px solid #f0f0f0', padding: '0 2px', background: rowBg }}>
                         {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: '#fffcf5', color: '#f57f17', border: '1px solid rgba(0,0,0,0.04)' }}>
+                      <td style={{ textAlign: 'center', fontWeight: 500, fontSize: '10px', color: '#bbb', borderBottom: '1px solid #f0f0f0', background: rowBg }}>
                         {norm}
                       </td>
                       {/* Różnica */}
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', background: totalHours === 0 ? '#fafafa' : diff >= 0 ? '#f5f9f5' : '#fdf5f6', color: totalHours === 0 ? '#ccc' : diff >= 0 ? '#2e7d32' : '#c62828', border: '1px solid rgba(0,0,0,0.04)' }}>
-                        {totalHours === 0 ? '—' : (diff >= 0 ? '+' : '') + diff}
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: totalHours === 0 ? '#ddd' : diff > 0 ? '#2e7d32' : diff < 0 ? '#c62828' : '#aaa', borderBottom: '1px solid #f0f0f0', background: rowBg }}>
+                        {totalHours === 0 ? '—' : formatDiff(diff)}
                       </td>
-                      {/* Stats: L4, UW, NN */}
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: l4Count > 0 ? '#fff9c4' : '#fafafa', color: '#fbc02d', border: '1px solid rgba(0,0,0,0.04)' }}>
-                        {l4Count || ''}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: uwCount > 0 ? '#e1f5fe' : '#fafafa', color: '#0277bd', border: '1px solid rgba(0,0,0,0.04)' }}>
-                        {uwCount || ''}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, fontSize: '10px', background: nnCount > 0 ? '#fce4ec' : '#fafafa', color: '#c2185b', border: '1px solid rgba(0,0,0,0.04)' }}>
-                        {nnCount || ''}
-                      </td>
+                      {/* L4, UW, NN */}
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: l4Count > 0 ? '#f57f17' : '#ddd', borderLeft: '1px solid #eee', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{l4Count || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: uwCount > 0 ? '#1565c0' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{uwCount || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nnCount > 0 ? '#b71c1c' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nnCount || '—'}</td>
                     </tr>
                   );
                 }),
@@ -529,34 +579,49 @@ export default function GrafikView() {
 
             {/* Wiersze podsumowania */}
             {[
-              { label: 'Obecni', bg: '#004b79', color: '#fff', fn: (d) => employees.filter(e => isPresent(getValue(e, d))).length },
-              { label: 'Godz. łącznie', bg: '#f5f9f5', color: '#2e7d32', fn: (d) => {
-                  const total = employees.reduce((sum, e) => sum + parseHours(getValue(e, d)), 0);
-                  return formatTotalHours(total);
-                }
+              { label: 'Obecni', labelColor: '#fff', nameBg: '#1e3a5f', cellBgBase: '#243f6a', cellBgWe: '#1a3258', cellBgToday: '#2d5896', color: '#fff' },
+              { label: 'Godz. łącznie', labelColor: '#2e7d32', nameBg: '#f4fbf4', cellBgBase: '#f4fbf4', cellBgWe: '#edf6ed', cellBgToday: '#daf0da', color: '#2e7d32',
+                fn: (d) => { const t = employees.reduce((s, e) => s + parseHours(getValue(e, d)), 0); return formatTotalHours(t); }
               }
-            ].map(({ label, bg, color, fn }) => (
-              <tr key={label} style={{ height: '28px' }}>
-                <td style={{ position: 'sticky', left: 0, zIndex: 1, background: bg, color, fontWeight: 700, fontSize: '11px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.04)', borderRight: '2px solid var(--border)' }}>
-                  {label}
-                </td>
-                {days.map(d => {
-                  const cnt = fn(d);
-                  return (
-                    <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, border: '1px solid rgba(0,0,0,0.04)' }}>
-                      {cnt || ''}
-                    </td>
-                  );
-                })}
-                <td colSpan={6} style={{ background: bg, border: '1px solid rgba(0,0,0,0.08)' }} />
-              </tr>
-            ))}
+            ].map(({ label, labelColor, nameBg, cellBgBase, cellBgWe, cellBgToday, color, fn }) => {
+              const sumFn = fn || ((d) => employees.filter(e => isPresent(getValue(e, d))).length);
+              return (
+                <tr key={label} style={{ height: '28px' }}>
+                  <td style={{ position: 'sticky', left: 0, zIndex: 1, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 10px 0 12px', borderRight: '1px solid #e8e8ec', borderTop: '2px solid #e0e0e0' }}>
+                    {label}
+                  </td>
+                  {days.map(d => {
+                    const dateObj = new Date(year, month - 1, d);
+                    const dw = dateObj.getDay();
+                    const isWe = dw === 0 || dw === 6;
+                    const isToday = d === todayDay;
+                    const cnt = sumFn(d);
+                    const bg = isToday ? cellBgToday : isWe ? cellBgWe : cellBgBase;
+                    return (
+                      <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, borderTop: '2px solid #e0e0e0', borderRight: '1px solid rgba(0,0,0,0.04)' }}>
+                        {cnt || ''}
+                      </td>
+                    );
+                  })}
+                  <td colSpan={6} style={{ background: nameBg, borderTop: '2px solid #e0e0e0' }} />
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      <div className="print-hide" style={{ fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-card-solid)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', display: 'inline-block', width: 'fit-content', marginTop: '8px' }}>
-        💡 <strong>Wskazówka:</strong> Ułamki godzinowe (np. pół godziny) wpisuj z użyciem kropki lub przecinka (np. <strong>7.5</strong> lub <strong>7,5</strong>). System automatycznie przeliczy to na <strong>7h 30m</strong> we wszystkich sumach.
+      <div className="print-hide" style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap', background: '#f8f8f9', border: '1px solid #e8e8ec', borderRadius: '12px', padding: '10px 16px', fontSize: '10px', color: '#888' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#555', fontWeight: 500 }}>
+          <span style={{ fontSize: '13px' }}>💡</span>
+          <span>Przedziały: <strong style={{ color: '#1565c0' }}>6-14</strong> &nbsp;|&nbsp; Ułamki: <strong style={{ color: '#2e7d32' }}>7.5</strong> lub <strong style={{ color: '#2e7d32' }}>7,5</strong></span>
+        </div>
+        <div style={{ width: '1px', background: '#ddd', alignSelf: 'stretch' }} />
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', color: '#999' }}>
+          {[['10','0,17'],['15','0,25'],['20','0,33'],['30','0,50'],['40','0,67'],['45','0,75'],['50','0,83']].map(([min, val]) => (
+            <span key={min}>{min} min = <strong style={{ color: '#555' }}>{val}</strong></span>
+          ))}
+        </div>
       </div>
       
     </div>
