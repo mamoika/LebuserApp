@@ -14,7 +14,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="app-header">
         <div className="app-header-top">
-          <div className="auth-logo-icon" style={{ fontSize: '28px', lineHeight: 1 }}>🚛</div>
+          <img src="https://lh3.googleusercontent.com/d/1P_80-RIY3LUwxRQJhcw9DO3RqCNTAhI_" alt="Logo LEBUSER" className="app-logo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
           <div>
             <div className="app-title">LEBUSER <span style={{ fontWeight: 400 }}>Harmonogram</span></div>
             <div className="app-subtitle">LEBUSER Textilservice Sp. z o.o. — Zarządzanie logistyką</div>

@@ -3,6 +3,7 @@ import { useAppData } from '../hooks/useAppData';
 import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -20,6 +21,12 @@ export default function ScheduleView() {
   const { entries, clients, routes, loading, error, refetch } = useAppData();
   const { isAdmin } = useAuth();
   const [activeWeekTab, setActiveWeekTab] = useState(0); // 0 = current, 1 = next
+
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1);
+  
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState(null);
   
   if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Ładowanie danych...</div>;
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
@@ -29,20 +36,6 @@ export default function ScheduleView() {
 
   const displayMonday = activeWeekTab === 0 ? currentMonday : nextMonday;
   const displayWeekKey = formatWeekKey(displayMonday);
-
-  const toggleDone = async (entry) => {
-    try {
-      const { error } = await supabase
-        .from('entries')
-        .update({ done: !entry.done })
-        .eq('id', entry.id);
-        
-      if (error) throw error;
-      refetch();
-    } catch (err) {
-      alert("Błąd aktualizacji: " + err.message);
-    }
-  };
 
   return (
     <div>
@@ -123,7 +116,7 @@ export default function ScheduleView() {
                         <div 
                           key={entry.id} 
                           className={`tag ${tagClass}`}
-                          onClick={() => toggleDone(entry)}
+                          onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
                         >
                           {entry.urgent && <span style={{ marginRight: '4px' }}>🚩</span>}
                           <span className="tag-name">{entry.client_name}</span>
@@ -146,7 +139,7 @@ export default function ScheduleView() {
                         <div 
                           key={`pick-${entry.id}`} 
                           className={`tag ${tagClass}`}
-                          onClick={() => toggleDone(entry)}
+                          onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
                         >
                           {entry.urgent && <span style={{ marginRight: '4px' }}>🚩</span>}
                           <span className="tag-name">{entry.client_name}</span>
@@ -160,10 +153,31 @@ export default function ScheduleView() {
                   </>
                 )}
               </div>
+              <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>
+                ＋ Dodaj zadanie
+              </button>
             </div>
           )
         })}
       </div>
+
+      <AddEntryModal 
+        isOpen={addModalOpen} 
+        onClose={() => setAddModalOpen(false)} 
+        defaultArrDay={selectedDay}
+        weekKey={displayWeekKey}
+        clients={clients}
+        routes={routes}
+        onAdded={refetch}
+      />
+
+      <ViewEditEntryModal
+        isOpen={viewModalOpen}
+        onClose={() => { setViewModalOpen(false); setSelectedEntry(null); }}
+        entry={selectedEntry}
+        onUpdated={refetch}
+        onDeleted={refetch}
+      />
     </div>
   );
 }
