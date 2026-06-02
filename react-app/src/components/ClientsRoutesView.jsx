@@ -363,7 +363,7 @@ export default function ClientsRoutesView() {
         )}
 
         {clientModalOpen && (
-          <div className="ap-sheet-overlay" onClick={() => setClientModalOpen(false)}>
+          <div className="ap-overlay" onClick={() => setClientModalOpen(false)}>
             <div className="ap-sheet" onClick={e => e.stopPropagation()}>
               <div className="ap-sheet-header">
                 <div className="ap-sheet-title">Edytuj Klienta</div>
