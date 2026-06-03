@@ -164,7 +164,22 @@ export default function CostsView() {
       .select('employee_id, day, value')
       .eq('year', year).eq('month', month);
 
-    setSettings(sets || { month_key: monthKey, ...DEFAULT_SETTINGS });
+    // Stawki: jeśli miesiąc nie ma własnych, dziedzicz z ostatniego ZAPISANEGO wcześniejszego miesiąca.
+    // Domyślne z kodu tylko gdy nie ma żadnej historii.
+    if (sets) {
+      setSettings(sets);
+    } else {
+      const { data: prevSet } = await supabase
+        .from('cost_settings').select('*')
+        .lt('month_key', monthKey).order('month_key', { ascending: false }).limit(1).maybeSingle();
+      if (prevSet) {
+        // odrzucamy id (i znacznik czasu), żeby zapis utworzył NOWY wiersz dla tego miesiąca, nie nadpisał poprzedni
+        const { id, updated_at, ...rates } = prevSet; // eslint-disable-line no-unused-vars
+        setSettings({ ...rates, month_key: monthKey });
+      } else {
+        setSettings({ month_key: monthKey, ...DEFAULT_SETTINGS });
+      }
+    }
     setPrevReadings(prev || {});
 
     const costMap = {};
