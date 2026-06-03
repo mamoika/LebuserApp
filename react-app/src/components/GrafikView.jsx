@@ -268,7 +268,8 @@ export default function GrafikView() {
     containerRef.current?.focus();
   };
 
-  const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
+  const atMinMonth = year === 2026 && month === 1; // start: styczeń 2026
+  const prevMonth = () => { if (atMinMonth) return; if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
 
   const exportToExcel = () => {
@@ -363,7 +364,7 @@ export default function GrafikView() {
       }}>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button style={btnStyle} onClick={prevMonth} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
+          <button style={{ ...btnStyle, opacity: atMinMonth ? 0.4 : 1, cursor: atMinMonth ? 'not-allowed' : 'pointer' }} disabled={atMinMonth} onClick={prevMonth} onMouseOver={e=>{ if(!atMinMonth) e.currentTarget.style.background='var(--bg-secondary)'; }} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
             <ChevronLeft size={16} /> Poprzedni
           </button>
           

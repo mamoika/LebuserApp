@@ -448,7 +448,9 @@ export default function TimelineView() {
     }
   }, [isAdmin, copySource, employees, scheduleMap, entries, user]);
 
-  const prevWeek = () => setMonday(m => addDays(m, -7));
+  const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
+  const atMinWeek = monday <= minMonday;
+  const prevWeek = () => setMonday(m => { const p = addDays(m, -7); return p < minMonday ? m : p; });
   const nextWeek = () => setMonday(m => addDays(m, 7));
 
   const groups = useMemo(() => {
@@ -499,7 +501,7 @@ export default function TimelineView() {
         background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
         padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)'
       }}>
-        <button onClick={prevWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-primary)' }}>‹ Poprzedni</button>
+        <button onClick={prevWeek} disabled={atMinWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: atMinWeek ? 'not-allowed' : 'pointer', opacity: atMinWeek ? 0.4 : 1, fontWeight: 700, color: 'var(--text-primary)' }}>‹ Poprzedni</button>
         <div style={{ fontWeight: 700, fontSize: '16px', flex: 1, textAlign: 'center', color: 'var(--text-primary)' }}>
           Tydzień {weekNum} · {fmtDate(monday)} – {fmtDate(addDays(monday, 6))}
         </div>

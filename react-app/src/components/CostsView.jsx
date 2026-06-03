@@ -369,7 +369,9 @@ export default function CostsView() {
         boxShadow: IOS_THEME.shadow, border: `1px solid ${IOS_THEME.border}`
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={() => setCurrentDate(new Date(year, month - 2, 1))} style={navBtnStyle}>‹</button>
+          {(() => { const atMin = year === 2026 && month === 1; return (
+            <button disabled={atMin} onClick={() => { if (!atMin) setCurrentDate(new Date(year, month - 2, 1)); }} style={{ ...navBtnStyle, opacity: atMin ? 0.4 : 1, cursor: atMin ? 'not-allowed' : 'pointer' }}>‹</button>
+          ); })()}
           <div style={{ fontWeight: 700, fontSize: '17px', minWidth: '140px', textAlign: 'center' }}>
             {MONTHS_PL[month - 1]} {year}
           </div>

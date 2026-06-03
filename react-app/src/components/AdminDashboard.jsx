@@ -455,9 +455,13 @@ function EmployeesSection() {
   const [cur, setCur] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
 
   const monthLabel = `${MONTHS_PL[cur.month - 1]} ${cur.year}`;
+  const atMinMonth = cur.year === 2026 && cur.month === 1; // start: styczeń 2026
   const shiftMonth = (delta) => setCur(c => {
     const m0 = c.month - 1 + delta;
-    return { year: c.year + Math.floor(m0 / 12), month: ((m0 % 12) + 12) % 12 + 1 };
+    const ny = c.year + Math.floor(m0 / 12);
+    const nm = ((m0 % 12) + 12) % 12 + 1;
+    if (ny < 2026) return c; // nie cofamy przed styczeń 2026
+    return { year: ny, month: nm };
   });
 
   const fetchAll = async () => {
@@ -533,7 +537,7 @@ function EmployeesSection() {
     <div>
       {/* Wybór miesiąca */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '8px 10px' }}>
-        <button onClick={() => shiftMonth(-1)} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>‹</button>
+        <button onClick={() => shiftMonth(-1)} disabled={atMinMonth} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', cursor: atMinMonth ? 'not-allowed' : 'pointer', opacity: atMinMonth ? 0.4 : 1, fontWeight: 700 }}>‹</button>
         <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: '15px' }}>{monthLabel}</div>
         <button onClick={() => shiftMonth(1)} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>›</button>
       </div>
