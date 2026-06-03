@@ -313,10 +313,18 @@ export default function CostsView() {
   useEffect(() => () => { flushSave(); }, [monthKey, flushSave]);
 
   const handleCostChange = (dateStr, field, value) => {
-    const num = value === '' ? null : parseFloat(value);
+    let parsed = value;
+    if (value === '') {
+      parsed = null;
+    } else if (field.endsWith('_end')) {
+      parsed = value.trim(); // preserve leading zeros
+    } else {
+      parsed = parseFloat(value.replace(',', '.'));
+    }
+    
     setDailyData(prev => ({
       ...prev,
-      [dateStr]: { ...prev[dateStr], entry_date: dateStr, [field]: num }
+      [dateStr]: { ...prev[dateStr], entry_date: dateStr, [field]: parsed }
     }));
     dirtyDays.current.add(dateStr);
     scheduleAutoSave();
@@ -714,7 +722,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
   );
   const reading = (dStr, dt, base, cons, unit) => (
     <td style={newTdStyle}>
-      <input type="number" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
+      <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
       <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '3px', minHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
         {cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : ''}
       </div>
