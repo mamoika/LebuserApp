@@ -39,8 +39,9 @@ grant all on table public.employee_months to anon, authenticated;
 --    (kopiujemy obecną grupę/kolejność/aktywność z employees)
 
 -- 3a) z grafiku pracy (schedule_entries: year, month)
+--     active = true, bo skoro ma grafik w tym miesiącu, to wtedy pracował
 insert into public.employee_months (employee_id, year, month, active, group_name, sort_order)
-select distinct s.employee_id, s.year, s.month, e.active, e.group_name, e.sort_order
+select distinct s.employee_id, s.year, s.month, true, e.group_name, e.sort_order
 from public.schedule_entries s
 join public.employees e on e.id = s.employee_id
 on conflict (employee_id, year, month) do nothing;
@@ -50,7 +51,7 @@ insert into public.employee_months (employee_id, year, month, active, group_name
 select distinct t.employee_id,
        extract(year  from t.entry_date)::int,
        extract(month from t.entry_date)::int,
-       e.active, e.group_name, e.sort_order
+       true, e.group_name, e.sort_order
 from public.timeline_entries t
 join public.employees e on e.id = t.employee_id
 on conflict (employee_id, year, month) do nothing;
@@ -65,8 +66,25 @@ from public.employees e
 where e.active = true
 on conflict (employee_id, year, month) do nothing;
 
+-- 4) KOREKTA — każdy miesiąc, w którym pracownik MA dane, musi być active=true
+--    (chroni historię osób obecnie nieaktywnych/zwolnionych)
+update public.employee_months em
+set active = true
+where em.active = false
+  and (
+    exists (select 1 from public.schedule_entries s
+            where s.employee_id = em.employee_id and s.year = em.year and s.month = em.month)
+    or exists (select 1 from public.timeline_entries t
+            where t.employee_id = em.employee_id
+              and extract(year  from t.entry_date)::int = em.year
+              and extract(month from t.entry_date)::int = em.month)
+  );
+
 -- ============================================================
 --  Po uruchomieniu: sprawdź licznik
---    select year, month, count(*) from public.employee_months
+--    select year, month,
+--           count(*) filter (where active) as aktywni,
+--           count(*) as wszyscy
+--    from public.employee_months
 --    group by year, month order by year, month;
 -- ============================================================
