@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
+import { loadMonthRoster } from '../lib/roster';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
+const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
@@ -363,7 +365,7 @@ function GroupsSection() {
 
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 
-function EmployeeModal({ employee, groups, onClose, onSave, onDelete }) {
+function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth }) {
   const isNew = !employee;
   const [name, setName] = useState(employee?.name || '');
   const [groupName, setGroupName] = useState(employee?.group_name || (groups[0]?.name || ''));
@@ -384,7 +386,7 @@ function EmployeeModal({ employee, groups, onClose, onSave, onDelete }) {
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setSaving(true);
-    await onDelete(employee.id);
+    await onRemoveFromMonth(employee.id);
     setSaving(false);
   };
 
@@ -395,15 +397,16 @@ function EmployeeModal({ employee, groups, onClose, onSave, onDelete }) {
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-handle" />
         <div className="ap-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${grpColor}, ${grpColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
             <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? 'Nowy pracownik' : 'Edytuj pracownika'}</div>
           </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>Miesiąc: <b>{monthLabel}</b> — grupa i aktywność dotyczą tego miesiąca</div>
 
           <div style={LABEL_STYLE}>Nazwisko i imię</div>
           <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder="np. Kowalski Jan" style={{ marginBottom: '12px' }} autoFocus />
 
-          <div style={LABEL_STYLE}>Grupa</div>
+          <div style={LABEL_STYLE}>Grupa (w tym miesiącu)</div>
           <select className="ap-input" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '12px' }}>
             {groups.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
           </select>
@@ -427,12 +430,12 @@ function EmployeeModal({ employee, groups, onClose, onSave, onDelete }) {
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
-            Aktywny
+            Aktywny w tym miesiącu
           </label>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? 'Zapisywanie…' : 'Zapisz'}</button>
-            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? 'Na pewno usunąć?' : 'Usuń'}</button>}
+            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? 'Na pewno usunąć z miesiąca?' : 'Usuń z miesiąca'}</button>}
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
           </div>
         </div>
@@ -442,53 +445,122 @@ function EmployeeModal({ employee, groups, onClose, onSave, onDelete }) {
 }
 
 function EmployeesSection() {
-  const [employees, setEmployees] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]); // globalna lista (do dodawania istniejących)
+  const [roster, setRoster] = useState([]);             // skład wybranego miesiąca (z nieaktywnymi)
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | 'new' | employee obj
+  const [modal, setModal] = useState(null);             // null | 'new' | employee obj
+  const [showAdd, setShowAdd] = useState(false);
+  const now = new Date();
+  const [cur, setCur] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
 
-  const fetch = async () => {
-    const [{ data: empData }, { data: grpData }] = await Promise.all([
+  const monthLabel = `${MONTHS_PL[cur.month - 1]} ${cur.year}`;
+  const shiftMonth = (delta) => setCur(c => {
+    const m0 = c.month - 1 + delta;
+    return { year: c.year + Math.floor(m0 / 12), month: ((m0 % 12) + 12) % 12 + 1 };
+  });
+
+  const fetchAll = async () => {
+    setLoading(true);
+    const [{ data: empData }, { data: grpData }, rosterData] = await Promise.all([
       supabase.from('employees').select('*').order('sort_order').order('name'),
-      supabase.from('groups').select('*').order('sort_order')
+      supabase.from('groups').select('*').order('sort_order'),
+      loadMonthRoster(cur.year, cur.month, { includeInactive: true })
     ]);
-    setEmployees(empData || []);
+    setAllEmployees(empData || []);
     setGroups(grpData || []);
+    setRoster(rosterData || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cur.year, cur.month]);
 
   const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active }) => {
     if (id) {
-      await supabase.from('employees').update({ name, group_name, contract_type, default_start, default_end, active }).eq('id', id);
+      // dane stałe → employees (globalnie)
+      await supabase.from('employees').update({ name, contract_type, default_start, default_end }).eq('id', id);
+      // dane miesięczne → employee_months
+      const sort = roster.find(r => r.id === id)?.sort_order ?? 0;
+      await supabase.from('employee_months').upsert(
+        { employee_id: id, year: cur.year, month: cur.month, active, group_name, sort_order: sort },
+        { onConflict: 'employee_id,year,month' }
+      );
     } else {
-      const maxOrder = employees.length > 0 ? Math.max(...employees.map(e => e.sort_order || 0)) : 0;
-      await supabase.from('employees').insert({ name, group_name, contract_type, default_start, default_end, active, sort_order: maxOrder + 1 });
+      const maxOrder = allEmployees.length > 0 ? Math.max(...allEmployees.map(e => e.sort_order || 0)) : 0;
+      const { data: ins } = await supabase.from('employees')
+        .insert({ name, group_name, contract_type, default_start, default_end, active: true, sort_order: maxOrder + 1 })
+        .select('id').single();
+      if (ins?.id) {
+        await supabase.from('employee_months').upsert(
+          { employee_id: ins.id, year: cur.year, month: cur.month, active, group_name, sort_order: maxOrder + 1 },
+          { onConflict: 'employee_id,year,month' }
+        );
+      }
     }
     setModal(null);
-    fetch();
+    fetchAll();
   };
 
-  const handleDelete = async (id) => {
-    await supabase.from('employees').delete().eq('id', id);
+  // Usuń pracownika TYLKO z tego miesiąca (historia innych miesięcy zostaje)
+  const handleRemoveFromMonth = async (id) => {
+    await supabase.from('employee_months').delete().eq('employee_id', id).eq('year', cur.year).eq('month', cur.month);
     setModal(null);
-    fetch();
+    fetchAll();
+  };
+
+  // Dodaj istniejącego pracownika do tego miesiąca
+  const handleAddExisting = async (emp) => {
+    const maxOrder = roster.length > 0 ? Math.max(...roster.map(r => r.sort_order || 0)) : 0;
+    await supabase.from('employee_months').upsert(
+      { employee_id: emp.id, year: cur.year, month: cur.month, active: true, group_name: emp.group_name, sort_order: emp.sort_order ?? maxOrder + 1 },
+      { onConflict: 'employee_id,year,month' }
+    );
+    setShowAdd(false);
+    fetchAll();
   };
 
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie…</div>;
 
-  const groupedEmps = groups.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
+  const rosterIds = new Set(roster.map(r => r.id));
+  const notInMonth = allEmployees.filter(e => !rosterIds.has(e.id));
+
+  const groupedEmps = groups.map(g => ({ g: g.name, color: g.color, members: roster.filter(e => e.group_name === g.name) }))
     .filter(({ members }) => members.length > 0);
-  const extraGroups = [...new Set(employees.map(e => e.group_name))].filter(name => !groups.find(g => g.name === name));
-  extraGroups.forEach(name => groupedEmps.push({ g: name, color: '#455a64', members: employees.filter(e => e.group_name === name) }));
+  const extraGroups = [...new Set(roster.map(e => e.group_name))].filter(name => !groups.find(g => g.name === name));
+  extraGroups.forEach(name => groupedEmps.push({ g: name, color: '#455a64', members: roster.filter(e => e.group_name === name) }));
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ fontSize: '17px', fontWeight: 700 }}>Pracownicy ({employees.filter(e => e.active).length} aktywnych)</div>
-        <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Dodaj</button>
+      {/* Wybór miesiąca */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '8px 10px' }}>
+        <button onClick={() => shiftMonth(-1)} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>‹</button>
+        <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: '15px' }}>{monthLabel}</div>
+        <button onClick={() => shiftMonth(1)} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>›</button>
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>Pracownicy — {roster.filter(e => e.active).length} w miesiącu</div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {notInMonth.length > 0 && (
+            <button onClick={() => setShowAdd(s => !s)} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Istniejący</button>
+          )}
+          <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Nowy</button>
+        </div>
+      </div>
+
+      {/* Dodaj istniejącego do miesiąca */}
+      {showAdd && (
+        <div style={{ marginBottom: '14px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)' }}>Dodaj do {monthLabel} (poza składem):</div>
+          {notInMonth.map((e, i) => (
+            <div key={e.id} onClick={() => handleAddExisting(e)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer' }}>
+              <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{e.name}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{e.group_name}</span>
+              <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700 }}>+ dodaj</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {groupedEmps.map(({ g, color, members }) => {
         return (
@@ -514,9 +586,10 @@ function EmployeesSection() {
         <EmployeeModal
           employee={modal === 'new' ? null : modal}
           groups={groups}
+          monthLabel={monthLabel}
           onClose={() => setModal(null)}
           onSave={handleSave}
-          onDelete={handleDelete}
+          onRemoveFromMonth={handleRemoveFromMonth}
         />
       )}
     </div>

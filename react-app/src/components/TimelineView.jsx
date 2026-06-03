@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
+import { loadMonthRoster } from '../lib/roster';
 
 const ROLES = {
   "T":  { bg: "#607D8B", fc: "#fff", name: "Tunnel" },
@@ -282,8 +283,8 @@ export default function TimelineView() {
     const dateFrom = toDateStr(monday);
     const dateTo = toDateStr(addDays(monday, 6));
 
-    const [{ data: emps }, { data: tl }, { data: sched }, { data: grps }] = await Promise.all([
-      supabase.from('employees').select('*').eq('active', true).order('sort_order').order('name'),
+    const [emps, { data: tl }, { data: sched }, { data: grps }] = await Promise.all([
+      loadMonthRoster(monday.getFullYear(), monday.getMonth() + 1),
       supabase.from('timeline_entries').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
       supabase.from('schedule_entries').select('employee_id,day,value').eq('year', monday.getFullYear()).eq('month', monday.getMonth() + 1),
       supabase.from('groups').select('*').order('sort_order').order('name')

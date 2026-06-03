@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
+import { loadMonthRoster } from '../lib/roster';
 import * as XLSX from 'xlsx';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
 
@@ -163,8 +164,8 @@ export default function GrafikView() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: emps }, { data: sched }, { data: grps }] = await Promise.all([
-      supabase.from('employees').select('*').eq('active', true).order('sort_order').order('name'),
+    const [emps, { data: sched }, { data: grps }] = await Promise.all([
+      loadMonthRoster(year, month),
       supabase.from('schedule_entries').select('*').eq('year', year).eq('month', month),
       supabase.from('groups').select('*').order('sort_order').order('name')
     ]);
