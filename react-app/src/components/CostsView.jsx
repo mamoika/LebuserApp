@@ -840,13 +840,17 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
       </div>
     </th>
   );
-  const reading = (dStr, dt, base, cons, unit) => (
-    <td style={{ ...newTdStyle, ...cellPadStyle }}>
-      <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
-      <div style={{ ...subTextStyle, color: IOS_THEME.textSecondary }}>
-        {cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : ''}
-      </div>
+  // Komórka wartości: slot główny (wartość/input) + slot jednostki pod spodem (zawsze ta sama wysokość)
+  const valCell = (tdStyle, main, sub, subColor, extra = {}) => (
+    <td style={tdStyle} className={extra.className} title={extra.title}>
+      <div style={cellMain}>{main}</div>
+      <div style={{ ...cellSub, color: subColor || IOS_THEME.textSecondary }}>{sub || ' '}</div>
     </td>
+  );
+  const reading = (dStr, dt, base, cons, unit) => valCell(
+    newTdStyle,
+    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>,
+    cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
   );
   const footMeter = (val, unit) => (
     <td style={{ ...footTdStyle, textAlign: 'center', color: IOS_THEME.textSecondary }}>
@@ -895,38 +899,38 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               const dateCellColor = isToday ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary;
               return (
                 <tr key={dStr} className="costs-row" style={{ background: rowBg }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: dateCellBg, color: dateCellColor, textAlign: 'center', minWidth: '52px' }} title={isHol ? isHol.name : ''}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2 }}>{String(d.getDate()).padStart(2, '0')}</span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{WEEKDAYS_PL[d.getDay()]}</span>
-                    </div>
-                  </td>
+                  {valCell(
+                    { ...newTdStyle, fontWeight: 700, background: dateCellBg, color: dateCellColor, minWidth: '52px' },
+                    <span style={{ fontSize: '15px', fontWeight: 700 }}>{String(d.getDate()).padStart(2, '0')}</span>,
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{WEEKDAYS_PL[d.getDay()]}</span>,
+                    dateCellColor,
+                    { className: 'sticky-col', title: isHol ? isHol.name : '' }
+                  )}
                   {reading(dStr, dt, 'fiat', c.fiat_km, 'km')}
                   {reading(dStr, dt, 'isuzu', c.isuzu_km, 'km')}
                   {reading(dStr, dt, 'merc', c.merc_km, 'km')}
                   {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
-                  <td style={costCellStyle(CAT.transport)}>
-                    <div>{FMT(c.transportCost)}</div>
-                    <div style={{ ...subTextStyle, color: CAT.transport, opacity: 0.7 }}>
-                      {c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : ''}
-                    </div>
-                  </td>
+                  {valCell(costCellStyle(CAT.transport),
+                    FMT(c.transportCost),
+                    c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : '',
+                    CAT.transport)}
                   {reading(dStr, dt, 'elec', c.elec_usage, 'kWh')}
-                  <td style={costCellStyle(CAT.elec)}>{FMT(c.elec_cost)}</td>
+                  {valCell(costCellStyle(CAT.elec), FMT(c.elec_cost), '')}
                   {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³')}
-                  <td style={costCellStyle(CAT.gas)}>{FMT(c.gas_prod_cost)}</td>
+                  {valCell(costCellStyle(CAT.gas), FMT(c.gas_prod_cost), '')}
                   {reading(dStr, dt, 'gas_heat', c.gas_heat_usage, 'm³')}
-                  <td style={costCellStyle('#4A148C')}>{FMT(c.gas_heat_cost)}</td>
+                  {valCell(costCellStyle('#4A148C'), FMT(c.gas_heat_cost), '')}
                   {reading(dStr, dt, 'water', c.water_usage, 'm³')}
-                  <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
-                  <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
-                  <td style={{ ...newTdStyle, ...cellPadStyle }}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
-                  <td style={{ ...newTdStyle, ...cellPadStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
-                    <div style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</div>
-                    <div style={{ ...subTextStyle, fontWeight: 600, opacity: 0.65 }}>
-                      {c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : ''}
-                    </div>
-                  </td>
+                  {valCell(costCellStyle(CAT.water), FMT(c.water_cost), '')}
+                  {valCell(costCellStyle(CAT.workers), c.worker_cost > 0 ? FMT(c.worker_cost) : '—', '')}
+                  {valCell(newTdStyle,
+                    <input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/>,
+                    '')}
+                  {valCell(
+                    { ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' },
+                    <span style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</span>,
+                    c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : '',
+                    IOS_THEME.accent)}
                 </tr>
               );
             })}
@@ -1215,12 +1219,12 @@ const newInpStyle = {
 const rateInpStyle = {
   width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
 };
-// Komórki z wartością: główna wartość/input wyśrodkowane pionowo, a podpis jednostki
-// (km/kWh/m³/zł-kg) przyklejony NA DOLE komórki — dzięki temu wszystkie wiersze są równe.
-const cellPadStyle = { position: 'relative', paddingTop: '6px', paddingBottom: '15px' };
-const subTextStyle = { position: 'absolute', left: 0, right: 0, bottom: '3px', fontSize: '10px', fontWeight: 700, textAlign: 'center', fontVariantNumeric: 'tabular-nums', lineHeight: 1 };
+// Każda komórka wartości ma stały slot na wartość (wyśrodkowaną) + stały slot na
+// jednostkę pod spodem → wszystkie wiersze są równej wysokości i wyrównane w pionie.
+const cellMain = { minHeight: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1.1 };
+const cellSub = { height: '13px', fontSize: '10px', fontWeight: 700, textAlign: 'center', fontVariantNumeric: 'tabular-nums', lineHeight: 1, marginTop: '1px' };
 const costCellStyle = (color) => ({
-  padding: '6px 8px 15px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle', position: 'relative',
+  padding: '6px 6px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle',
   background: tint(color, 0.10)
 });
 const footTdStyle = {
