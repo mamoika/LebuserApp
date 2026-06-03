@@ -32,6 +32,19 @@ function hourWeight(hour, startH) {
   return (hour === b1 || hour === b2) ? 0.75 : 1;
 }
 
+// Łączne godziny zmiany z wartości grafiku ("8", "6-14", "6+8"); 0 dla nieobecności (jak w Grafiku pracy)
+function scheduleDayHours(value) {
+  const v = String(value || '').trim().toUpperCase();
+  if (!v || ['W', 'UW', 'L4', 'NN', 'I', 'END'].includes(v)) return 0;
+  if (v.includes('-')) {
+    const [a, b] = v.split('-');
+    const st = parseFloat(a.replace(',', '.')), en = parseFloat(b.replace(',', '.'));
+    if (!isNaN(st) && !isNaN(en)) return en >= st ? en - st : (24 - st) + en;
+  }
+  if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
+  return parseFloat(v.replace(',', '.')) || 0;
+}
+
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 const WEEKDAYS_PL = ["Nd","Pn","Wt","Śr","Cz","Pt","So"];
 
@@ -116,6 +129,7 @@ export default function CostsView() {
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
   const [timelineStats, setTimelineStats] = useState({});
+  const [laborHours, setLaborHours] = useState({}); // dateStr → łączne godziny grafiku (do kosztu pracownika)
   const [prevReadings, setPrevReadings] = useState({}); // last meter readings before this month (for day-1 baseline)
 
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -175,18 +189,23 @@ export default function CostsView() {
     });
     const startFor = (empId, dateStr) => startMap[`${empId}_${dateStr}`] ?? (empDefaultStart[empId] ?? 0);
 
-    // Timeline stats: each entry = 1 person-hour, MINUS dwie 15-min przerwy (godzina z przerwą = 0.75).
+    // Koszt pracownika: łączne godziny z Grafiku pracy per dzień (suma wszystkich osób)
+    const labor = {};
+    (sched || []).forEach(s => {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`;
+      labor[dateStr] = (labor[dateStr] || 0) + scheduleDayHours(s.value);
+    });
+    setLaborHours(labor);
+
+    // Timeline stats (wydajność): godziny stanowiskowe z osi czasu, godzina z przerwą = 0.75.
     const tStats = {};
     (timeline || []).forEach(t => {
       if (!tStats[t.entry_date]) {
         tStats[t.entry_date] = {
-          total_hours: 0,
           roles: { ZD1: { hrs: 0, emp: new Set() }, ZD2: { hrs: 0, emp: new Set() }, Kierowcy: { hrs: 0, emp: new Set() } }
         };
       }
-      // pełne godziny do kosztu pracownika (przerwy płatne), waga do wydajności
       const w = hourWeight(t.hour, startFor(t.employee_id, t.entry_date));
-      tStats[t.entry_date].total_hours += 1;
 
       // bucket by employee group; fall back to station "K" (Kierowca) for drivers
       const bucket = empBucket[t.employee_id] || (t.role === 'K' ? 'Kierowcy' : null);
@@ -276,7 +295,7 @@ export default function CostsView() {
     const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (settings.gas_heat_fixed_monthly / daysInMonth);
     const water_usage = consumptionAt(idx, 'water');
     const water_cost = water_usage * settings.water_price_m3 + (settings.water_fixed_monthly / daysInMonth);
-    const hrs = timelineStats[dStr]?.total_hours || 0;
+    const hrs = laborHours[dStr] || 0; // łączne godziny z Grafiku pracy
     const worker_cost = hrs * settings.worker_hourly_rate;
     const other_cost = d.other_costs || 0;
     const total_cost = transportCost + elec_cost + gas_prod_cost + gas_heat_cost + water_cost + worker_cost + other_cost;
