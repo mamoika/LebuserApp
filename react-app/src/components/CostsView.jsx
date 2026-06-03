@@ -784,12 +784,15 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               const isToday = dStr === todayStr;
               const c = calcDay(dStr, idx);
               const dt = dailyData[dStr] || {};
+              const rowBg = isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#EBEBEB' : '#FFFFFF';
+              const dateCellBg = isToday ? IOS_THEME.accent : isOff ? '#D5D5D5' : '#FFFFFF';
+              const dateCellColor = isToday ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary;
               return (
-                <tr key={dStr} className="costs-row" style={{ background: isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#F9F9FB' : 'transparent' }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F9F9FB' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '32px' }}>
-                      <span style={{ fontSize: '13px' }}>{String(d.getDate()).padStart(2, '0')}</span>
-                      <span style={{ fontSize: '9px', opacity: 0.7, textTransform: 'uppercase' }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                <tr key={dStr} className="costs-row" style={{ background: rowBg }}>
+                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: dateCellBg, color: dateCellColor, textAlign: 'center', minWidth: '52px' }} title={isHol ? isHol.name : ''}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2 }}>{String(d.getDate()).padStart(2, '0')}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{WEEKDAYS_PL[d.getDay()]}</span>
                     </div>
                   </td>
                   {reading(dStr, dt, 'fiat', c.fiat_km, 'km')}
@@ -812,14 +815,14 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
                   <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
                   <td style={newTdStyle}><input type="number" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
-                  <td style={{ ...newTdStyle, fontWeight: 800, background: tint(IOS_THEME.accent, 0.07), color: IOS_THEME.accent, textAlign: 'right' }}>{FMT(c.total_cost)}</td>
+                  <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'right', borderLeft: '2px solid rgba(37,99,235,0.2)', fontSize: '14px', whiteSpace: 'nowrap' }}>{FMT(c.total_cost)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left' }}>SUMA</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>SUMA</td>
               {footMeter(totals.kmFiat, 'km')}
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
@@ -838,7 +841,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               <td style={{ ...footTdStyle, color: CAT.water }}>{FMT(totals.water)}</td>
               <td style={{ ...footTdStyle, color: CAT.workers }}>{FMT(totals.workers)}</td>
               <td style={footTdStyle}>{FMT(totals.other)}</td>
-              <td style={{ ...footTdStyle, background: tint(IOS_THEME.accent, 0.12), color: IOS_THEME.accent, fontWeight: 900 }}>{FMT(totals.total)}</td>
+              <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, fontSize: '15px', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>{FMT(totals.total)}</td>
             </tr>
           </tfoot>
         </table>
@@ -994,65 +997,54 @@ const segmentBtnStyle = {
   padding: '6px 18px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
 };
 const newThStyle = {
-  padding: '16px 8px', textAlign: 'center', fontWeight: 600, fontSize: '12px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.5px'
+  padding: '12px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
 };
 const newTdStyle = {
-  padding: '10px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums'
+  padding: '10px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
 };
 const newInpStyle = {
-  width: '100%', padding: '8px 4px', border: 'none', background: 'transparent', borderRadius: '8px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.2s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
+  width: '100%', padding: '7px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
 };
 const rateInpStyle = {
-  width: '90px', padding: '6px 8px', border: 'none', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
+  width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
 };
 const costCellStyle = (color) => ({
-  padding: '10px 8px', fontSize: '13px', fontWeight: 600, color, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'
+  padding: '10px 8px', fontSize: '13px', fontWeight: 700, color, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle'
 });
 const footTdStyle = {
-  padding: '16px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums'
+  padding: '14px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
 };
 
 const COSTS_CSS = `
 .costs-table { font-variant-numeric: tabular-nums; }
 .costs-table thead th.sticky-head {
   position: sticky; top: 0; z-index: 3;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid ${IOS_THEME.border};
+  background: #FFFFFF;
+  border-bottom: 2px solid rgba(0,0,0,0.1);
 }
 .costs-table tbody tr {
-  background: #FFFFFF;
-  transition: all 0.2s ease;
-}
-.costs-table tbody tr:hover {
-  background: #F9FAFB !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-  transform: scale(1.002);
-  z-index: 10;
-  position: relative;
+  transition: filter 0.15s ease;
 }
 .costs-table tbody td {
-  border-bottom: 1px solid rgba(0,0,0,0.03);
+  border-bottom: 1px solid rgba(0,0,0,0.07);
 }
-.costs-table tbody tr:last-child td { border-bottom: none; }
-.costs-table thead th { border-bottom: 1px solid ${IOS_THEME.border}; }
+.costs-table thead th { border-bottom: 2px solid rgba(0,0,0,0.1); }
 .costs-table .sticky-col {
   position: sticky; left: 0; z-index: 2;
-  background: inherit;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.07);
 }
-.costs-table thead th.sticky-col { z-index: 4; background: rgba(255, 255, 255, 0.95); }
+.costs-table thead th.sticky-col { z-index: 4; background: #FFFFFF; }
 .costs-foot td {
   position: sticky; bottom: 0; z-index: 3;
-  background: #F9FAFB;
-  border-top: 1px solid rgba(0,0,0,0.06);
+  border-top: 2px solid rgba(0,0,0,0.15);
 }
-.costs-foot td.sticky-col { z-index: 5; background: #F9FAFB; }
+.costs-foot td.sticky-col { z-index: 5; }
 .costs-inp:focus {
   background: #FFFFFF !important;
-  box-shadow: 0 0 0 2px ${IOS_THEME.accent};
-  border: none !important;
+  border-color: ${IOS_THEME.accent} !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
 }
-.costs-inp:hover { background: rgba(0,0,0,0.03); }
+.costs-inp:hover { background: rgba(0,0,0,0.07) !important; }
 .costs-save-btn:not(:disabled):active { transform: scale(0.96); }
 .costs-inp::-webkit-outer-spin-button,
 .costs-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
