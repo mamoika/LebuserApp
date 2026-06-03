@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { toastError } from '../lib/toast';
+import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 
 const ROLES = {
   "T":  { bg: "#607D8B", fc: "#fff", name: "Tunnel" },
@@ -99,10 +99,28 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
   };
 }
 
+function isHourInShift(h, startH, endH) {
+  if (startH <= endH) return h >= Math.floor(startH) && h < Math.ceil(endH);
+  return h >= Math.floor(startH) || h < Math.ceil(endH);
+}
+
+// Zmiana danej osoby w danym dniu (godziny, czy pracuje, potwierdzona, status nieobecności)
+function getEmpDayShift(emp, scheduleMap, dateStr) {
+  const sched = scheduleMap[`${emp.id}_${dateStr}`];
+  const dow = new Date(dateStr + 'T00:00:00').getDay();
+  const isWe = dow === 0 || dow === 6;
+  const startH = sched ? sched.start : parseHour(emp.default_start);
+  const endH = sched ? sched.end : parseHour(emp.default_end);
+  const working = sched ? sched.working : !isWe;
+  const confirmed = sched ? sched.confirmed : false;
+  const dayStatus = sched?.status || null;
+  return { startH, endH, working, confirmed, dayStatus };
+}
+
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
   emp, weekDays, todayStr, scheduleMap, entries, isAdmin, rowBg,
-  brushRole, onBrushCell, isPaintingRef
+  brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   let empWeekHours = 0;
   let empWeekDays = 0;
@@ -124,12 +142,21 @@ const TimelineRow = React.memo(({
       if (schedHours > 0) empWeekDays += 1;
     }
 
+    const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
+    const canCopyHere = copyMode && isAdmin && working && !dayStatus;
+
     return (
       <React.Fragment key={di}>
-        <td className="tl-sum-col" style={{
-          background: dayStatus ? (statusSt?.bg || '#f5f5f7') : working ? 'var(--accent-green-light)' : '#f5f5f7',
-          color: dayStatus ? (statusSt?.color || '#ccc') : working ? 'var(--accent-green)' : '#ccc',
-        }}>
+        <td className="tl-sum-col"
+          onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
+          title={canCopyHere ? (copySource ? 'Kliknij, aby wkleić tutaj' : 'Kliknij, aby skopiować ten dzień') : undefined}
+          style={{
+            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : working ? 'var(--accent-green-light)' : '#f5f5f7',
+            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : working ? 'var(--accent-green)' : '#ccc',
+            cursor: canCopyHere ? 'copy' : 'default',
+            outline: isCopySource ? '2px solid var(--accent)' : 'none',
+            boxShadow: copyMode && copySource && canCopyHere && !isCopySource ? 'inset 0 0 0 1px var(--accent)' : 'none',
+          }}>
           {dayStatus || (working ? schedHours : '')}
         </td>
         {HOURS.map(h => {
@@ -195,6 +222,8 @@ const TimelineRow = React.memo(({
   if (prev.emp.id !== next.emp.id) return false;
   if (prev.isAdmin !== next.isAdmin) return false;
   if (prev.brushRole !== next.brushRole) return false;
+  if (prev.copyMode !== next.copyMode) return false;
+  if (prev.copySource !== next.copySource) return false;
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
@@ -227,6 +256,8 @@ export default function TimelineView() {
   const [scheduleMap, setScheduleMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [brushRole, setBrushRole] = useState(null);
+  const [copyMode, setCopyMode] = useState(false);
+  const [copySource, setCopySource] = useState(null); // `${empId}_${dateStr}` | null
   const isPainting = useRef(false);
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
   const containerRef = useRef(null);
@@ -289,13 +320,16 @@ export default function TimelineView() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Brush mode: keyboard escape to exit
+  // Brush / copy mode: keyboard escape to exit
   useEffect(() => {
-    if (!brushRole) return;
-    const onKey = (e) => { if (e.key === 'Escape') setBrushRole(null); };
+    if (!brushRole && !copyMode) return;
+    const onKey = (e) => { if (e.key === 'Escape') { setBrushRole(null); setCopyMode(false); setCopySource(null); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [brushRole]);
+  }, [brushRole, copyMode]);
+
+  // Zmiana tygodnia kasuje zaznaczone źródło kopiowania
+  useEffect(() => { setCopySource(null); }, [monday]);
 
   // Stop painting on mouseup anywhere
   useEffect(() => {
@@ -354,6 +388,59 @@ export default function TimelineView() {
       toastError('Nie udało się zapisać — spróbuj ponownie');
     }
   }, [isAdmin, brushRole, entries, user]);
+
+  // Kopiowanie dnia jednej osoby na inny dzień (tryb "dołóż")
+  const handleCopyClick = useCallback(async (empId, dateStr) => {
+    if (!isAdmin) return;
+    const srcKey = `${empId}_${dateStr}`;
+    // pierwszy klik (lub klik w to samo źródło) — ustaw/wyczyść źródło
+    if (!copySource || copySource === srcKey) {
+      setCopySource(copySource === srcKey ? null : srcKey);
+      return;
+    }
+    // drugi klik = cel; wklejamy źródło na ten dzień tej osoby
+    const [srcEmpId, srcDateStr] = copySource.split('_');
+    const tgtEmp = employees.find(e => e.id === empId);
+    if (!tgtEmp) return;
+
+    const tShift = getEmpDayShift(tgtEmp, scheduleMap, dateStr);
+    if (tShift.dayStatus || !tShift.working) { toastWarn('Dzień docelowy jest wolny lub to nieobecność'); return; }
+    if (!tShift.confirmed) { toastWarn('Dzień docelowy nie jest potwierdzony'); return; }
+
+    // godziny ze źródła, które mieszczą się w zmianie docelowej
+    const toWrite = [];
+    for (const h of HOURS) {
+      const role = entries[`${srcEmpId}_${srcDateStr}_${h}`];
+      if (!role) continue;
+      if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
+      toWrite.push({ h, role });
+    }
+    if (!toWrite.length) { toastWarn('Brak godzin do skopiowania w grafiku docelowym'); return; }
+
+    const prevValues = toWrite.map(({ h }) => ({ h, role: entries[`${empId}_${dateStr}_${h}`] }));
+    setEntries(prev => {
+      const next = { ...prev };
+      toWrite.forEach(({ h, role }) => { next[`${empId}_${dateStr}_${h}`] = role; });
+      return next;
+    });
+
+    const results = await Promise.all(toWrite.map(({ h, role }) =>
+      supabase.from('timeline_entries').upsert(
+        { employee_id: empId, entry_date: dateStr, hour: h, role, updated_at: new Date().toISOString(), updated_by: user?.name },
+        { onConflict: 'employee_id,entry_date,hour' }
+      )
+    ));
+    if (results.some(r => r.error)) {
+      setEntries(prev => {
+        const next = { ...prev };
+        prevValues.forEach(({ h, role }) => { if (role) next[`${empId}_${dateStr}_${h}`] = role; else delete next[`${empId}_${dateStr}_${h}`]; });
+        return next;
+      });
+      toastError('Nie udało się skopiować — spróbuj ponownie');
+    } else {
+      toastSuccess(`Skopiowano ${toWrite.length} godz. → ${tgtEmp.name}, ${fmtDate(new Date(dateStr + 'T00:00:00'))}`);
+    }
+  }, [isAdmin, copySource, employees, scheduleMap, entries, user]);
 
   const prevWeek = () => setMonday(m => addDays(m, -7));
   const nextWeek = () => setMonday(m => addDays(m, 7));
@@ -426,7 +513,7 @@ export default function TimelineView() {
           {Object.entries(ROLES).map(([key, r]) => {
             const isActive = brushRole === key;
             return (
-              <button key={key} onClick={() => setBrushRole(isActive ? null : key)} style={{
+              <button key={key} onClick={() => { setBrushRole(isActive ? null : key); setCopyMode(false); setCopySource(null); }} style={{
                 background: isActive ? r.bg : `${r.bg}18`,
                 color: isActive ? r.fc : r.bg,
                 border: isActive ? `2px solid ${r.bg}` : '2px solid transparent',
@@ -440,7 +527,7 @@ export default function TimelineView() {
             );
           })}
           <div style={{ width: '1px', height: '20px', background: 'var(--border-strong)', margin: '0 4px' }} />
-          <button onClick={() => setBrushRole(brushRole === '__erase__' ? null : '__erase__')} style={{
+          <button onClick={() => { setBrushRole(brushRole === '__erase__' ? null : '__erase__'); setCopyMode(false); setCopySource(null); }} style={{
             background: brushRole === '__erase__' ? '#ef4444' : 'rgba(239,68,68,0.1)',
             color: brushRole === '__erase__' ? '#fff' : '#ef4444',
             border: brushRole === '__erase__' ? '2px solid #ef4444' : '2px solid transparent',
@@ -460,10 +547,39 @@ export default function TimelineView() {
               Esc / wyłącz
             </button>
           )}
-          {!brushRole && (
+          {!brushRole && !copyMode && (
             <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', marginLeft: '4px' }}>
               Wybierz stanowisko i maluj po komórkach
             </span>
+          )}
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-strong)', margin: '0 4px' }} />
+          <button onClick={() => { setCopyMode(m => !m); setCopySource(null); setBrushRole(null); }} style={{
+            background: copyMode ? 'var(--accent)' : 'var(--accent-light, rgba(0,122,255,0.12))',
+            color: copyMode ? '#fff' : 'var(--accent)',
+            border: copyMode ? '2px solid var(--accent)' : '2px solid transparent',
+            borderRadius: '10px', padding: '4px 10px',
+            fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+            boxShadow: copyMode ? '0 0 0 3px rgba(0,122,255,0.25)' : 'none',
+            transform: copyMode ? 'scale(1.08)' : 'scale(1)',
+          }}>
+            📋 Kopiuj dzień
+          </button>
+          {copyMode && (
+            <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginLeft: '4px', fontWeight: 600 }}>
+              {copySource
+                ? 'Kliknij dzień docelowy (kolumnę Σ), aby wkleić. Można wkleić na kilka dni.'
+                : 'Kliknij dzień źródłowy w kolumnie Σ przy osobie.'}
+            </span>
+          )}
+          {copyMode && (
+            <button onClick={() => { setCopyMode(false); setCopySource(null); }} style={{
+              background: 'transparent', color: 'var(--text-tertiary)',
+              border: '1px dashed var(--border-strong)', borderRadius: '10px', padding: '4px 10px',
+              fontSize: '11px', cursor: 'pointer', marginLeft: '4px',
+            }}>
+              Esc / wyłącz
+            </button>
           )}
         </div>
       )}
@@ -539,6 +655,9 @@ export default function TimelineView() {
                     brushRole={brushRole}
                     onBrushCell={handleBrushCell}
                     isPaintingRef={isPainting}
+                    copyMode={copyMode}
+                    copySource={copySource}
+                    onCopyClick={handleCopyClick}
                   />
                 );
               })}
