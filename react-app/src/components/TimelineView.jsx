@@ -137,10 +137,10 @@ const TimelineRow = React.memo(({
     const breakCell1 = Math.floor(startH + 3);
     const breakCell2 = Math.floor(startH + 6);
     const holiday = isHoliday(d);
-    const working = sched ? sched.working : (!isWe && !holiday);
+    const working = sched ? sched.working : false;
     const confirmed = sched ? sched.confirmed : false;
-    // bez wpisu w grafiku: weekend/święto = wolne (szare), dzień powszedni = domyślnie pracuje
-    const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : undefined);
+    // Brak wpisu = domyślna wartość grafiku: weekend/święto → 'W' (wolne), powszedni → 'I' (Planowany)
+    const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : 'I');
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
     const schedHours = working ? Math.round((endH >= startH ? endH - startH : 24 - startH + endH) * 10) / 10 : 0;
 
@@ -305,7 +305,8 @@ export default function TimelineView() {
       if (!dayDate) return;
       const ds = toDateStr(dayDate);
       const v = String(e.value || '').toUpperCase();
-      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'END';
+      // 'I' (Planowany/na zleceniu) = jeszcze nie pracuje → nie liczony, nie malowalny, ale oznaczony
+      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'END' && v !== 'I';
       let finalStart = parseHour(emp.default_start), finalEnd = parseHour(emp.default_end);
       if (isWorking && v) {
         if (v.includes('-')) {
