@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays } from 'lucide-react';
+import { isHoliday } from '../utils/holidays';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -755,16 +756,18 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
           <tbody>
             {days.map((dStr, idx) => {
               const d = new Date(dStr);
-              const isOff = d.getDay() === 0 || d.getDay() === 6;
+              const isHol = isHoliday(d);
+              const isWe = d.getDay() === 0 || d.getDay() === 6;
+              const isOff = isWe || !!isHol;
               const isToday = dStr === todayStr;
               const c = calcDay(dStr, idx);
               const dt = dailyData[dStr] || {};
               return (
-                <tr key={dStr} className="costs-row" style={{ background: isToday ? tint(IOS_THEME.accent, 0.06) : isOff ? 'rgba(60, 60, 67, 0.03)' : 'transparent' }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, color: isOff ? IOS_THEME.textSecondary : IOS_THEME.textPrimary }}>
+                <tr key={dStr} className="costs-row" style={{ background: isToday ? opaqueTint(IOS_THEME.accent, 0.08) : isOff ? '#F4F4F6' : 'transparent' }}>
+                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F4F4F6' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
                     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '5px' }}>
                       {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: isOff ? CAT.transport : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? 'rgba(255,255,255,0.85)' : isOff ? '#D32F2F' : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
                     </span>
                   </td>
                   {reading(dStr, dt, 'fiat', c.fiat_km, 'km')}
@@ -888,7 +891,9 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
           <tbody>
             {days.map(dStr => {
               const d = new Date(dStr);
-              const isOff = d.getDay() === 0 || d.getDay() === 6;
+              const isHol = isHoliday(d);
+              const isWe = d.getDay() === 0 || d.getDay() === 6;
+              const isOff = isWe || !!isHol;
               const isToday = dStr === todayStr;
               const dt = dailyData[dStr] || {};
               const ts = timelineStats[dStr]?.roles || {};
@@ -903,11 +908,11 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
               const effZd2 = hZd2 > 0 ? kgZd2pr / hZd2 : 0;
               const effAll = h_suma > 0 ? t_suma / h_suma : 0;
               return (
-                <tr key={dStr} className="costs-row" style={{ background: isToday ? tint(IOS_THEME.accent, 0.06) : isOff ? 'rgba(60, 60, 67, 0.03)' : 'transparent' }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, color: isOff ? IOS_THEME.textSecondary : IOS_THEME.textPrimary }}>
+                <tr key={dStr} className="costs-row" style={{ background: isToday ? opaqueTint(IOS_THEME.accent, 0.08) : isOff ? '#F4F4F6' : 'transparent' }}>
+                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F4F4F6' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
                     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '5px' }}>
                       {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: isOff ? CAT.transport : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? 'rgba(255,255,255,0.85)' : isOff ? '#D32F2F' : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
                     </span>
                   </td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
