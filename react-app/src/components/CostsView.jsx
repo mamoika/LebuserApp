@@ -57,16 +57,16 @@ const FMT3 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleStr
 
 // iOS 18 Design Constants
 const IOS_THEME = {
-  bg: '#F2F2F7',
+  bg: '#F9FAFB',
   cardBg: '#FFFFFF',
-  textPrimary: '#000000',
-  textSecondary: '#3C3C4399',
-  accent: '#007AFF',
-  success: '#34C759',
-  warning: '#FF9500',
-  border: 'rgba(60, 60, 67, 0.12)',
-  radius: '16px',
-  shadow: '0 4px 20px rgba(0,0,0,0.06)'
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  accent: '#2563EB',
+  success: '#10B981',
+  warning: '#F59E0B',
+  border: 'rgba(0, 0, 0, 0.08)',
+  radius: '20px',
+  shadow: '0 10px 30px rgba(0,0,0,0.04)'
 };
 
 // Category colors
@@ -761,18 +761,18 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {meterTh(<Truck size={13}/>, 'Isuzu')}
               {meterTh(<Truck size={13}/>, 'Merc.')}
               {meterTh(<Truck size={13}/>, 'Iveco')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>Koszt Auta</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport }}>Koszt Auta</th>
               {meterTh(<Zap size={13}/>, 'Prąd')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.08) }}>Koszt Prąd</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec }}>Koszt Prąd</th>
               {meterTh(<Flame size={13}/>, 'Gaz prod.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.08) }}>Koszt prod.</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas }}>Koszt prod.</th>
               {meterTh(<Flame size={13}/>, 'Gaz grz.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.08) }}>Koszt grz.</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C' }}>Koszt grz.</th>
               {meterTh(<Droplet size={13}/>, 'Woda')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.08) }}>Koszt Woda</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Ludzie</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water }}>Koszt Woda</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers }}>Ludzie</th>
               <th className="sticky-head" style={newThStyle}>Inne</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, background: opaqueTint(IOS_THEME.accent, 0.1), fontWeight: 800 }}>SUMA</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.textPrimary, fontWeight: 800 }}>SUMA</th>
             </tr>
           </thead>
           <tbody>
@@ -785,12 +785,12 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               const c = calcDay(dStr, idx);
               const dt = dailyData[dStr] || {};
               return (
-                <tr key={dStr} className="costs-row" style={{ background: isToday ? opaqueTint(IOS_THEME.accent, 0.08) : isOff ? '#F4F4F6' : 'transparent' }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F4F4F6' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
-                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '5px' }}>
-                      {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? 'rgba(255,255,255,0.85)' : isOff ? '#D32F2F' : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
-                    </span>
+                <tr key={dStr} className="costs-row" style={{ background: isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#F9F9FB' : 'transparent' }}>
+                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F9F9FB' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '32px' }}>
+                      <span style={{ fontSize: '13px' }}>{String(d.getDate()).padStart(2, '0')}</span>
+                      <span style={{ fontSize: '9px', opacity: 0.7, textTransform: 'uppercase' }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                    </div>
                   </td>
                   {reading(dStr, dt, 'fiat', c.fiat_km, 'km')}
                   {reading(dStr, dt, 'isuzu', c.isuzu_km, 'km')}
@@ -994,54 +994,65 @@ const segmentBtnStyle = {
   padding: '6px 18px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
 };
 const newThStyle = {
-  padding: '12px 8px', textAlign: 'center', fontWeight: 600, fontSize: '12px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap'
+  padding: '16px 8px', textAlign: 'center', fontWeight: 600, fontSize: '12px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.5px'
 };
 const newTdStyle = {
-  padding: '8px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums'
+  padding: '10px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums'
 };
 const newInpStyle = {
-  width: '100%', padding: '6px 4px', border: '1px solid transparent', background: 'rgba(60, 60, 67, 0.05)', borderRadius: '6px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
+  width: '100%', padding: '8px 4px', border: 'none', background: 'transparent', borderRadius: '8px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.2s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
 };
 const rateInpStyle = {
-  width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(60, 60, 67, 0.05)', borderRadius: '6px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
+  width: '90px', padding: '6px 8px', border: 'none', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
 };
 const costCellStyle = (color) => ({
-  padding: '8px 8px', fontSize: '13px', fontWeight: 600, color, textAlign: 'right', background: tint(color, 0.045), fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'
+  padding: '10px 8px', fontSize: '13px', fontWeight: 600, color, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'
 });
 const footTdStyle = {
-  padding: '12px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums'
+  padding: '16px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums'
 };
 
 const COSTS_CSS = `
 .costs-table { font-variant-numeric: tabular-nums; }
 .costs-table thead th.sticky-head {
   position: sticky; top: 0; z-index: 3;
-  background: #F9F9FB;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid ${IOS_THEME.border};
 }
-.costs-table tbody td, .costs-table thead th, .costs-table tfoot td {
-  border-bottom: 1px solid ${IOS_THEME.border};
+.costs-table tbody tr {
+  background: #FFFFFF;
+  transition: all 0.2s ease;
 }
+.costs-table tbody tr:hover {
+  background: #F9FAFB !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  transform: scale(1.002);
+  z-index: 10;
+  position: relative;
+}
+.costs-table tbody td {
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+.costs-table tbody tr:last-child td { border-bottom: none; }
+.costs-table thead th { border-bottom: 1px solid ${IOS_THEME.border}; }
 .costs-table .sticky-col {
   position: sticky; left: 0; z-index: 2;
-  background: #FFFFFF;
-  box-shadow: 1px 0 0 ${IOS_THEME.border};
+  background: inherit;
 }
-.costs-table thead th.sticky-col { z-index: 4; background: #F9F9FB; }
-.costs-row:hover td { background: ${tint(IOS_THEME.accent, 0.05)} !important; }
-.costs-row:hover .sticky-col { background: ${tint(IOS_THEME.accent, 0.08)} !important; }
+.costs-table thead th.sticky-col { z-index: 4; background: rgba(255, 255, 255, 0.95); }
 .costs-foot td {
   position: sticky; bottom: 0; z-index: 3;
-  background: #F2F2F7;
-  border-top: 2px solid ${IOS_THEME.border};
+  background: #F9FAFB;
+  border-top: 1px solid rgba(0,0,0,0.06);
 }
-.costs-foot td.sticky-col { z-index: 5; background: #ECECF2; }
+.costs-foot td.sticky-col { z-index: 5; background: #F9FAFB; }
 .costs-inp:focus {
   background: #FFFFFF !important;
-  border-color: ${IOS_THEME.accent} !important;
-  box-shadow: 0 0 0 3px ${tint(IOS_THEME.accent, 0.15)};
+  box-shadow: 0 0 0 2px ${IOS_THEME.accent};
+  border: none !important;
 }
-.costs-inp:hover { background: rgba(60,60,67,0.09); }
+.costs-inp:hover { background: rgba(0,0,0,0.03); }
 .costs-save-btn:not(:disabled):active { transform: scale(0.96); }
 .costs-inp::-webkit-outer-spin-button,
 .costs-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
