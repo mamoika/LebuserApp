@@ -99,55 +99,9 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
   };
 }
 
-function RolePicker({ onSelect, onClear, onClose, selCount }) {
-  return (
-    <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, backdropFilter: 'blur(4px)' }} onClick={onClose} />
-      <div style={{
-        position: 'fixed', zIndex: 10000, background: 'var(--bg-card)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)',
-        border: '1px solid var(--border-strong)', borderRadius: '24px', padding: '24px',
-        boxShadow: '0 24px 48px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1) inset',
-        top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '340px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Wybierz stanowisko
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700, marginTop: '2px' }}>
-              Zaznaczono {selCount} {selCount === 1 ? 'komórkę' : (selCount > 1 && selCount < 5 ? 'komórki' : 'komórek')}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', fontSize: '20px', cursor: 'pointer', padding: '4px' }}>&times;</button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
-          {Object.entries(ROLES).map(([key, r]) => (
-            <button key={key} onClick={() => onSelect(key)} style={{
-              background: `${r.bg}15`, color: r.bg,
-              border: `none`, borderRadius: '14px', padding: '12px 4px',
-              fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
-            }} onMouseEnter={(e) => { e.currentTarget.style.background = `${r.bg}25`; e.currentTarget.style.transform = 'scale(1.05)'; }}
-               onMouseLeave={(e) => { e.currentTarget.style.background = `${r.bg}15`; e.currentTarget.style.transform = 'scale(1)'; }}>
-              <span style={{ fontSize: '15px' }}>{key}</span>
-              <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.9 }}>{r.name.slice(0, 7)}</span>
-            </button>
-          ))}
-        </div>
-        <button onClick={onClear} style={{
-          width: '100%', background: 'var(--accent-red-light)', color: 'var(--accent-red)',
-          border: 'none', borderRadius: '14px', padding: '14px',
-          fontSize: '14px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)'
-        }} onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(0.95)'}
-           onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}>Wyczyść zaznaczone</button>
-      </div>
-    </>
-  );
-}
-
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, todayStr, scheduleMap, entries, selectedCells, isAdmin, onCellClick, rowBg,
+  emp, weekDays, todayStr, scheduleMap, entries, isAdmin, rowBg,
   brushRole, onBrushCell, isPaintingRef
 }) => {
   let empWeekHours = 0;
@@ -181,7 +135,6 @@ const TimelineRow = React.memo(({
         {HOURS.map(h => {
           const key = `${emp.id}_${dateStr}_${h}`;
           const role = entries[key];
-          const isSelected = selectedCells.has(key);
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
             : getCellBackground(h, startH, endH, working, role, confirmed);
@@ -193,13 +146,11 @@ const TimelineRow = React.memo(({
             isShiftHour = h >= Math.floor(startH) || h < Math.ceil(endH);
           }
 
-          const isSelectable = isAdmin && !dayStatus && working && isShiftHour && confirmed;
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
 
           return (
             <td key={h}
-              className={`tl-cell ${isSelected ? 'selected' : ''} ${isSelectable && !brushRole ? 'selectable' : ''} ${isBrushable ? 'brushable' : ''}`}
-              onClick={() => !brushRole && isSelectable && onCellClick(emp.id, dateStr, h, dayStatus)}
+              className={`tl-cell ${isBrushable ? 'brushable' : ''}`}
               onMouseDown={() => {
                 if (!isBrushable) return;
                 isPaintingRef.current = true;
@@ -213,7 +164,7 @@ const TimelineRow = React.memo(({
                 if (!brushRole || !isAdmin) return;
                 e.preventDefault();
               }}
-              style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : isSelectable && !brushRole ? 'pointer' : 'default' }}
+              style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
               <div className="tl-cell-inner" style={cellStyle}>
                 {!dayStatus && (role || '')}
@@ -250,7 +201,6 @@ const TimelineRow = React.memo(({
     for (let h of HOURS) {
       const key = `${next.emp.id}_${dateStr}_${h}`;
       if (prev.entries[key] !== next.entries[key]) return false;
-      if (prev.selectedCells.has(key) !== next.selectedCells.has(key)) return false;
     }
   }
   return true;
@@ -276,8 +226,6 @@ export default function TimelineView() {
   const [entries, setEntries] = useState({});
   const [scheduleMap, setScheduleMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedCells, setSelectedCells] = useState(new Set());
-  const [showPicker, setShowPicker] = useState(false);
   const [brushRole, setBrushRole] = useState(null);
   const isPainting = useRef(false);
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
@@ -340,7 +288,6 @@ export default function TimelineView() {
   }, [monday]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { setSelectedCells(new Set()); }, [monday]);
 
   // Brush mode: keyboard escape to exit
   useEffect(() => {
@@ -410,59 +357,6 @@ export default function TimelineView() {
 
   const prevWeek = () => setMonday(m => addDays(m, -7));
   const nextWeek = () => setMonday(m => addDays(m, 7));
-
-  const handleCellClick = useCallback((empId, dateStr, hour, dayStatus) => {
-    if (!isAdmin || dayStatus) return;
-    const key = `${empId}_${dateStr}_${hour}`;
-    setSelectedCells(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  }, [isAdmin]);
-
-  const handleAssign = async (role) => {
-    const parsed = [...selectedCells].map(key => {
-      const parts = key.split('_');
-      const hour = parseInt(parts[parts.length - 1]);
-      const dateStr = parts.slice(1, parts.length - 1).join('_');
-      const empId = parts[0];
-      return { key, empId, dateStr, hour };
-    });
-
-    const newEntries = { ...entries };
-    for (const { key } of parsed) {
-      newEntries[key] = role;
-    }
-    setEntries(newEntries);
-
-    await Promise.all(parsed.map(({ empId, dateStr, hour }) =>
-      supabase.from('timeline_entries').upsert(
-        { employee_id: empId, entry_date: dateStr, hour, role, updated_at: new Date().toISOString(), updated_by: user?.name },
-        { onConflict: 'employee_id,entry_date,hour' }
-      )
-    ));
-    setSelectedCells(new Set());
-    setShowPicker(false);
-  };
-
-  const handleClear = async () => {
-    const parsed = [...selectedCells].map(key => {
-      const parts = key.split('_');
-      const hour = parseInt(parts[parts.length - 1]);
-      const dateStr = parts.slice(1, parts.length - 1).join('_');
-      const empId = parts[0];
-      return { key, empId, dateStr, hour };
-    });
-    const newEntries = { ...entries };
-    for (const { key } of parsed) delete newEntries[key];
-    setEntries(newEntries);
-    await Promise.all(parsed.map(({ empId, dateStr, hour }) =>
-      supabase.from('timeline_entries').delete().eq('employee_id', empId).eq('entry_date', dateStr).eq('hour', hour)
-    ));
-    setSelectedCells(new Set());
-    setShowPicker(false);
-  };
 
   const groups = useMemo(() => {
     const grps = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
@@ -640,9 +534,7 @@ export default function TimelineView() {
                     todayStr={todayStr}
                     scheduleMap={scheduleMap}
                     entries={entries}
-                    selectedCells={selectedCells}
                     isAdmin={isAdmin}
-                    onCellClick={handleCellClick}
                     rowBg={rowBg}
                     brushRole={brushRole}
                     onBrushCell={handleBrushCell}
@@ -805,27 +697,6 @@ export default function TimelineView() {
       <div className="print-hide" style={{ fontSize: '11px', color: 'var(--text-quaternary)', textAlign: 'right' }}>
         Tydzień {weekNum} · {employees.length} pracowników
       </div>
-
-      {/* Floating Action Bar */}
-      <div className={`tl-floating-bar ${selectedCells.size > 0 ? 'visible' : ''}`}>
-        <div className="tl-fb-count">
-          <span>{selectedCells.size}</span> zaznaczono
-        </div>
-        <div className="tl-fb-actions">
-          <button className="tl-fb-btn primary" onClick={() => setShowPicker(true)}>Przypisz stanowisko</button>
-          <button className="tl-fb-btn danger" onClick={handleClear}>Wyczyść komórki</button>
-          <button className="tl-fb-btn" onClick={() => setSelectedCells(new Set())}>Anuluj</button>
-        </div>
-      </div>
-
-      {showPicker && (
-        <RolePicker
-          selCount={selectedCells.size}
-          onSelect={handleAssign}
-          onClear={handleClear}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
     </div>
   );
 }
