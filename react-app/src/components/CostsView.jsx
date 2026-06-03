@@ -814,7 +814,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'water', c.water_usage, 'm³')}
                   <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
                   <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
-                  <td style={newTdStyle}><input type="number" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
+                  <td style={newTdStyle}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'right', borderLeft: '2px solid rgba(37,99,235,0.2)', fontSize: '14px', whiteSpace: 'nowrap' }}>{FMT(c.total_cost)}</td>
                 </tr>
               );
