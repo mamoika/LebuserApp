@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { toastError } from '../lib/toast';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays } from 'lucide-react';
 
 function toDateStr(d) {
@@ -131,8 +132,21 @@ export default function CostsView() {
   const [timelineStats, setTimelineStats] = useState({});
   const [laborHours, setLaborHours] = useState({}); // dateStr → łączne godziny grafiku (do kosztu pracownika)
   const [prevReadings, setPrevReadings] = useState({}); // last meter readings before this month (for day-1 baseline)
+  const [autoSave, setAutoSave] = useState('idle'); // 'idle' | 'saving' | 'saved'
+
+  // Refy z najświeższym stanem (do auto-zapisu z debounce)
+  const dailyDataRef = useRef(dailyData);
+  const settingsRef = useRef(settings);
+  useEffect(() => { dailyDataRef.current = dailyData; }, [dailyData]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const dirtyDays = useRef(new Set());
+  const dirtySettings = useRef(false);
+  const dirtySettingsMonthKey = useRef(null);
+  const saveTimer = useRef(null);
 
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  const monthKeyRef = useRef(monthKey);
+  useEffect(() => { monthKeyRef.current = monthKey; }, [monthKey]);
 
   const fetchData = useCallback(async () => {
     if (!isAdmin) return;
@@ -236,17 +250,57 @@ export default function CostsView() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
+  const flushSave = useCallback(async () => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const days = [...dirtyDays.current];
+    const setDirty = dirtySettings.current;
+    const setKey = dirtySettingsMonthKey.current;
+    if (!days.length && !setDirty) return;
+    dirtyDays.current.clear();
+    dirtySettings.current = false;
+    setAutoSave('saving');
+    try {
+      if (setDirty && setKey) {
+        await supabase.from('cost_settings').upsert({ ...settingsRef.current, month_key: setKey, updated_at: new Date().toISOString() });
+      }
+      const rows = days
+        .map(ds => dailyDataRef.current[ds])
+        .filter(d => d && Object.keys(d).length > 1)
+        .map(d => ({ ...d, updated_at: new Date().toISOString() }));
+      if (rows.length) await supabase.from('daily_costs').upsert(rows);
+      setAutoSave('saved');
+      setTimeout(() => setAutoSave(s => (s === 'saved' ? 'idle' : s)), 1500);
+    } catch {
+      setAutoSave('idle');
+      toastError('Auto-zapis nie powiódł się');
+    }
+  }, []);
+
+  const scheduleAutoSave = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { flushSave(); }, 700);
+  }, [flushSave]);
+
+  // Zapisz oczekujące zmiany przy zmianie miesiąca / odmontowaniu
+  useEffect(() => () => { flushSave(); }, [monthKey, flushSave]);
+
   const handleCostChange = (dateStr, field, value) => {
     const num = value === '' ? null : parseFloat(value);
     setDailyData(prev => ({
       ...prev,
       [dateStr]: { ...prev[dateStr], entry_date: dateStr, [field]: num }
     }));
+    dirtyDays.current.add(dateStr);
+    scheduleAutoSave();
   };
 
   const handleSettingChange = (field, value) => {
     const num = value === '' ? null : parseFloat(value);
     setSettings(prev => ({ ...prev, [field]: num }));
+    dirtySettings.current = true;
+    dirtySettingsMonthKey.current = monthKey;
+    scheduleAutoSave();
   };
 
   const saveAll = async () => {
@@ -391,12 +445,13 @@ export default function CostsView() {
           <button onClick={() => setShowRates(v => !v)} title="Stawki" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
             <Settings size={16}/> Stawki
           </button>
-          <button onClick={saveAll} disabled={saving} className="costs-save-btn" style={{
-            display: 'flex', alignItems: 'center', gap: '8px', background: IOS_THEME.success, color: '#fff',
-            border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '14px',
-            cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1
+          <button onClick={saveAll} disabled={saving} className="costs-save-btn" title="Zapisz wszystko teraz" style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: autoSave === 'saved' ? IOS_THEME.success : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.success,
+            color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '14px',
+            cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.2s'
           }}>
-            <Save size={18}/> {saving ? 'Zapisuję...' : 'Zapisz'}
+            <Save size={18}/> {saving ? 'Zapisuję...' : autoSave === 'saving' ? 'Auto-zapis…' : autoSave === 'saved' ? 'Zapisano ✓' : 'Zapisz'}
           </button>
         </div>
       </div>
