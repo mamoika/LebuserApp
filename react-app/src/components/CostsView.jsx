@@ -129,6 +129,13 @@ const effStyle = (val, thr) => {
   if (!(val > 0)) return null;
   return val < thr.slaba ? EFF_COLORS.slaba : val < thr.srednia ? EFF_COLORS.srednia : val < thr.dobra ? EFF_COLORS.dobra : EFF_COLORS.bdb;
 };
+// Pasma wydajności: id, etykieta, kolor + granice przedziału od/do (klucze w progach; null = 0 / ∞)
+const PERF_BANDS = [
+  { id: 'slaba',   label: 'Słaba',        c: EFF_COLORS.slaba,   from: null,      to: 'slaba'   },
+  { id: 'srednia', label: 'Średnia',      c: EFF_COLORS.srednia, from: 'slaba',   to: 'srednia' },
+  { id: 'dobra',   label: 'Dobra',        c: EFF_COLORS.dobra,   from: 'srednia', to: 'dobra'   },
+  { id: 'bdb',     label: 'Bardzo dobra', c: EFF_COLORS.bdb,     from: 'dobra',   to: null      },
+];
 
 const DEFAULT_SETTINGS = {
   fiat_l_100km: 9.01, isuzu_l_100km: 10.88, merc_l_100km: 13.04, iveco_l_100km: 12.25,
@@ -904,9 +911,11 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
 
 /* ───────────── THRESHOLD EDITOR (progi wydajności) ───────────── */
 // Input progu z lokalnym draftem — zatwierdza po opuszczeniu pola / Enter (obsługuje przecinek)
+// Formatuje próg w postaci XX.X (np. 4 → "4.0", 5.5 → "5.5")
+const fmtProg = (v) => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(1) : String(v ?? ''); };
 // Remontowany przez key={...value} u rodzica, więc draft startuje od aktualnej wartości
 function ProgInput({ value, onCommit }) {
-  const [draft, setDraft] = useState(String(value));
+  const [draft, setDraft] = useState(fmtProg(value));
   const commit = () => {
     const v = parseFloat(draft.replace(',', '.'));
     onCommit(isNaN(v) ? 0 : v);
@@ -919,34 +928,30 @@ function ProgInput({ value, onCommit }) {
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-      style={{ width: '52px', textAlign: 'center', padding: '5px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, fontWeight: 700, fontSize: '12px', color: IOS_THEME.textPrimary }}
+      style={{ width: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, fontWeight: 700, fontSize: '13px', color: IOS_THEME.textPrimary }}
     />
   );
 }
 
-function ThresholdEditor({ progi, onChange, onClose }) {
+// Edytor JEDNEGO pasma (kliknięty kolor) — przedział od–do dla każdej grupy (ZD1/ZD2/Ogółem)
+function ThresholdEditor({ band, progi, onChange, onClose }) {
   const GROUPS = [['ZD1', 'ZD 1'], ['ZD2', 'ZD 2'], ['WSP', 'Ogółem']];
-  // granice w kolejności rosnącej + kolor pasma POWYŻEJ danej granicy
-  const STEPS = [
-    { key: 'slaba',   below: EFF_COLORS.slaba },   // < slaba = czerwony
-    { key: 'srednia', below: EFF_COLORS.srednia }, // < srednia = żółty
-    { key: 'dobra',   below: EFF_COLORS.dobra },   // < dobra = zielony
-  ];
+  const def = PERF_BANDS.find(b => b.id === band);
   const isDefault = JSON.stringify(progi) === JSON.stringify(PROGI_DEFAULT);
+  if (!def) return null;
 
-  const setVal = (g, k, v) => {
-    onChange({ ...progi, [g]: { ...progi[g], [k]: v } });
-  };
-
-  const chip = (c, lbl) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '11px', whiteSpace: 'nowrap' }}>{lbl}</span>
+  const setVal = (g, k, v) => onChange({ ...progi, [g]: { ...progi[g], [k]: v } });
+  const staticBox = (txt) => (
+    <span style={{ width: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#F1F1F4', color: IOS_THEME.textSecondary, fontWeight: 700, fontSize: '13px' }}>{txt}</span>
   );
+  const lbl = (t) => <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{t}</span>;
 
   return (
     <div style={{ padding: '14px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>Progi wydajności (kg/rbh)</span>
-        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kolory aktualizują się na żywo</span>
+        <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>Próg wydajności:</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 11px', borderRadius: '8px', background: def.c.bg, color: def.c.fc, fontWeight: 700, fontSize: '12px' }}>{def.label}</span>
+        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kg/rbh · format XX.X · kolory na żywo</span>
         <button
           onClick={() => onChange(PROGI_DEFAULT)}
           disabled={isDefault}
@@ -962,19 +967,19 @@ function ThresholdEditor({ progi, onChange, onClose }) {
           ×
         </button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
         {GROUPS.map(([gKey, gLabel]) => (
-          <div key={gKey} style={{ border: `1px solid ${IOS_THEME.border}`, borderRadius: '12px', padding: '12px', background: '#FAFAFC' }}>
-            <div style={{ fontWeight: 800, fontSize: '12px', color: IOS_THEME.textPrimary, marginBottom: '10px' }}>{gLabel}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
-              {chip(EFF_COLORS.slaba, 'Słaba')}
-              {STEPS.map(({ key }, i) => (
-                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <ProgInput key={progi[gKey][key]} value={progi[gKey][key]} onCommit={(v) => setVal(gKey, key, v)} />
-                  {chip(i === 2 ? EFF_COLORS.bdb : STEPS[i + 1].below, i === 0 ? 'Średnia' : i === 1 ? 'Dobra' : 'Bardzo dobra')}
-                </span>
-              ))}
-            </div>
+          <div key={gKey} style={{ border: `1px solid ${IOS_THEME.border}`, borderRadius: '12px', padding: '12px', background: '#FAFAFC', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 800, fontSize: '12px', minWidth: '50px', color: IOS_THEME.textPrimary }}>{gLabel}</span>
+            {lbl('od')}
+            {def.from === null
+              ? staticBox('0')
+              : <ProgInput key={`${gKey}-from-${progi[gKey][def.from]}`} value={progi[gKey][def.from]} onCommit={(v) => setVal(gKey, def.from, v)} />}
+            {lbl('do')}
+            {def.to === null
+              ? staticBox('∞')
+              : <ProgInput key={`${gKey}-to-${progi[gKey][def.to]}`} value={progi[gKey][def.to]} onCommit={(v) => setVal(gKey, def.to, v)} />}
+            {lbl('kg/rbh')}
           </div>
         ))}
       </div>
@@ -984,7 +989,7 @@ function ThresholdEditor({ progi, onChange, onClose }) {
 
 /* ───────────── PERFORMANCE GRID ───────────── */
 function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, progi, onProgiChange }) {
-  const [editProgi, setEditProgi] = useState(false);
+  const [editBand, setEditBand] = useState(null); // id klikniętego pasma (kolor) lub null
   const effTd = (val, thr, perPerson) => {
     const c = effStyle(val, thr);
     return (
@@ -1020,23 +1025,26 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
 
   return (
     <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-      {/* legend — kolorowe etykiety są klikalne: otwierają edytor progów */}
+      {/* legend — klik w kolor otwiera edytor TEGO pasma (przedział od–do per grupa) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
         <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>Wydajność kg/rbh:</span>
-        {[['Słaba', EFF_COLORS.slaba], ['Średnia', EFF_COLORS.srednia], ['Dobra', EFF_COLORS.dobra], ['Bardzo dobra', EFF_COLORS.bdb]].map(([lbl, c]) => (
-          <button
-            key={lbl}
-            onClick={() => setEditProgi(v => !v)}
-            title="Kliknij, aby ustawić progi (ZD1 / ZD2 / Ogółem)"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 11px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '12px', border: `1.5px solid ${editProgi ? c.fc : 'transparent'}`, boxShadow: editProgi ? `0 0 0 2px ${c.bg}` : 'none', cursor: 'pointer' }}
-          >
-            {lbl}
-          </button>
-        ))}
-        <Settings size={13} style={{ color: editProgi ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
+        {PERF_BANDS.map(({ id, label, c }) => {
+          const active = editBand === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setEditBand(v => (v === id ? null : id))}
+              title={`Kliknij, aby ustawić przedział „${label}" (ZD1 / ZD2 / Ogółem)`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 11px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '12px', border: `1.5px solid ${active ? c.fc : 'transparent'}`, boxShadow: active ? `0 0 0 2px ${c.bg}` : 'none', cursor: 'pointer' }}
+            >
+              {label}
+            </button>
+          );
+        })}
+        <Settings size={13} style={{ color: editBand ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
         <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>kg/h kolorowane · kg/os pod spodem · godziny i obsada z osi czasu</span>
       </div>
-      {editProgi && <ThresholdEditor progi={progi} onChange={onProgiChange} onClose={() => setEditProgi(false)} />}
+      {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
