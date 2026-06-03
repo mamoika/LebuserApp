@@ -753,7 +753,12 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'isuzu', c.isuzu_km, 'km')}
                   {reading(dStr, dt, 'merc', c.merc_km, 'km')}
                   {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
-                  <td style={costCellStyle(CAT.transport)} title={c.total_km > 0 ? `${FMT0(c.total_km)} km` : ''}>{FMT(c.transportCost)}</td>
+                  <td style={costCellStyle(CAT.transport)}>
+                    <div>{FMT(c.transportCost)}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, marginTop: '3px', minHeight: '12px' }}>
+                      {c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : ''}
+                    </div>
+                  </td>
                   {reading(dStr, dt, 'elec', c.elec_usage, 'kWh')}
                   <td style={costCellStyle(CAT.elec)}>{FMT(c.elec_cost)}</td>
                   {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³')}
@@ -776,7 +781,10 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
               {footMeter(totals.kmIveco, 'km')}
-              <td style={{ ...footTdStyle, color: CAT.transport }}>{FMT(totals.transport)}</td>
+              <td style={{ ...footTdStyle, color: CAT.transport }}>
+                <div>{FMT(totals.transport)}</div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, marginTop: '2px' }}>{(() => { const km = totals.kmFiat + totals.kmIsuzu + totals.kmMerc + totals.kmIveco; return km > 0 ? `${FMT0(km)} km` : ''; })()}</div>
+              </td>
               {footMeter(totals.kWh, 'kWh')}
               <td style={{ ...footTdStyle, color: CAT.elec }}>{FMT(totals.elec)}</td>
               {footMeter(totals.m3GasProd, 'm³')}
