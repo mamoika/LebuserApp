@@ -395,6 +395,9 @@ export default function CostsView() {
     return Math.max(0, cur - prev);
   };
 
+  const todayDate = new Date();
+  todayDate.setHours(0,0,0,0);
+
   const calcDay = (dStr, idx) => {
     const d = dailyData[dStr] || {};
     const fiat_km = consumptionAt(idx, 'fiat');
@@ -403,15 +406,17 @@ export default function CostsView() {
     const iveco_km = consumptionAt(idx, 'iveco');
     const total_km = fiat_km + isuzu_km + merc_km + iveco_km;
 
+    const isFuture = new Date(dStr) > todayDate;
+
     const transportCost = ((fiat_km * settings.fiat_l_100km) + (isuzu_km * settings.isuzu_l_100km) + (merc_km * settings.merc_l_100km) + (iveco_km * settings.iveco_l_100km)) / 100 * settings.fuel_price;
     const elec_usage = consumptionAt(idx, 'elec') * settings.elec_multiplier;
-    const elec_cost = elec_usage * settings.elec_price_kwh + (settings.elec_fixed_monthly / daysInMonth);
+    const elec_cost = elec_usage * settings.elec_price_kwh + (isFuture ? 0 : (settings.elec_fixed_monthly / daysInMonth));
     const gas_prod_usage = consumptionAt(idx, 'gas_prod');
-    const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + settings.gas_prod_fixed_daily;
+    const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + (isFuture ? 0 : settings.gas_prod_fixed_daily);
     const gas_heat_usage = consumptionAt(idx, 'gas_heat');
-    const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (settings.gas_heat_fixed_monthly / daysInMonth);
+    const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (isFuture ? 0 : (settings.gas_heat_fixed_monthly / daysInMonth));
     const water_usage = consumptionAt(idx, 'water');
-    const water_cost = water_usage * settings.water_price_m3 + (settings.water_fixed_monthly / daysInMonth);
+    const water_cost = water_usage * settings.water_price_m3 + (isFuture ? 0 : (settings.water_fixed_monthly / daysInMonth));
     const hrs = laborHours[dStr] || 0; // łączne godziny z Grafiku pracy
     const worker_cost = hrs * settings.worker_hourly_rate;
     const other_cost = d.other_costs || 0;
