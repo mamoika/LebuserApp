@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { toastError } from '../lib/toast';
 
 const ROLES = {
   "T":  { bg: "#607D8B", fc: "#fff", name: "Tunnel" },
@@ -389,13 +390,21 @@ export default function TimelineView() {
       if (newRole) next[key] = newRole; else delete next[key];
       return next;
     });
-    if (newRole) {
-      supabase.from('timeline_entries').upsert(
-        { employee_id: empId, entry_date: dateStr, hour, role: newRole, updated_at: new Date().toISOString(), updated_by: user?.name },
-        { onConflict: 'employee_id,entry_date,hour' }
-      );
-    } else {
-      supabase.from('timeline_entries').delete().eq('employee_id', empId).eq('entry_date', dateStr).eq('hour', hour);
+    // Zapis do bazy — supabase wykonuje żądanie dopiero po await/.then()
+    const { error } = newRole
+      ? await supabase.from('timeline_entries').upsert(
+          { employee_id: empId, entry_date: dateStr, hour, role: newRole, updated_at: new Date().toISOString(), updated_by: user?.name },
+          { onConflict: 'employee_id,entry_date,hour' }
+        )
+      : await supabase.from('timeline_entries').delete().eq('employee_id', empId).eq('entry_date', dateStr).eq('hour', hour);
+    if (error) {
+      // cofnij zmianę lokalną gdy zapis się nie powiódł
+      setEntries(prev => {
+        const next = { ...prev };
+        if (current) next[key] = current; else delete next[key];
+        return next;
+      });
+      toastError('Nie udało się zapisać — spróbuj ponownie');
     }
   }, [isAdmin, brushRole, entries, user]);
 
