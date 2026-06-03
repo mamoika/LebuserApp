@@ -843,7 +843,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
   const reading = (dStr, dt, base, cons, unit) => (
     <td style={newTdStyle}>
       <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '1px', minHeight: '11px', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '2px', minHeight: '11px', fontVariantNumeric: 'tabular-nums' }}>
         {cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : ''}
       </div>
     </td>
@@ -877,7 +877,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {meterTh(<Droplet size={13}/>, 'Woda')}
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>Koszt</span><br/><span>Woda</span></th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>Ludzie</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: '#4B5563', background: '#EAECEF' }}>Inne</th>
+              <th className="sticky-head" style={newThStyle}>Inne</th>
               <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>SUMA</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>zł/kg</span></th>
             </tr>
           </thead>
@@ -907,7 +907,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
                   <td style={costCellStyle(CAT.transport)}>
                     <div>{FMT(c.transportCost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.7, marginTop: '1px', minHeight: '11px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.7, marginTop: '2px', minHeight: '11px' }}>
                       {c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : ''}
                     </div>
                   </td>
@@ -920,10 +920,10 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'water', c.water_usage, 'm³')}
                   <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
                   <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
-                  <td style={{ ...costCellStyle('#6B7280'), background: '#EAECEF' }}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={{ ...newInpStyle, background: 'transparent', textAlign: 'center' }}/></td>
+                  <td style={newTdStyle}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'center', borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '1px', minHeight: '11px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '2px', minHeight: '11px' }}>
                       {c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : ''}
                     </div>
                   </td>
@@ -951,7 +951,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {footMeter(totals.m3Water, 'm³')}
               <td style={{ ...footTdStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.16), textAlign: 'center' }}>{FMT(totals.water)}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.16), textAlign: 'center' }}>{FMT(totals.workers)}</td>
-              <td style={{ ...footTdStyle, background: '#EAECEF', textAlign: 'center', color: '#4B5563' }}>{FMT(totals.other)}</td>
+              <td style={{ ...footTdStyle, color: IOS_THEME.textSecondary }}>{FMT(totals.other)}</td>
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
@@ -1207,10 +1207,10 @@ const newThStyle = {
   padding: '8px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
 };
 const newTdStyle = {
-  padding: '3px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
+  padding: '6px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle', textAlign: 'center'
 };
 const newInpStyle = {
-  width: '100%', padding: '4px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
+  width: '100%', padding: '5px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
 };
 const rateInpStyle = {
   width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
@@ -1220,7 +1220,7 @@ const costCellStyle = (color) => ({
   background: tint(color, 0.10)
 });
 const footTdStyle = {
-  padding: '10px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
+  padding: '10px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'center', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
 };
 
 const COSTS_CSS = `
