@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
-import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays } from 'lucide-react';
+import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
+import * as XLSX from 'xlsx';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -523,6 +524,45 @@ export default function CostsView() {
   ];
   const dailyTotals = days.map((d, idx) => calcDay(d, idx).total_cost);
 
+  // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
+  const exportToExcel = () => {
+    const r2 = (n) => Math.round((n || 0) * 100) / 100;
+    const dayLabel = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')}.${String(month).padStart(2, '0')} ${WEEKDAYS_PL[d.getDay()]}`; };
+
+    // Arkusz 1: Koszty
+    const costsHead = ['Data', 'Fiat (km)', 'Isuzu (km)', 'Merc. (km)', 'Iveco (km)', 'Koszt auta (zł)', 'Prąd (kWh)', 'Koszt prąd (zł)', 'Gaz prod. (m³)', 'Koszt prod. (zł)', 'Gaz grz. (m³)', 'Koszt grz. (zł)', 'Woda (m³)', 'Koszt woda (zł)', 'Ludzie (zł)', 'Inne (zł)', 'SUMA (zł)', 'zł/kg'];
+    const costsRows = days.map((dStr, idx) => {
+      const c = calcDay(dStr, idx);
+      return [dayLabel(dStr), r2(c.fiat_km), r2(c.isuzu_km), r2(c.merc_km), r2(c.iveco_km), r2(c.transportCost),
+        r2(c.elec_usage), r2(c.elec_cost), r2(c.gas_prod_usage), r2(c.gas_prod_cost), r2(c.gas_heat_usage), r2(c.gas_heat_cost),
+        r2(c.water_usage), r2(c.water_cost), r2(c.worker_cost), r2(c.other_cost), r2(c.total_cost), c.pln_kg > 0 ? r2(c.pln_kg) : ''];
+    });
+    const t = monthlyTotals;
+    const costsTotal = ['SUMA', r2(t.kmFiat), r2(t.kmIsuzu), r2(t.kmMerc), r2(t.kmIveco), r2(t.transport), r2(t.kWh), r2(t.elec),
+      r2(t.m3GasProd), r2(t.gasProd), r2(t.m3GasHeat), r2(t.gasHeat), r2(t.m3Water), r2(t.water), r2(t.workers), r2(t.other), r2(t.total), perfTotals.kg > 0 ? r2(t.total / perfTotals.kg) : ''];
+    const wsCosts = XLSX.utils.aoa_to_sheet([[`Koszty — ${MONTHS_PL[month - 1]} ${year}`], [], costsHead, ...costsRows, [], costsTotal]);
+
+    // Arkusz 2: Wydajność
+    const perfHead = ['Data', 'ZD1 (kg)', 'ZD2 (kg)', 'Pralki (kg)', 'Σ KG', 'ZD1 (h)', 'ZD2 (h)', 'Kier. (h)', 'Σ H', 'ZD1 kg/h', 'ZD2+Pr. kg/h', 'Ogółem kg/h'];
+    const perfRows = days.map((dStr) => {
+      const dt = dailyData[dStr] || {};
+      const ts = timelineStats[dStr]?.roles || {};
+      const kgZd1 = dt.ton_zd1 || 0, kgZd2pr = (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+      const tSuma = kgZd1 + kgZd2pr;
+      const hZd1 = ts.ZD1?.hrs || 0, hZd2 = ts.ZD2?.hrs || 0, hKier = ts.Kierowcy?.hrs || 0;
+      const hSuma = hZd1 + hZd2 + hKier;
+      return [dayLabel(dStr), dt.ton_zd1 || '', dt.ton_zd2 || '', dt.ton_pralki || '', tSuma || '',
+        hZd1 ? r2(hZd1) : '', hZd2 ? r2(hZd2) : '', hKier ? r2(hKier) : '', hSuma ? r2(hSuma) : '',
+        hZd1 > 0 ? r2(kgZd1 / hZd1) : '', hZd2 > 0 ? r2(kgZd2pr / hZd2) : '', hSuma > 0 ? r2(tSuma / hSuma) : ''];
+    });
+    const wsPerf = XLSX.utils.aoa_to_sheet([[`Wydajność — ${MONTHS_PL[month - 1]} ${year}`], [], perfHead, ...perfRows]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsCosts, 'Koszty');
+    XLSX.utils.book_append_sheet(wb, wsPerf, 'Wydajność');
+    XLSX.writeFile(wb, `Koszty_${MONTHS_PL[month - 1]}_${year}.xlsx`);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '2px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
       <style>{COSTS_CSS}</style>
@@ -553,13 +593,17 @@ export default function CostsView() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={exportToExcel} title="Eksportuj do Excela" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
+            <Download size={16}/> Excel
+          </button>
           <button onClick={() => setShowRates(v => !v)} title="Stawki" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
             <Settings size={16}/> Stawki
           </button>
           <button onClick={saveAll} disabled={saving} className="costs-save-btn" title="Zapisz wszystko teraz" style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: autoSave === 'saved' ? IOS_THEME.success : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.success,
-            color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '14px',
+            background: autoSave === 'saved' ? '#34C759' : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
+            color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: 600, fontSize: '14px',
+            letterSpacing: '0.2px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
             cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.2s'
           }}>
             <Save size={18}/> {saving ? 'Zapisuję...' : autoSave === 'saving' ? 'Auto-zapis…' : autoSave === 'saved' ? 'Zapisano ✓' : 'Zapisz'}
@@ -1147,23 +1191,23 @@ const segmentBtnStyle = {
   padding: '6px 18px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
 };
 const newThStyle = {
-  padding: '12px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
+  padding: '8px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
 };
 const newTdStyle = {
-  padding: '10px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
+  padding: '5px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
 };
 const newInpStyle = {
-  width: '100%', padding: '7px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
+  width: '100%', padding: '5px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
 };
 const rateInpStyle = {
   width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
 };
 const costCellStyle = (color) => ({
-  padding: '10px 8px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle',
+  padding: '5px 8px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle',
   background: tint(color, 0.10)
 });
 const footTdStyle = {
-  padding: '14px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
+  padding: '10px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'right', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
 };
 
 const COSTS_CSS = `
