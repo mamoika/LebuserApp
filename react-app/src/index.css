@@ -2836,6 +2836,19 @@ select.ap-input {
   justify-content: center;
   border-radius: 0;
   transition: opacity 0.2s;
+  position: relative;
+}
+/* Znacznik 15-min przerwy: zakreskowane pierwsze 25% godziny + cienka linia */
+.tl-break-mark {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 25%;
+  pointer-events: none;
+  background: repeating-linear-gradient(45deg,
+    rgba(255,255,255,0.5) 0 1.5px,
+    rgba(0,0,0,0.22) 1.5px 3px);
+  border-right: 1px solid rgba(0,0,0,0.45);
+  z-index: 1;
 }
 
 .tl-cell.selectable:hover .tl-cell-inner {

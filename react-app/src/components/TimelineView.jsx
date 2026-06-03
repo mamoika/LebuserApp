@@ -131,6 +131,9 @@ const TimelineRow = React.memo(({
     const sched = scheduleMap[`${emp.id}_${dateStr}`];
     const startH = sched ? sched.start : parseHour(emp.default_start);
     const endH = sched ? sched.end : parseHour(emp.default_end);
+    // Dwie 15-min przerwy: start+3h i start+6h
+    const breakCell1 = Math.floor(startH + 3);
+    const breakCell2 = Math.floor(startH + 6);
     const working = sched ? sched.working : !isWe;
     const confirmed = sched ? sched.confirmed : false;
     const dayStatus = sched?.status;
@@ -174,6 +177,7 @@ const TimelineRow = React.memo(({
           }
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
+          const isBreakHour = working && !dayStatus && isShiftHour && (h === breakCell1 || h === breakCell2);
 
           return (
             <td key={h}
@@ -194,6 +198,7 @@ const TimelineRow = React.memo(({
               style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
               <div className="tl-cell-inner" style={cellStyle}>
+                {isBreakHour && <span className="tl-break-mark" title="Przerwa 15 min" />}
                 {!dayStatus && (role || '')}
               </div>
             </td>

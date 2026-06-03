@@ -7,6 +7,31 @@ function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Parsuje godzinę z tekstu ("7", "6:30", "7,5") na liczbę
+function parseHour(str) {
+  if (!str && str !== 0) return 0;
+  const s = String(str).trim();
+  if (s.includes(':')) { const p = s.split(':'); return parseInt(p[0]) + (parseInt(p[1]) || 0) / 60; }
+  return parseFloat(s.replace(',', '.')) || 0;
+}
+
+// Godzina rozpoczęcia zmiany danego dnia: z wartości grafiku (np. "6-14", "6+8") lub z domyślnej
+function shiftStartHour(value, defaultStartH) {
+  const v = String(value || '').toUpperCase().trim();
+  const off = ['', 'W', 'UW', 'L4', 'NN', 'END'];
+  if (off.includes(v)) return defaultStartH;
+  if (v.includes('-')) { const s = parseFloat(v.split('-')[0].replace(',', '.')); if (!isNaN(s)) return s; }
+  if (v.includes('+')) { const s = parseFloat(v.split('+')[0].replace(',', '.')); if (!isNaN(s)) return s; }
+  return defaultStartH; // sama liczba = długość zmiany, start bez zmian
+}
+
+// Dwie 15-min przerwy: start+3h i start+6h. Zwraca wagę godziny (1 = pełna, 0.75 = z przerwą)
+function hourWeight(hour, startH) {
+  const b1 = Math.floor(startH + 3);
+  const b2 = Math.floor(startH + 6);
+  return (hour === b1 || hour === b2) ? 0.75 : 1;
+}
+
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 const WEEKDAYS_PL = ["Nd","Pn","Wt","Śr","Cz","Pt","So"];
 
@@ -114,10 +139,16 @@ export default function CostsView() {
     ] = await Promise.all([
       supabase.from('cost_settings').select('*').eq('month_key', monthKey).single(),
       supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('timeline_entries').select('entry_date, role, employee_id').gte('entry_date', dateFrom).lte('entry_date', dateTo),
+      supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
       supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('employees').select('id, group_name')
+      supabase.from('employees').select('id, group_name, default_start')
     ]);
+
+    // Grafik miesiąca — do ustalenia godziny startu każdej osoby w danym dniu (dla przerw)
+    const { data: sched } = await supabase
+      .from('schedule_entries')
+      .select('employee_id, day, value')
+      .eq('year', year).eq('month', month);
 
     setSettings(sets || { month_key: monthKey, ...DEFAULT_SETTINGS });
     setPrevReadings(prev || {});
@@ -127,13 +158,24 @@ export default function CostsView() {
     setDailyData(costMap);
 
     // employee_id → performance bucket, derived from employee group_name ("ZD 1" / "ZD 2" / "KIEROWCY")
+    // oraz domyślna godzina startu
     const empBucket = {};
+    const empDefaultStart = {};
     (emps || []).forEach(e => {
       const g = (e.group_name || '').replace(/\s+/g, '').toUpperCase();
       empBucket[e.id] = g.startsWith('ZD1') ? 'ZD1' : g.startsWith('ZD2') ? 'ZD2' : g.includes('KIEROW') ? 'Kierowcy' : null;
+      empDefaultStart[e.id] = parseHour(e.default_start);
     });
 
-    // Timeline stats: each entry = 1 person-hour. Hours grouped by the employee's group, not by station.
+    // start zmiany per (pracownik, dzień) z grafiku — do wyznaczenia godzin przerw
+    const startMap = {};
+    (sched || []).forEach(s => {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`;
+      startMap[`${s.employee_id}_${dateStr}`] = shiftStartHour(s.value, empDefaultStart[s.employee_id] ?? 0);
+    });
+    const startFor = (empId, dateStr) => startMap[`${empId}_${dateStr}`] ?? (empDefaultStart[empId] ?? 0);
+
+    // Timeline stats: each entry = 1 person-hour, MINUS dwie 15-min przerwy (godzina z przerwą = 0.75).
     const tStats = {};
     (timeline || []).forEach(t => {
       if (!tStats[t.entry_date]) {
@@ -142,12 +184,14 @@ export default function CostsView() {
           roles: { ZD1: { hrs: 0, emp: new Set() }, ZD2: { hrs: 0, emp: new Set() }, Kierowcy: { hrs: 0, emp: new Set() } }
         };
       }
+      // pełne godziny do kosztu pracownika (przerwy płatne), waga do wydajności
+      const w = hourWeight(t.hour, startFor(t.employee_id, t.entry_date));
       tStats[t.entry_date].total_hours += 1;
 
       // bucket by employee group; fall back to station "K" (Kierowca) for drivers
       const bucket = empBucket[t.employee_id] || (t.role === 'K' ? 'Kierowcy' : null);
       if (bucket && tStats[t.entry_date].roles[bucket]) {
-        tStats[t.entry_date].roles[bucket].hrs += 1;
+        tStats[t.entry_date].roles[bucket].hrs += w; // wydajność: godzina z przerwą = 0.75
         tStats[t.entry_date].roles[bucket].emp.add(t.employee_id);
       }
     });
