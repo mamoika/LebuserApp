@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { toastError } from '../lib/toast';
+import { toastError, toastSuccess } from '../lib/toast';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays } from 'lucide-react';
 
 function toDateStr(d) {
@@ -262,18 +262,26 @@ export default function CostsView() {
     setAutoSave('saving');
     try {
       if (setDirty && setKey) {
-        await supabase.from('cost_settings').upsert({ ...settingsRef.current, month_key: setKey, updated_at: new Date().toISOString() });
+        const { error } = await supabase.from('cost_settings')
+          .upsert({ ...settingsRef.current, month_key: setKey, updated_at: new Date().toISOString() }, { onConflict: 'month_key' });
+        if (error) throw error;
       }
       const rows = days
         .map(ds => dailyDataRef.current[ds])
         .filter(d => d && Object.keys(d).length > 1)
         .map(d => ({ ...d, updated_at: new Date().toISOString() }));
-      if (rows.length) await supabase.from('daily_costs').upsert(rows);
+      if (rows.length) {
+        const { error } = await supabase.from('daily_costs').upsert(rows, { onConflict: 'entry_date' });
+        if (error) throw error;
+      }
       setAutoSave('saved');
       setTimeout(() => setAutoSave(s => (s === 'saved' ? 'idle' : s)), 1500);
     } catch {
+      // przywróć „brudne" wpisy, żeby ponowić zapis i pokaż błąd zamiast fałszywego „Zapisano"
+      days.forEach(d => dirtyDays.current.add(d));
+      if (setDirty) { dirtySettings.current = true; dirtySettingsMonthKey.current = setKey; }
       setAutoSave('idle');
-      toastError('Auto-zapis nie powiódł się');
+      toastError('Nie udało się zapisać — zmiany niezapisane');
     }
   }, []);
 
@@ -305,16 +313,20 @@ export default function CostsView() {
 
   const saveAll = async () => {
     setSaving(true);
-    await supabase.from('cost_settings').upsert({
+    const { error: setErr } = await supabase.from('cost_settings').upsert({
       ...settings, month_key: monthKey, updated_at: new Date().toISOString()
-    });
+    }, { onConflict: 'month_key' });
     const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
+    let dayErr = null;
     if (toSave.length > 0) {
-      await supabase.from('daily_costs').upsert(
-        toSave.map(d => ({ ...d, updated_at: new Date().toISOString() }))
-      );
+      ({ error: dayErr } = await supabase.from('daily_costs').upsert(
+        toSave.map(d => ({ ...d, updated_at: new Date().toISOString() })),
+        { onConflict: 'entry_date' }
+      ));
     }
     setSaving(false);
+    if (setErr || dayErr) { toastError('Nie udało się zapisać'); return; }
+    toastSuccess('Zapisano');
     fetchData();
   };
 
