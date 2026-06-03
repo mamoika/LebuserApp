@@ -83,6 +83,14 @@ const tint = (hex, a = 0.06) => {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 };
 
+// Opaque tint blended with #F9F9FB background to prevent text bleed-through in sticky headers
+const opaqueTint = (hex, a = 0.08) => {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const bgR = 249, bgG = 249, bgB = 251;
+  return `rgb(${Math.round(r * a + bgR * (1 - a))}, ${Math.round(g * a + bgG * (1 - a))}, ${Math.round(b * a + bgB * (1 - a))})`;
+};
+
 const todayStr = toDateStr(new Date());
 
 // Performance thresholds (kg/rbh) — same as the old spreadsheet (PROGI)
@@ -730,18 +738,18 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {meterTh(<Truck size={13}/>, 'Isuzu')}
               {meterTh(<Truck size={13}/>, 'Merc.')}
               {meterTh(<Truck size={13}/>, 'Iveco')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: tint(CAT.transport, 0.08) }}>Koszt Auta</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>Koszt Auta</th>
               {meterTh(<Zap size={13}/>, 'Prąd')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: tint(CAT.elec, 0.08) }}>Koszt Prąd</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.08) }}>Koszt Prąd</th>
               {meterTh(<Flame size={13}/>, 'Gaz prod.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: tint(CAT.gas, 0.08) }}>Koszt prod.</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.08) }}>Koszt prod.</th>
               {meterTh(<Flame size={13}/>, 'Gaz grz.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: tint('#4A148C', 0.08) }}>Koszt grz.</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.08) }}>Koszt grz.</th>
               {meterTh(<Droplet size={13}/>, 'Woda')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: tint(CAT.water, 0.08) }}>Koszt Woda</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: tint(CAT.workers, 0.08) }}>Ludzie</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.08) }}>Koszt Woda</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Ludzie</th>
               <th className="sticky-head" style={newThStyle}>Inne</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, background: tint(IOS_THEME.accent, 0.1), fontWeight: 800 }}>SUMA</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, background: opaqueTint(IOS_THEME.accent, 0.1), fontWeight: 800 }}>SUMA</th>
             </tr>
           </thead>
           <tbody>
@@ -867,14 +875,14 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
               <th className="sticky-head" style={newThStyle}>ZD1 (kg)</th>
               <th className="sticky-head" style={newThStyle}>ZD2 (kg)</th>
               <th className="sticky-head" style={newThStyle}>Pralki (kg)</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: tint(CAT.workers, 0.08) }}>Σ KG</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Σ KG</th>
               <th className="sticky-head" style={newThStyle}>ZD1 (h)</th>
               <th className="sticky-head" style={newThStyle}>ZD2 (h)</th>
               <th className="sticky-head" style={newThStyle}>Kier. (h)</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: '#1565C0', background: tint('#1565C0', 0.08) }}>Σ H</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: tint(CAT.workers, 0.08) }}>ZD1 kg/h</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: tint(CAT.gas, 0.08) }}>ZD2+Pr. kg/h</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: tint(CAT.transport, 0.08) }}>Ogółem kg/h</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: '#1565C0', background: opaqueTint('#1565C0', 0.08) }}>Σ H</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>ZD1 kg/h</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.08) }}>ZD2+Pr. kg/h</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>Ogółem kg/h</th>
             </tr>
           </thead>
           <tbody>
