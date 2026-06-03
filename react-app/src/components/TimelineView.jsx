@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { loadMonthRoster } from '../lib/roster';
+import { isHoliday } from '../utils/holidays';
 
 const ROLES = {
   "T":  { bg: "#607D8B", fc: "#fff", name: "Tunnel" },
@@ -135,9 +136,11 @@ const TimelineRow = React.memo(({
     // Dwie 15-min przerwy: start+3h i start+6h
     const breakCell1 = Math.floor(startH + 3);
     const breakCell2 = Math.floor(startH + 6);
-    const working = sched ? sched.working : !isWe;
+    const holiday = isHoliday(d);
+    const working = sched ? sched.working : (!isWe && !holiday);
     const confirmed = sched ? sched.confirmed : false;
-    const dayStatus = sched?.status;
+    // bez wpisu w grafiku: weekend/święto = wolne (szare), dzień powszedni = domyślnie pracuje
+    const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : undefined);
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
     const schedHours = working ? Math.round((endH >= startH ? endH - startH : 24 - startH + endH) * 10) / 10 : 0;
 
