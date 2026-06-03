@@ -843,7 +843,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
   // Komórka wartości: slot główny (wartość/input) + slot jednostki pod spodem (zawsze ta sama wysokość)
   const valCell = (tdStyle, main, sub, subColor, extra = {}) => (
     <td style={{ ...tdStyle, height: '1px', padding: '0 6px' }} className={extra.className} title={extra.title}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '5px', paddingBottom: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '11px', paddingBottom: '2px' }}>
         <div style={cellMain}>{main}</div>
       <div style={{ ...cellSub, color: subColor || IOS_THEME.textSecondary }}>{sub || ' '}</div>
       </div>
