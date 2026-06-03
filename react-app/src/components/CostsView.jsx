@@ -841,9 +841,9 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
     </th>
   );
   const reading = (dStr, dt, base, cons, unit) => (
-    <td style={newTdStyle}>
+    <td style={{ ...newTdStyle, ...cellPadStyle }}>
       <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '2px', minHeight: '11px', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ ...subTextStyle, color: IOS_THEME.textSecondary }}>
         {cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : ''}
       </div>
     </td>
@@ -907,7 +907,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
                   <td style={costCellStyle(CAT.transport)}>
                     <div>{FMT(c.transportCost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.7, marginTop: '2px', minHeight: '11px' }}>
+                    <div style={{ ...subTextStyle, color: CAT.transport, opacity: 0.7 }}>
                       {c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : ''}
                     </div>
                   </td>
@@ -920,10 +920,10 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'water', c.water_usage, 'm³')}
                   <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
                   <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
-                  <td style={newTdStyle}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
-                  <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'center', borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
+                  <td style={{ ...newTdStyle, ...cellPadStyle }}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
+                  <td style={{ ...newTdStyle, ...cellPadStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '2px', minHeight: '11px' }}>
+                    <div style={{ ...subTextStyle, fontWeight: 600, opacity: 0.65 }}>
                       {c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : ''}
                     </div>
                   </td>
@@ -1215,8 +1215,12 @@ const newInpStyle = {
 const rateInpStyle = {
   width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
 };
+// Komórki z wartością: główna wartość/input wyśrodkowane pionowo, a podpis jednostki
+// (km/kWh/m³/zł-kg) przyklejony NA DOLE komórki — dzięki temu wszystkie wiersze są równe.
+const cellPadStyle = { position: 'relative', paddingTop: '6px', paddingBottom: '15px' };
+const subTextStyle = { position: 'absolute', left: 0, right: 0, bottom: '3px', fontSize: '10px', fontWeight: 700, textAlign: 'center', fontVariantNumeric: 'tabular-nums', lineHeight: 1 };
 const costCellStyle = (color) => ({
-  padding: '5px 8px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle',
+  padding: '6px 8px 15px', fontSize: '13px', fontWeight: 700, color, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle', position: 'relative',
   background: tint(color, 0.10)
 });
 const footTdStyle = {
