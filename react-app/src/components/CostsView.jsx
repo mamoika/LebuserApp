@@ -177,7 +177,7 @@ export default function CostsView() {
       supabase.from('cost_settings').select('*').eq('month_key', monthKey).single(),
       supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
       supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(31),
+      supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(150),
       supabase.from('employees').select('id, group_name, default_start')
     ]);
 
@@ -207,7 +207,7 @@ export default function CostsView() {
     if (prevRows && prevRows.length > 0) {
       prevRows.forEach(row => {
         ['fiat_end', 'isuzu_end', 'merc_end', 'iveco_end', 'elec_end', 'gas_prod_end', 'gas_heat_end', 'water_end'].forEach(k => {
-          if (compositePrev[k] === undefined && row[k] != null) {
+          if (compositePrev[k] === undefined && row[k] != null && row[k] !== '') {
             compositePrev[k] = row[k];
           }
         });
@@ -370,19 +370,28 @@ export default function CostsView() {
     const v = dailyData[dStr]?.[`${base}_end`];
     return (v === 0 || v) ? v : null;
   };
+
+  const parseMeter = (val) => {
+    if (val == null || val === '') return null;
+    const n = parseFloat(String(val).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  };
+
   const consumptionAt = (idx, base) => {
-    const cur = getReading(days[idx], base);
+    const curStr = getReading(days[idx], base);
+    const cur = parseMeter(curStr);
     if (cur == null) return 0;
+    
     let prev = null;
     for (let j = idx - 1; j >= 0; j--) {
-      const r = getReading(days[j], base);
+      const r = parseMeter(getReading(days[j], base));
       if (r != null) { prev = r; break; }
     }
     if (prev == null) {
       const c = prevReadings?.[`${base}_end`];
-      prev = (c === 0 || c) ? c : null;
+      prev = parseMeter(c);
     }
-    if (prev == null) return 0; // no baseline yet → can't compute consumption
+    if (prev == null) return 0; 
     return Math.max(0, cur - prev);
   };
 
