@@ -422,6 +422,15 @@ export default function CostsView() {
 
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
   const avgPerDay = monthlyTotals.total / daysInMonth;
+
+  // Rozbicie kosztu aut: suma km per auto → kwota (od sumy km)
+  const fuelPrice = settings.fuel_price || 0;
+  const carBreakdown = [
+    { name: 'Fiat',  km: monthlyTotals.kmFiat,  cost: monthlyTotals.kmFiat  * (settings.fiat_l_100km  || 0) / 100 * fuelPrice },
+    { name: 'Isuzu', km: monthlyTotals.kmIsuzu, cost: monthlyTotals.kmIsuzu * (settings.isuzu_l_100km || 0) / 100 * fuelPrice },
+    { name: 'Merc.', km: monthlyTotals.kmMerc,  cost: monthlyTotals.kmMerc  * (settings.merc_l_100km  || 0) / 100 * fuelPrice },
+    { name: 'Iveco', km: monthlyTotals.kmIveco, cost: monthlyTotals.kmIveco * (settings.iveco_l_100km || 0) / 100 * fuelPrice },
+  ];
   const dailyTotals = days.map((d, idx) => calcDay(d, idx).total_cost);
 
   return (
@@ -476,7 +485,7 @@ export default function CostsView() {
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} days={days} />
+            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} days={days} carBreakdown={carBreakdown} />
           )}
 
           {activeTab === 'entry' && (
@@ -493,7 +502,7 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days }) {
+function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days, carBreakdown = [] }) {
   const cats = [
     { name: 'Transport', color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
     { name: 'Energia', color: CAT.elec, value: totals.elec, icon: <Zap size={16}/> },
@@ -542,6 +551,31 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* KOSZT AUT — km per auto → kwota */}
+        <div style={cardStyle}>
+          <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Truck size={16}/> Koszt aut — km</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', fontSize: '11px', fontWeight: 700, color: IOS_THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', padding: '0 4px 8px' }}>
+              <span>Samochód</span><span style={{ textAlign: 'right' }}>Suma km</span><span style={{ textAlign: 'right', minWidth: '90px' }}>Kwota</span>
+            </div>
+            {carBreakdown.map((car, i) => (
+              <div key={car.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '10px 4px', borderTop: i === 0 ? 'none' : `1px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'flex', width: '26px', height: '26px', borderRadius: '7px', background: tint(CAT.transport, 0.12), color: CAT.transport, alignItems: 'center', justifyContent: 'center' }}><Truck size={14}/></span>
+                  {car.name}
+                </span>
+                <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{car.km > 0 ? `${FMT0(car.km)} km` : '—'}</span>
+                <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '14px', fontWeight: 700, color: CAT.transport }}>{car.cost > 0 ? `${FMT(car.cost)} zł` : '—'}</span>
+              </div>
+            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '12px 4px 2px', borderTop: `2px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800 }}>Razem</span>
+              <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 700, color: IOS_THEME.textSecondary }}>{FMT0(carBreakdown.reduce((s, c) => s + c.km, 0))} km</span>
+              <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '15px', fontWeight: 800, color: CAT.transport }}>{FMT(carBreakdown.reduce((s, c) => s + c.cost, 0))} zł</span>
+            </div>
           </div>
         </div>
 
