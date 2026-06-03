@@ -162,13 +162,13 @@ export default function CostsView() {
       { data: sets },
       { data: costs },
       { data: timeline },
-      { data: prev },
+      { data: prevRows },
       { data: emps }
     ] = await Promise.all([
       supabase.from('cost_settings').select('*').eq('month_key', monthKey).single(),
       supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
       supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(31),
       supabase.from('employees').select('id, group_name, default_start')
     ]);
 
@@ -194,7 +194,17 @@ export default function CostsView() {
         setSettings({ month_key: monthKey, ...DEFAULT_SETTINGS });
       }
     }
-    setPrevReadings(prev || {});
+    let compositePrev = {};
+    if (prevRows && prevRows.length > 0) {
+      prevRows.forEach(row => {
+        ['fiat_end', 'isuzu_end', 'merc_end', 'iveco_end', 'elec_end', 'gas_prod_end', 'gas_heat_end', 'water_end'].forEach(k => {
+          if (compositePrev[k] === undefined && row[k] != null) {
+            compositePrev[k] = row[k];
+          }
+        });
+      });
+    }
+    setPrevReadings(compositePrev);
 
     const costMap = {};
     (costs || []).forEach(c => costMap[c.entry_date] = c);
