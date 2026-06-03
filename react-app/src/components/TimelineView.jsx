@@ -280,6 +280,7 @@ export default function TimelineView() {
   const [brushRole, setBrushRole] = useState(null);
   const isPainting = useRef(false);
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
+  const containerRef = useRef(null);
 
   const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const weekNum = getWeekNum(monday);
@@ -354,6 +355,27 @@ export default function TimelineView() {
     window.addEventListener('mouseup', stop);
     return () => window.removeEventListener('mouseup', stop);
   }, []);
+
+  // Mysz: pionowe kółko przewija tabelę w bok
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      if (e.deltaY === 0) return;
+      // trackpad poziomy gest – zostaw natywne zachowanie
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      // brak poziomego przewijania – nie przejmuj kółka
+      if (el.scrollWidth <= el.clientWidth) return;
+      const atStart = el.scrollLeft <= 0;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      // na krańcach pozwól stronie przewijać się pionowo
+      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [loading]);
 
   const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
     if (!isAdmin || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
@@ -546,7 +568,7 @@ export default function TimelineView() {
 
 
       {/* Tabela połączona */}
-      <div className="tl-container">
+      <div className="tl-container" ref={containerRef}>
         <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (HOURS.length * HOUR_W + 29)}px` }}>
           <thead>
             <tr>
