@@ -1,7 +1,9 @@
 -- ============================================================
---  Globalne ustawienia aplikacji (wspólne dla wszystkich adminów/urządzeń)
---  Generyczny magazyn klucz → wartość (jsonb). Pierwsze użycie:
---    key = 'performance_progi' → progi wydajności kg/rbh (ZD1/ZD2/WSP)
+--  Ustawienia aplikacji wspólne dla wszystkich adminów/urządzeń.
+--  Generyczny magazyn klucz → wartość (jsonb). Użycie:
+--    key = 'performance_progi_<YYYY-MM>' → progi wydajności kg/rbh
+--    (ZD1/ZD2/WSP) OSOBNE DLA KAŻDEGO MIESIĄCA. Wiersze tworzą się
+--    automatycznie przy pierwszej edycji progów danego miesiąca.
 --  URUCHOM w Supabase → SQL Editor. Bezpieczne, idempotentne.
 -- ============================================================
 
@@ -21,14 +23,8 @@ create policy "app_settings access" on public.app_settings
 
 grant all on table public.app_settings to anon, authenticated;
 
--- Wartość startowa progów (te same co domyślne w kodzie); nie nadpisuje jeśli już istnieje
-insert into public.app_settings (key, value)
-values (
-  'performance_progi',
-  '{"ZD1":{"slaba":4.0,"srednia":5.5,"dobra":8.0},"ZD2":{"slaba":14,"srednia":21,"dobra":26},"WSP":{"slaba":15,"srednia":20,"dobra":27}}'::jsonb
-)
-on conflict (key) do nothing;
-
 -- ============================================================
---  Po uruchomieniu edycja progów w zakładce Wydajność zapisuje się globalnie.
+--  Po uruchomieniu edycja progów w zakładce Wydajność zapisuje się
+--  per miesiąc (osobny wiersz performance_progi_<YYYY-MM>), wspólnie
+--  dla wszystkich urządzeń. Domyślne progi są w kodzie aplikacji.
 -- ============================================================

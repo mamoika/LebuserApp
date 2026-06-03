@@ -101,8 +101,10 @@ const PROGI_DEFAULT = {
   ZD2: { slaba: 14, srednia: 21, dobra: 26 },
   WSP: { slaba: 15, srednia: 20, dobra: 27 },
 };
-const PROGI_LS_KEY = 'lebuser_progi_v1'; // cache lokalny (szybki start / offline)
-const PROGI_DB_KEY = 'performance_progi'; // klucz w tabeli app_settings (źródło prawdy, wspólne dla wszystkich)
+// Progi są PER MIESIĄC — osobny klucz w app_settings i osobny cache na każdy month_key
+const PROGI_DB_PREFIX = 'performance_progi_';            // app_settings: performance_progi_2026-06
+const progiDbKey = (mk) => `${PROGI_DB_PREFIX}${mk}`;
+const progiLsKey = (mk) => `lebuser_progi_${mk}`;        // cache lokalny per miesiąc
 // Domknij surowy obiekt progów domyślnymi (odporne na braki pól / starszy kształt)
 const normalizeProgi = (p) => {
   if (!(p?.ZD1 && p?.ZD2 && p?.WSP)) return null;
@@ -112,10 +114,10 @@ const normalizeProgi = (p) => {
     WSP: { ...PROGI_DEFAULT.WSP, ...p.WSP },
   };
 };
-// Wczytaj progi z cache localStorage; DB nadpisze je po zalogowaniu
-const loadProgi = () => {
+// Wczytaj progi danego miesiąca z cache localStorage (DB nadpisze je po zalogowaniu)
+const loadProgiCache = (mk) => {
   try {
-    const p = normalizeProgi(JSON.parse(localStorage.getItem(PROGI_LS_KEY)));
+    const p = normalizeProgi(JSON.parse(localStorage.getItem(progiLsKey(mk))));
     if (p) return p;
   } catch { /* ignore */ }
   return PROGI_DEFAULT;
@@ -162,12 +164,14 @@ export default function CostsView() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'entry' | 'performance'
   const [showRates, setShowRates] = useState(false);
-  const [progi, setProgi] = useState(loadProgi); // edytowalne progi wydajności (kg/rbh) — wspólne (app_settings)
+  // progi wydajności (kg/rbh) — PER MIESIĄC (app_settings: performance_progi_<month>)
+  const [progi, setProgi] = useState(() => loadProgiCache(`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`));
   const updateProgi = useCallback(async (next) => {
+    const mk = monthKeyRef.current;
     setProgi(next);
-    try { localStorage.setItem(PROGI_LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    try { localStorage.setItem(progiLsKey(mk), JSON.stringify(next)); } catch { /* ignore */ }
     const { error } = await supabase.from('app_settings')
-      .upsert({ key: PROGI_DB_KEY, value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      .upsert({ key: progiDbKey(mk), value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) toastError('Nie udało się zapisać progów');
   }, []);
 
@@ -304,20 +308,29 @@ export default function CostsView() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Progi wydajności są globalne — wczytaj z app_settings (źródło prawdy), zsynchronizuj cache
+  // Progi wydajności są PER MIESIĄC — wczytaj progi tego miesiąca z app_settings.
+  // Brak własnych → odziedzicz z ostatniego wcześniejszego miesiąca (jak stawki); inaczej domyślne.
   useEffect(() => {
     if (!isAdmin) return;
     let alive = true;
+    setProgi(loadProgiCache(monthKey)); // natychmiast z cache tego miesiąca
     (async () => {
-      const { data } = await supabase.from('app_settings').select('value').eq('key', PROGI_DB_KEY).maybeSingle();
-      const p = data?.value ? normalizeProgi(data.value) : null;
-      if (alive && p) {
-        setProgi(p);
-        try { localStorage.setItem(PROGI_LS_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+      const { data: own } = await supabase.from('app_settings').select('value').eq('key', progiDbKey(monthKey)).maybeSingle();
+      let p = own?.value ? normalizeProgi(own.value) : null;
+      if (!p) {
+        const { data: prev } = await supabase.from('app_settings').select('value')
+          .like('key', `${PROGI_DB_PREFIX}%`).lt('key', progiDbKey(monthKey))
+          .order('key', { ascending: false }).limit(1).maybeSingle();
+        p = prev?.value ? normalizeProgi(prev.value) : null;
+      }
+      if (alive) {
+        const next = p || PROGI_DEFAULT;
+        setProgi(next);
+        try { localStorage.setItem(progiLsKey(monthKey), JSON.stringify(next)); } catch { /* ignore */ }
       }
     })();
     return () => { alive = false; };
-  }, [isAdmin]);
+  }, [isAdmin, monthKey]);
 
   // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
   const flushSave = useCallback(async () => {
@@ -830,7 +843,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
   const reading = (dStr, dt, base, cons, unit) => (
     <td style={newTdStyle}>
       <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '3px', minHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: IOS_THEME.textSecondary, textAlign: 'center', marginTop: '1px', minHeight: '11px', fontVariantNumeric: 'tabular-nums' }}>
         {cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : ''}
       </div>
     </td>
@@ -894,7 +907,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
                   <td style={costCellStyle(CAT.transport)}>
                     <div>{FMT(c.transportCost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.7, marginTop: '3px', minHeight: '12px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.7, marginTop: '1px', minHeight: '11px' }}>
                       {c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : ''}
                     </div>
                   </td>
@@ -910,7 +923,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   <td style={{ ...costCellStyle('#6B7280'), background: '#EAECEF' }}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={{ ...newInpStyle, background: 'transparent', textAlign: 'center' }}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'center', borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</div>
-                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '3px', minHeight: '12px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '1px', minHeight: '11px' }}>
                       {c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : ''}
                     </div>
                   </td>
@@ -995,7 +1008,7 @@ function ThresholdEditor({ band, progi, onChange, onClose }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
         <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>Próg wydajności:</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 11px', borderRadius: '8px', background: def.c.bg, color: def.c.fc, fontWeight: 700, fontSize: '12px' }}>{def.label}</span>
-        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kg/rbh · format XX.X · kolory na żywo</span>
+        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kg/rbh · format XX.X · osobne dla każdego miesiąca · kolory na żywo</span>
         <button
           onClick={() => onChange(PROGI_DEFAULT)}
           disabled={isDefault}
@@ -1194,10 +1207,10 @@ const newThStyle = {
   padding: '8px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
 };
 const newTdStyle = {
-  padding: '5px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
+  padding: '3px 6px', fontSize: '13px', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle'
 };
 const newInpStyle = {
-  width: '100%', padding: '5px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
+  width: '100%', padding: '4px 4px', border: '1px solid transparent', background: 'rgba(0,0,0,0.04)', borderRadius: '7px', textAlign: 'center', fontSize: '13px', outline: 'none', transition: 'all 0.18s ease', fontVariantNumeric: 'tabular-nums', fontWeight: 500
 };
 const rateInpStyle = {
   width: '90px', padding: '6px 8px', border: '1px solid transparent', background: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', textAlign: 'right', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.15s', fontVariantNumeric: 'tabular-nums'
