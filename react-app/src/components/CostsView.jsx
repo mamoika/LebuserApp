@@ -95,10 +95,29 @@ const opaqueTint = (hex, a = 0.08) => {
 const todayStr = toDateStr(new Date());
 
 // Performance thresholds (kg/rbh) — same as the old spreadsheet (PROGI)
-const PROGI = {
+const PROGI_DEFAULT = {
   ZD1: { slaba: 4.0, srednia: 5.5, dobra: 8.0 },
   ZD2: { slaba: 14, srednia: 21, dobra: 26 },
   WSP: { slaba: 15, srednia: 20, dobra: 27 },
+};
+const PROGI_LS_KEY = 'lebuser_progi_v1'; // cache lokalny (szybki start / offline)
+const PROGI_DB_KEY = 'performance_progi'; // klucz w tabeli app_settings (źródło prawdy, wspólne dla wszystkich)
+// Domknij surowy obiekt progów domyślnymi (odporne na braki pól / starszy kształt)
+const normalizeProgi = (p) => {
+  if (!(p?.ZD1 && p?.ZD2 && p?.WSP)) return null;
+  return {
+    ZD1: { ...PROGI_DEFAULT.ZD1, ...p.ZD1 },
+    ZD2: { ...PROGI_DEFAULT.ZD2, ...p.ZD2 },
+    WSP: { ...PROGI_DEFAULT.WSP, ...p.WSP },
+  };
+};
+// Wczytaj progi z cache localStorage; DB nadpisze je po zalogowaniu
+const loadProgi = () => {
+  try {
+    const p = normalizeProgi(JSON.parse(localStorage.getItem(PROGI_LS_KEY)));
+    if (p) return p;
+  } catch { /* ignore */ }
+  return PROGI_DEFAULT;
 };
 const EFF_COLORS = {
   slaba: { bg: '#FFCDD2', fc: '#B71C1C' },   // red
@@ -135,6 +154,14 @@ export default function CostsView() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'entry' | 'performance'
   const [showRates, setShowRates] = useState(false);
+  const [progi, setProgi] = useState(loadProgi); // edytowalne progi wydajności (kg/rbh) — wspólne (app_settings)
+  const updateProgi = useCallback(async (next) => {
+    setProgi(next);
+    try { localStorage.setItem(PROGI_LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: PROGI_DB_KEY, value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) toastError('Nie udało się zapisać progów');
+  }, []);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -268,6 +295,21 @@ export default function CostsView() {
   }, [currentDate, monthKey, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Progi wydajności są globalne — wczytaj z app_settings (źródło prawdy), zsynchronizuj cache
+  useEffect(() => {
+    if (!isAdmin) return;
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from('app_settings').select('value').eq('key', PROGI_DB_KEY).maybeSingle();
+      const p = data?.value ? normalizeProgi(data.value) : null;
+      if (alive && p) {
+        setProgi(p);
+        try { localStorage.setItem(PROGI_LS_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+      }
+    })();
+    return () => { alive = false; };
+  }, [isAdmin]);
 
   // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
   const flushSave = useCallback(async () => {
@@ -534,7 +576,7 @@ export default function CostsView() {
           )}
 
           {activeTab === 'performance' && (
-            <PerformanceGrid days={days} month={month} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} />
+            <PerformanceGrid days={days} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} />
           )}
         </>
       )}
@@ -860,8 +902,89 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
   );
 }
 
+/* ───────────── THRESHOLD EDITOR (progi wydajności) ───────────── */
+// Input progu z lokalnym draftem — zatwierdza po opuszczeniu pola / Enter (obsługuje przecinek)
+// Remontowany przez key={...value} u rodzica, więc draft startuje od aktualnej wartości
+function ProgInput({ value, onCommit }) {
+  const [draft, setDraft] = useState(String(value));
+  const commit = () => {
+    const v = parseFloat(draft.replace(',', '.'));
+    onCommit(isNaN(v) ? 0 : v);
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      style={{ width: '52px', textAlign: 'center', padding: '5px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, fontWeight: 700, fontSize: '12px', color: IOS_THEME.textPrimary }}
+    />
+  );
+}
+
+function ThresholdEditor({ progi, onChange, onClose }) {
+  const GROUPS = [['ZD1', 'ZD 1'], ['ZD2', 'ZD 2'], ['WSP', 'Ogółem']];
+  // granice w kolejności rosnącej + kolor pasma POWYŻEJ danej granicy
+  const STEPS = [
+    { key: 'slaba',   below: EFF_COLORS.slaba },   // < slaba = czerwony
+    { key: 'srednia', below: EFF_COLORS.srednia }, // < srednia = żółty
+    { key: 'dobra',   below: EFF_COLORS.dobra },   // < dobra = zielony
+  ];
+  const isDefault = JSON.stringify(progi) === JSON.stringify(PROGI_DEFAULT);
+
+  const setVal = (g, k, v) => {
+    onChange({ ...progi, [g]: { ...progi[g], [k]: v } });
+  };
+
+  const chip = (c, lbl) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '11px', whiteSpace: 'nowrap' }}>{lbl}</span>
+  );
+
+  return (
+    <div style={{ padding: '14px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>Progi wydajności (kg/rbh)</span>
+        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kolory aktualizują się na żywo</span>
+        <button
+          onClick={() => onChange(PROGI_DEFAULT)}
+          disabled={isDefault}
+          style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF', color: isDefault ? IOS_THEME.textSecondary : IOS_THEME.accent, fontWeight: 700, fontSize: '11px', cursor: isDefault ? 'default' : 'pointer', opacity: isDefault ? 0.5 : 1 }}
+        >
+          Przywróć domyślne
+        </button>
+        <button
+          onClick={onClose}
+          title="Zamknij"
+          style={{ width: '26px', height: '26px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF', color: IOS_THEME.textSecondary, fontWeight: 700, fontSize: '15px', lineHeight: 1, cursor: 'pointer' }}
+        >
+          ×
+        </button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+        {GROUPS.map(([gKey, gLabel]) => (
+          <div key={gKey} style={{ border: `1px solid ${IOS_THEME.border}`, borderRadius: '12px', padding: '12px', background: '#FAFAFC' }}>
+            <div style={{ fontWeight: 800, fontSize: '12px', color: IOS_THEME.textPrimary, marginBottom: '10px' }}>{gLabel}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+              {chip(EFF_COLORS.slaba, 'Słaba')}
+              {STEPS.map(({ key }, i) => (
+                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <ProgInput key={progi[gKey][key]} value={progi[gKey][key]} onCommit={(v) => setVal(gKey, key, v)} />
+                  {chip(i === 2 ? EFF_COLORS.bdb : STEPS[i + 1].below, i === 0 ? 'Średnia' : i === 1 ? 'Dobra' : 'Bardzo dobra')}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ───────────── PERFORMANCE GRID ───────────── */
-function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChange }) {
+function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, progi, onProgiChange }) {
+  const [editProgi, setEditProgi] = useState(false);
   const effTd = (val, thr, perPerson) => {
     const c = effStyle(val, thr);
     return (
@@ -897,14 +1020,23 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
 
   return (
     <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-      {/* legend */}
+      {/* legend — kolorowe etykiety są klikalne: otwierają edytor progów */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
         <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>Wydajność kg/rbh:</span>
         {[['Słaba', EFF_COLORS.slaba], ['Średnia', EFF_COLORS.srednia], ['Dobra', EFF_COLORS.dobra], ['Bardzo dobra', EFF_COLORS.bdb]].map(([lbl, c]) => (
-          <span key={lbl} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 10px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700 }}>{lbl}</span>
+          <button
+            key={lbl}
+            onClick={() => setEditProgi(v => !v)}
+            title="Kliknij, aby ustawić progi (ZD1 / ZD2 / Ogółem)"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 11px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '12px', border: `1.5px solid ${editProgi ? c.fc : 'transparent'}`, boxShadow: editProgi ? `0 0 0 2px ${c.bg}` : 'none', cursor: 'pointer' }}
+          >
+            {lbl}
+          </button>
         ))}
+        <Settings size={13} style={{ color: editProgi ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
         <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>kg/h kolorowane · kg/os pod spodem · godziny i obsada z osi czasu</span>
       </div>
+      {editProgi && <ThresholdEditor progi={progi} onChange={onProgiChange} onClose={() => setEditProgi(false)} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
@@ -943,12 +1075,12 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
               const effZd2 = hZd2 > 0 ? kgZd2pr / hZd2 : 0;
               const effAll = h_suma > 0 ? t_suma / h_suma : 0;
               return (
-                <tr key={dStr} className="costs-row" style={{ background: isToday ? opaqueTint(IOS_THEME.accent, 0.08) : isOff ? '#F4F4F6' : 'transparent' }}>
-                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#F4F4F6' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#D32F2F' : IOS_THEME.textPrimary }} title={isHol ? isHol.name : ''}>
-                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '5px' }}>
-                      {String(d.getDate()).padStart(2, '0')}.{String(month).padStart(2, '0')}
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? 'rgba(255,255,255,0.85)' : isOff ? '#D32F2F' : IOS_THEME.textSecondary }}>{WEEKDAYS_PL[d.getDay()]}</span>
-                    </span>
+                <tr key={dStr} className="costs-row" style={{ background: isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#EBEBEB' : '#FFFFFF' }}>
+                  <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#D5D5D5' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary, textAlign: 'center', minWidth: '52px' }} title={isHol ? isHol.name : ''}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2 }}>{String(d.getDate()).padStart(2, '0')}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                    </div>
                   </td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
@@ -958,16 +1090,16 @@ function PerformanceGrid({ days, month, dailyData, timelineStats, totals, onChan
                   {hoursTd(hZd2, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(hKier, ts.Kierowcy?.emp?.size || 0, IOS_THEME.textPrimary)}
                   <td style={{ ...newTdStyle, fontWeight: 700, color: '#1565C0', textAlign: 'center', background: tint('#1565C0', 0.05) }}>{h_suma > 0 ? FMT1(h_suma) : '—'}</td>
-                  {effTd(effZd1, PROGI.ZD1, pZd1 > 0 ? kgZd1 / pZd1 : 0)}
-                  {effTd(effZd2, PROGI.ZD2, pZd2 > 0 ? kgZd2pr / pZd2 : 0)}
-                  {effTd(effAll, PROGI.WSP, pAll > 0 ? t_suma / pAll : 0)}
+                  {effTd(effZd1, progi.ZD1, pZd1 > 0 ? kgZd1 / pZd1 : 0)}
+                  {effTd(effZd2, progi.ZD2, pZd2 > 0 ? kgZd2pr / pZd2 : 0)}
+                  {effTd(effAll, progi.WSP, pAll > 0 ? t_suma / pAll : 0)}
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left' }}>SUMA / Ø</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>SUMA / Ø</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd1 || '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd2 || '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki || '—'}</td>
