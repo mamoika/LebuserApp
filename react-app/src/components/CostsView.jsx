@@ -772,8 +772,7 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>Koszt</span><br/><span>Woda</span></th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>Ludzie</th>
               <th className="sticky-head" style={{ ...newThStyle, color: '#4B5563', background: '#EAECEF' }}>Inne</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.textPrimary, fontWeight: 800 }}>SUMA</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: '#6366F1', background: opaqueTint('#6366F1', 0.13) }}><span>zł</span><br/><span>/kg</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>SUMA</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>zł/kg</span></th>
             </tr>
           </thead>
           <tbody>
@@ -816,8 +815,12 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
                   <td style={costCellStyle(CAT.water)}>{FMT(c.water_cost)}</td>
                   <td style={costCellStyle(CAT.workers)}>{c.worker_cost > 0 ? FMT(c.worker_cost) : '—'}</td>
                   <td style={{ ...costCellStyle('#6B7280'), background: '#EAECEF' }}><input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={{ ...newInpStyle, background: 'transparent', textAlign: 'center' }}/></td>
-                  <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'center', borderLeft: '2px solid rgba(37,99,235,0.2)', fontSize: '14px', whiteSpace: 'nowrap' }}>{FMT(c.total_cost)}</td>
-                  <td style={{ ...costCellStyle('#6366F1'), background: tint('#6366F1', 0.10) }}>{c.pln_kg > 0 ? <><span style={{ fontWeight: 800 }}>{FMT(c.pln_kg)}</span><span style={{ fontSize: '10px', opacity: 0.7, display: 'block', marginTop: '2px' }}>zł/kg</span></> : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                  <td style={{ ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, textAlign: 'center', borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.65, marginTop: '3px', minHeight: '12px' }}>
+                      {c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : ''}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -843,8 +846,12 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               <td style={{ ...footTdStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.16), textAlign: 'center' }}>{FMT(totals.water)}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.16), textAlign: 'center' }}>{FMT(totals.workers)}</td>
               <td style={{ ...footTdStyle, background: '#EAECEF', textAlign: 'center', color: '#4B5563' }}>{FMT(totals.other)}</td>
-              <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, fontSize: '15px', borderLeft: '2px solid rgba(255,255,255,0.3)', textAlign: 'center' }}>{FMT(totals.total)}</td>
-              <td style={{ ...footTdStyle, background: opaqueTint('#6366F1', 0.18), color: '#6366F1', textAlign: 'center' }}>{(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0); }, 0); return kg > 0 ? <><span style={{ fontWeight: 900 }}>{FMT(totals.total / kg)}</span><span style={{ fontSize: '10px', display: 'block', opacity: 0.7 }}>zł/kg</span></> : '—'; })()}</td>
+              <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
+                <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
+                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} zł/kg` : ''; })()}
+                </div>
+              </td>
             </tr>
           </tfoot>
         </table>
