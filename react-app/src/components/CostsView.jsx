@@ -761,16 +761,16 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {meterTh(<Truck size={13}/>, 'Isuzu')}
               {meterTh(<Truck size={13}/>, 'Merc.')}
               {meterTh(<Truck size={13}/>, 'Iveco')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: tint(CAT.transport, 0.10) }}><span>Koszt</span><br/><span>Auta</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.13) }}><span>Koszt</span><br/><span>Auta</span></th>
               {meterTh(<Zap size={13}/>, 'Prąd')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: tint(CAT.elec, 0.10) }}><span>Koszt</span><br/><span>Prąd</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.13) }}><span>Koszt</span><br/><span>Prąd</span></th>
               {meterTh(<Flame size={13}/>, 'Gaz prod.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: tint(CAT.gas, 0.10) }}><span>Koszt</span><br/><span>Prod.</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.13) }}><span>Koszt</span><br/><span>Prod.</span></th>
               {meterTh(<Flame size={13}/>, 'Gaz grz.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: tint('#4A148C', 0.10) }}><span>Koszt</span><br/><span>Grz.</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>Koszt</span><br/><span>Grz.</span></th>
               {meterTh(<Droplet size={13}/>, 'Woda')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: tint(CAT.water, 0.10) }}><span>Koszt</span><br/><span>Woda</span></th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: tint(CAT.workers, 0.10) }}>Ludzie</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>Koszt</span><br/><span>Woda</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>Ludzie</th>
               <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.textSecondary, background: 'rgba(0,0,0,0.04)' }}>Inne</th>
               <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.textPrimary, fontWeight: 800 }}>SUMA</th>
             </tr>
@@ -827,20 +827,20 @@ function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
               {footMeter(totals.kmIveco, 'km')}
-              <td style={{ ...footTdStyle, color: CAT.transport, background: tint(CAT.transport, 0.12), textAlign: 'center' }}>
+              <td style={{ ...footTdStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.16), textAlign: 'center' }}>
                 <div>{FMT(totals.transport)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: CAT.transport, opacity: 0.6, marginTop: '2px' }}>{(() => { const km = totals.kmFiat + totals.kmIsuzu + totals.kmMerc + totals.kmIveco; return km > 0 ? `${FMT0(km)} km` : ''; })()}</div>
               </td>
               {footMeter(totals.kWh, 'kWh')}
-              <td style={{ ...footTdStyle, color: CAT.elec, background: tint(CAT.elec, 0.12), textAlign: 'center' }}>{FMT(totals.elec)}</td>
+              <td style={{ ...footTdStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.16), textAlign: 'center' }}>{FMT(totals.elec)}</td>
               {footMeter(totals.m3GasProd, 'm³')}
-              <td style={{ ...footTdStyle, color: CAT.gas, background: tint(CAT.gas, 0.12), textAlign: 'center' }}>{FMT(totals.gasProd)}</td>
+              <td style={{ ...footTdStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.16), textAlign: 'center' }}>{FMT(totals.gasProd)}</td>
               {footMeter(totals.m3GasHeat, 'm³')}
-              <td style={{ ...footTdStyle, color: '#4A148C', background: tint('#4A148C', 0.12), textAlign: 'center' }}>{FMT(totals.gasHeat)}</td>
+              <td style={{ ...footTdStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.16), textAlign: 'center' }}>{FMT(totals.gasHeat)}</td>
               {footMeter(totals.m3Water, 'm³')}
-              <td style={{ ...footTdStyle, color: CAT.water, background: tint(CAT.water, 0.12), textAlign: 'center' }}>{FMT(totals.water)}</td>
-              <td style={{ ...footTdStyle, color: CAT.workers, background: tint(CAT.workers, 0.12), textAlign: 'center' }}>{FMT(totals.workers)}</td>
-              <td style={{ ...footTdStyle, background: 'rgba(0,0,0,0.05)', textAlign: 'center' }}>{FMT(totals.other)}</td>
+              <td style={{ ...footTdStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.16), textAlign: 'center' }}>{FMT(totals.water)}</td>
+              <td style={{ ...footTdStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.16), textAlign: 'center' }}>{FMT(totals.workers)}</td>
+              <td style={{ ...footTdStyle, background: '#EAECEF', textAlign: 'center' }}>{FMT(totals.other)}</td>
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, fontSize: '15px', borderLeft: '2px solid rgba(255,255,255,0.3)', textAlign: 'center' }}>{FMT(totals.total)}</td>
             </tr>
           </tfoot>
