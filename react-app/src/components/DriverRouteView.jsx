@@ -247,7 +247,19 @@ export default function DriverRouteView() {
   // 3) Przyjazd brudnego — prosty formularz: klient/trasa auto, wybór "na kiedy" + kg
   const openPrzyjazd = (stop) => {
     const options = pickupDateOptions();
-    // domyślnie wyliczony dzień odbioru (jak w harmonogramie)
+    const optionValues = new Set(options.map(o => o.value));
+
+    // Szukaj najbliższej zaplanowanej daty odbioru z harmonogramu tego klienta
+    // (entries zawiera przyszłe zaplanowane wizyty — pick_week_key + pick_day)
+    const futurePicks = entries
+      .filter(e => e.client_name === stop.client_name)
+      .map(e => pickupDateStr(e))
+      .filter(d => d && d > today)
+      .sort();
+    // Pierwsza data z harmonogramu, która jest wśród dostępnych opcji
+    const scheduleMatch = futurePicks.find(d => optionValues.has(d));
+
+    // Fallback: stara reguła matematyczna
     const wd = (new Date().getDay() + 6) % 7 + 1;
     const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
     const { pickDay, pickWeek } = defaultPick(arrDay);
@@ -255,9 +267,11 @@ export default function DriverRouteView() {
     const pwk = pickWeek === 1 ? nextWeekKey(wk) : wk;
     const defDate = parseMonday(pwk); defDate.setDate(defDate.getDate() + (pickDay - 1));
     const defVal = ymd(defDate);
-    const pickValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
+    const fallbackValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
+
+    const pickValue = scheduleMatch || fallbackValue;
+
     // Inteligentny domyślny typ: sprawdź co już dziś dodano dla tego klienta
-    // Jeśli jest Pościel ale nie ma Obrusów → podpowiedz Obrusy (i odwrotnie)
     const todayArr = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
     const hasP = todayArr.some(a => a.type === 'P');
     const hasO = todayArr.some(a => a.type === 'O');
