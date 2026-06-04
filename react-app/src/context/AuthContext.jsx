@@ -88,11 +88,19 @@ export const AuthProvider = ({ children }) => {
 
   // Wróć do konta admina
   const stopImpersonating = () => {
-    if (!adminBackup) return;
+    if (!adminBackup) return { error: 'Brak zapisanej sesji admina' };
+    if (!adminBackup.session_token) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(BACKUP_KEY);
+      setUser(null);
+      setAdminBackup(null);
+      return { needsLogin: true };
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(adminBackup));
     localStorage.removeItem(BACKUP_KEY);
     setUser(adminBackup);
     setAdminBackup(null);
+    return { ok: true };
   };
 
   const signOut = () => {

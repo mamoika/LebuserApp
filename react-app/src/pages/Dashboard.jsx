@@ -17,6 +17,11 @@ export default function Dashboard() {
   const { user, adminBackup, signOut, stopImpersonating, isAdmin } = useAuth();
   const isImpersonating = !!adminBackup;
 
+  const handleStopImpersonating = () => {
+    const result = stopImpersonating();
+    window.location.href = result?.needsLogin ? '/login' : '/admin';
+  };
+
   return (
     <div className="app-shell">
 
@@ -43,7 +48,7 @@ export default function Dashboard() {
             )}
           </span>
           <button
-            onClick={stopImpersonating}
+            onClick={handleStopImpersonating}
             style={{
               background: 'rgba(0,0,0,0.2)',
               color: '#fff',

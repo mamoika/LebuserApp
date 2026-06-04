@@ -8,7 +8,7 @@
 --  Run this in Supabase SQL Editor, then deploy the matching frontend.
 -- ============================================================
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.user_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -38,6 +38,7 @@ create or replace function public.session_hash(p_session_token text)
 returns text
 language sql
 stable
+set search_path = public, extensions
 as $$
   select encode(digest(coalesce(p_session_token, ''), 'sha256'), 'hex')
 $$;
@@ -46,7 +47,7 @@ create or replace function public.create_user_session(p_user_id uuid)
 returns table(session_token text, expires_at timestamptz)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_token text;
@@ -68,7 +69,7 @@ create or replace function public.session_user(p_session_token text)
 returns table(id uuid, username text, name text, role text, routes text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query
@@ -92,7 +93,7 @@ create or replace function public.require_admin(p_session_token text)
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user record;
@@ -115,7 +116,7 @@ create or replace function public.logout_user(p_session_token text)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   update public.user_sessions
@@ -133,7 +134,7 @@ create or replace function public.check_username(p_username text)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user record;
@@ -159,7 +160,7 @@ create or replace function public.set_first_password(p_username text, p_password
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user record;
@@ -192,7 +193,7 @@ create or replace function public.login_user(p_username text, p_password text)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user record;
@@ -235,7 +236,7 @@ create or replace function public.get_all_users(p_session_token text)
 returns table(id uuid, username text, name text, role text, routes text, created_at timestamptz, has_password boolean)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.require_admin(p_session_token);
@@ -253,7 +254,7 @@ create or replace function public.admin_create_user(p_session_token text, p_user
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_id uuid;
@@ -280,7 +281,7 @@ create or replace function public.admin_reset_password(p_session_token text, p_u
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.require_admin(p_session_token);
@@ -302,7 +303,7 @@ create or replace function public.update_user_role(p_session_token text, p_user_
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.require_admin(p_session_token);
@@ -331,7 +332,7 @@ create or replace function public.update_user_routes(p_session_token text, p_use
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.require_admin(p_session_token);
@@ -353,7 +354,7 @@ create or replace function public.admin_delete_user(p_session_token text, p_user
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.require_admin(p_session_token);
@@ -372,7 +373,7 @@ create or replace function public.admin_impersonate_user(p_session_token text, p
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user record;

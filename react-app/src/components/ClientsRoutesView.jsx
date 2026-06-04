@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAppData, filterForDriver } from '../hooks/useAppData';
+import { useAppData } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -18,6 +18,12 @@ const SCHEDULE_GROUPS = [
   { value: 'tth',   title: 'Trasy Wt – Czw' },
   { value: 'other', title: 'Pozostałe trasy' },
 ];
+
+function parseRouteIds(routesStr) {
+  return new Set(
+    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
+  );
+}
 
 const ROUTE_COLORS = [
   '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6',
@@ -368,9 +374,8 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
 export default function ClientsRoutesView() {
   const rawData = useAppData();
   const { isAdmin, isDriver, user } = useAuth();
-  const { clients, routes, loading, error, refetch } = isDriver
-    ? filterForDriver(rawData, user?.routes)
-    : rawData;
+  const { clients, routes, loading, error, refetch } = rawData;
+  const assignedRouteIds = parseRouteIds(user?.routes);
 
   const [localClients, setLocalClients] = useState([]);
 
@@ -561,6 +566,7 @@ export default function ClientsRoutesView() {
   }));
 
   const renderRouteCol = (route) => {
+    const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -568,7 +574,16 @@ export default function ClientsRoutesView() {
     const routeColor = getRouteColor(displayNum);
 
     return (
-      <div key={route.id} className="col route-card" style={{ borderTopColor: routeColor }}>
+      <div
+        key={route.id}
+        className="col route-card"
+        style={{
+          borderTopColor: routeColor,
+          borderColor: isOwnRoute ? routeColor : undefined,
+          boxShadow: isOwnRoute ? `0 0 0 2px ${routeColor}33, 0 10px 24px rgba(0,0,0,0.08)` : undefined,
+          background: isOwnRoute ? `linear-gradient(180deg, ${routeColor}0f 0%, var(--bg-card) 32%)` : undefined,
+        }}
+      >
         <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '4px' }}>
           <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
 
@@ -579,6 +594,23 @@ export default function ClientsRoutesView() {
           >
             {route.name}
           </span>
+
+          {isOwnRoute && (
+            <span
+              style={{
+                color: routeColor,
+                background: `${routeColor}18`,
+                border: `1px solid ${routeColor}55`,
+                borderRadius: '999px',
+                padding: '3px 8px',
+                fontSize: '10px',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Twoja trasa
+            </span>
+          )}
 
           {isAdmin && (
             <div style={{ marginLeft: 'auto' }}>

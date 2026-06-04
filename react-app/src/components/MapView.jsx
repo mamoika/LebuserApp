@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../hooks/useAppData';
+import { useAuth } from '../context/AuthContext';
 
 const BASE_LAT = 52.7229319;
 const BASE_LNG = 15.2520164;
@@ -16,7 +17,13 @@ function getRouteColor(index) {
   return ROUTE_COLORS[index % ROUTE_COLORS.length];
 }
 
-function makeClientIcon(num, color) {
+function parseRouteIds(routesStr) {
+  return new Set(
+    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
+  );
+}
+
+function makeClientIcon(num, color, isOwnRoute = false) {
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -26,8 +33,8 @@ function makeClientIcon(num, color) {
       border-radius:50%;
       display:flex;align-items:center;justify-content:center;
       font-weight:700;font-size:11px;
-      border:2.5px solid #fff;
-      box-shadow:0 2px 8px rgba(0,0,0,0.25);
+      border:${isOwnRoute ? '3.5px' : '2.5px'} solid ${isOwnRoute ? '#111827' : '#fff'};
+      box-shadow:${isOwnRoute ? `0 0 0 3px ${color}55, 0 3px 12px rgba(0,0,0,0.32)` : '0 2px 8px rgba(0,0,0,0.25)'};
       transform:translate(-50%,-50%);
     ">${num}</div>`,
     iconSize: [0, 0],
@@ -80,32 +87,9 @@ function FitBounds({ positions }) {
   return null;
 }
 
-// Komponent do geolokalizacji
-function UserLocation({ onLocate }) {
-  const map = useMap();
-  const handleLocate = () => {
-    map.locate({ setView: true, maxZoom: 14 });
-    map.once('locationfound', e => onLocate(e.latlng));
-  };
-  return (
-    <button
-      onClick={handleLocate}
-      style={{
-        position: 'absolute', bottom: '16px', right: '16px', zIndex: 1000,
-        background: '#007AFF', color: '#fff',
-        border: 'none', borderRadius: '12px',
-        padding: '10px 16px', fontSize: '13px', fontWeight: 600,
-        cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,122,255,0.4)',
-        display: 'flex', alignItems: 'center', gap: '6px',
-      }}
-    >
-      📍 Moja lokalizacja
-    </button>
-  );
-}
-
 export default function MapView() {
   const { clients, routes, loading } = useAppData();
+  const { isDriver, user } = useAuth();
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [userPos, setUserPos] = useState(null);
   const [darkMode, setDarkMode] = useState(
@@ -113,6 +97,7 @@ export default function MapView() {
   );
 
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const assignedRouteIds = parseRouteIds(user?.routes);
 
   const toggleRoute = (routeId) => {
     setHiddenRoutes(prev => {
@@ -160,6 +145,7 @@ export default function MapView() {
           const color = getRouteColor(i);
           const hidden = hiddenRoutes.has(route.id);
           const hasGps = clients.some(c => c.route_id === route.id && c.lat && c.lng);
+          const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
           if (!hasGps) return null;
           return (
             <button
@@ -168,16 +154,18 @@ export default function MapView() {
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 background: hidden ? 'var(--bg-secondary)' : color + '18',
-                border: `1.5px solid ${hidden ? 'var(--border)' : color}`,
+                border: `${isOwnRoute ? '2.5px' : '1.5px'} solid ${hidden ? 'var(--border)' : color}`,
                 borderRadius: '20px', padding: '4px 10px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                 color: hidden ? 'var(--text-tertiary)' : color,
                 opacity: hidden ? 0.6 : 1,
+                boxShadow: isOwnRoute && !hidden ? `0 0 0 2px ${color}22` : 'none',
                 transition: 'all 0.15s',
               }}
             >
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: hidden ? 'var(--text-tertiary)' : color, flexShrink: 0 }} />
               {route.name}
+              {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>Twoja</span>}
             </button>
           );
         })}
@@ -210,6 +198,7 @@ export default function MapView() {
           {sortedRoutes.map((route, routeIndex) => {
             if (hiddenRoutes.has(route.id)) return null;
             const color = getRouteColor(routeIndex);
+            const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
             const routeClients = clients
               .filter(c => c.route_id === route.id && c.lat && c.lng)
               .sort((a, b) => a.sort_order - b.sort_order);
@@ -226,17 +215,17 @@ export default function MapView() {
               <span key={route.id}>
                 <Polyline
                   positions={polyPoints}
-                  pathOptions={{ color, weight: 3.5, opacity: 0.75, dashArray: null }}
+                  pathOptions={{ color, weight: isOwnRoute ? 5 : 3.5, opacity: isOwnRoute ? 0.92 : 0.75, dashArray: null }}
                 />
                 {routeClients.map((client, idx) => (
                   <Marker
                     key={client.id}
                     position={[client.lat, client.lng]}
-                    icon={makeClientIcon(idx + 1, color)}
+                    icon={makeClientIcon(idx + 1, color, isOwnRoute)}
                   >
                     <Popup>
                       <strong>{client.name}</strong><br />
-                      {route.name}<br />
+                      {route.name}{isOwnRoute ? ' · Twoja trasa' : ''}<br />
                       <span style={{ color: '#888', fontSize: '11px' }}>
                         {Number(client.lat).toFixed(5)}, {Number(client.lng).toFixed(5)}
                       </span>
