@@ -250,7 +250,7 @@ export default function DriverRouteView() {
     const defDate = parseMonday(pwk); defDate.setDate(defDate.getDate() + (pickDay - 1));
     const defVal = ymd(defDate);
     const pickValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
-    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: stop.entries[0]?.type || 'P', kg: '', pickValue, options });
+    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: stop.entries[0]?.type || 'P', kg: '', pickValue, options, added: [] });
   };
   const setPfField = (field, value) => setPf(p => ({ ...p, [field]: value }));
 
@@ -271,9 +271,11 @@ export default function DriverRouteView() {
       }]);
       if (error) throw error;
       await logAction({ userName: user.name, action: 'added', clientName: pf.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}, odbiór ${opt.label}` });
-      setPf(null);
+      const label = `${pf.type === 'O' ? 'Obrusy' : 'Pościel'}${isNaN(kg) ? '' : ' ' + kg + ' kg'} · ${opt.label}`;
+      // Formularz zostaje otwarty — można dodać kolejny przyjazd (np. obrusy)
+      setPf(p => ({ ...p, kg: '', added: [...(p.added || []), label] }));
       await refetch();
-      toastSuccess('Dodano przyjazd brudnego do harmonogramu');
+      toastSuccess('Dodano: ' + label);
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
@@ -491,6 +493,19 @@ export default function DriverRouteView() {
                         <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                           {stop.client_name}{routeMap[stop.route_id] ? ` · T${routeMap[stop.route_id].num} ${routeMap[stop.route_id].name}` : ''}
                         </div>
+
+                        {/* Rodzaj prania — osobny przyjazd dla pościeli i obrusów */}
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {[['P', 'Pościel'], ['O', 'Obrusy']].map(([val, lbl]) => (
+                            <button key={val} onClick={() => setPfField('type', val)} style={{
+                              flex: 1, padding: '9px', borderRadius: '9px', cursor: 'pointer', fontWeight: 700, fontSize: '13px',
+                              border: `2px solid ${pf.type === val ? 'var(--accent)' : 'var(--border)'}`,
+                              background: pf.type === val ? 'var(--accent-light)' : 'var(--bg-card)',
+                              color: pf.type === val ? 'var(--accent)' : 'var(--text-secondary)',
+                            }}>{lbl}</button>
+                          ))}
+                        </div>
+
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                           <label style={pfLabel}>Oddać czyste (na kiedy)
                             <select value={pf.pickValue} onChange={e => setPfField('pickValue', e.target.value)} style={pfInput}>
@@ -502,15 +517,24 @@ export default function DriverRouteView() {
                               onChange={e => setPfField('kg', e.target.value)} style={pfInput} />
                           </label>
                         </div>
+
+                        {pf.added?.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {pf.added.map((a, i) => (
+                              <div key={i} style={{ fontSize: '11px', color: '#34C759', fontWeight: 600 }}>✓ {a}</div>
+                            ))}
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button onClick={addPrzyjazd} disabled={busy} style={{
                             flex: 2, padding: '10px', borderRadius: '9px', border: 'none', cursor: 'pointer',
                             background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '13px',
-                          }}>{busy ? 'Dodawanie…' : 'Dodaj przyjazd'}</button>
+                          }}>{busy ? 'Dodawanie…' : '➕ Dodaj'}</button>
                           <button onClick={() => setPf(null)} style={{
                             flex: 1, padding: '10px', borderRadius: '9px', border: '1px solid var(--border)', cursor: 'pointer',
                             background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600,
-                          }}>Anuluj</button>
+                          }}>{pf.added?.length > 0 ? 'Gotowe' : 'Anuluj'}</button>
                         </div>
                       </div>
                     )}
