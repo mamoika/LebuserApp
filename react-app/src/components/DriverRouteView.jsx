@@ -5,7 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
-import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
+import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 /* ── helpery dat ── */
@@ -43,6 +43,9 @@ function nextWeekKey(wk) {
   return formatWeekKey(dt);
 }
 
+const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
+const pfInput = { padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', background: 'var(--bg-card)', color: 'var(--text-primary)' };
+
 export default function DriverRouteView() {
   const { user } = useAuth();
   const { entries, allRoutes, loading, refetch } = useAppData();
@@ -56,8 +59,8 @@ export default function DriverRouteView() {
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [przyjazdFor, setPrzyjazdFor] = useState(null); // klucz przystanku z otwartym formularzem przyjazdu
-  const [draft, setDraft] = useState({}); // { clientKey: { note, newKg } }
+  const [pf, setPf] = useState(null); // formularz przyjazdu brudnego (lub null)
+  const [draft, setDraft] = useState({}); // { clientKey: { note } }
 
   const today = ymd(new Date());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
@@ -184,27 +187,32 @@ export default function DriverRouteView() {
     finally { setBusy(false); }
   };
 
-  // 3) Przyjazd brudnego — tworzy nowy wpis w harmonogramie
-  const addPrzyjazd = async (stop) => {
+  // 3) Przyjazd brudnego — otwiera formularz z auto-uzupełnionymi danymi
+  const openPrzyjazd = (stop) => {
+    const wd = (new Date().getDay() + 6) % 7 + 1;          // Pn=1 … Nd=7
+    const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
+    const { pickDay, pickWeek } = defaultPick(arrDay);
+    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, kg: '', arrDay, pickDay, pickWeek, type: 'P' });
+  };
+  const setPfField = (field, value) => setPf(p => ({ ...p, [field]: value }));
+
+  const addPrzyjazd = async () => {
+    if (!pf) return;
     try {
       setBusy(true);
-      const kg = parseFloat(String(draftVal(stop.key, 'newKg', '')).replace(',', '.'));
-      const wd = (new Date().getDay() + 6) % 7 + 1;       // Pn=1 … Nd=7
-      const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
+      const kg = parseFloat(String(pf.kg).replace(',', '.'));
       const wk = formatWeekKey(getCurrentMonday());
-      const { pickDay, pickWeek } = defaultPick(arrDay);
-      const pickWeekKey = pickWeek === 1 ? nextWeekKey(wk) : wk;
+      const pickWeekKey = Number(pf.pickWeek) === 1 ? nextWeekKey(wk) : wk;
       const id = 'ID_' + Date.now();
       const { error } = await supabase.from('entries').insert([{
-        id, week_key: wk, client_name: stop.client_name, arr_day: arrDay,
-        pick_day: pickDay, pick_week_key: pickWeekKey,
+        id, week_key: wk, client_name: pf.client_name, arr_day: Number(pf.arrDay) || 1,
+        pick_day: Number(pf.pickDay) || 1, pick_week_key: pickWeekKey,
         weight: isNaN(kg) ? null : kg, weighed_kg: isNaN(kg) ? null : kg,
-        route_id: stop.route_id, type: 'P', added_by: user.name, urgent: false,
+        route_id: pf.routeId, type: pf.type, added_by: user.name, urgent: false,
       }]);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'added', clientName: stop.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}` });
-      setPrzyjazdFor(null);
-      setDraftVal(stop.key, 'newKg', '');
+      await logAction({ userName: user.name, action: 'added', clientName: pf.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}` });
+      setPf(null);
       await refetch();
       toastSuccess('Dodano przyjazd brudnego do harmonogramu');
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -385,7 +393,7 @@ export default function DriverRouteView() {
               const pralniaDone = stop.entries.every(e => e.done);
               const deliveredDone = stop.entries.every(e => e.delivered);
               const kg = Number(sumWeight(stop.entries).toFixed(1));
-              const formOpen = przyjazdFor === stop.key;
+              const formOpen = pf?.stopKey === stop.key;
               return (
                 <div key={stop.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -397,28 +405,59 @@ export default function DriverRouteView() {
                   <ActionRow icon="🏭" label="Odbiór z pralni" color="#AF52DE" done={pralniaDone} at={stop.entries[0]?.picked_at} btnLabel="Odebrano z pralni" onClick={() => markPralnia(stop)} />
                   <ActionRow icon="📦" label="Dostarczono" color="#34C759" done={deliveredDone} at={stop.entries[0]?.delivered_at} btnLabel="Dostarczono" onClick={() => markDelivered(stop)} />
 
-                  {/* Przyjazd brudnego */}
+                  {/* Przyjazd brudnego → nowy wpis w harmonogramie */}
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
                     {!formOpen ? (
-                      <button onClick={() => setPrzyjazdFor(stop.key)} style={{
+                      <button onClick={() => openPrzyjazd(stop)} style={{
                         background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
                         cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
                       }}>➕ Przyjazd brudnego (do pralni)</button>
                     ) : (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Brudne, kg (możesz później):</span>
-                        <input type="number" inputMode="decimal" placeholder="kg" autoFocus
-                          value={draftVal(stop.key, 'newKg', '')}
-                          onChange={e => setDraftVal(stop.key, 'newKg', e.target.value)}
-                          style={{ width: '80px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', textAlign: 'center' }} />
-                        <button onClick={() => addPrzyjazd(stop)} disabled={busy} style={{
-                          padding: '8px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer',
-                          background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px',
-                        }}>Dodaj przyjazd</button>
-                        <button onClick={() => setPrzyjazdFor(null)} style={{
-                          padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border)', cursor: 'pointer',
-                          background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px',
-                        }}>Anuluj</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Przyjazd brudnego → Harmonogram</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <label style={pfLabel}>Trasa
+                            <select value={pf.routeId} onChange={e => setPfField('routeId', Number(e.target.value))} style={pfInput}>
+                              {allRoutes.map((r, i) => <option key={r.id} value={r.id}>T{i + 1} {r.name}</option>)}
+                            </select>
+                          </label>
+                          <label style={pfLabel}>Rodzaj
+                            <select value={pf.type} onChange={e => setPfField('type', e.target.value)} style={pfInput}>
+                              <option value="P">Pościel</option>
+                              <option value="O">Obrusy</option>
+                            </select>
+                          </label>
+                          <label style={pfLabel}>Dzień przyjazdu
+                            <select value={pf.arrDay} onChange={e => setPfField('arrDay', Number(e.target.value))} style={pfInput}>
+                              {DAY_NAMES.map((n, i) => <option key={i} value={i + 1}>{n}</option>)}
+                            </select>
+                          </label>
+                          <label style={pfLabel}>Dzień odbioru (na kiedy)
+                            <select value={pf.pickDay} onChange={e => setPfField('pickDay', Number(e.target.value))} style={pfInput}>
+                              {DAY_NAMES.map((n, i) => <option key={i} value={i + 1}>{n}</option>)}
+                            </select>
+                          </label>
+                          <label style={pfLabel}>Tydzień odbioru
+                            <select value={pf.pickWeek} onChange={e => setPfField('pickWeek', Number(e.target.value))} style={pfInput}>
+                              <option value={0}>Ten sam tydzień</option>
+                              <option value={1}>Następny tydzień</option>
+                            </select>
+                          </label>
+                          <label style={pfLabel}>Brudne kg (możesz później)
+                            <input type="number" inputMode="decimal" placeholder="kg" value={pf.kg}
+                              onChange={e => setPfField('kg', e.target.value)} style={pfInput} />
+                          </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={addPrzyjazd} disabled={busy} style={{
+                            flex: 2, padding: '10px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                            background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '13px',
+                          }}>{busy ? 'Dodawanie…' : 'Dodaj przyjazd'}</button>
+                          <button onClick={() => setPf(null)} style={{
+                            flex: 1, padding: '10px', borderRadius: '9px', border: '1px solid var(--border)', cursor: 'pointer',
+                            background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600,
+                          }}>Anuluj</button>
+                        </div>
                       </div>
                     )}
                   </div>
