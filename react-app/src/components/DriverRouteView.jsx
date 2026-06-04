@@ -342,7 +342,9 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   const activeTrips = allTrips.filter(t => t.status === 'active');
-  const historyTrips = allTrips.filter(t => t.status === 'finished').slice(0, 12);
+  // "Moja historia" = własne trasy zalogowanego (admin też może jeździć).
+  // Panel zarządzania (wszystkie trasy) jest osobno, w zakładce "Trasy na żywo".
+  const historyTrips = allTrips.filter(t => t.status === 'finished' && t.driver_id === user?.id).slice(0, 12);
   const pendingKmTrips = allTrips.filter(t => t.status === 'finished' && t.end_km && !tripKmApproval(t).approved);
 
   const draftVal = (key, field, fallback) => {
@@ -864,7 +866,9 @@ export default function DriverRouteView({ manageMode = false }) {
       const live = allTrips.find(t => t.id === detailTrip.id) || detailTrip;
       return renderTripDetail(live);
     }
-    if (isAdmin) {
+    // Panel zarządzania (wszystkie trasy, filtry, planowanie) tylko w zakładce
+    // "Trasy na żywo". W "Mojej trasie" każdy — także admin — widzi własną historię.
+    if (manageMode) {
       const uniqueDrivers = [...new Set(allTrips.map(t => t.driver_name || 'Nieznany').filter(Boolean))].sort();
       const uniqueCars = [...new Set(allTrips.map(t => t.car).filter(Boolean))].sort();
 
