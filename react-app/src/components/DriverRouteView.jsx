@@ -5,6 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
+import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 /* ── helpery dat ── */
@@ -77,17 +78,34 @@ export default function DriverRouteView() {
     return () => { cancelled = true; };
   }, [user?.id, today]);
 
-  /* ── budowanie przystanków: 1 przystanek = 1 klient, dwie nogi (dostawa/odbiór) ── */
+  /* ── budowanie przystanków: 1 przystanek = 1 klient, dwie nogi (dostawa/odbiór) ──
+     Reguła: pokazujemy klientów, którzy mają COŚ na dziś (kotwica). U takiego
+     klienta pokazujemy obie nogi z bieżącego tygodnia — żeby kierowca zrobił
+     odbiór i dostawę za jednym razem, nawet jeśli w harmonogramie są na różne dni.
+     Ograniczenie do "na dziś + bieżący tydzień" chroni przed zalaniem historią. */
+  const currentWeekKey = formatWeekKey(getCurrentMonday());
   const onMyRoute = e => routeIds.size === 0 || routeIds.has(e.route_id);
+  const mine = entries.filter(onMyRoute);
+
+  // Kotwica: klienci mający dostawę lub odbiór dokładnie dziś
+  const anchorClients = new Set();
+  mine.forEach(e => {
+    if (deliveryDateStr(e) === today || pickupDateStr(e) === today) anchorClients.add(e.client_name || '—');
+  });
+
   const stopsMap = new Map();
   const ensureStop = (e) => {
     const key = e.client_name || '—';
     if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, deliveryEntries: [], pickupEntries: [] });
     return stopsMap.get(key);
   };
-  entries.filter(onMyRoute).forEach(e => {
-    if (deliveryDateStr(e) === today) ensureStop(e).deliveryEntries.push(e);
-    if (pickupDateStr(e) === today) ensureStop(e).pickupEntries.push(e);
+  mine.forEach(e => {
+    const client = e.client_name || '—';
+    if (!anchorClients.has(client)) return;
+    const deliveryDue = deliveryDateStr(e) === today || (e.week_key === currentWeekKey && !e.delivered);
+    const pickupDue = pickupDateStr(e) === today || ((e.pick_week_key || e.week_key) === currentWeekKey && !e.done);
+    if (deliveryDue) ensureStop(e).deliveryEntries.push(e);
+    if (pickupDue) ensureStop(e).pickupEntries.push(e);
   });
   const stops = [...stopsMap.values()].sort((a, b) =>
     (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
