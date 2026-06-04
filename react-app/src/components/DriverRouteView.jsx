@@ -7,7 +7,7 @@ import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
 import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
-import { AddEntryModal } from './modals/EntryModals';
+import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 /* ── helpery dat ── */
 function ymd(date) {
@@ -89,7 +89,7 @@ export default function DriverRouteView() {
   const [endKm, setEndKm] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
-  const [pf, setPf] = useState(null); // edycja istniejącego przyjazdu (editId)
+  const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
   const [draft, setDraft] = useState({}); // { clientKey: { note } }
   const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
 
@@ -255,8 +255,7 @@ export default function DriverRouteView() {
     finally { setBusy(false); }
   };
 
-  // Przyjazd brudnego — otwieramy pełny AddEntryModal z pre-wybranym klientem
-  const setPfField = (field, value) => setPf(p => ({ ...p, [field]: value }));
+
 
 
   const saveNote = async (stop) => {
@@ -520,22 +519,18 @@ export default function DriverRouteView() {
                     {todayArrivals.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                         {todayArrivals.map(a => {
-                          const isEditing = pf?.editId === a.id;
                           return (
                             <div key={a.id}>
                               {/* wiersz: label + przyciski edycja/usuń */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isEditing ? 'rgba(37,99,235,0.07)' : 'rgba(52,199,89,0.08)', borderRadius: '8px', padding: '5px 8px', border: isEditing ? '1px solid var(--accent)' : '1px solid transparent' }}>
-                                <span style={{ fontSize: '12px', color: isEditing ? 'var(--accent)' : '#34C759', fontWeight: 700, flex: 1 }}>
-                                  {isEditing ? '✏️' : '✓'} {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(52,199,89,0.08)', borderRadius: '8px', padding: '5px 8px', border: '1px solid transparent' }}>
+                                <span style={{ fontSize: '12px', color: '#34C759', fontWeight: 700, flex: 1 }}>
+                                  ✓ {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''}
                                 </span>
                                 {/* Edytuj */}
                                 <button
-                                  onClick={() => {
-                                    if (isEditing) { setPf(null); return; }
-                                    setPf({ editId: a.id, stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: a.type || 'P', kg: a.weight ?? '' });
-                                  }}
-                                  title={isEditing ? 'Anuluj edycję' : 'Edytuj kg / typ'}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? 'var(--accent)' : 'var(--text-tertiary)', fontSize: '13px', padding: '2px 5px', borderRadius: '4px' }}
+                                  onClick={() => setViewEntry(a)}
+                                  title="Szczegóły / Edytuj"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '13px', padding: '2px 5px', borderRadius: '4px' }}
                                 >✏️</button>
                                 {/* Usuń */}
                                 <button
@@ -544,7 +539,6 @@ export default function DriverRouteView() {
                                     const { error } = await supabase.from('entries').delete().eq('id', a.id);
                                     if (error) { toastError('Błąd: ' + error.message); return; }
                                     await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
-                                    if (pf?.editId === a.id) setPf(null);
                                     await refetch();
                                     toastSuccess('Usunięto przyjazd');
                                   }}
@@ -553,46 +547,6 @@ export default function DriverRouteView() {
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '2px 4px', borderRadius: '4px' }}
                                 >×</button>
                               </div>
-
-                              {/* Inline edytor — tylko dla edytowanego wpisu */}
-                              {isEditing && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 8px', background: 'rgba(37,99,235,0.04)', borderRadius: '0 0 8px 8px', marginTop: '-4px' }}>
-                                  <div style={{ display: 'flex', gap: '6px' }}>
-                                    {[['P', 'Pościel'], ['O', 'Obrusy']].map(([val, lbl]) => (
-                                      <button key={val} onClick={() => setPfField('type', val)} style={{
-                                        flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
-                                        border: `2px solid ${pf.type === val ? 'var(--accent)' : 'var(--border)'}`,
-                                        background: pf.type === val ? 'var(--accent-light)' : 'var(--bg-card)',
-                                        color: pf.type === val ? 'var(--accent)' : 'var(--text-secondary)',
-                                      }}>{lbl}</button>
-                                    ))}
-                                  </div>
-                                  <label style={pfLabel}>Kg (brudne)
-                                    <input type="number" inputMode="decimal" placeholder="kg" value={pf.kg}
-                                      onChange={e => setPfField('kg', e.target.value)} style={pfInput} autoFocus />
-                                  </label>
-                                  <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button
-                                      onClick={async () => {
-                                        const kg = parseFloat(String(pf.kg).replace(',', '.'));
-                                        const { error } = await supabase.from('entries').update({
-                                          type: pf.type,
-                                          weight: isNaN(kg) ? null : kg,
-                                          weighed_kg: isNaN(kg) ? null : kg,
-                                        }).eq('id', a.id);
-                                        if (error) { toastError('Błąd zapisu: ' + error.message); return; }
-                                        await logAction({ userName: user.name, action: 'edited', clientName: stop.client_name, entryId: a.id, details: `typ: ${pf.type}, kg: ${isNaN(kg) ? '—' : kg}` });
-                                        setPf(null);
-                                        await refetch();
-                                        toastSuccess('Zaktualizowano przyjazd');
-                                      }}
-                                      disabled={busy}
-                                      style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px' }}
-                                    >{busy ? 'Zapisuję…' : '💾 Zapisz zmiany'}</button>
-                                    <button onClick={() => setPf(null)} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>Anuluj</button>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}
@@ -658,6 +612,20 @@ export default function DriverRouteView() {
           clients={clients.filter(c => c.route_id)}
           routes={allRoutes}
           onAdded={() => { setAddEntryFor(null); refetch(); }}
+        />
+      )}
+
+      {/* MODAL: szczegóły/edycja przyjazdu */}
+      {viewEntry && (
+        <ViewEditEntryModal
+          isOpen={true}
+          onClose={() => setViewEntry(null)}
+          entry={viewEntry}
+          contextMode="arr"
+          onUpdated={() => { setViewEntry(null); refetch(); }}
+          onDeleted={() => { setViewEntry(null); refetch(); }}
+          clients={clients}
+          routes={allRoutes}
         />
       )}
 
