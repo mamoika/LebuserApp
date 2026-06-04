@@ -65,6 +65,8 @@ function nextWeekKey(wk) {
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 const pfInput = { padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', background: 'var(--bg-card)', color: 'var(--text-primary)' };
 const DAY_SHORT = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
+// Liczniki "zatwierdzone bez zapisu do kosztów" — lista id tras w app_settings.
+const KM_RESOLVED_KEY = 'km_resolved_trips';
 
 function trolleyLabel(count) {
   const n = Number(count);
@@ -107,6 +109,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [assignDriverId, setAssignDriverId] = useState('');
   const [assignCar, setAssignCar] = useState(VEHICLES[0].key);
   const [addStopOpen, setAddStopOpen] = useState(false); // panel "dorzuć przystanek" w podglądzie trasy
+  const [kmResolvedIds, setKmResolvedIds] = useState([]); // trasy z licznikiem zatwierdzonym bez wpisu do kosztów
   const [dailyCosts, setDailyCosts] = useState([]);
   const [, setClock] = useState(Date.now());
   const [tripLoading, setTripLoading] = useState(true);
@@ -164,17 +167,20 @@ export default function DriverRouteView({ manageMode = false }) {
     let cancelled = false;
     const load = async () => {
       setTripLoading(true);
-      const [trips, { data: setting }] = await Promise.all([
+      const [trips, { data: settings }] = await Promise.all([
         loadTrips(),
-        supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
+        supabase.from('app_settings').select('key, value').in('key', [DRIVER_CARS_KEY, KM_RESOLVED_KEY]),
       ]);
       if (cancelled) return;
+      const carsSetting = (settings || []).find(s => s.key === DRIVER_CARS_KEY)?.value;
+      const resolved = (settings || []).find(s => s.key === KM_RESOLVED_KEY)?.value;
+      setKmResolvedIds(Array.isArray(resolved) ? resolved : []);
       const ownToday = (trips || []).filter(t => t.driver_id === user?.id && t.trip_date === today);
       const startedTrip = ownToday.find(t => t.status === 'active') || ownToday.find(t => t.status === 'finished') || null;
       const plannedOwn = ownToday.find(t => t.status === 'planned') || null;
       setTrip(startedTrip);
       setPlannedTrip(plannedOwn);
-      const car = setting?.value?.[user?.id] || null;
+      const car = carsSetting?.[user?.id] || null;
       setDefaultCar(car);
       if (startedTrip) setSelectedCar(startedTrip.car);
       else if (plannedOwn) { setSelectedCar(plannedOwn.car || car || VEHICLES[0].key); setSelectedRoutes(parseRouteIds(plannedOwn.routes)); }
@@ -361,6 +367,8 @@ export default function DriverRouteView({ manageMode = false }) {
   const tripKmApproval = (sourceTrip) => {
     if (!sourceTrip?.end_km) return { approved: false, currentValue: null, field: null };
     const field = vehicleEndColumn(sourceTrip.car);
+    // Zatwierdzone bez zapisu do kosztów — uznajemy za załatwione (znika z oczekujących).
+    if (kmResolvedIds.includes(sourceTrip.id)) return { approved: true, currentValue: null, field, resolvedNoCost: true };
     const row = dailyCosts.find(r => r.entry_date === sourceTrip.trip_date);
     const currentValue = row?.[field];
     const approved = String(currentValue ?? '').trim() === String(sourceTrip.end_km ?? '').trim();
@@ -590,6 +598,40 @@ export default function DriverRouteView({ manageMode = false }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Zatwierdza licznik BEZ zapisu do kosztów — tylko zdejmuje status "czeka".
+  // Zapisujemy id trasy w app_settings (bez zmian w schemacie).
+  const resolveKmWithoutCost = async (sourceTrip) => {
+    if (!isAdmin || !sourceTrip?.id) return;
+    try {
+      setBusy(true);
+      const next = Array.from(new Set([...kmResolvedIds, sourceTrip.id]));
+      const { error } = await supabase.from('app_settings').upsert({ key: KM_RESOLVED_KEY, value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      setKmResolvedIds(next);
+      await logAction({ userName: user.name, action: 'edited', details: `Licznik zatwierdzony bez wpisu do kosztów (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${sourceTrip.end_km} km` });
+      toastSuccess('Licznik załatwiony — bez zapisu do kosztów');
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Usuwa trasę (driver_trips). Km zapisane w kosztach zostają nietknięte.
+  const deleteTrip = async (sourceTrip) => {
+    if (!isAdmin || !sourceTrip?.id || sourceTrip.isVirtual) return;
+    if (!window.confirm(`Usunąć trasę: ${sourceTrip.driver_name || 'kierowca'} · ${fmtDate(sourceTrip.trip_date)}?\nKm w kosztach zostaną nienaruszone.`)) return;
+    try {
+      setBusy(true);
+      const { error } = await supabase.from('driver_trips').delete().eq('id', sourceTrip.id);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'deleted', details: `Usunięto trasę: ${sourceTrip.driver_name || 'kierowca'}, ${fmtDate(sourceTrip.trip_date)}, ${routeNamesForTrip(sourceTrip)}` });
+      setDetailTrip(null);
+      if (trip?.id === sourceTrip.id) setTrip(null);
+      if (plannedTrip?.id === sourceTrip.id) setPlannedTrip(null);
+      await loadTrips();
+      toastSuccess('Trasa usunięta');
+    } catch (err) { toastError('Błąd usuwania trasy: ' + err.message); }
+    finally { setBusy(false); }
   };
 
   const approvePendingTripKms = async () => {
@@ -841,7 +883,7 @@ export default function DriverRouteView({ manageMode = false }) {
         {showFoot && (
           <div className="trip-card-foot">
             <span className="trip-km">
-              {t.end_km ? `${kmApproval.approved ? '✓' : '⏳'} licznik ${t.end_km} km` : ''}
+              {t.end_km ? `${kmApproval.approved ? '✓' : '⏳'} licznik ${t.end_km} km${kmApproval.resolvedNoCost ? ' (bez kosztów)' : ''}` : ''}
             </span>
             <div className="trip-card-actions">
               {canAssign && (
@@ -888,7 +930,12 @@ export default function DriverRouteView({ manageMode = false }) {
               {t.end_km ? ` · licznik ${t.end_km} km` : ''}
             </div>
           </div>
-          <button className="driver-tool-btn" onClick={() => setDetailTrip(null)}>← Wróć do listy</button>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            {isAdmin && !t.isVirtual && (
+              <button className="driver-tool-btn" onClick={() => deleteTrip(t)} disabled={busy} style={{ color: 'var(--accent-red)', borderColor: 'var(--accent-red)' }}>🗑 Usuń trasę</button>
+            )}
+            <button className="driver-tool-btn" onClick={() => setDetailTrip(null)}>← Wróć do listy</button>
+          </div>
         </div>
 
         <div style={{ margin: '4px 0 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1007,8 +1054,11 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setKmEditTrip(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
-              <button onClick={async () => { await approveTripKm(t, kmEditValue); setKmEditTrip(null); }} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zatwierdź'}</button>
+              <button onClick={async () => { await approveTripKm(t, kmEditValue); setKmEditTrip(null); }} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zatwierdź i zapisz'}</button>
             </div>
+            <button onClick={async () => { await resolveKmWithoutCost(t); setKmEditTrip(null); }} disabled={busy} style={{ width: '100%', marginTop: '8px', padding: '11px', borderRadius: '12px', border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+              Zatwierdź bez zapisu do kosztów
+            </button>
           </div>
         </div>
       </div>
