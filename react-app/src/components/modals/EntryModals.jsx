@@ -82,7 +82,7 @@ function buildEditDiff(entry, updates, routes) {
   return changes;
 }
 
-export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName }) {
+export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
   const { user, isDriver } = useAuth();
   const [clientName, setClientName] = useState('');
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
@@ -121,7 +121,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setShowOtherRoutes(false);
       setClientName(initClient?.name || '');
       setWeight('');
-      setType('P');
+      setType(defaultType || 'P');
       setUrgent(false);
     }
   }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver, defaultClientName]);
@@ -474,19 +474,25 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             </div>
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
-            <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
-              {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
-              {sortedRoutes
-                .filter(r => clients.some(c => c.route_id === r.id))
-                .map((r, index) => (
-                  <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
-                    {clients
-                      .filter(c => c.route_id === r.id)
-                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </optgroup>
-                ))}
-            </select>
+            {contextMode === 'arr' ? (
+              <div className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600, border: '1px solid var(--border)', borderRadius: '12px' }}>
+                {clientName}
+              </div>
+            ) : (
+              <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
+                {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
+                {sortedRoutes
+                  .filter(r => clients.some(c => c.route_id === r.id))
+                  .map((r, index) => (
+                    <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
+                      {clients
+                        .filter(c => c.route_id === r.id)
+                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                  ))}
+              </select>
+            )}
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
             <div className="segmented-control" style={{ marginBottom: '14px' }}>

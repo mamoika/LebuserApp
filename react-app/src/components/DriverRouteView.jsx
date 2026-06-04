@@ -602,18 +602,30 @@ export default function DriverRouteView() {
       )}
 
       {/* MODAL: dodaj przyjazd (pełny, jak w harmonogramie) */}
-      {addEntryFor !== null && (
-        <AddEntryModal
-          isOpen={true}
-          onClose={() => setAddEntryFor(null)}
-          defaultArrDay={todayArrDay}
-          defaultClientName={addEntryFor}
-          weekKey={weekKey}
-          clients={clients.filter(c => c.route_id)}
-          routes={allRoutes}
-          onAdded={() => { setAddEntryFor(null); refetch(); }}
-        />
-      )}
+      {addEntryFor !== null && (() => {
+        let defaultType = 'P';
+        if (addEntryFor !== '') {
+          const clientStop = stops.find(s => s.client_name === addEntryFor);
+          const todayArrivalsForClient = entries.filter(e => e.client_name === addEntryFor && arrivalDateStr(e) === today);
+          const hasP = todayArrivalsForClient.some(a => a.type === 'P');
+          const hasO = todayArrivalsForClient.some(a => a.type === 'O');
+          defaultType = (hasP && !hasO) ? 'O' : (hasO && !hasP) ? 'P' : (clientStop?.entries?.[0]?.type || 'P');
+        }
+
+        return (
+          <AddEntryModal
+            isOpen={true}
+            onClose={() => setAddEntryFor(null)}
+            defaultArrDay={todayArrDay}
+            defaultClientName={addEntryFor || undefined}
+            defaultType={defaultType}
+            weekKey={weekKey}
+            clients={clients.filter(c => c.route_id)}
+            routes={allRoutes}
+            onAdded={() => { setAddEntryFor(null); refetch(); }}
+          />
+        );
+      })()}
 
       {/* MODAL: szczegóły/edycja przyjazdu */}
       {viewEntry && (
