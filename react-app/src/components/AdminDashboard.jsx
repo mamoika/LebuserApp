@@ -608,14 +608,31 @@ const ACTION_LABELS = {
   deleted: { label: 'Usunął',   color: '#FF3B30' },
 };
 
+const LOGS_PAGE_SIZE = 50;
+
 function LogsSection() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(100)
-      .then(({ data }) => { setLogs(data || []); setLoading(false); });
-  }, []);
+    setLoading(true);
+    const from = page * LOGS_PAGE_SIZE;
+    const to = from + LOGS_PAGE_SIZE - 1;
+    supabase
+      .from('logs')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to)
+      .then(({ data, count }) => {
+        setLogs(data || []);
+        if (typeof count === 'number') setTotal(count);
+        setLoading(false);
+      });
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / LOGS_PAGE_SIZE));
 
   const fmt = (iso) => {
     if (!iso) return '';
@@ -627,18 +644,43 @@ function LogsSection() {
   if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Brak logów</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {logs.map(log => {
-        const meta = ACTION_LABELS[log.action] || { label: log.action, color: '#636366' };
-        return (
-          <div key={log.id} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '10px 14px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>{meta.label}</span>
-            <span style={{ fontWeight: 600, fontSize: '13px', flex: 1 }}>{log.client_name || '—'}</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', flexShrink: 0 }}>{log.user_name}</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', flexShrink: 0 }}>{fmt(log.created_at)}</span>
-          </div>
-        );
-      })}
+    <div>
+      <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
+        {total} akcji w dzienniku
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {logs.map(log => {
+          const meta = ACTION_LABELS[log.action] || { label: log.action, color: '#636366' };
+          return (
+            <div key={log.id} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '10px 14px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>{meta.label}</span>
+                <span style={{ fontWeight: 600, fontSize: '13px', flex: 1 }}>{log.client_name || '—'}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', flexShrink: 0 }}>{log.user_name}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', flexShrink: 0 }}>{fmt(log.created_at)}</span>
+              </div>
+              {log.details && (
+                <div style={{ marginTop: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>{log.details}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+          <button
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={{ padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: page === 0 ? 'default' : 'pointer', fontWeight: 600, opacity: page === 0 ? 0.4 : 1 }}
+          >‹</button>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{page + 1} / {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            style={{ padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontWeight: 600, opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+          >›</button>
+        </div>
+      )}
     </div>
   );
 }

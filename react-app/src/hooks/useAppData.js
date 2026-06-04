@@ -21,7 +21,7 @@ export function useAppData() {
       ] = await Promise.all([
         supabase.from('clients').select('*').order('sort_order'),
         supabase.from('routes').select('*').order('sort_order'),
-        supabase.from('entries').select('*')
+        supabase.from('entries').select('*').is('deleted_at', null)
       ]);
 
       const fetchError = clientsError || routesError || entriesError;

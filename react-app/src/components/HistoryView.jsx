@@ -6,11 +6,75 @@ import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 
 const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
 
+const LOG_ACTION_LABELS = {
+  added:   { label: 'Dodano',    color: '#34C759' },
+  edited:  { label: 'Edytowano', color: '#FF9500' },
+  done:    { label: 'Odebrano',  color: '#007AFF' },
+  undone:  { label: 'Cofnięto',  color: '#FF3B30' },
+  deleted: { label: 'Usunięto',  color: '#FF3B30' },
+};
+
 function formatDate(isoStr) {
   if (!isoStr) return '—';
   const d = new Date(isoStr);
   return d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
     + ' ' + d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Oś czasu zmian danego wpisu — dociągana z tabeli logs po kliknięciu.
+function EntryChangeLog({ entryId }) {
+  const [open, setOpen] = useState(false);
+  const [logs, setLogs] = useState(null); // null = jeszcze nie wczytano
+  const [loading, setLoading] = useState(false);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && logs === null) {
+      setLoading(true);
+      const { data } = await supabase
+        .from('logs')
+        .select('*')
+        .eq('entry_id', entryId)
+        .order('created_at', { ascending: true });
+      setLogs(data || []);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: '8px' }}>
+      <button
+        onClick={toggle}
+        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}
+      >
+        🕓 {open ? 'Ukryj historię zmian' : 'Historia zmian'}
+      </button>
+      {open && (
+        <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
+          {loading && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Ładowanie…</div>}
+          {!loading && logs && logs.length === 0 && (
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Brak zapisanych zmian</div>
+          )}
+          {!loading && logs && logs.map(l => {
+            const meta = LOG_ACTION_LABELS[l.action] || { label: l.action, color: '#636366' };
+            return (
+              <div key={l.id} style={{ fontSize: '11px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '1px 6px', borderRadius: '5px' }}>{meta.label}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{l.user_name}</span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>· {formatDate(l.created_at)}</span>
+                </div>
+                {l.details && (
+                  <div style={{ marginTop: '2px', color: 'var(--text-secondary)' }}>{l.details}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function HistoryView() {
@@ -57,8 +121,9 @@ export default function HistoryView() {
     if (filterClient && !e.client_name?.toLowerCase().includes(filterClient.toLowerCase())) return false;
     if (filterRoute && String(e.route_id) !== filterRoute) return false;
     if (filterDriver && !e.added_by?.toLowerCase().includes(filterDriver.toLowerCase())) return false;
-    if (filterDone === 'done' && !e.done) return false;
-    if (filterDone === 'pending' && e.done) return false;
+    if (filterDone === 'done' && (!e.done || e.deleted_at)) return false;
+    if (filterDone === 'pending' && (e.done || e.deleted_at)) return false;
+    if (filterDone === 'deleted' && !e.deleted_at) return false;
     return true;
   });
 
@@ -114,6 +179,7 @@ export default function HistoryView() {
           <option value="">Wszystkie</option>
           <option value="done">Odebrane</option>
           <option value="pending">Oczekujące</option>
+          <option value="deleted">Usunięte</option>
         </select>
         {(filterClient || filterRoute || filterDriver || filterDone) && (
           <button
@@ -140,14 +206,16 @@ export default function HistoryView() {
           const routeInfo = routeMap[e.route_id];
           const arrDay = DAY_NAMES[e.arr_day - 1] || '?';
           const pickDay = DAY_NAMES[e.pick_day - 1] || '?';
+          const isDeleted = !!e.deleted_at;
           return (
             <div key={e.id} style={{
               background: 'var(--bg-card)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '12px 14px',
-              borderLeft: `3px solid ${e.done ? STATUS_COLORS.done.color : e.urgent ? STATUS_COLORS.urgent.color : STATUS_COLORS.pickup.color}`,
+              borderLeft: `3px solid ${isDeleted ? STATUS_COLORS.urgent.color : e.done ? STATUS_COLORS.done.color : e.urgent ? STATUS_COLORS.urgent.color : STATUS_COLORS.pickup.color}`,
+              opacity: isDeleted ? 0.6 : 1,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                <div style={{ fontWeight: 700, fontSize: '14px', textDecoration: isDeleted ? 'line-through' : 'none' }}>
                   {e.urgent && '🚩 '}{e.client_name}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -156,11 +224,18 @@ export default function HistoryView() {
                     background: e.type === 'O' ? 'rgba(175,82,222,0.10)' : 'rgba(0,122,255,0.10)',
                     color: e.type === 'O' ? '#AF52DE' : '#007AFF',
                   }}>{e.type || 'P'}</span>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.done ? STATUS_COLORS.pickup.background : 'rgba(0,0,0,0.06)',
-                    color: e.done ? STATUS_COLORS.pickup.color : 'var(--text-tertiary)',
-                  }}>{e.done ? '✓ Odebrane' : 'Oczekuje'}</span>
+                  {isDeleted ? (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
+                      background: 'rgba(255,59,48,0.12)', color: '#FF3B30',
+                    }}>🗑️ Usunięte</span>
+                  ) : (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
+                      background: e.done ? STATUS_COLORS.pickup.background : 'rgba(0,0,0,0.06)',
+                      color: e.done ? STATUS_COLORS.pickup.color : 'var(--text-tertiary)',
+                    }}>{e.done ? '✓ Odebrane' : 'Oczekuje'}</span>
+                  )}
                 </div>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -183,6 +258,12 @@ export default function HistoryView() {
               <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
                 {e.week_key} · dodano {formatDate(e.added_at)}
               </div>
+              {isDeleted && (
+                <div style={{ marginTop: '2px', fontSize: '11px', color: '#FF3B30', fontWeight: 600 }}>
+                  🗑️ usunięto {formatDate(e.deleted_at)}{e.deleted_by ? ` · ${e.deleted_by}` : ''}
+                </div>
+              )}
+              <EntryChangeLog entryId={e.id} />
             </div>
           );
         })}

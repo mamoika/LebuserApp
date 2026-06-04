@@ -57,6 +57,32 @@ function nextWeekKey(weekKey) {
   return formatWeekKey(d);
 }
 
+// Porównuje wpis przed i po edycji, zwraca listę zmienionych pól w formacie
+// "etykieta: stara → nowa". Dzięki temu log edycji jest zawsze kompletny —
+// łapie KAŻDE zmienione pole, nie tylko te wpisane ręcznie.
+function buildEditDiff(entry, updates, routes) {
+  const dayLabel = v => DAY_NAMES[v - 1] || '?';
+  const fields = [
+    { key: 'client_name',  label: 'klient',          fmt: v => (v ?? '') === '' ? '—' : String(v) },
+    { key: 'type',         label: 'typ',             fmt: v => v === 'O' ? 'Obrusy' : 'Pościel' },
+    { key: 'weight',       label: 'waga',            fmt: v => (v === null || v === undefined || v === '') ? '—' : `${v} kg` },
+    { key: 'arr_day',      label: 'przyjazd',        fmt: dayLabel },
+    { key: 'pick_day',     label: 'odbiór',          fmt: dayLabel },
+    { key: 'pick_week_key', label: 'tydzień odbioru', fmt: v => (v ?? '') === '' ? '—' : String(v) },
+    { key: 'urgent',       label: 'priorytet',       fmt: v => v ? 'tak' : 'nie' },
+    { key: 'comment',      label: 'komentarz',       fmt: v => (v ?? '') === '' ? '—' : String(v) },
+    { key: 'route_id',     label: 'trasa',           fmt: v => (routes || []).find(r => r.id === v)?.name || '—' },
+  ];
+  const norm = v => (v === null || v === undefined) ? '' : (typeof v === 'number' ? String(v) : String(v).trim());
+  const changes = [];
+  for (const f of fields) {
+    if (norm(entry[f.key]) !== norm(updates[f.key])) {
+      changes.push(`${f.label}: ${f.fmt(entry[f.key])} → ${f.fmt(updates[f.key])}`);
+    }
+  }
+  return changes;
+}
+
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded }) {
   const { user, isDriver } = useAuth();
   const [clientName, setClientName] = useState('');
@@ -122,8 +148,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         pickWeekKey = nextWeekKey(weekKey);
       }
 
+      const newEntryId = 'ID_' + new Date().getTime();
       const { error } = await supabase.from('entries').insert([{
-        id: 'ID_' + new Date().getTime(),
+        id: newEntryId,
         week_key: weekKey,
         client_name: clientName,
         arr_day: parseInt(arrDay),
@@ -137,7 +164,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       }]);
 
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'added', clientName, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
+      await logAction({ userName: user.name, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
       onAdded();
       onClose();
     } catch (err) {
@@ -362,13 +389,17 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
-      await logAction({
-        userName: user.name,
-        action: 'edited',
-        clientName: updates.client_name,
-        entryId: entry.id,
-        details: `klient: ${entry.client_name} → ${updates.client_name}, przyjazd: ${DAY_NAMES[updates.arr_day - 1]}, odbiór: ${DAY_NAMES[updates.pick_day - 1]}, priorytet: ${urgent ? 'tak' : 'nie'}, waga: ${weight || '—'}, komentarz: ${comment || '—'}`
-      });
+      // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
+      const changes = buildEditDiff(entry, updates, routes);
+      if (changes.length > 0) {
+        await logAction({
+          userName: user.name,
+          action: 'edited',
+          clientName: updates.client_name,
+          entryId: entry.id,
+          details: changes.join(', '),
+        });
+      }
       onUpdated();
       onClose();
     } catch (err) {
@@ -381,9 +412,20 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     if (!confirmDelete) { setConfirmDelete(true); return; }
     try {
       setLoading(true);
-      const { error } = await supabase.from('entries').delete().eq('id', entry.id);
+      // Miękkie usuwanie: oznaczamy wpis jako usunięty zamiast kasować go z bazy,
+      // dzięki czemu zostaje w historii i nic nie przepada.
+      const { error } = await supabase
+        .from('entries')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user.name })
+        .eq('id', entry.id);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'deleted', clientName: entry.client_name, entryId: entry.id });
+      await logAction({
+        userName: user.name,
+        action: 'deleted',
+        clientName: entry.client_name,
+        entryId: entry.id,
+        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}, przyjazd: ${DAY_NAMES[entry.arr_day - 1] || '?'}, odbiór: ${DAY_NAMES[entry.pick_day - 1] || '?'}, waga: ${entry.weight ?? '—'}${entry.comment ? `, komentarz: ${entry.comment}` : ''}`,
+      });
       onDeleted();
       onClose();
     } catch (err) {
