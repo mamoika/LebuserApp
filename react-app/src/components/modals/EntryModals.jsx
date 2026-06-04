@@ -94,6 +94,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [trolleys, setTrolleys] = useState(1);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isClientScoped = !!defaultClientName;
 
   const assignedRouteIds = parseRouteIds(user?.routes);
   const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
@@ -190,18 +191,18 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>📦</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Dodaj przyjazd</div>
-              <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)', fontWeight: 400 }}>{user?.name}</div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>
+                {isClientScoped ? (clientName || defaultClientName) : 'Dodaj przyjazd'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)', fontWeight: 400 }}>
+                {isClientScoped ? 'Brudne pranie do pralni' : user?.name}
+              </div>
             </div>
           </div>
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
-          {defaultClientName ? (
-            <div className="ap-input" style={{ padding: '12px 14px', marginBottom: '12px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600, border: '1px solid var(--border)', borderRadius: '12px' }}>
-              {clientName}
-            </div>
-          ) : (
+          {!isClientScoped && (
             <>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
               <select
                 className="ap-input"
                 style={{ padding: '12px 14px', marginBottom: '12px' }}
@@ -355,6 +356,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     : hasPickupTablecloths
       ? 'Obrusy'
       : 'Pościel';
+  const directEditMode = contextMode === 'arr' && initiallyEditing;
+  const showEditForm = canEdit && (editing || directEditMode);
 
   const handleClientChange = (name) => {
     setClientName(name);
@@ -473,7 +476,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     };
 
     // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
-    if (editing && canEdit) {
+    if (showEditForm) {
     return (
       <div className="ap-overlay" style={{ display: 'flex' }}>
         <div className="ap-sheet">
@@ -482,30 +485,32 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>✏️</div>
               <div>
-                <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj wpis</div>
-                <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{entry.client_name}</div>
+                <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>
+                  {contextMode === 'arr' ? (clientName || entry.client_name) : 'Edytuj wpis'}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>
+                  {contextMode === 'arr' ? 'Edytuj wpis' : entry.client_name}
+                </div>
               </div>
             </div>
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
-            {contextMode === 'arr' ? (
-              <div className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600, border: '1px solid var(--border)', borderRadius: '12px' }}>
-                {clientName}
-              </div>
-            ) : (
-              <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
-                {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
-                {sortedRoutes
-                  .filter(r => clients.some(c => c.route_id === r.id))
-                  .map((r, index) => (
-                    <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
-                      {clients
-                        .filter(c => c.route_id === r.id)
-                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </optgroup>
-                  ))}
-              </select>
+            {contextMode !== 'arr' && (
+              <>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
+                <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
+                  {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
+                  {sortedRoutes
+                    .filter(r => clients.some(c => c.route_id === r.id))
+                    .map((r, index) => (
+                      <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
+                        {clients
+                          .filter(c => c.route_id === r.id)
+                          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                          .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </optgroup>
+                    ))}
+                </select>
+              </>
             )}
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
@@ -576,7 +581,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
             <div className="ap-btn-group">
               <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading}>Zapisz</button>
-              <button className="ap-btn ap-btn-secondary" onClick={() => setEditing(false)} disabled={loading}>Anuluj</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>Anuluj</button>
             </div>
           </div>
         </div>
