@@ -111,15 +111,19 @@ export default function ScheduleView() {
               </div>
               
               <div className="sec-label">PRZYJAZD</div>
-              <div className="sortable-arr schedule-list schedule-list-arr">
+              <div className="sortable-arr schedule-list">
                 {arrived.map(entry => renderEntryTag(entry, 'arr'))}
               </div>
 
-              <div className="divider schedule-divider"></div>
-              <div className="sec-label">ODBIÓR</div>
-              <div className="sortable-pick schedule-list schedule-list-pick">
-                {picked.map(entry => renderEntryTag(entry, 'pick'))}
-              </div>
+              {picked.length > 0 && (
+                <>
+                  <div className="divider schedule-divider"></div>
+                  <div className="sec-label schedule-pick-label">ODBIÓR</div>
+                  <div className="sortable-pick schedule-list">
+                    {picked.map(entry => renderEntryTag(entry, 'pick'))}
+                  </div>
+                </>
+              )}
               
               {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
             </div>

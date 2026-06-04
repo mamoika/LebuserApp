@@ -423,7 +423,7 @@ body{
   box-shadow: 0 0 0 2px var(--accent), 0 4px 16px rgba(0,122,255,0.15) !important;
 }
 .schedule-col {
-  min-height: 520px;
+  min-height: 200px;
   animation: none;
 }
 
@@ -1090,17 +1090,15 @@ html.phone-layout .hist-grid {
 .sortable-list{min-height:50px;display:flex;flex-direction:column;gap:6px}
 .sortable-arr,.sortable-pick{display:flex;flex-direction:column;gap:6px}
 .schedule-list {
-  min-height: 42px;
   contain: layout;
 }
-.schedule-list-arr {
-  min-height: 96px;
-}
-.schedule-list-pick {
-  min-height: 96px;
-}
 .schedule-divider {
-  margin-top: 4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(60,60,67,0.18), transparent);
+  margin: 8px 0 2px;
+}
+.schedule-pick-label {
+  margin-top: 0;
 }
 .tag-client {
   background:var(--bg-card-solid);

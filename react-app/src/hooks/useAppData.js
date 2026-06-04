@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export function useAppData() {
   const [data, setData] = useState({ clients: [], routes: [], entries: [], allRoutes: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
+  const fetchInFlightRef = useRef(null);
 
   const fetchData = async () => {
+    if (fetchInFlightRef.current) return fetchInFlightRef.current;
+
+    const request = (async () => {
     try {
-      setLoading(true);
+      if (!hasLoadedRef.current) setLoading(true);
       const [
         { data: clients, error: clientsError },
         { data: routes, error: routesError },
@@ -29,12 +34,18 @@ export function useAppData() {
         entries: entries || [],
         allRoutes,
       });
+      hasLoadedRef.current = true;
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      fetchInFlightRef.current = null;
     }
+    })();
+
+    fetchInFlightRef.current = request;
+    return request;
   };
 
   useEffect(() => {
