@@ -663,12 +663,17 @@ export default function DriverRouteView() {
     const stats = getTripStats(t);
     const kmApproval = tripKmApproval(t);
     return (
-      <div key={t.id} className={`driver-trip-row ${isLive ? 'is-live' : ''}`}>
+      <div key={t.id} className={`driver-trip-row ${isLive ? 'is-live' : ''} ${t.isVirtual ? 'is-virtual' : ''}`}>
         <div>
-          <div className="driver-trip-row-title">{fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} · {VEHICLE_LABELS[t.car] || t.car}</div>
+          <div className="driver-trip-row-title">
+            {fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} 
+            {t.car ? ` · ${VEHICLE_LABELS[t.car] || t.car}` : ''}
+            {t.isVirtual ? ' (wirtualna)' : ''}
+          </div>
           <div className="driver-trip-row-sub">
-            {routeNamesForTrip(t)} · Start {fmtTime(t.started_at)}
-            {t.ended_at ? `-${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : ` · ${fmtDuration(t.started_at, null)}`}
+            {routeNamesForTrip(t)}
+            {!t.isVirtual && ` · Start ${fmtTime(t.started_at)}`}
+            {t.ended_at ? `-${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : (!t.isVirtual ? ` · ${fmtDuration(t.started_at, null)}` : '')}
             {t.end_km ? ` · zgłoszony licznik ${t.end_km} km` : ''}
             {t.end_km ? ` · ${kmApproval.approved ? 'km zatwierdzone' : 'km do zatwierdzenia'}` : ''}
           </div>
@@ -703,9 +708,52 @@ export default function DriverRouteView() {
         return true;
       });
 
+      // Wirtualne planowane trasy z dzisiejszego dnia
+      const todayRoutes = new Set();
+      entries.forEach(e => {
+        if (pickupDateStr(e) === today || arrivalDateStr(e) === today) {
+          if (e.route_id) todayRoutes.add(e.route_id);
+        }
+      });
+      const activeRoutesToday = new Set();
+      allTrips.forEach(t => {
+        if (t.trip_date === today && t.status !== 'planned') {
+          parseRouteIds(t.routes).forEach(id => activeRoutesToday.add(id));
+        }
+      });
+      
+      const virtualPlannedTrips = [];
+      todayRoutes.forEach(rId => {
+        if (!activeRoutesToday.has(rId)) {
+          virtualPlannedTrips.push({
+            id: 'virtual_' + rId,
+            status: 'planned',
+            trip_date: today,
+            driver_name: 'Brak przypisania',
+            car: null,
+            routes: String(rId),
+            isVirtual: true
+          });
+        }
+      });
+
+      const filteredVirtual = virtualPlannedTrips.filter(t => {
+        if (filterDriver && filterDriver !== 'Brak przypisania') return false;
+        if (filterCar) return false;
+        if (filterRoute && String(filterRoute) !== String(t.routes)) return false;
+        return true;
+      });
+
       const liveTrips = filteredTrips.filter(t => t.status === 'active');
-      const plannedTrips = filteredTrips.filter(t => t.status === 'planned');
+      const dbPlannedTrips = filteredTrips.filter(t => t.status === 'planned');
+      const plannedTrips = [...filteredVirtual, ...dbPlannedTrips];
       const finTrips = filteredTrips.filter(t => t.status === 'finished').slice(0, 100);
+
+      // Dodajemy "Brak przypisania" do opcji kierowców jeśli są wirtualne trasy
+      if (virtualPlannedTrips.length > 0 && !uniqueDrivers.includes('Brak przypisania')) {
+        uniqueDrivers.push('Brak przypisania');
+        uniqueDrivers.sort();
+      }
 
       return (
         <div className="admin-dashboard-shell">
@@ -741,8 +789,13 @@ export default function DriverRouteView() {
               </select>
             </div>
             
+            {/* Przycisk Ad-hoc Zlecenie */}
+            <button className="driver-add-primary" style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: '8px', minWidth: 'auto', width: 'auto', fontSize: '13px' }} onClick={() => setAddEntryFor('')}>
+              ➕ Zleć nowy odbiór
+            </button>
+
             {pendingKmTrips.length > 0 && (
-              <button className="driver-tool-btn" onClick={approvePendingTripKms} disabled={busy} style={{ marginLeft: 'auto', background: 'var(--accent-green)', color: '#fff', border: 'none' }}>
+              <button className="driver-tool-btn" onClick={approvePendingTripKms} disabled={busy} style={{ background: 'var(--accent-green)', color: '#fff', border: 'none' }}>
                 ✓ Zatwierdź kilometry ({pendingKmTrips.length})
               </button>
             )}

@@ -94,6 +94,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [trolleys, setTrolleys] = useState(1);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [explicitRouteId, setExplicitRouteId] = useState('');
   const isClientScoped = !!defaultClientName;
 
   const assignedRouteIds = parseRouteIds(user?.routes);
@@ -126,6 +127,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setType(defaultType || 'P');
       setTrolleys(1);
       setUrgent(false);
+      setExplicitRouteId('');
     }
   }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver, defaultClientName]);
 
@@ -148,7 +150,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setLoading(true);
       const client = clients.find(c => c.name === clientName);
       if (!client) throw new Error('Wybierz klienta');
-      const routeId = client ? client.route_id : 1;
+      const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
 
       // Calculate pick_week_key
       let pickWeekKey = weekKey;
@@ -248,6 +250,18 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                 </button>
               )}
             </>
+          )}
+
+          {isAdmin && (
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przypisz do trasy (Opcjonalnie)</div>
+              <select className="ap-input" value={explicitRouteId} onChange={e => setExplicitRouteId(e.target.value)}>
+                <option value="">Domyślna trasa klienta</option>
+                {routes.map(r => (
+                  <option key={r.id} value={r.id}>T{r.sort_order ?? r.id} - {r.name}</option>
+                ))}
+              </select>
+            </div>
           )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
