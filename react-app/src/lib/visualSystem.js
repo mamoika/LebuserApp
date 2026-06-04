@@ -13,14 +13,14 @@ export const ROUTE_COLORS = [
 
 export const STATUS_COLORS = {
   arrival: {
-    color: '#1A7A37',
-    background: '#E8F8EE',
-    border: 'rgba(52,199,89,0.25)',
-  },
-  pickup: {
     color: '#0055CC',
     background: '#E5F1FF',
     border: 'rgba(0,122,255,0.20)',
+  },
+  pickup: {
+    color: '#1A7A37',
+    background: '#E8F8EE',
+    border: 'rgba(52,199,89,0.25)',
   },
   done: {
     color: '#8E8E93',

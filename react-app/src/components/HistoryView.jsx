@@ -158,8 +158,8 @@ export default function HistoryView() {
                   }}>{e.type || 'P'}</span>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.done ? STATUS_COLORS.arrival.background : 'rgba(0,0,0,0.06)',
-                    color: e.done ? STATUS_COLORS.arrival.color : 'var(--text-tertiary)',
+                    background: e.done ? STATUS_COLORS.pickup.background : 'rgba(0,0,0,0.06)',
+                    color: e.done ? STATUS_COLORS.pickup.color : 'var(--text-tertiary)',
                   }}>{e.done ? '✓ Odebrane' : 'Oczekuje'}</span>
                 </div>
               </div>
