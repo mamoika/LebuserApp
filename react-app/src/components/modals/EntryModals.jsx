@@ -91,6 +91,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [arrDay, setArrDay] = useState(defaultArrDay || 1);
   const [pickDay, setPickDay] = useState(defaultArrDay || 1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next
+  const [baskets, setBaskets] = useState(1);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -122,6 +123,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setClientName(initClient?.name || '');
       setWeight('');
       setType(defaultType || 'P');
+      setBaskets(1);
       setUrgent(false);
     }
   }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver, defaultClientName]);
@@ -164,6 +166,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         weight: weight ? parseFloat(weight.replace(',', '.')) : null,
         route_id: routeId,
         type: type,
+        baskets: baskets !== '' ? Number(baskets) : 1,
         added_by: user.name,
         urgent: urgent
       }]);
@@ -270,11 +273,19 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             </div>
           </div>
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-          <select className="ap-input" style={{ marginBottom: '12px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
-            <option value={0}>Ten sam tydzień</option>
-            <option value={1}>Następny tydzień</option>
-          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+              <select className="ap-input" value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+                <option value={0}>Ten sam tydzień</option>
+                <option value={1}>Następny tydzień</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Ilość koszy</div>
+              <input type="number" className="ap-input" value={baskets} onChange={e => setBaskets(e.target.value ? Number(e.target.value) : '')} min="0" />
+            </div>
+          </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '4px', cursor: 'pointer' }}>
             <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} />
@@ -300,6 +311,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [arrDay, setArrDay] = useState(1);
   const [pickDay, setPickDay] = useState(1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next week
+  const [baskets, setBaskets] = useState(1);
   const [urgent, setUrgent] = useState(false);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -315,6 +327,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setArrDay(entry.arr_day || 1);
       setPickDay(entry.pick_day || 1);
       setPickWeek(entry.week_key === entry.pick_week_key ? 0 : 1);
+      setBaskets(entry.baskets ?? 1);
       setUrgent(entry.urgent || false);
       // Komentarz klienta (wspólna notatka) — preferuj clients.note, fallback na stary entry.comment
       const clientNote = (clients || []).find(c => c.name === entry.client_name)?.note;
@@ -396,6 +409,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         arr_day: parseInt(arrDay),
         pick_day: parseInt(pickDay),
         pick_week_key: pickWeekKey,
+        baskets: baskets !== '' ? Number(baskets) : 1,
         urgent,
         route_id: nextRouteId
         // comment usunięty z entries — teraz w clients.note (wspólna notatka)
@@ -527,11 +541,19 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               </div>
             </div>
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-            <select className="ap-input" style={{ marginBottom: '14px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
-              <option value={0}>Ten sam tydzień</option>
-              <option value={1}>Następny tydzień</option>
-            </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+                <select className="ap-input" value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+                  <option value={0}>Ten sam tydzień</option>
+                  <option value={1}>Następny tydzień</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Ilość koszy</div>
+                <input type="number" className="ap-input" value={baskets} onChange={e => setBaskets(e.target.value ? Number(e.target.value) : '')} min="0" />
+              </div>
+            </div>
 
             {isAdmin && (
               <div className="ap-field" style={{ marginBottom: '14px' }}>
@@ -582,6 +604,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           <ROW label="Widok" value={isPickupContext ? 'Odbiór' : contextMode === 'arr' ? 'Przyjazd' : 'Szczegóły'} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
           <ROW label="Rodzaj" value={isPickupContext ? pickupTypeLabel : entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
           <ROW label="Waga" value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
+          {!isGroupedPickup && <ROW label="Kosze" value={entry.baskets ?? 1} />}
           {isGroupedPickup && <ROW label="Wpisy" value={`${pickupEntries.length} przyjazdy`} />}
           <ROW label={isGroupedPickup ? 'Przyjazdy' : 'Przyjazd'} value={isGroupedPickup ? pickupArrivalDays : DAY_NAMES[entry.arr_day - 1]} />
           <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
