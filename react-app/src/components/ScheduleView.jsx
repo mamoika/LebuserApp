@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppData, filterForDriver } from '../hooks/useAppData';
+import { useAppData } from '../hooks/useAppData';
 import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
@@ -16,12 +16,17 @@ function formatDate(date) {
   return `${d}.${m}`;
 }
 
+function parseRouteIds(routesStr) {
+  return new Set(
+    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
+  );
+}
+
 export default function ScheduleView() {
   const rawData = useAppData();
   const { isAdmin, isDriver, canEdit, user } = useAuth();
-  const { entries, clients, routes, loading, error, refetch } = isDriver
-    ? filterForDriver(rawData, user?.routes)
-    : rawData;
+  const { entries, clients, routes, loading, error, refetch } = rawData;
+  const assignedRouteIds = parseRouteIds(user?.routes);
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
   const [weekOffset, setWeekOffset] = useState(0);
@@ -44,6 +49,53 @@ export default function ScheduleView() {
   
   const w1End = addDays(currentMonday, 4);
   const w2End = addDays(nextMonday, 4);
+
+  const renderEntryTag = (entry, mode) => {
+    const tagClass = entry.done ? 'tag-done' : mode === 'pick' ? 'tag-pick' : 'tag-arr';
+    const routeId = entry.route_id || 1;
+    const rIndex = routes.findIndex(r => r.id === routeId);
+    const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
+    const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
+    const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
+    const isOwnRoute = isDriver && assignedRouteIds.has(routeId);
+    const routeColor = isOwnRoute ? 'var(--accent)' : undefined;
+
+    return (
+      <div
+        key={entry.id}
+        className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
+        onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
+        style={isOwnRoute ? {
+          borderColor: 'rgba(0,122,255,0.45)',
+          boxShadow: '0 0 0 2px rgba(0,122,255,0.12)',
+          background: 'linear-gradient(90deg, rgba(0,122,255,0.10) 0%, var(--bg-card-solid) 42%)',
+        } : undefined}
+      >
+        {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
+        <span className="tag-name">{entry.client_name}</span>
+        {isOwnRoute && (
+          <span
+            style={{
+              color: routeColor,
+              background: 'rgba(0,122,255,0.12)',
+              border: '1px solid rgba(0,122,255,0.24)',
+              borderRadius: '999px',
+              padding: '1px 5px',
+              fontSize: '9px',
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            Twoja
+          </span>
+        )}
+        <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
+        {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
+        <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
+        <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
+      </div>
+    );
+  };
 
   const renderGrid = (monday, weekKey) => {
     return (
@@ -80,29 +132,7 @@ export default function ScheduleView() {
               
               <div className="sec-label">PRZYJAZD</div>
               <div className="sortable-arr" style={{ minHeight: '10px' }}>
-                {arrived.map(entry => {
-                  const tagClass = entry.done ? 'tag-done' : 'tag-arr';
-                  const routeId = entry.route_id || 1;
-                  const rIndex = routes.findIndex(r => r.id === routeId);
-                  const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
-                  const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
-                  const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
-                  
-                  return (
-                    <div 
-                      key={entry.id} 
-                      className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
-                      onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
-                    >
-                      {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
-                      <span className="tag-name">{entry.client_name}</span>
-                      <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
-                      {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
-                      <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
-                      <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
-                    </div>
-                  )
-                })}
+                {arrived.map(entry => renderEntryTag(entry, 'arr'))}
               </div>
 
               {picked.length > 0 && (
@@ -110,29 +140,7 @@ export default function ScheduleView() {
                   <div className="divider"></div>
                   <div className="sec-label">ODBIÓR</div>
                   <div className="sortable-pick" style={{ minHeight: '10px' }}>
-                    {picked.map(entry => {
-                      const tagClass = entry.done ? 'tag-done' : 'tag-pick';
-                      const routeId = entry.route_id || 1;
-                      const rIndex = routes.findIndex(r => r.id === routeId);
-                      const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
-                      const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
-                      const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
-
-                      return (
-                        <div 
-                          key={entry.id} 
-                          className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
-                          onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
-                        >
-                          {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
-                          <span className="tag-name">{entry.client_name}</span>
-                          <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
-                          {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
-                          <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
-                          <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
-                        </div>
-                      )
-                    })}
+                    {picked.map(entry => renderEntryTag(entry, 'pick'))}
                   </div>
                 </>
               )}
