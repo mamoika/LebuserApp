@@ -187,11 +187,24 @@ export default function DriverRouteView() {
   const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
 
   const stopsMap = new Map();
+  const ensureStop = (e) => {
+    const key = e.client_name || '—';
+    if (!stopsMap.has(key)) {
+      stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [], dirtyEntries: [] });
+    }
+    const stop = stopsMap.get(key);
+    if (!stop.route_id && e.route_id) stop.route_id = e.route_id;
+    return stop;
+  };
+
   entries.filter(includeEntry).forEach(e => {
     if (pickupDateStr(e) !== today) return;
-    const key = e.client_name || '—';
-    if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [] });
-    stopsMap.get(key).entries.push(e);
+    ensureStop(e).entries.push(e);
+  });
+  entries.forEach(e => {
+    if (arrivalDateStr(e) !== today) return;
+    if (!includeEntry(e) && e.added_by !== user?.name) return;
+    ensureStop(e).dirtyEntries.push(e);
   });
   const driverRouteIds = parseRouteIds(user?.routes);
   const stops = [...stopsMap.values()].sort((a, b) => {
@@ -219,12 +232,22 @@ export default function DriverRouteView() {
     try { extras = JSON.parse(sourceTrip.extra_clients || '[]'); } catch { extras = []; }
     const extrasSet = new Set(extras);
     const map = new Map();
+    const ensureTripStop = (e) => {
+      const key = e.client_name || '—';
+      if (!map.has(key)) map.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [], dirtyEntries: [] });
+      const stop = map.get(key);
+      if (!stop.route_id && e.route_id) stop.route_id = e.route_id;
+      return stop;
+    };
     entries.forEach(e => {
       if (pickupDateStr(e) !== sourceTrip.trip_date) return;
       if (routeIds.size > 0 && !routeIds.has(e.route_id) && !extrasSet.has(e.client_name)) return;
-      const key = e.client_name || '—';
-      if (!map.has(key)) map.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [] });
-      map.get(key).entries.push(e);
+      ensureTripStop(e).entries.push(e);
+    });
+    entries.forEach(e => {
+      if (arrivalDateStr(e) !== sourceTrip.trip_date) return;
+      if (routeIds.size > 0 && !routeIds.has(e.route_id) && !extrasSet.has(e.client_name) && e.added_by !== sourceTrip.driver_name) return;
+      ensureTripStop(e).dirtyEntries.push(e);
     });
     return [...map.values()].sort((a, b) => (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
   };
@@ -257,10 +280,10 @@ export default function DriverRouteView() {
     const dirtyEntries = getTripDirtyEntries(sourceTrip);
     return {
       stops: tripStops.length,
-      picked: tripStops.filter(s => s.entries.every(e => e.done)).length,
-      delivered: tripStops.filter(s => s.entries.every(e => e.delivered)).length,
+      picked: tripStops.filter(s => s.entries.length > 0 && s.entries.every(e => e.done)).length,
+      delivered: tripStops.filter(s => s.entries.length > 0 && s.entries.every(e => e.delivered)).length,
       kg: Number(sumWeight(flat).toFixed(1)),
-      cleanTrolleys: tripStops.reduce((sum, s) => s.entries.every(e => e.done) ? sum + getPickedBaskets(s) : sum, 0),
+      cleanTrolleys: tripStops.reduce((sum, s) => s.entries.length > 0 && s.entries.every(e => e.done) ? sum + getPickedBaskets(s) : sum, 0),
       dirtyTrolleys: dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0),
     };
   };
@@ -506,13 +529,16 @@ export default function DriverRouteView() {
     }
     const cardStops = getTripStops(cardTrip);
     const stopRows = cardStops.map((s, i) => {
-      const pralnia = s.entries.every(e => e.done);
-      const delivered = s.entries.every(e => e.delivered);
+      const hasPickupEntries = s.entries.length > 0;
+      const pralnia = hasPickupEntries && s.entries.every(e => e.done);
+      const delivered = hasPickupEntries && s.entries.every(e => e.delivered);
       const pickedTime = fmtTime(s.entries.find(e => e.picked_at)?.picked_at);
       const deliveredTime = fmtTime(s.entries.find(e => e.delivered_at)?.delivered_at);
       const kg = Number(sumWeight(s.entries).toFixed(1)) || '';
       const cleanBaskets = pralnia ? getPickedBaskets(s) : '';
-      const dirtyEntries = entries.filter(e => e.client_name === s.client_name && arrivalDateStr(e) === cardTrip.trip_date);
+      const dirtyEntries = s.dirtyEntries?.length
+        ? s.dirtyEntries
+        : entries.filter(e => e.client_name === s.client_name && arrivalDateStr(e) === cardTrip.trip_date);
       const dirtyBaskets = dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0) || '';
       const dirtyTimes = [...new Set(dirtyEntries.map(e => fmtTime(e.added_at)).filter(Boolean))].join(', ');
       const note = s.entries[0]?.driver_note || '';
@@ -785,12 +811,18 @@ export default function DriverRouteView() {
           <div className="driver-stops-list">
             {stops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
             {stops.map(stop => {
-              const pralniaDone = stop.entries.every(e => e.done);
-              const deliveredDone = stop.entries.every(e => e.delivered);
-              const kg = Number(sumWeight(stop.entries).toFixed(1));
+              const pickupEntries = stop.entries || [];
+              const dirtyEntries = stop.dirtyEntries || [];
+              const hasPickupEntries = pickupEntries.length > 0;
+              const pralniaDone = hasPickupEntries && pickupEntries.every(e => e.done);
+              const deliveredDone = hasPickupEntries && pickupEntries.every(e => e.delivered);
+              const kg = Number(sumWeight(pickupEntries).toFixed(1));
               const formOpen = false; // AddEntryModal zastąpił inline formularz
               // Przyjazdy brudnego dodane dziś dla tego klienta
-              const todayArrivals = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
+              const todayArrivals = dirtyEntries.length > 0
+                ? dirtyEntries
+                : entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
+              const isDirtyOnlyStop = !hasPickupEntries && todayArrivals.length > 0;
               // Notatka klienta (wspólna)
               const clientObj = clients.find(c => c.name === stop.client_name);
               const clientNote = clientObj?.note || '';
@@ -833,17 +865,21 @@ export default function DriverRouteView() {
                     )}
                   </div>
 
-                  <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={stop.entries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
-                    quantityValue={draftVal(stop.key, 'pickedBaskets', 1)}
-                    onQuantityChange={value => setDraftVal(stop.key, 'pickedBaskets', value)}
-                    onClick={() => markPralnia(stop, draftVal(stop.key, 'pickedBaskets', 1))}
-                    onUndo={() => undoPralnia(stop)} undoDisabled={deliveredDone} undoHint="Najpierw cofnij dostawę" />
-                  <ActionRow icon="📦" label="Dostarczono" tone="delivered" done={deliveredDone} at={stop.entries[0]?.delivered_at} btnLabel="Dostarczono"
-                    onClick={() => markDelivered(stop)} onUndo={() => undoDelivered(stop)}
-                    actionDisabled={!pralniaDone} actionHint="Najpierw odbierz pranie z pralni" />
+                  {hasPickupEntries && (
+                    <>
+                      <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
+                        quantityValue={draftVal(stop.key, 'pickedBaskets', 1)}
+                        onQuantityChange={value => setDraftVal(stop.key, 'pickedBaskets', value)}
+                        onClick={() => markPralnia(stop, draftVal(stop.key, 'pickedBaskets', 1))}
+                        onUndo={() => undoPralnia(stop)} undoDisabled={deliveredDone} undoHint="Najpierw cofnij dostawę" />
+                      <ActionRow icon="📦" label="Dostarczono" tone="delivered" done={deliveredDone} at={pickupEntries[0]?.delivered_at} btnLabel="Dostarczono"
+                        onClick={() => markDelivered(stop)} onUndo={() => undoDelivered(stop)}
+                        actionDisabled={!pralniaDone} actionHint="Najpierw odbierz pranie z pralni" />
+                    </>
+                  )}
 
                   {/* Przyjazd brudnego → nowy wpis w harmonogramie */}
-                  <div className="driver-arrivals-section">
+                  <div className={`driver-arrivals-section ${isDirtyOnlyStop ? 'is-dirty-only' : ''}`}>
                     <div className="driver-dirty-heading">Brudne pranie do pralni</div>
 
                     {/* ── Lista już dodanych dziś przyjazdów (zawsze widoczna) ── */}

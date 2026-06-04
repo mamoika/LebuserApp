@@ -946,6 +946,11 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   padding-top: 9px;
   margin-top: 2px;
 }
+.driver-arrivals-section.is-dirty-only {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 6px;
+}
 .driver-dirty-list {
   display: flex;
   flex-direction: column;
