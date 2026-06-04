@@ -132,6 +132,11 @@ const effStyle = (val, thr) => {
   if (!(val > 0)) return null;
   return val < thr.slaba ? EFF_COLORS.slaba : val < thr.srednia ? EFF_COLORS.srednia : val < thr.dobra ? EFF_COLORS.dobra : EFF_COLORS.bdb;
 };
+// id pasma (slaba/srednia/dobra/bdb) dla wartości — null gdy brak danych
+const bandOf = (val, thr) => {
+  if (!(val > 0)) return null;
+  return val < thr.slaba ? 'slaba' : val < thr.srednia ? 'srednia' : val < thr.dobra ? 'dobra' : 'bdb';
+};
 // Pasma wydajności: id, etykieta, kolor + granice przedziału od/do (klucze w progach; null = 0 / ∞)
 const PERF_BANDS = [
   { id: 'slaba',   label: 'Słaba',        c: EFF_COLORS.slaba,   from: null,      to: 'slaba'   },
@@ -149,6 +154,53 @@ const DEFAULT_SETTINGS = {
   water_price_m3: 16.25, water_fixed_monthly: 20.10,
   worker_hourly_rate: 45.82
 };
+
+/* ───────────── HISTORIA MIESIĘCZNA (silnik dla Przeglądu) ───────────── */
+// Stawki dla danego miesiąca: własne, inaczej z ostatniego wcześniejszego (jak w fetchData)
+function settingsForMonth(monthKey, settsAsc) {
+  let chosen = null;
+  for (const s of settsAsc) { if (s.month_key <= monthKey) chosen = s; else break; }
+  return { ...DEFAULT_SETTINGS, ...(chosen || {}) };
+}
+// Zużycie licznika kumulatywnego w miesiącu = ostatni odczyt w mies. − ostatni przed mies. (teleskopowo)
+function meterMonthUsage(base, costsAsc, monthStart, monthEnd) {
+  let before = null, firstIn = null, lastIn = null;
+  for (const c of costsAsc) {
+    const raw = c[`${base}_end`];
+    const n = (raw === '' || raw == null) ? null : parseFloat(String(raw).replace(',', '.'));
+    if (n == null || isNaN(n)) continue;
+    if (c.entry_date < monthStart) before = n;
+    else if (c.entry_date <= monthEnd) { if (firstIn == null) firstIn = n; lastIn = n; }
+  }
+  if (lastIn == null) return 0;
+  const prev = before != null ? before : firstIn;
+  return Math.max(0, lastIn - prev);
+}
+// Agregat kosztów jednego (przeszłego, zamkniętego) miesiąca — wszystkie dni „przeszłe", więc pełne koszty stałe
+function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
+  const mk = `${year}-${String(month).padStart(2, '0')}`;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const monthStart = `${mk}-01`;
+  const monthEnd = `${mk}-${String(daysInMonth).padStart(2, '0')}`;
+  const s = settingsForMonth(mk, settsAsc);
+  const u = (base) => meterMonthUsage(base, costsAsc, monthStart, monthEnd);
+  const fiat = u('fiat'), isuzu = u('isuzu'), merc = u('merc'), iveco = u('iveco');
+  const transport = ((fiat * s.fiat_l_100km) + (isuzu * s.isuzu_l_100km) + (merc * s.merc_l_100km) + (iveco * s.iveco_l_100km)) / 100 * s.fuel_price;
+  const elec = u('elec') * s.elec_multiplier * s.elec_price_kwh + s.elec_fixed_monthly;
+  const gasProd = u('gas_prod') * s.gas_prod_price_m3 + s.gas_prod_fixed_daily * daysInMonth;
+  const gasHeat = u('gas_heat') * s.gas_heat_price_m3 + s.gas_heat_fixed_monthly;
+  const water = u('water') * s.water_price_m3 + s.water_fixed_monthly;
+  const workers = (laborByMonth[mk] || 0) * s.worker_hourly_rate;
+  let other = 0, kg = 0;
+  for (const c of costsAsc) {
+    if (c.entry_date >= monthStart && c.entry_date <= monthEnd) {
+      other += c.other_costs || 0;
+      kg += (c.ton_zd1 || 0) + (c.ton_zd2 || 0) + (c.ton_pralki || 0);
+    }
+  }
+  const total = transport + elec + gasProd + gasHeat + water + workers + other;
+  return { mk, year, month, transport, elec, gasProd, gasHeat, gas: gasProd + gasHeat, water, workers, other, total, kg, plnPerKg: kg > 0 ? total / kg : 0 };
+}
 
 export default function CostsView() {
   const { isAdmin } = useAuth();
@@ -180,6 +232,7 @@ export default function CostsView() {
   const [timelineStats, setTimelineStats] = useState({});
   const [laborHours, setLaborHours] = useState({}); // dateStr → łączne godziny grafiku (do kosztu pracownika)
   const [prevReadings, setPrevReadings] = useState({}); // last meter readings before this month (for day-1 baseline)
+  const [history, setHistory] = useState([]); // agregaty kosztów miesięcy WSTECZ (bieżący doklejany z monthlyTotals)
   const [autoSave, setAutoSave] = useState('idle'); // 'idle' | 'saving' | 'saved'
 
   // Refy z najświeższym stanem (do auto-zapisu z debounce)
@@ -307,6 +360,34 @@ export default function CostsView() {
   }, [currentDate, monthKey, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Historia: agreguj miesiące od STYCZNIA bieżącego roku do miesiąca przed bieżącym
+  // (bieżący doklejamy w renderze z monthlyTotals → na ekranie styczeń → aktualny miesiąc).
+  useEffect(() => {
+    if (!isAdmin) return;
+    let alive = true;
+    const y = currentDate.getFullYear(), m = currentDate.getMonth() + 1;
+    const winFrom = toDateStr(new Date(y - 1, 11, 1));  // 1 grudnia poprz. roku — zapas na carryover liczników do stycznia
+    const curStart = `${monthKey}-01`;                  // tylko miesiące przed bieżącym
+    (async () => {
+      const [{ data: costs }, { data: setsRows }, { data: sched }] = await Promise.all([
+        supabase.from('daily_costs')
+          .select('entry_date, fiat_end, isuzu_end, merc_end, iveco_end, elec_end, gas_prod_end, gas_heat_end, water_end, other_costs, ton_zd1, ton_zd2, ton_pralki')
+          .gte('entry_date', winFrom).lt('entry_date', curStart).order('entry_date', { ascending: true }),
+        supabase.from('cost_settings').select('*').order('month_key', { ascending: true }),
+        supabase.from('schedule_entries').select('year, month, value').eq('year', y),
+      ]);
+      const laborByMonth = {};
+      (sched || []).forEach(e => { const k = `${e.year}-${String(e.month).padStart(2, '0')}`; laborByMonth[k] = (laborByMonth[k] || 0) + scheduleDayHours(e.value); });
+      const ctx = { costsAsc: costs || [], settsAsc: setsRows || [], laborByMonth };
+      const months = [];
+      for (let mm = 1; mm <= m - 1; mm++) {
+        months.push(aggregateMonth(y, mm, ctx));
+      }
+      if (alive) setHistory(months);
+    })();
+    return () => { alive = false; };
+  }, [isAdmin, monthKey, currentDate]);
 
   // Progi wydajności są PER MIESIĄC — wczytaj progi tego miesiąca z app_settings.
   // Brak własnych → odziedzicz z ostatniego wcześniejszego miesiąca (jak stawki); inaczej domyślne.
@@ -527,6 +608,15 @@ export default function CostsView() {
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
   const avgPerDay = monthlyTotals.total / daysInMonth;
 
+  // Bieżący miesiąc jako punkt historii (z policzonych totali → spójny z KPI) + miesiące wstecz
+  const currentPoint = {
+    mk: monthKey, year, month,
+    transport: monthlyTotals.transport, elec: monthlyTotals.elec, gasProd: monthlyTotals.gasProd, gasHeat: monthlyTotals.gasHeat,
+    gas: monthlyTotals.gas, water: monthlyTotals.water, workers: monthlyTotals.workers, other: monthlyTotals.other,
+    total: monthlyTotals.total, kg: perfTotals.kg, plnPerKg,
+  };
+  const monthsHistory = [...history, currentPoint];
+
   // Rozbicie kosztu aut: suma km per auto → kwota (od sumy km)
   const fuelPrice = settings.fuel_price || 0;
   const carBreakdown = [
@@ -535,7 +625,9 @@ export default function CostsView() {
     { name: 'Merc.', km: monthlyTotals.kmMerc,  cost: monthlyTotals.kmMerc  * (settings.merc_l_100km  || 0) / 100 * fuelPrice },
     { name: 'Iveco', km: monthlyTotals.kmIveco, cost: monthlyTotals.kmIveco * (settings.iveco_l_100km || 0) / 100 * fuelPrice },
   ];
-  const dailyTotals = days.map((d, idx) => calcDay(d, idx).total_cost);
+  // Koszt dzienny BEZ jednorazowych „Inne" — lumpy wpis nie zaburza wykresu (Inne nadal liczone w sumach i KPI)
+  const dailyTotals = days.map((d, idx) => { const c = calcDay(d, idx); return c.total_cost - c.other_cost; });
+  const trendAvg = dailyTotals.reduce((s, v) => s + v, 0) / (daysInMonth || 1);
 
   // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
   const exportToExcel = () => {
@@ -632,7 +724,7 @@ export default function CostsView() {
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} days={days} carBreakdown={carBreakdown} />
+            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} carBreakdown={carBreakdown} monthsHistory={monthsHistory} />
           )}
 
           {activeTab === 'entry' && (
@@ -649,7 +741,7 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days, carBreakdown = [] }) {
+function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, carBreakdown = [], monthsHistory = [] }) {
   const cats = [
     { name: 'Transport', color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
     { name: 'Energia', color: CAT.elec, value: totals.elec, icon: <Zap size={16}/> },
@@ -660,14 +752,42 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days, carB
   ].sort((a, b) => b.value - a.value);
   const sum = totals.total || 1;
 
+  // Porównanie miesiąc-do-miesiąca (MoM) + serie do sparkline
+  const H = monthsHistory;
+  const cur = H[H.length - 1] || null;
+  const prev = H.length > 1 ? H[H.length - 2] : null;
+  const dIM = (p) => new Date(p.year, p.month, 0).getDate();
+  const momPct = (c, p) => (p != null && p > 0 && c > 0) ? ((c - p) / p) * 100 : null;
+  const dTotal = (prev && prev.total > 0) ? ((cur.total - prev.total) / prev.total) * 100 : null;
+  const dPpk = momPct(cur?.plnPerKg, prev?.plnPerKg);
+  const dKg = momPct(cur?.kg, prev?.kg);
+  const dAvg = (prev && prev.total > 0) ? ((cur.total / dIM(cur) - prev.total / dIM(prev)) / (prev.total / dIM(prev))) * 100 : null;
+  const sTotal = H.map(p => p.total);
+  const sPpk = H.map(p => p.plnPerKg);
+  const sKg = H.map(p => p.kg);
+  const sAvg = H.map(p => p.total / dIM(p));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* KPI HERO */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-        <KpiCard label="Koszty razem" value={FMT(totals.total)} unit="zł" icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero />
-        <KpiCard label="Koszt na kg" value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit="zł/kg" icon={<Scale size={22}/>} color={CAT.transport} />
-        <KpiCard label="Tonaż" value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} />
-        <KpiCard label="Średnio / dzień" value={FMT(avgPerDay)} unit="zł" icon={<CalendarDays size={22}/>} color={CAT.water} />
+      {/* KPI HERO — z porównaniem MoM i sparkline */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+        <KpiCard label="Koszty razem" value={FMT(totals.total)} unit="zł" icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
+        <KpiCard label="Koszt na kg" value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit="zł/kg" icon={<Scale size={22}/>} color={CAT.transport} delta={dPpk} goodWhenDown spark={sPpk} />
+        <KpiCard label="Tonaż" value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} delta={dKg} spark={sKg} />
+        <KpiCard label="Średnio / dzień" value={FMT(avgPerDay)} unit="zł" icon={<CalendarDays size={22}/>} color={CAT.water} delta={dAvg} goodWhenDown spark={sAvg} />
+      </div>
+
+      {/* zł/kg ROZBITE NA DRIVERY + MOST MoM */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
+        <DriversCard cur={cur} />
+        <WaterfallCard cur={cur} prev={prev} />
+      </div>
+
+      {/* TREND WIELOMIESIĘCZNY zł/kg + cel */}
+      <div style={cardStyle}>
+        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>zł/kg w czasie — od stycznia{cur ? ` ${cur.year}` : ''}</div>
+        <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>słupki = koszt na kg · linia = cel (średnia z miesięcy z danymi) · pod spodem tonaż</div>
+        <MultiMonthTrend months={H} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
@@ -728,15 +848,20 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, days, carB
 
         {/* DAILY TREND */}
         <div style={cardStyle}>
-          <div style={cardTitleStyle}>Koszt dzienny</div>
-          <TrendChart data={dailyTotals} days={days} avg={avgPerDay} />
+          <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>Koszt dzienny</div>
+          <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>koszty bieżące · bez jednorazowych „Inne"</div>
+          <TrendChart data={dailyTotals} days={days} avg={trendAvg} />
         </div>
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, unit, icon, color, hero }) {
+function KpiCard({ label, value, unit, icon, color, hero, delta, goodWhenDown, spark }) {
+  const hasDelta = delta != null && isFinite(delta);
+  const good = hasDelta && (goodWhenDown ? delta <= 0 : delta >= 0);
+  const up = hasDelta && delta >= 0;
+  const deltaColor = !hasDelta ? IOS_THEME.textSecondary : good ? '#10B981' : '#EF4444';
   return (
     <div style={{
       background: hero ? color : IOS_THEME.cardBg, padding: '18px', borderRadius: IOS_THEME.radius,
@@ -751,7 +876,194 @@ function KpiCard({ label, value, unit, icon, color, hero }) {
       <div style={{ fontSize: '26px', fontWeight: 800, color: hero ? '#fff' : IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
         {value} <span style={{ fontSize: '13px', fontWeight: 600, opacity: 0.7 }}>{unit}</span>
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minHeight: '26px' }}>
+        {hasDelta ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+            padding: '3px 8px', borderRadius: '7px', color: deltaColor,
+            background: hero ? 'rgba(255,255,255,0.18)' : tint(good ? '#10B981' : '#EF4444', 0.14) }}>
+            {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.8 }}>m/m</span>
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', fontWeight: 600, color: hero ? 'rgba(255,255,255,0.7)' : IOS_THEME.textSecondary }}>brak porównania</span>
+        )}
+        {spark && spark.some(v => v > 0) && <Sparkline data={spark} color={color} hero={hero} />}
+      </div>
     </div>
+  );
+}
+
+// Mini-wykres ostatnich ~6 miesięcy
+function Sparkline({ data, color, hero }) {
+  const pts = data.slice(-6);
+  const W = 84, Hh = 26;
+  const max = Math.max(...pts, 1), min = Math.min(...pts, 0);
+  const rng = (max - min) || 1;
+  const x = (i) => pts.length <= 1 ? W : (i / (pts.length - 1)) * W;
+  const y = (v) => (Hh - 3) - ((v - min) / rng) * (Hh - 6);
+  const d = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const stroke = hero ? 'rgba(255,255,255,0.95)' : color;
+  const last = pts.length - 1;
+  return (
+    <svg width={W} height={Hh} style={{ flexShrink: 0, overflow: 'visible' }}>
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+      {pts[last] > 0 && <circle cx={x(last)} cy={y(pts[last])} r="2.4" fill={stroke} />}
+    </svg>
+  );
+}
+
+// zł/kg rozbite na drivery (bieżący miesiąc) — koszt na kilogram per kategoria
+function DriversCard({ cur }) {
+  const kg = cur?.kg || 0;
+  const totalPerKg = kg > 0 ? cur.total / kg : 0;
+  const drivers = [
+    { name: 'Pracownicy', color: CAT.workers, v: cur?.workers || 0 },
+    { name: 'Energia', color: CAT.elec, v: cur?.elec || 0 },
+    { name: 'Gaz', color: CAT.gas, v: cur?.gas || 0 },
+    { name: 'Woda', color: CAT.water, v: cur?.water || 0 },
+    { name: 'Transport', color: CAT.transport, v: cur?.transport || 0 },
+    { name: 'Inne', color: CAT.other, v: cur?.other || 0 },
+  ].map(d => ({ ...d, perKg: kg > 0 ? d.v / kg : 0 })).sort((a, b) => b.perKg - a.perKg);
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <div style={cardTitleStyle}>Koszt na kg — z czego wynika</div>
+        <div style={{ fontSize: '20px', fontWeight: 800, color: CAT.transport, fontVariantNumeric: 'tabular-nums' }}>
+          {totalPerKg > 0 ? FMT3(totalPerKg) : '—'} <span style={{ fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary }}>zł/kg</span>
+        </div>
+      </div>
+      {kg <= 0 ? (
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Brak tonażu w tym miesiącu — nie można policzyć zł/kg.</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', margin: '0 0 18px' }}>
+            {drivers.filter(d => d.perKg > 0).map(d => (
+              <div key={d.name} title={`${d.name}: ${FMT3(d.perKg)} zł/kg`} style={{ width: `${(d.perKg / totalPerKg) * 100}%`, background: d.color }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {drivers.map(d => {
+              const pct = totalPerKg > 0 ? (d.perKg / totalPerKg) * 100 : 0;
+              return (
+                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: d.color, flexShrink: 0 }} />
+                  <span style={{ width: '90px', fontSize: '13px', fontWeight: 600 }}>{d.name}</span>
+                  <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(60,60,67,0.08)', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: '3px' }} />
+                  </div>
+                  <span style={{ width: '92px', textAlign: 'right', fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    {FMT3(d.perKg)} <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textSecondary }}>zł/kg</span>
+                  </span>
+                  <span style={{ width: '44px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(0)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Most MoM (waterfall): koszt poprzedniego miesiąca → wkłady kategorii → koszt bieżącego
+function WaterfallCard({ cur, prev }) {
+  if (!prev || prev.total <= 0 || !cur) {
+    return (
+      <div style={cardStyle}>
+        <div style={cardTitleStyle}>Co zmieniło koszt (m/m)</div>
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Potrzebny poprzedni miesiąc z danymi do porównania.</div>
+      </div>
+    );
+  }
+  const catDefs = [
+    { name: 'Transport', d: cur.transport - prev.transport },
+    { name: 'Energia', d: cur.elec - prev.elec },
+    { name: 'Gaz', d: cur.gas - prev.gas },
+    { name: 'Woda', d: cur.water - prev.water },
+    { name: 'Ludzie', d: cur.workers - prev.workers },
+    { name: 'Inne', d: cur.other - prev.other },
+  ];
+  const cols = [{ label: MONTHS_PL[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total }];
+  let run = prev.total;
+  catDefs.forEach(c => { cols.push({ label: c.name, type: 'delta', from: run, to: run + c.d, d: c.d }); run += c.d; });
+  cols.push({ label: MONTHS_PL[cur.month - 1].slice(0, 3), type: 'edge', val: cur.total });
+
+  const W = 580, Hh = 210, P = 28, axisB = 34;
+  const maxV = Math.max(prev.total, cur.total, ...cols.map(c => c.type === 'delta' ? Math.max(c.from, c.to) : c.val)) * 1.06;
+  const slot = (W - 2 * P) / cols.length;
+  const bw = Math.min(slot * 0.6, 46);
+  const cx = (i) => P + slot * (i + 0.5);
+  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 10);
+  const net = cur.total - prev.total;
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={cardTitleStyle}>Co zmieniło koszt (m/m)</div>
+        <div style={{ fontSize: '14px', fontWeight: 800, color: net <= 0 ? '#10B981' : '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
+          {net >= 0 ? '+' : '−'}{FMT(Math.abs(net))} zł
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {cols.map((c, i) => {
+          const isEdge = c.type === 'edge';
+          const top = isEdge ? y(c.val) : y(Math.max(c.from, c.to));
+          const h = isEdge ? (Hh - axisB) - y(c.val) : Math.abs(y(c.from) - y(c.to));
+          const fill = isEdge ? IOS_THEME.accent : (c.d <= 0 ? '#10B981' : '#EF4444');
+          const lbl = isEdge ? FMT0(c.val) : `${c.d >= 0 ? '+' : '−'}${FMT0(Math.abs(c.d))}`;
+          return (
+            <g key={i}>
+              {!isEdge && i > 0 && <line x1={cx(i - 1)} x2={cx(i) - bw / 2} y1={y(c.from)} y2={y(c.from)} stroke="rgba(0,0,0,0.15)" strokeWidth="1" strokeDasharray="2 2" />}
+              <rect x={cx(i) - bw / 2} y={top} width={bw} height={Math.max(h, 1)} rx="3" fill={fill} opacity={isEdge ? 1 : 0.9} />
+              <text x={cx(i)} y={top - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill={isEdge ? IOS_THEME.textPrimary : fill}>{lbl}</text>
+              <text x={cx(i)} y={Hh - axisB + 14} textAnchor="middle" fontSize="10" fontWeight="600" fill={IOS_THEME.textSecondary}>{c.label}</text>
+            </g>
+          );
+        })}
+        <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+      </svg>
+    </div>
+  );
+}
+
+// Trend wielomiesięczny: słupki zł/kg + linia celu (śr. z miesięcy z danymi), tonaż pod spodem
+function MultiMonthTrend({ months }) {
+  const pts = months;
+  const vals = pts.map(p => p.plnPerKg);
+  const withData = vals.filter(v => v > 0);
+  const target = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
+  if (!withData.length) {
+    return <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Brak miesięcy z tonażem — trend pojawi się, gdy uzbierają się dane.</div>;
+  }
+  const W = 720, Hh = 200, P = 28, axisB = 40;
+  const maxV = Math.max(...vals, target) * 1.18;
+  const slot = (W - 2 * P) / pts.length;
+  const bw = Math.min(slot * 0.5, 48);
+  const cx = (i) => P + slot * (i + 0.5);
+  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 12);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      {/* linia celu */}
+      <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke={IOS_THEME.warning} strokeWidth="1.5" strokeDasharray="5 4" />
+      <text x={W - P} y={y(target) - 5} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warning}>cel {FMT3(target)}</text>
+      {pts.map((p, i) => {
+        const v = p.plnPerKg;
+        const has = v > 0;
+        const top = has ? y(v) : (Hh - axisB) - 2;
+        const h = has ? (Hh - axisB) - y(v) : 2;
+        const fill = !has ? 'rgba(0,0,0,0.06)' : v <= target ? '#10B981' : CAT.transport;
+        return (
+          <g key={p.mk}>
+            <rect x={cx(i) - bw / 2} y={top} width={bw} height={Math.max(h, 2)} rx="4" fill={fill} />
+            {has && <text x={cx(i)} y={top - 6} textAnchor="middle" fontSize="10" fontWeight="800" fill={IOS_THEME.textPrimary}>{FMT3(v)}</text>}
+            <text x={cx(i)} y={Hh - axisB + 15} textAnchor="middle" fontSize="10" fontWeight="700" fill={IOS_THEME.textSecondary}>{MONTHS_PL[p.month - 1].slice(0, 3)}</text>
+            <text x={cx(i)} y={Hh - axisB + 28} textAnchor="middle" fontSize="9" fontWeight="600" fill="rgba(0,0,0,0.35)">{p.kg > 0 ? `${FMT0(p.kg)} kg` : '—'}</text>
+          </g>
+        );
+      })}
+      <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+    </svg>
   );
 }
 
@@ -1086,8 +1398,18 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
   const osZd1Avg = osAgg.n1 ? osAgg.z1 / osAgg.n1 : 0;
   const osZd2Avg = osAgg.n2 ? osAgg.z2 / osAgg.n2 : 0;
 
+  // Dzienna wydajność Ogółem kg/h — do panelu (trend, rozkład pasm, najlepszy/najsłabszy dzień)
+  const dayStats = days.map(dStr => {
+    const dt = dailyData[dStr] || {};
+    const ts = timelineStats[dStr]?.roles || {};
+    const t_suma = (dt.ton_zd1 || 0) + (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+    const h_suma = (ts.ZD1?.hrs || 0) + (ts.ZD2?.hrs || 0) + (ts.Kierowcy?.hrs || 0);
+    return { dStr, effAll: h_suma > 0 ? t_suma / h_suma : 0, t_suma, h_suma };
+  });
+
   return (
-    <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+    <div style={{ flex: '3 1 680px', minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
       {/* legend — klik w kolor otwiera edytor TEGO pasma (przedział od–do per grupa) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
         <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>Wydajność kg/rbh:</span>
@@ -1191,6 +1513,115 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
             </tr>
           </tfoot>
         </table>
+      </div>
+    </div>
+
+    <PerformanceSidebar
+      dayStats={dayStats} progi={progi} totals={totals}
+      effZd1Avg={effZd1Avg} effZd2Avg={effZd2Avg} effAllAvg={effAllAvg}
+      osZd1Avg={osZd1Avg} osZd2Avg={osZd2Avg}
+    />
+    </div>
+  );
+}
+
+/* ───────────── PANEL WIZUALIZACJI (obok tabeli wydajności) ───────────── */
+function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, effAllAvg, osZd1Avg, osZd2Avg }) {
+  // Rozkład dni wg pasma — na bazie Ogółem kg/h (tylko dni z danymi)
+  const dist = { slaba: 0, srednia: 0, dobra: 0, bdb: 0 };
+  let activeDays = 0;
+  dayStats.forEach(s => { const b = bandOf(s.effAll, progi.WSP); if (b) { dist[b]++; activeDays++; } });
+  // Najlepszy / najsłabszy dzień
+  const active = dayStats.filter(s => s.effAll > 0);
+  const best = active.reduce((a, b) => (b.effAll > (a?.effAll ?? -1) ? b : a), null);
+  const worst = active.reduce((a, b) => (b.effAll < (a?.effAll ?? Infinity) ? b : a), null);
+  const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${WEEKDAYS_PL[d.getDay()]}`; };
+
+  return (
+    <div style={{ flex: '1 1 320px', minWidth: '300px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Kafelki podsumowania */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <MiniStat label="Tonaż razem" value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
+        <MiniStat label="Godziny razem" value={totals.h > 0 ? FMT1(totals.h) : '—'} unit="h" color="#1565C0" />
+        <MiniStat label="Najlepszy dzień" value={best ? best.effAll.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color={EFF_COLORS.bdb.fc} />
+        <MiniStat label="Najsłabszy dzień" value={worst ? worst.effAll.toFixed(1) : '—'} unit={worst ? `kg/h · ${dLab(worst.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
+      </div>
+
+      {/* Średnia miesięczna vs progi */}
+      <div style={cardStyle}>
+        <div style={cardTitleStyle}>Średnia miesiąca vs progi</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <BandGauge label="ZD1" value={effZd1Avg} thr={progi.ZD1} sub={osZd1Avg > 0 ? `${FMT0(osZd1Avg)} kg/os` : ''} />
+          <BandGauge label="ZD2 + Pralki" value={effZd2Avg} thr={progi.ZD2} sub={osZd2Avg > 0 ? `${FMT0(osZd2Avg)} kg/os` : ''} />
+          <BandGauge label="Ogółem" value={effAllAvg} thr={progi.WSP} sub="" />
+        </div>
+      </div>
+
+      {/* Rozkład dni wg pasma (Ogółem) */}
+      <div style={cardStyle}>
+        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>Dni wg pasma — Ogółem</div>
+        <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>
+          {activeDays > 0 ? `${activeDays} dni z danymi` : 'brak danych w tym miesiącu'}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {PERF_BANDS.map(b => {
+            const cnt = dist[b.id];
+            const pct = activeDays > 0 ? (cnt / activeDays) * 100 : 0;
+            return (
+              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '96px', fontSize: '12px', fontWeight: 700, color: b.c.fc }}>{b.label}</span>
+                <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: b.c.bg, transition: 'width 0.4s' }} />
+                </div>
+                <span style={{ width: '24px', textAlign: 'right', fontSize: '13px', fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: cnt > 0 ? b.c.fc : IOS_THEME.textSecondary }}>{cnt}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Pasek-gauge: 4 pasma proporcjonalne do progów + znacznik wartości średniej
+function BandGauge({ label, value, thr, sub }) {
+  const max = thr.dobra * 1.45;
+  const segs = [
+    { c: EFF_COLORS.slaba.bg,   w: thr.slaba },
+    { c: EFF_COLORS.srednia.bg, w: thr.srednia - thr.slaba },
+    { c: EFF_COLORS.dobra.bg,   w: thr.dobra - thr.srednia },
+    { c: EFF_COLORS.bdb.bg,     w: max - thr.dobra },
+  ];
+  const band = bandOf(value, thr);
+  const bc = band ? EFF_COLORS[band] : null;
+  const pos = Math.min((value > 0 ? value : 0) / max, 1) * 100;
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '7px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: IOS_THEME.textPrimary }}>{label}</span>
+        <span style={{ fontSize: '16px', fontWeight: 800, color: bc ? bc.fc : IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
+          {value > 0 ? value.toFixed(1) : '—'} <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>kg/h</span>
+        </span>
+      </div>
+      <div style={{ position: 'relative', height: '14px' }}>
+        <div style={{ display: 'flex', height: '100%', borderRadius: '7px', overflow: 'hidden' }}>
+          {segs.map((s, i) => (<div key={i} style={{ width: `${(s.w / max) * 100}%`, background: s.c }} />))}
+        </div>
+        {value > 0 && (
+          <div style={{ position: 'absolute', top: '-3px', left: `${pos}%`, transform: 'translateX(-50%)', width: '3px', height: '20px', borderRadius: '2px', background: IOS_THEME.textPrimary, boxShadow: '0 0 0 2px #fff' }} />
+        )}
+      </div>
+      {sub ? <div style={{ marginTop: '5px', fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{sub}</div> : null}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, unit, color }) {
+  return (
+    <div style={{ ...cardStyle, padding: '14px' }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: IOS_THEME.textSecondary, marginBottom: '7px' }}>{label}</div>
+      <div style={{ fontSize: '20px', fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
+        {value} <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{unit}</span>
       </div>
     </div>
   );
