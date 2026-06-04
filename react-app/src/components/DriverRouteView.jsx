@@ -226,6 +226,13 @@ export default function DriverRouteView({ manageMode = false }) {
   try { extraClients = JSON.parse(trip?.extra_clients || '[]'); } catch { extraClients = []; }
   const extraSet = new Set(extraClients);
   const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
+  const includeCleanEntryForCurrentTrip = e => {
+    if (!includeEntry(e)) return false;
+    // Po odebraniu z pralni punkt należy już do kierowcy z picked_by.
+    // Dzięki temu przejęty punkt znika z pierwotnej trasy i nie psuje progresu.
+    if (e.done && e.picked_by && e.picked_by !== user?.name) return false;
+    return true;
+  };
 
   const stopsMap = new Map();
   const ensureStop = (e) => {
@@ -238,7 +245,7 @@ export default function DriverRouteView({ manageMode = false }) {
     return stop;
   };
 
-  entries.filter(includeEntry).forEach(e => {
+  entries.filter(includeCleanEntryForCurrentTrip).forEach(e => {
     if (pickupDateStr(e) !== today) return;
     ensureStop(e).entries.push(e);
   });
@@ -261,7 +268,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
-    if (pickupDateStr(e) === today && !shownClients.has(e.client_name)) {
+    if (pickupDateStr(e) === today && !e.done && !shownClients.has(e.client_name)) {
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
     }
@@ -280,6 +287,12 @@ export default function DriverRouteView({ manageMode = false }) {
     let extras = [];
     try { extras = JSON.parse(sourceTrip.extra_clients || '[]'); } catch { extras = []; }
     const extrasSet = new Set(extras);
+    const tripIncludesCleanEntry = (e) => {
+      const includedByRoute = routeIds.size === 0 || routeIds.has(e.route_id) || extrasSet.has(e.client_name);
+      if (!includedByRoute) return false;
+      if (e.done && e.picked_by && e.picked_by !== sourceTrip.driver_name) return false;
+      return true;
+    };
     const map = new Map();
     const ensureTripStop = (e) => {
       const key = e.client_name || '—';
@@ -290,7 +303,7 @@ export default function DriverRouteView({ manageMode = false }) {
     };
     entries.forEach(e => {
       if (pickupDateStr(e) !== sourceTrip.trip_date) return;
-      if (routeIds.size > 0 && !routeIds.has(e.route_id) && !extrasSet.has(e.client_name)) return;
+      if (!tripIncludesCleanEntry(e)) return;
       ensureTripStop(e).entries.push(e);
     });
     entries.forEach(e => {
@@ -959,6 +972,7 @@ export default function DriverRouteView({ manageMode = false }) {
     const candMap = new Map();
     entries.forEach(e => {
       if (!e.client_name || !e.route_id || onTrip.has(e.client_name)) return;
+      if (e.done) return;
       if (pickupDateStr(e) !== t.trip_date && arrivalDateStr(e) !== t.trip_date) return;
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
