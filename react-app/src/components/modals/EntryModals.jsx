@@ -83,7 +83,7 @@ function buildEditDiff(entry, updates, routes) {
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
-  const { user, isDriver } = useAuth();
+  const { user, isDriver, isAdmin } = useAuth();
   const [clientName, setClientName] = useState('');
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
   const [type, setType] = useState('P');

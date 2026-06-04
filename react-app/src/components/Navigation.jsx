@@ -18,6 +18,7 @@ export default function Navigation() {
   );
 
   if (isAdmin) {
+    navItems.push({ to: '/routes', icon: '📍', label: 'Trasy na żywo' });
     navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });
     navItems.push({ to: '/timeline', icon: '⏱', label: 'Oś czasu' });
     navItems.push({ to: '/costs', icon: '💰', label: 'Koszty' });

@@ -18,6 +18,7 @@ import ToastContainer from '../components/ToastContainer';
 const PAGE_TITLES = {
   '/':         { title: 'Harmonogram',    subtitle: 'Zarządzanie logistyką' },
   '/route':    { title: 'Moja trasa',     subtitle: 'Dostawy, odbiory i licznik' },
+  '/routes':   { title: 'Trasy na żywo',  subtitle: 'Aktualny progres tras kierowców' },
   '/clients':  { title: 'Klienci i Trasy', subtitle: 'Baza klientów i tras' },
   '/map':      { title: 'Mapa',           subtitle: 'Klienci na mapie' },
   '/history':  { title: 'Historia',       subtitle: 'Archiwum przyjazdów i zmian' },
@@ -112,6 +113,7 @@ export default function Dashboard() {
         <Routes>
           <Route path="/" element={<ScheduleView />} />
           <Route path="/route" element={<DriverRouteView />} />
+          <Route path="/routes" element={isAdmin ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />

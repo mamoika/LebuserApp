@@ -95,7 +95,7 @@ function pickupDateOptions() {
   return opts;
 }
 
-export default function DriverRouteView() {
+export default function DriverRouteView({ manageMode = false }) {
   const { user, isAdmin } = useAuth();
   const { entries, allRoutes, clients, loading, refetch } = useAppData();
 
@@ -108,8 +108,11 @@ export default function DriverRouteView() {
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
   const [selectedRoutes, setSelectedRoutes] = useState(() => parseRouteIds(user?.routes));
   const [busy, setBusy] = useState(false);
-  const [routeView, setRouteView] = useState(isAdmin ? 'history' : 'current');
-  
+  // W trybie zarządzania (osobna zakładka) zawsze startujemy od dashboardu tras.
+  // Na "Mojej trasie" admin — jak każdy — domyślnie widzi swój bieżący widok.
+  const [routeView, setRouteView] = useState(manageMode ? 'history' : 'current');
+  const [detailTrip, setDetailTrip] = useState(null); // trasa otwarta do podglądu progresu (read-only)
+
   // Filtry dla admina w historii
   const [filterDriver, setFilterDriver] = useState('');
   const [filterCar, setFilterCar] = useState('');
@@ -664,7 +667,15 @@ export default function DriverRouteView() {
     const stats = getTripStats(t);
     const kmApproval = tripKmApproval(t);
     return (
-      <div key={t.id} className={`driver-trip-row ${isLive ? 'is-live' : ''} ${t.isVirtual ? 'is-virtual' : ''}`}>
+      <div
+        key={t.id}
+        className={`driver-trip-row ${isLive ? 'is-live' : ''} ${t.isVirtual ? 'is-virtual' : ''}`}
+        role="button"
+        tabIndex={0}
+        style={{ cursor: 'pointer' }}
+        onClick={() => setDetailTrip(t)}
+        title="Pokaż progres trasy"
+      >
         <div>
           <div className="driver-trip-row-title">
             {fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} 
@@ -686,15 +697,110 @@ export default function DriverRouteView() {
           <span>{stats.cleanTrolleys} z pralni</span>
           <span>{stats.dirtyTrolleys} brudne</span>
           {isAdmin && t.end_km && !kmApproval.approved && (
-            <button className="driver-mini-card-btn" onClick={() => approveTripKm(t)} disabled={busy}>Zatwierdź km</button>
+            <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); approveTripKm(t); }} disabled={busy}>Zatwierdź km</button>
           )}
-          {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={() => printCard(t)}>Karta</button>}
+          {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>}
+        </div>
+      </div>
+    );
+  };
+
+  // Podgląd progresu konkretnej trasy (read-only) — admin wchodzi i widzi co zrobione.
+  const renderTripDetail = (t) => {
+    const tripStops = getTripStops(t);
+    const stats = getTripStats(t);
+    const statusLabel = t.isVirtual ? 'Planowana' : t.status === 'active' ? 'Na żywo' : t.status === 'finished' ? 'Zakończona' : 'Planowana';
+    const muted = { fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 };
+    return (
+      <div className="admin-dashboard-shell">
+        <div className="driver-history-header">
+          <div>
+            <div className="driver-trip-kicker">Podgląd trasy · {statusLabel}</div>
+            <div className="driver-trip-title">
+              {t.driver_name || 'Kierowca'}{t.car ? ` · ${VEHICLE_LABELS[t.car] || t.car}` : ''}
+            </div>
+            <div className="driver-trip-subtitle">
+              {fmtDate(t.trip_date)} · {routeNamesForTrip(t)}
+              {!t.isVirtual && t.started_at ? ` · Start ${fmtTime(t.started_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : ''}
+              {t.end_km ? ` · licznik ${t.end_km} km` : ''}
+            </div>
+          </div>
+          <button className="driver-tool-btn" onClick={() => setDetailTrip(null)}>← Wróć do listy</button>
+        </div>
+
+        <div className="driver-trip-row-stats" style={{ margin: '4px 0 16px', flexWrap: 'wrap' }}>
+          <span>{stats.delivered}/{stats.stops} dostarczone</span>
+          <span>{stats.picked}/{stats.stops} z pralni</span>
+          <span>{stats.kg || 0} kg</span>
+          <span>{stats.cleanTrolleys} czyste wózki</span>
+          <span>{stats.dirtyTrolleys} brudne wózki</span>
+        </div>
+
+        <div className="driver-stops-list">
+          {tripStops.length === 0 && <div className="driver-empty-row">Brak przystanków dla tej trasy</div>}
+          {tripStops.map(stop => {
+            const pickupEntries = stop.entries || [];
+            const hasPickup = pickupEntries.length > 0;
+            const pralniaDone = hasPickup && pickupEntries.every(e => e.done);
+            const deliveredDone = hasPickup && pickupEntries.every(e => e.delivered);
+            const kg = Number(sumWeight(pickupEntries).toFixed(1));
+            const arrivals = stop.dirtyEntries || [];
+            return (
+              <div key={stop.key} className={`driver-stop-card ${deliveredDone ? 'is-delivered' : ''}`}>
+                <div className="driver-stop-header">
+                  <div className="driver-stop-title-row">
+                    <RouteBadge id={stop.route_id} />
+                    <span className="driver-client-name">{stop.client_name}</span>
+                    {kg > 0 && <span className="kg-badge driver-kg-badge">{kg} kg</span>}
+                  </div>
+                </div>
+
+                {hasPickup && (
+                  <>
+                    <div className="driver-action-row driver-action-laundry">
+                      <span className="driver-action-label">🏭 Odbiór z pralni</span>
+                      {pralniaDone
+                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.picked_at)}</span><span className="driver-action-extra">{trolleyLabel(getPickedBaskets(stop))}</span></span>
+                        : <span style={muted}>oczekuje</span>}
+                    </div>
+                    <div className="driver-action-row driver-action-delivered">
+                      <span className="driver-action-label">📦 Dostarczono</span>
+                      {deliveredDone
+                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.delivered_at)}</span></span>
+                        : <span style={muted}>oczekuje</span>}
+                    </div>
+                  </>
+                )}
+
+                {arrivals.length > 0 && (
+                  <div className="driver-arrivals-section">
+                    <div className="driver-dirty-heading">Brudne pranie do pralni</div>
+                    <div className="driver-dirty-list">
+                      {arrivals.map(a => (
+                        <div key={a.id} className={`driver-arrival-chip ${a.type === 'O' ? 'type-O' : 'type-P'}`}>
+                          <span className="driver-arrival-label">
+                            <span className={`laundry-type-badge ${a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'O' ? 'O' : 'P'}</span>
+                            {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
 
   if (routeView === 'history') {
+    // Podgląd progresu wybranej trasy (read-only) — wspólny dla admina i kierowcy.
+    if (detailTrip) {
+      const live = allTrips.find(t => t.id === detailTrip.id) || detailTrip;
+      return renderTripDetail(live);
+    }
     if (isAdmin) {
       const uniqueDrivers = [...new Set(allTrips.map(t => t.driver_name || 'Nieznany').filter(Boolean))].sort();
       const uniqueCars = [...new Set(allTrips.map(t => t.car).filter(Boolean))].sort();
@@ -761,10 +867,10 @@ export default function DriverRouteView() {
           <div className="driver-history-header">
             <div>
               <div className="driver-trip-kicker">Panel Administratora</div>
-              <div className="driver-trip-title">Zarządzanie Trasami</div>
-              <div className="driver-trip-subtitle">Sortowanie i grupowanie tras ({allTrips.length} w historii)</div>
+              <div className="driver-trip-title">{manageMode ? 'Trasy na żywo' : 'Zarządzanie Trasami'}</div>
+              <div className="driver-trip-subtitle">{manageMode ? 'Kliknij trasę, aby zobaczyć progres' : `Sortowanie i grupowanie tras (${allTrips.length} w historii)`}</div>
             </div>
-            <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć do widoku</button>
+            {!manageMode && <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć do widoku</button>}
           </div>
 
           <div className="admin-filters-bar">
