@@ -475,7 +475,7 @@ export default function DriverRouteView() {
               const pralniaDone = stop.entries.every(e => e.done);
               const deliveredDone = stop.entries.every(e => e.delivered);
               const kg = Number(sumWeight(stop.entries).toFixed(1));
-              const formOpen = pf?.stopKey === stop.key;
+              const formOpen = pf?.stopKey === stop.key && !pf?.editId;
               // Przyjazdy brudnego dodane dziś dla tego klienta
               const todayArrivals = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
               return (
@@ -493,37 +493,97 @@ export default function DriverRouteView() {
 
                   {/* Przyjazd brudnego → nowy wpis w harmonogramie */}
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
-                    {!formOpen ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {todayArrivals.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {todayArrivals.map(a => (
-                              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(52,199,89,0.08)', borderRadius: '8px', padding: '5px 8px' }}>
-                                <span style={{ fontSize: '12px', color: '#34C759', fontWeight: 700, flex: 1 }}>
-                                  ✓ {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''}
+
+                    {/* ── Lista już dodanych dziś przyjazdów (zawsze widoczna) ── */}
+                    {todayArrivals.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                        {todayArrivals.map(a => {
+                          const isEditing = pf?.editId === a.id;
+                          return (
+                            <div key={a.id}>
+                              {/* wiersz: label + przyciski edycja/usuń */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isEditing ? 'rgba(37,99,235,0.07)' : 'rgba(52,199,89,0.08)', borderRadius: '8px', padding: '5px 8px', border: isEditing ? '1px solid var(--accent)' : '1px solid transparent' }}>
+                                <span style={{ fontSize: '12px', color: isEditing ? 'var(--accent)' : '#34C759', fontWeight: 700, flex: 1 }}>
+                                  {isEditing ? '✏️' : '✓'} {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''}
                                 </span>
+                                {/* Edytuj */}
+                                <button
+                                  onClick={() => {
+                                    if (isEditing) { setPf(null); return; }
+                                    const options = pickupDateOptions();
+                                    setPf({ editId: a.id, stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: a.type || 'P', kg: a.weight ?? '', pickValue: options[0]?.value || '', options });
+                                  }}
+                                  title={isEditing ? 'Anuluj edycję' : 'Edytuj kg / typ'}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? 'var(--accent)' : 'var(--text-tertiary)', fontSize: '13px', padding: '2px 5px', borderRadius: '4px' }}
+                                >✏️</button>
+                                {/* Usuń */}
                                 <button
                                   onClick={async () => {
-                                    if (!window.confirm(`Usunąć przyjazd: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
+                                    if (!window.confirm(`Usunąć: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
                                     const { error } = await supabase.from('entries').delete().eq('id', a.id);
-                                    if (error) { toastError('Błąd usuwania: ' + error.message); return; }
+                                    if (error) { toastError('Błąd: ' + error.message); return; }
                                     await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
+                                    if (pf?.editId === a.id) setPf(null);
                                     await refetch();
                                     toastSuccess('Usunięto przyjazd');
                                   }}
                                   disabled={busy}
-                                  title="Usuń ten przyjazd"
+                                  title="Usuń"
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '2px 4px', borderRadius: '4px' }}
                                 >×</button>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                        <button onClick={() => openPrzyjazd(stop)} style={{
-                          alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
-                          cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
-                        }}>➕ Przyjazd brudnego (do pralni)</button>
+
+                              {/* Inline edytor — tylko dla edytowanego wpisu */}
+                              {isEditing && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 8px', background: 'rgba(37,99,235,0.04)', borderRadius: '0 0 8px 8px', marginTop: '-4px' }}>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    {[['P', 'Pościel'], ['O', 'Obrusy']].map(([val, lbl]) => (
+                                      <button key={val} onClick={() => setPfField('type', val)} style={{
+                                        flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
+                                        border: `2px solid ${pf.type === val ? 'var(--accent)' : 'var(--border)'}`,
+                                        background: pf.type === val ? 'var(--accent-light)' : 'var(--bg-card)',
+                                        color: pf.type === val ? 'var(--accent)' : 'var(--text-secondary)',
+                                      }}>{lbl}</button>
+                                    ))}
+                                  </div>
+                                  <label style={pfLabel}>Kg (brudne)
+                                    <input type="number" inputMode="decimal" placeholder="kg" value={pf.kg}
+                                      onChange={e => setPfField('kg', e.target.value)} style={pfInput} autoFocus />
+                                  </label>
+                                  <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                      onClick={async () => {
+                                        const kg = parseFloat(String(pf.kg).replace(',', '.'));
+                                        const { error } = await supabase.from('entries').update({
+                                          type: pf.type,
+                                          weight: isNaN(kg) ? null : kg,
+                                          weighed_kg: isNaN(kg) ? null : kg,
+                                        }).eq('id', a.id);
+                                        if (error) { toastError('Błąd zapisu: ' + error.message); return; }
+                                        await logAction({ userName: user.name, action: 'edited', clientName: stop.client_name, entryId: a.id, details: `typ: ${pf.type}, kg: ${isNaN(kg) ? '—' : kg}` });
+                                        setPf(null);
+                                        await refetch();
+                                        toastSuccess('Zaktualizowano przyjazd');
+                                      }}
+                                      disabled={busy}
+                                      style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px' }}
+                                    >{busy ? 'Zapisuję…' : '💾 Zapisz zmiany'}</button>
+                                    <button onClick={() => setPf(null)} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>Anuluj</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
+                    )}
+
+                    {/* ── Formularz nowego przyjazdu ── */}
+                    {!formOpen ? (
+                      <button onClick={() => openPrzyjazd(stop)} style={{
+                        alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
+                        cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block',
+                      }}>➕ Przyjazd brudnego (do pralni)</button>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -533,7 +593,7 @@ export default function DriverRouteView() {
                           {stop.client_name}{routeMap[stop.route_id] ? ` · T${routeMap[stop.route_id].num} ${routeMap[stop.route_id].name}` : ''}
                         </div>
 
-                        {/* Rodzaj prania — osobny przyjazd dla pościeli i obrusów */}
+                        {/* Rodzaj prania */}
                         <div style={{ display: 'flex', gap: '6px' }}>
                           {[['P', 'Pościel'], ['O', 'Obrusy']].map(([val, lbl]) => (
                             <button key={val} onClick={() => setPfField('type', val)} style={{
