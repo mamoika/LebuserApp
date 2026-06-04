@@ -82,7 +82,7 @@ function buildEditDiff(entry, updates, routes) {
   return changes;
 }
 
-export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded }) {
+export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName }) {
   const { user, isDriver } = useAuth();
   const [clientName, setClientName] = useState('');
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
@@ -108,18 +108,23 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   useEffect(() => {
     if (isOpen) {
       const day = defaultArrDay || 1;
-      const firstClient = firstClientByRouteOrder(ownClients, routes);
-      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day, clientRouteSchedule(clients, routes, firstClient?.name));
+      // Jeśli podano defaultClientName, pre-wybierz tego klienta; inaczej pierwszy z tras
+      let initClient;
+      if (defaultClientName) {
+        initClient = clients.find(c => c.name === defaultClientName);
+      }
+      if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
+      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day, clientRouteSchedule(clients, routes, initClient?.name));
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
       setShowOtherRoutes(false);
-      setClientName(firstClient?.name || '');
+      setClientName(initClient?.name || '');
       setWeight('');
       setType('P');
       setUrgent(false);
     }
-  }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver]);
+  }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver, defaultClientName]);
 
   useEffect(() => {
     if (!isOpen) return;

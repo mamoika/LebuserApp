@@ -173,7 +173,7 @@ export default function ScheduleView() {
                 </>
               )}
               
-              {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
+              {isAdmin && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
             </div>
           )
         })}
