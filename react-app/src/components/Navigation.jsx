@@ -2,14 +2,19 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canEdit } = useAuth();
 
   const navItems = [
     { to: '/', icon: '📅', label: 'Harmonogram' },
+  ];
+
+  if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: 'Moja trasa' });
+
+  navItems.push(
     { to: '/clients', icon: '🗂', label: 'Klienci i Trasy' },
     { to: '/map', icon: '🗺', label: 'Mapa' },
     { to: '/history', icon: '📋', label: 'Historia' },
-  ];
+  );
 
   if (isAdmin) {
     navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });

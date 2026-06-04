@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 import ScheduleView from '../components/ScheduleView';
+import DriverRouteView from '../components/DriverRouteView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
 import MapView from '../components/MapView';
@@ -16,6 +17,7 @@ import ToastContainer from '../components/ToastContainer';
 // Tytuł nagłówka zależny od aktywnej zakładki
 const PAGE_TITLES = {
   '/':         { title: 'Harmonogram',    subtitle: 'Zarządzanie logistyką' },
+  '/route':    { title: 'Moja trasa',     subtitle: 'Dostawy, odbiory i licznik' },
   '/clients':  { title: 'Klienci i Trasy', subtitle: 'Baza klientów i tras' },
   '/map':      { title: 'Mapa',           subtitle: 'Klienci na mapie' },
   '/history':  { title: 'Historia',       subtitle: 'Archiwum przyjazdów i zmian' },
@@ -109,6 +111,7 @@ export default function Dashboard() {
       <main>
         <Routes>
           <Route path="/" element={<ScheduleView />} />
+          <Route path="/route" element={<DriverRouteView />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />

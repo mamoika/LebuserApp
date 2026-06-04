@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { loadMonthRoster } from '../lib/roster';
+import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -123,10 +124,11 @@ function AddUserModal({ onClose, onSave }) {
   );
 }
 
-function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
+function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [routes, setRoutes] = useState(user.routes || '');
+  const [car, setCar] = useState(defaultCar || '');
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
@@ -134,7 +136,7 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImp
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(user.id, name.trim(), role, routes.trim());
+    await onSave(user.id, name.trim(), role, routes.trim(), car);
     setSaving(false);
   };
 
@@ -180,6 +182,12 @@ function EditUserModal({ user, onClose, onSave, onResetPassword, onDelete, onImp
             <>
               <div style={LABEL_STYLE}>Przypisane trasy</div>
               <RoutesPicker value={routes} onChange={setRoutes} />
+
+              <div style={LABEL_STYLE}>Domyślne auto</div>
+              <select className="ap-input" value={car} onChange={e => setCar(e.target.value)} style={{ marginBottom: '12px' }}>
+                <option value="">— brak —</option>
+                {VEHICLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+              </select>
             </>
           )}
 
@@ -601,11 +609,14 @@ function EmployeesSection() {
 }
 
 const ACTION_LABELS = {
-  added:   { label: 'Dodał',    color: '#34C759' },
-  edited:  { label: 'Edytował', color: '#FF9500' },
-  done:    { label: 'Odebrał',  color: '#007AFF' },
-  undone:  { label: 'Cofnął',   color: '#FF3B30' },
-  deleted: { label: 'Usunął',   color: '#FF3B30' },
+  added:      { label: 'Dodał',       color: '#34C759' },
+  edited:     { label: 'Edytował',    color: '#FF9500' },
+  done:       { label: 'Odebrał',     color: '#007AFF' },
+  undone:     { label: 'Cofnął',      color: '#FF3B30' },
+  deleted:    { label: 'Usunął',      color: '#FF3B30' },
+  delivered:  { label: 'Dostarczył',  color: '#34C759' },
+  trip_start: { label: 'Start trasy', color: '#5856D6' },
+  trip_end:   { label: 'Koniec trasy', color: '#5856D6' },
 };
 
 const LOGS_PAGE_SIZE = 50;
@@ -695,6 +706,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
   const [tab, setTab] = useState('users'); // 'users' | 'employees' | 'logs'
 
   const fetchUsers = async () => {
@@ -703,9 +715,13 @@ export default function AdminDashboard() {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_all_users', { p_session_token: sessionToken });
+    const [{ data, error }, { data: carsRow }] = await Promise.all([
+      supabase.rpc('get_all_users', { p_session_token: sessionToken }),
+      supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
+    ]);
     if (error) setError(error.message);
     else setUsers(data || []);
+    setDriverCars(carsRow?.value || {});
     setLoading(false);
   };
 
@@ -727,11 +743,18 @@ export default function AdminDashboard() {
     return { ok: true };
   };
 
-  const handleSaveUser = async (userId, name, role, routes) => {
+  const handleSaveUser = async (userId, name, role, routes, car) => {
     const { error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
     if (e1) { toastError('Błąd zapisu roli: ' + e1.message); return; }
     const { error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
     if (e2) { toastError('Błąd zapisu tras: ' + e2.message); return; }
+    // Domyślne auto kierowcy → app_settings (jeden wiersz 'driver_cars')
+    const nextCars = { ...driverCars };
+    if (car) nextCars[userId] = car; else delete nextCars[userId];
+    const { error: e3 } = await supabase.from('app_settings')
+      .upsert({ key: DRIVER_CARS_KEY, value: nextCars, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (e3) { toastError('Błąd zapisu auta: ' + e3.message); return; }
+    setDriverCars(nextCars);
     setEditUser(null);
     toastSuccess('Zapisano');
     fetchUsers();
@@ -833,6 +856,7 @@ export default function AdminDashboard() {
       {editUser && (
         <EditUserModal
           user={editUser}
+          defaultCar={driverCars[editUser.id] || ''}
           onClose={() => setEditUser(null)}
           onSave={handleSaveUser}
           onResetPassword={handleResetPassword}

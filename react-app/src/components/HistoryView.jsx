@@ -26,11 +26,14 @@ function formatDayDate(date) {
 }
 
 const LOG_ACTION_LABELS = {
-  added:   { label: 'Dodano',    color: '#34C759' },
-  edited:  { label: 'Edytowano', color: '#FF9500' },
-  done:    { label: 'Odebrano',  color: '#007AFF' },
-  undone:  { label: 'Cofnięto',  color: '#FF3B30' },
-  deleted: { label: 'Usunięto',  color: '#FF3B30' },
+  added:      { label: 'Dodano',     color: '#34C759' },
+  edited:     { label: 'Edytowano',  color: '#FF9500' },
+  done:       { label: 'Odebrano',   color: '#007AFF' },
+  undone:     { label: 'Cofnięto',   color: '#FF3B30' },
+  deleted:    { label: 'Usunięto',   color: '#FF3B30' },
+  delivered:  { label: 'Dostarczono', color: '#34C759' },
+  trip_start: { label: 'Start trasy', color: '#5856D6' },
+  trip_end:   { label: 'Koniec trasy', color: '#5856D6' },
 };
 
 function formatDate(isoStr) {
