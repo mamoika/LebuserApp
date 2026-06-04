@@ -56,7 +56,7 @@ export default function LoginPage() {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="auth-logo-section">
-          <img src={logoImg} alt="Logo LEBUSER" style={{ height: '72px', objectFit: 'contain', marginBottom: '16px' }} />
+          <img src={logoImg} alt="Logo LEBUSER" style={{ maxWidth: '100%', width: 'auto', height: 'auto', maxHeight: '72px', objectFit: 'contain', marginBottom: '16px' }} />
           <h1 className="auth-title" style={{ display: 'none' }}>LEBUSER</h1>
           <p className="auth-subtitle">Harmonogram Logistyki</p>
         </div>
