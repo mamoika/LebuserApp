@@ -5,6 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
+import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 /* ── helpery dat ── */
@@ -14,12 +15,6 @@ function ymd(date) {
 function parseMonday(weekKey) {
   const [y, m, d] = weekKey.split('-').map(Number);
   return new Date(y, m - 1, d);
-}
-function deliveryDateStr(e) {
-  if (!e.week_key) return null;
-  const dt = parseMonday(e.week_key);
-  dt.setDate(dt.getDate() + ((e.arr_day || 1) - 1));
-  return ymd(dt);
 }
 function pickupDateStr(e) {
   const wk = e.pick_week_key || e.week_key;
@@ -35,6 +30,18 @@ function fmtTime(iso) {
 function parseRouteIds(routesStr) {
   return new Set((routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean));
 }
+const sumWeight = arr => arr.reduce((s, e) => s + (parseFloat(e.weight) || 0), 0);
+// Domyślny dzień odbioru dla nowego przyjazdu (jak w harmonogramie, wariant 'other')
+function defaultPick(d) {
+  if (d <= 3) return { pickDay: d + 2, pickWeek: 0 };
+  if (d === 4) return { pickDay: 2, pickWeek: 1 };
+  return { pickDay: 1, pickWeek: 1 };
+}
+function nextWeekKey(wk) {
+  const dt = parseMonday(wk);
+  dt.setDate(dt.getDate() + 7);
+  return formatWeekKey(dt);
+}
 
 export default function DriverRouteView() {
   const { user } = useAuth();
@@ -49,7 +56,8 @@ export default function DriverRouteView() {
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [draft, setDraft] = useState({}); // { clientKey: { dBaskets, pBaskets, pKg, note } }
+  const [przyjazdFor, setPrzyjazdFor] = useState(null); // klucz przystanku z otwartym formularzem przyjazdu
+  const [draft, setDraft] = useState({}); // { clientKey: { note, newKg } }
 
   const today = ymd(new Date());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
@@ -77,11 +85,10 @@ export default function DriverRouteView() {
     return () => { cancelled = true; };
   }, [user?.id, today]);
 
-  /* ── budowanie przystanków — ŚCIŚLE wg harmonogramu ──
-     1 przystanek = 1 klient. U klienta pokazujemy tylko tę nogę, którą grafik
-     przewiduje DOKŁADNIE na dziś: dostawę jeśli przyjazd dziś, odbiór jeśli
-     odbiór dziś. Klient może mieć tylko jedną z nich. Bierzemy klientów z
-     wybranych tras + doraźnie dodane punkty (extra_clients) z obcych tras. */
+  /* ── przystanki = klienci z ODBIOREM dziś (wg harmonogramu) ──
+     Każdy taki wpis ma dziś 2 czynności kierowcy: odbiór czystego z pralni
+     (done) i dostawę do klienta (delivered). Dodatkowo przy kliencie można
+     dorzucić "przyjazd" brudnego (nowy wpis w grafiku). */
   const activeRouteIds = trip ? parseRouteIds(trip.routes) : selectedRoutes;
   let extraClients = [];
   try { extraClients = JSON.parse(trip?.extra_clients || '[]'); } catch { extraClients = []; }
@@ -89,23 +96,20 @@ export default function DriverRouteView() {
   const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
 
   const stopsMap = new Map();
-  const ensureStop = (e) => {
-    const key = e.client_name || '—';
-    if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, deliveryEntries: [], pickupEntries: [] });
-    return stopsMap.get(key);
-  };
   entries.filter(includeEntry).forEach(e => {
-    if (deliveryDateStr(e) === today) ensureStop(e).deliveryEntries.push(e);
-    if (pickupDateStr(e) === today) ensureStop(e).pickupEntries.push(e);
+    if (pickupDateStr(e) !== today) return;
+    const key = e.client_name || '—';
+    if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [] });
+    stopsMap.get(key).entries.push(e);
   });
   const stops = [...stopsMap.values()].sort((a, b) =>
     (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
 
-  // Kandydaci do dorzucenia: klienci z aktywnością dziś, których nie ma na liście
+  // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
-    if ((deliveryDateStr(e) === today || pickupDateStr(e) === today) && !shownClients.has(e.client_name)) {
+    if (pickupDateStr(e) === today && !shownClients.has(e.client_name)) {
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, e.route_id);
     }
   });
@@ -150,54 +154,68 @@ export default function DriverRouteView() {
     finally { setBusy(false); }
   };
 
+  // 1) Odbiór czystego z pralni
+  const markPralnia = async (stop) => {
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { error } = await supabase.from('entries')
+        .update({ done: true, picked_by: user.name, picked_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór z pralni, ${Number(sumWeight(stop.entries).toFixed(1))} kg` });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // 2) Dostawa do klienta
   const markDelivered = async (stop) => {
     try {
       setBusy(true);
-      const baskets = parseInt(draftVal(stop.key, 'dBaskets', stop.deliveryEntries[0]?.delivered_baskets), 10);
-      const ids = stop.deliveryEntries.map(e => e.id);
+      const ids = stop.entries.map(e => e.id);
       const { error } = await supabase.from('entries')
-        .update({ delivered: true, delivered_by: user.name, delivered_at: new Date().toISOString(), delivered_baskets: isNaN(baskets) ? null : baskets })
+        .update({ delivered: true, delivered_by: user.name, delivered_at: new Date().toISOString() })
         .in('id', ids);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa${isNaN(baskets) ? '' : ', ' + baskets + ' koszy'}` });
+      await logAction({ userName: user.name, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta` });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
 
-  const markPicked = async (stop) => {
+  // 3) Przyjazd brudnego — tworzy nowy wpis w harmonogramie
+  const addPrzyjazd = async (stop) => {
     try {
       setBusy(true);
-      const baskets = parseInt(draftVal(stop.key, 'pBaskets', stop.pickupEntries[0]?.picked_baskets), 10);
-      const kg = parseFloat(String(draftVal(stop.key, 'pKg', stop.pickupEntries[0]?.weighed_kg)).replace(',', '.'));
-      const ids = stop.pickupEntries.map(e => e.id);
-      const { error } = await supabase.from('entries')
-        .update({ done: true, picked_by: user.name, picked_at: new Date().toISOString(), picked_baskets: isNaN(baskets) ? null : baskets, weighed_kg: isNaN(kg) ? null : kg })
-        .in('id', ids);
+      const kg = parseFloat(String(draftVal(stop.key, 'newKg', '')).replace(',', '.'));
+      const wd = (new Date().getDay() + 6) % 7 + 1;       // Pn=1 … Nd=7
+      const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
+      const wk = formatWeekKey(getCurrentMonday());
+      const { pickDay, pickWeek } = defaultPick(arrDay);
+      const pickWeekKey = pickWeek === 1 ? nextWeekKey(wk) : wk;
+      const id = 'ID_' + Date.now();
+      const { error } = await supabase.from('entries').insert([{
+        id, week_key: wk, client_name: stop.client_name, arr_day: arrDay,
+        pick_day: pickDay, pick_week_key: pickWeekKey,
+        weight: isNaN(kg) ? null : kg, weighed_kg: isNaN(kg) ? null : kg,
+        route_id: stop.route_id, type: 'P', added_by: user.name, urgent: false,
+      }]);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór${isNaN(kg) ? '' : ', ' + kg + ' kg'}${isNaN(baskets) ? '' : ', ' + baskets + ' koszy'}` });
+      await logAction({ userName: user.name, action: 'added', clientName: stop.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}` });
+      setPrzyjazdFor(null);
+      setDraftVal(stop.key, 'newKg', '');
       await refetch();
+      toastSuccess('Dodano przyjazd brudnego do harmonogramu');
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
 
-  // Zapis koszy/kg/uwag bez zmiany statusu (na onBlur)
-  const saveExtras = async (stop, leg) => {
-    const noteVal = draftVal(stop.key, 'note', stop.deliveryEntries[0]?.driver_note || stop.pickupEntries[0]?.driver_note);
-    const legEntries = leg === 'delivery' ? stop.deliveryEntries : stop.pickupEntries;
-    if (legEntries.length === 0) return;
-    const ids = legEntries.map(e => e.id);
-    const patch = { driver_note: noteVal || null };
-    if (leg === 'delivery') {
-      const b = parseInt(draftVal(stop.key, 'dBaskets', legEntries[0]?.delivered_baskets), 10);
-      patch.delivered_baskets = isNaN(b) ? null : b;
-    } else {
-      const b = parseInt(draftVal(stop.key, 'pBaskets', legEntries[0]?.picked_baskets), 10);
-      const kg = parseFloat(String(draftVal(stop.key, 'pKg', legEntries[0]?.weighed_kg)).replace(',', '.'));
-      patch.picked_baskets = isNaN(b) ? null : b;
-      patch.weighed_kg = isNaN(kg) ? null : kg;
-    }
-    await supabase.from('entries').update(patch).in('id', ids);
+  const saveNote = async (stop) => {
+    const noteVal = draftVal(stop.key, 'note', stop.entries[0]?.driver_note);
+    const ids = stop.entries.map(e => e.id);
+    if (ids.length === 0) return;
+    await supabase.from('entries').update({ driver_note: noteVal || null }).in('id', ids);
   };
 
   const endTrip = async () => {
@@ -226,22 +244,17 @@ export default function DriverRouteView() {
   const printCard = () => {
     const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const rows = stops.map((s, i) => {
-      const dEnt = s.deliveryEntries, pEnt = s.pickupEntries;
-      const dDone = dEnt.length > 0 && dEnt.every(e => e.delivered);
-      const pDone = pEnt.length > 0 && pEnt.every(e => e.done);
-      const time = fmtTime(pEnt[0]?.picked_at || dEnt[0]?.delivered_at);
-      const kg = pEnt[0]?.weighed_kg ?? '';
-      const dB = dEnt[0]?.delivered_baskets ?? '';
-      const pB = pEnt[0]?.picked_baskets ?? '';
-      const baskets = [pB && `O:${pB}`, dB && `D:${dB}`].filter(Boolean).join(' ');
-      const note = dEnt[0]?.driver_note || pEnt[0]?.driver_note || '';
+      const pralnia = s.entries.every(e => e.done);
+      const delivered = s.entries.every(e => e.delivered);
+      const time = fmtTime(s.entries[0]?.delivered_at || s.entries[0]?.picked_at);
+      const kg = Number(sumWeight(s.entries).toFixed(1)) || '';
+      const note = s.entries[0]?.driver_note || '';
       return `<tr>
         <td>${i + 1}</td>
         <td class="l">${esc(s.client_name)}</td>
         <td>${time}</td>
-        <td>${pEnt.length ? (pDone ? '✓' : '—') : ''}</td>
-        <td>${dEnt.length ? (dDone ? '✓' : '—') : ''}</td>
-        <td>${esc(baskets)}</td>
+        <td>${pralnia ? '✓' : '—'}</td>
+        <td>${delivered ? '✓' : '—'}</td>
         <td>${kg}</td>
         <td class="l">${esc(note)}</td>
       </tr>`;
@@ -266,7 +279,7 @@ export default function DriverRouteView() {
         <div><b>KM koniec:</b> ${trip?.end_km ?? ''}</div>
       </div>
       <table>
-        <thead><tr><th>Lp.</th><th class="l">Hotel/Klient</th><th>Godz.</th><th>Odbiór</th><th>Dostawa</th><th>Kosze</th><th>Kg</th><th class="l">Uwagi</th></tr></thead>
+        <thead><tr><th>Lp.</th><th class="l">Hotel/Klient</th><th>Godz.</th><th>Z pralni</th><th>Dostarczono</th><th>Kg</th><th class="l">Uwagi</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <p style="margin-top:40px;font-size:13px">Podpis kierowcy: ______________________</p>
@@ -285,51 +298,19 @@ export default function DriverRouteView() {
     return <span className="rt-badge" style={routeBadgeStyle(info.num)}>T{info.num}</span>;
   };
 
-  const numInput = { width: '70px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', textAlign: 'center' };
-
-  const LegRow = ({ stop, leg }) => {
-    const isDelivery = leg === 'delivery';
-    const legEntries = isDelivery ? stop.deliveryEntries : stop.pickupEntries;
-    if (legEntries.length === 0) return null;
-    const done = legEntries.every(e => isDelivery ? e.delivered : e.done);
-    const at = isDelivery ? legEntries[0]?.delivered_at : legEntries[0]?.picked_at;
-    const color = isDelivery ? '#34C759' : '#AF52DE';
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        <span style={{ width: '78px', flexShrink: 0, fontWeight: 700, fontSize: '13px', color }}>
-          {isDelivery ? '📦 Dostawa' : '🧺 Odbiór'}
-        </span>
-        <div style={{ display: 'flex', gap: '6px', flex: 1, minWidth: '140px' }}>
-          <input
-            type="number" inputMode="numeric" placeholder="kosze"
-            value={draftVal(stop.key, isDelivery ? 'dBaskets' : 'pBaskets', isDelivery ? legEntries[0]?.delivered_baskets : legEntries[0]?.picked_baskets)}
-            onChange={e => setDraftVal(stop.key, isDelivery ? 'dBaskets' : 'pBaskets', e.target.value)}
-            onBlur={() => trip && saveExtras(stop, leg)}
-            disabled={!trip} style={numInput}
-          />
-          {!isDelivery && (
-            <input
-              type="number" inputMode="decimal" placeholder="kg"
-              value={draftVal(stop.key, 'pKg', legEntries[0]?.weighed_kg)}
-              onChange={e => setDraftVal(stop.key, 'pKg', e.target.value)}
-              onBlur={() => trip && saveExtras(stop, leg)}
-              disabled={!trip} style={numInput}
-            />
-          )}
-        </div>
-        {done ? (
-          <span style={{ fontSize: '12px', fontWeight: 700, color, flexShrink: 0, width: '96px', textAlign: 'right' }}>✓ {fmtTime(at)}</span>
-        ) : trip ? (
-          <button onClick={() => isDelivery ? markDelivered(stop) : markPicked(stop)} disabled={busy} style={{
-            width: '96px', padding: '9px 0', borderRadius: '9px', border: 'none', cursor: 'pointer',
-            background: color, color: '#fff', fontWeight: 700, fontSize: '12px', flexShrink: 0,
-          }}>{isDelivery ? 'Dostarczono' : 'Odebrano'}</button>
-        ) : (
-          <span style={{ width: '96px', textAlign: 'right', fontSize: '11px', color: 'var(--text-tertiary)' }}>—</span>
-        )}
-      </div>
-    );
-  };
+  const ActionRow = ({ icon, label, color, done, at, btnLabel, onClick }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderTop: '1px solid var(--border)' }}>
+      <span style={{ flex: 1, fontWeight: 700, fontSize: '13px', color }}>{icon} {label}</span>
+      {done ? (
+        <span style={{ fontSize: '12px', fontWeight: 700, color, flexShrink: 0 }}>✓ {fmtTime(at)}</span>
+      ) : trip ? (
+        <button onClick={onClick} disabled={busy} style={{
+          width: '120px', padding: '9px 0', borderRadius: '9px', border: 'none', cursor: 'pointer',
+          background: color, color: '#fff', fontWeight: 700, fontSize: '12px', flexShrink: 0,
+        }}>{btnLabel}</button>
+      ) : <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>—</span>}
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '640px' }}>
@@ -400,23 +381,58 @@ export default function DriverRouteView() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {stops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
-            {stops.map(stop => (
-              <div key={stop.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <RouteBadge id={stop.route_id} />
-                  <span style={{ fontWeight: 700, fontSize: '15px' }}>{stop.client_name}</span>
+            {stops.map(stop => {
+              const pralniaDone = stop.entries.every(e => e.done);
+              const deliveredDone = stop.entries.every(e => e.delivered);
+              const kg = Number(sumWeight(stop.entries).toFixed(1));
+              const formOpen = przyjazdFor === stop.key;
+              return (
+                <div key={stop.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <RouteBadge id={stop.route_id} />
+                    <span style={{ fontWeight: 700, fontSize: '15px', flex: 1 }}>{stop.client_name}</span>
+                    {kg > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '3px 8px', borderRadius: '6px' }}>{kg} kg</span>}
+                  </div>
+
+                  <ActionRow icon="🏭" label="Odbiór z pralni" color="#AF52DE" done={pralniaDone} at={stop.entries[0]?.picked_at} btnLabel="Odebrano z pralni" onClick={() => markPralnia(stop)} />
+                  <ActionRow icon="📦" label="Dostarczono" color="#34C759" done={deliveredDone} at={stop.entries[0]?.delivered_at} btnLabel="Dostarczono" onClick={() => markDelivered(stop)} />
+
+                  {/* Przyjazd brudnego */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+                    {!formOpen ? (
+                      <button onClick={() => setPrzyjazdFor(stop.key)} style={{
+                        background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
+                        cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
+                      }}>➕ Przyjazd brudnego (do pralni)</button>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Brudne, kg (możesz później):</span>
+                        <input type="number" inputMode="decimal" placeholder="kg" autoFocus
+                          value={draftVal(stop.key, 'newKg', '')}
+                          onChange={e => setDraftVal(stop.key, 'newKg', e.target.value)}
+                          style={{ width: '80px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', textAlign: 'center' }} />
+                        <button onClick={() => addPrzyjazd(stop)} disabled={busy} style={{
+                          padding: '8px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                          background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px',
+                        }}>Dodaj przyjazd</button>
+                        <button onClick={() => setPrzyjazdFor(null)} style={{
+                          padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border)', cursor: 'pointer',
+                          background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px',
+                        }}>Anuluj</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    type="text" placeholder="Uwagi do przystanku…"
+                    value={draftVal(stop.key, 'note', stop.entries[0]?.driver_note)}
+                    onChange={e => setDraftVal(stop.key, 'note', e.target.value)}
+                    onBlur={() => saveNote(stop)}
+                    style={{ width: '100%', marginTop: '8px', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border)', fontSize: '12px' }}
+                  />
                 </div>
-                <LegRow stop={stop} leg="delivery" />
-                <LegRow stop={stop} leg="pickup" />
-                <input
-                  type="text" placeholder="Uwagi do przystanku…"
-                  value={draftVal(stop.key, 'note', stop.deliveryEntries[0]?.driver_note || stop.pickupEntries[0]?.driver_note)}
-                  onChange={e => setDraftVal(stop.key, 'note', e.target.value)}
-                  onBlur={() => saveExtras(stop, stop.deliveryEntries.length ? 'delivery' : 'pickup')}
-                  style={{ width: '100%', marginTop: '8px', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border)', fontSize: '12px' }}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Dodaj punkt z obcej trasy */}
