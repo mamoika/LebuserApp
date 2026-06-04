@@ -97,6 +97,14 @@ function pickupDateOptions() {
   return opts;
 }
 
+function tripDateInfo(dateStr) {
+  const dt = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  const day = Math.min(5, Math.max(1, (dt.getDay() + 6) % 7 + 1));
+  const monday = new Date(dt);
+  monday.setDate(dt.getDate() - (day - 1));
+  return { arrDay: day, weekKey: formatWeekKey(monday) };
+}
+
 export default function DriverRouteView({ manageMode = false }) {
   const { user, isAdmin, sessionToken } = useAuth();
   const { entries, allRoutes, clients, loading, refetch } = useAppData();
@@ -133,6 +141,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [kmEditValue, setKmEditValue] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
+  const [addDirtyTrip, setAddDirtyTrip] = useState(null); // trasa admina, do której dorzucamy odbiór brudnego
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
   const [draft, setDraft] = useState({}); // { clientKey: { note } }
   const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
@@ -442,6 +451,21 @@ export default function DriverRouteView({ manageMode = false }) {
     setAddOpen(false);
   };
 
+  const attachClientToTrip = async (targetTrip, clientName) => {
+    if (!targetTrip || !clientName) return;
+    let extras = [];
+    try { extras = JSON.parse(targetTrip.extra_clients || '[]'); } catch { extras = []; }
+    const next = Array.from(new Set([...extras, clientName]));
+    const nextExtraClients = JSON.stringify(next);
+    if (next.length !== extras.length) {
+      const { error } = await supabase.from('driver_trips').update({ extra_clients: nextExtraClients }).eq('id', targetTrip.id);
+      if (error) throw error;
+    }
+    const patchTrip = t => t && t.id === targetTrip.id ? { ...t, extra_clients: nextExtraClients } : t;
+    setTrip(patchTrip);
+    setDetailTrip(patchTrip);
+  };
+
   /* ── akcje ── */
   const startTrip = async () => {
     try {
@@ -470,17 +494,31 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!isAdmin || !targetTrip) return;
     try {
       setBusy(true);
-      let extras = [];
-      try { extras = JSON.parse(targetTrip.extra_clients || '[]'); } catch { extras = []; }
-      const next = Array.from(new Set([...extras, clientName]));
-      const { error } = await supabase.from('driver_trips').update({ extra_clients: JSON.stringify(next) }).eq('id', targetTrip.id);
-      if (error) throw error;
+      await attachClientToTrip(targetTrip, clientName);
       await logAction({ userName: user.name, action: 'edited', details: `Dorzucono przystanek ${clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})` });
       await loadTrips();
       setAddStopOpen(false);
       toastSuccess(`Dorzucono: ${clientName} → ${targetTrip.driver_name || 'kierowca'}`);
     } catch (err) { toastError('Błąd dorzucania: ' + err.message); }
     finally { setBusy(false); }
+  };
+
+  const addDirtyPickupToTrip = async (targetTrip, addedEntry) => {
+    if (!isAdmin || !targetTrip || !addedEntry?.clientName) return;
+    try {
+      await attachClientToTrip(targetTrip, addedEntry.clientName);
+      await logAction({
+        userName: user.name,
+        action: 'edited',
+        details: `Dorzucono odbiór brudnego ${addedEntry.clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})`,
+      });
+      await Promise.all([loadTrips(), refetch()]);
+      toastSuccess(`Dodano odbiór brudnego: ${addedEntry.clientName}`);
+    } catch (err) {
+      toastError('Błąd dopinania odbioru do trasy: ' + err.message);
+    } finally {
+      setAddDirtyTrip(null);
+    }
   };
 
   // Admin przypisuje kierowcę+auto do planowanej (wirtualnej) trasy → tworzy
@@ -1048,6 +1086,18 @@ export default function DriverRouteView({ manageMode = false }) {
                 ))}
               </div>
             )}
+            <button onClick={() => setAddDirtyTrip(t)} disabled={busy} style={{
+              width: '100%',
+              padding: '11px',
+              borderRadius: '11px',
+              cursor: 'pointer',
+              border: '1px dashed rgba(255,149,0,0.45)',
+              background: 'rgba(255,149,0,0.12)',
+              color: '#B45309',
+              fontWeight: 700,
+              fontSize: '13px',
+              marginTop: '10px',
+            }}>🧺 Dodaj odbiór brudnego do tej trasy</button>
           </div>
         )}
 
@@ -1722,6 +1772,22 @@ export default function DriverRouteView({ manageMode = false }) {
             clients={clients.filter(c => c.route_id)}
             routes={allRoutes}
             onAdded={() => { setAddEntryFor(null); refetch(); }}
+          />
+        );
+      })()}
+
+      {addDirtyTrip && (() => {
+        const info = tripDateInfo(addDirtyTrip.trip_date);
+        return (
+          <AddEntryModal
+            isOpen={true}
+            onClose={() => setAddDirtyTrip(null)}
+            defaultArrDay={info.arrDay}
+            defaultType="P"
+            weekKey={info.weekKey}
+            clients={clients.filter(c => c.route_id)}
+            routes={allRoutes}
+            onAdded={(entry) => addDirtyPickupToTrip(addDirtyTrip, entry)}
           />
         );
       })()}

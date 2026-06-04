@@ -178,7 +178,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
       if (error) throw error;
       await logAction({ userName: user.name, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
-      onAdded();
+      await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
       onClose();
     } catch (err) {
       toastError("Błąd dodawania: " + err.message);
