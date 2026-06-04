@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAppData, filterForDriver } from '../hooks/useAppData';
 import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
@@ -29,6 +28,7 @@ export default function ScheduleView() {
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedWeekKey, setSelectedWeekKey] = useState(null);
   
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -45,7 +45,7 @@ export default function ScheduleView() {
   const w1End = addDays(currentMonday, 4);
   const w2End = addDays(nextMonday, 4);
 
-  const renderGrid = (monday, weekKey, isWeek2) => {
+  const renderGrid = (monday, weekKey) => {
     return (
       <div className="grid">
         {DAY_NAMES.map((dayName, dayIndex) => {
@@ -54,18 +54,10 @@ export default function ScheduleView() {
           
           const arrived = entries.filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey);
           
-          // Odbiory logic:
-          const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey && !(e.week_key === weekKey && e.arr_day === (dayIndex + 1)));
+          const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey);
 
           const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
-          
-          // Wash dzisiaj - przyjazdy wczoraj (lub pt w nast tyg)
-          const prevWeekKey = formatWeekKey(addDays(monday, -7));
-          let washToday = dayIndex === 0 
-            ? entries.filter(e => e.week_key === prevWeekKey && e.arr_day === 5) // piątek
-            : entries.filter(e => e.week_key === weekKey && e.arr_day === dayIndex); // wczoraj
-          
-          const sumWash = washToday.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+          const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
           
           return (
             <div key={dayName} className={`col ${isToday ? 'col-today' : ''}`}>
@@ -82,7 +74,7 @@ export default function ScheduleView() {
                 </div>
                 <div className="metric-chip wash">
                   <div className="metric-chip-label">Odbiór</div>
-                  <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0} kg</div>
+                  <div className="metric-chip-val">{sumPicked > 0 ? sumPicked.toFixed(1) : 0} kg</div>
                 </div>
               </div>
               
@@ -145,7 +137,7 @@ export default function ScheduleView() {
                 </>
               )}
               
-              {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
+              {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
             </div>
           )
         })}
@@ -164,19 +156,19 @@ export default function ScheduleView() {
       <div className="section-heading" id="titleWk1">
         📅 {formatDate(currentMonday)} – {formatDate(w1End)}
       </div>
-      {renderGrid(currentMonday, week1Key, false)}
+      {renderGrid(currentMonday, week1Key)}
 
       <div className="section-heading" id="titleWk2" style={{ marginTop: '28px' }}>
         📅 Następny tydzień: {formatDate(nextMonday)} – {formatDate(w2End)}
       </div>
-      {renderGrid(nextMonday, week2Key, true)}
+      {renderGrid(nextMonday, week2Key)}
 
       {addModalOpen && (
         <AddEntryModal 
           isOpen={addModalOpen} 
           onClose={() => setAddModalOpen(false)} 
           defaultArrDay={selectedDay}
-          weekKey={week1Key} // Możemy chcieć dać poprawny week key w zależności na co kliknięto, na razie uproszczone
+          weekKey={selectedWeekKey || week1Key}
           clients={clients.filter(c => c.route_id)}
           routes={routes}
           onAdded={() => {

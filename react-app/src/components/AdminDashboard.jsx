@@ -644,7 +644,7 @@ function LogsSection() {
 }
 
 export default function AdminDashboard() {
-  const { impersonate } = useAuth();
+  const { impersonate, isAdmin, sessionToken } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -653,17 +653,24 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState('users'); // 'users' | 'employees' | 'logs'
 
   const fetchUsers = async () => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_all_users');
+    const { data, error } = await supabase.rpc('get_all_users', { p_session_token: sessionToken });
     if (error) setError(error.message);
     else setUsers(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [isAdmin, sessionToken]);
+
+  if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
 
   const handleAddUser = async (username, name, role) => {
     const { data, error } = await supabase.rpc('admin_create_user', {
+      p_session_token: sessionToken,
       p_username: username,
       p_name: name,
       p_role: role,
@@ -676,9 +683,9 @@ export default function AdminDashboard() {
   };
 
   const handleSaveUser = async (userId, name, role, routes) => {
-    const { error: e1 } = await supabase.rpc('update_user_role', { p_user_id: userId, p_role: role });
+    const { error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
     if (e1) { toastError('Błąd zapisu roli: ' + e1.message); return; }
-    const { error: e2 } = await supabase.rpc('update_user_routes', { p_user_id: userId, p_routes: routes });
+    const { error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
     if (e2) { toastError('Błąd zapisu tras: ' + e2.message); return; }
     setEditUser(null);
     toastSuccess('Zapisano');
@@ -686,7 +693,7 @@ export default function AdminDashboard() {
   };
 
   const handleResetPassword = async (userId) => {
-    const { data, error } = await supabase.rpc('admin_reset_password', { p_user_id: userId });
+    const { data, error } = await supabase.rpc('admin_reset_password', { p_session_token: sessionToken, p_user_id: userId });
     if (error || data?.error) {
       toastError('Błąd resetu: ' + (error?.message || data?.error));
       return;
@@ -696,7 +703,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = async (userId) => {
-    const { data, error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+    const { data, error } = await supabase.rpc('admin_delete_user', { p_session_token: sessionToken, p_user_id: userId });
     if (error || data?.error) { toastError('Błąd usuwania: ' + (error?.message || data?.error)); return; }
     setEditUser(null);
     toastSuccess('Użytkownik usunięty');

@@ -10,14 +10,17 @@ export function useAppData() {
     try {
       setLoading(true);
       const [
-        { data: clients },
-        { data: routes },
-        { data: entries }
+        { data: clients, error: clientsError },
+        { data: routes, error: routesError },
+        { data: entries, error: entriesError }
       ] = await Promise.all([
         supabase.from('clients').select('*').order('sort_order'),
         supabase.from('routes').select('*').order('sort_order'),
         supabase.from('entries').select('*')
       ]);
+
+      const fetchError = clientsError || routesError || entriesError;
+      if (fetchError) throw fetchError;
 
       const allRoutes = routes || [];
       setData({

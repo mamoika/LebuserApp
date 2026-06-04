@@ -19,6 +19,7 @@ export default function HistoryView() {
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filterClient, setFilterClient] = useState('');
   const [filterRoute, setFilterRoute] = useState('');
   const [filterDriver, setFilterDriver] = useState('');
@@ -37,7 +38,14 @@ export default function HistoryView() {
         if (ids.length > 0) q = q.in('route_id', ids);
       }
 
-      const { data } = await q;
+      const { data, error: entriesError } = await q;
+      if (entriesError) {
+        setError(entriesError.message);
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      setError(null);
       setEntries(data || []);
       setLoading(false);
     };
@@ -60,6 +68,7 @@ export default function HistoryView() {
   const routeMap = Object.fromEntries(rawData.allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
 
   if (loading) return <div className="loader">Ładowanie historii…</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
 
   return (
     <div>

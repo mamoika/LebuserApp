@@ -33,12 +33,13 @@ function getRouteColor(displayNum) {
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
 function DriverRoutesModal({ routes, onClose }) {
+  const { sessionToken } = useAuth();
   const [drivers, setDrivers] = useState([]);
   const [edited, setEdited] = useState({}); // { driverId: Set of routeIds }
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supabase.rpc('get_all_users').then(({ data }) => {
+    supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
       const driverList = (data || []).filter(u => u.role === 'driver');
       setDrivers(driverList);
       const init = {};
@@ -49,7 +50,7 @@ function DriverRoutesModal({ routes, onClose }) {
       });
       setEdited(init);
     });
-  }, []);
+  }, [sessionToken]);
 
   const toggle = (driverId, routeId) => {
     setEdited(prev => {
@@ -63,7 +64,7 @@ function DriverRoutesModal({ routes, onClose }) {
     setSaving(true);
     for (const driver of drivers) {
       const routesStr = [...edited[driver.id]].sort((a, b) => a - b).join(',');
-      await supabase.rpc('update_user_routes', { p_user_id: driver.id, p_routes: routesStr });
+      await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: driver.id, p_routes: routesStr });
     }
     setSaving(false);
     onClose();

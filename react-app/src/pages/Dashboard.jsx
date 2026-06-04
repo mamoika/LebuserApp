@@ -3,7 +3,6 @@ import Navigation from "../components/Navigation";
 import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
-import iconImg from '../assets/favicon.ico';
 import ScheduleView from '../components/ScheduleView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
 import AdminDashboard from '../components/AdminDashboard';
@@ -15,7 +14,7 @@ import CostsView from '../components/CostsView';
 import ToastContainer from '../components/ToastContainer';
 
 export default function Dashboard() {
-  const { user, adminBackup, signOut, stopImpersonating } = useAuth();
+  const { user, adminBackup, signOut, stopImpersonating, isAdmin } = useAuth();
   const isImpersonating = !!adminBackup;
 
   return (
@@ -89,7 +88,7 @@ export default function Dashboard() {
         <Routes>
           <Route path="/" element={<ScheduleView />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />
           <Route path="/grafik" element={<GrafikView />} />
           <Route path="/timeline" element={<TimelineView />} />
