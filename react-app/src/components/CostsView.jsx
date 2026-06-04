@@ -216,16 +216,17 @@ export default function CostsView() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'entry' | 'performance'
   const [showRates, setShowRates] = useState(false);
+  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   // progi wydajności (kg/rbh) — PER MIESIĄC (app_settings: performance_progi_<month>)
   const [progi, setProgi] = useState(() => loadProgiCache(`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`));
   const updateProgi = useCallback(async (next) => {
-    const mk = monthKeyRef.current;
+    const mk = monthKey;
     setProgi(next);
     try { localStorage.setItem(progiLsKey(mk), JSON.stringify(next)); } catch { /* ignore */ }
     const { error } = await supabase.from('app_settings')
       .upsert({ key: progiDbKey(mk), value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) toastError('Nie udało się zapisać progów');
-  }, []);
+  }, [monthKey]);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -244,10 +245,6 @@ export default function CostsView() {
   const dirtySettings = useRef(false);
   const dirtySettingsMonthKey = useRef(null);
   const saveTimer = useRef(null);
-
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-  const monthKeyRef = useRef(monthKey);
-  useEffect(() => { monthKeyRef.current = monthKey; }, [monthKey]);
 
   const fetchData = useCallback(async () => {
     if (!isAdmin) return;
@@ -728,7 +725,7 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} month={month} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} />
+            <EntryGrid days={days} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} />
           )}
 
           {activeTab === 'performance' && (
@@ -1142,7 +1139,7 @@ function RatesPanel({ settings, onChange }) {
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, month, dailyData, calcDay, totals, onChange }) {
+function EntryGrid({ days, dailyData, calcDay, totals, onChange }) {
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label) => (
     <th className="sticky-head" style={newThStyle}>

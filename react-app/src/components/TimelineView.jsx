@@ -66,10 +66,10 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
   const emptyColor = 'transparent';
 
-  let fillFrom = 0;
-  let fillTo = 0;
   const cellStart = h;
   const cellEnd = h + 1;
+  let fillFrom;
+  let fillTo;
 
   if (startH <= endH) {
     if (cellEnd <= startH || cellStart >= endH) return { background: 'transparent', color: 'transparent' };
@@ -121,12 +121,9 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
 
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, todayStr, scheduleMap, entries, isAdmin, rowBg,
+  emp, weekDays, scheduleMap, entries, isAdmin, rowBg,
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
-  let empWeekHours = 0;
-  let empWeekDays = 0;
-
   const cells = weekDays.map((d, di) => {
     const isWe = d.getDay() === 0 || d.getDay() === 6;
     const dateStr = toDateStr(d);
@@ -143,12 +140,6 @@ const TimelineRow = React.memo(({
     const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : 'I');
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
     const schedHours = working ? Math.round((endH >= startH ? endH - startH : 24 - startH + endH) * 10) / 10 : 0;
-
-    if (working && !dayStatus) {
-      empWeekHours += schedHours;
-      if (schedHours > 0) empWeekDays += 1;
-    }
-
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
@@ -271,7 +262,7 @@ export default function TimelineView() {
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
   const containerRef = useRef(null);
 
-  const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const allWeekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const weekNum = getWeekNum(monday);
 
   const weekDays = allWeekDays.filter(d => {
@@ -326,7 +317,7 @@ export default function TimelineView() {
     });
     setScheduleMap(sm);
     setLoading(false);
-  }, [monday]);
+  }, [allWeekDays, monday]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -659,7 +650,6 @@ export default function TimelineView() {
                     key={emp.id}
                     emp={emp}
                     weekDays={weekDays}
-                    todayStr={todayStr}
                     scheduleMap={scheduleMap}
                     entries={entries}
                     isAdmin={isAdmin}

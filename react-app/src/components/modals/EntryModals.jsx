@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { DAY_NAMES, formatWeekKey } from '../../lib/dateUtils';
@@ -97,15 +97,15 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [explicitRouteId, setExplicitRouteId] = useState('');
   const isClientScoped = !!defaultClientName;
 
-  const assignedRouteIds = parseRouteIds(user?.routes);
+  const assignedRouteIds = useMemo(() => parseRouteIds(user?.routes), [user?.routes]);
   const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
-  const ownClients = hasAssignedRouteFilter
+  const ownClients = useMemo(() => hasAssignedRouteFilter
     ? clients.filter(c => assignedRouteIds.has(c.route_id))
-    : clients;
-  const otherClients = hasAssignedRouteFilter
+    : clients, [assignedRouteIds, clients, hasAssignedRouteFilter]);
+  const otherClients = useMemo(() => hasAssignedRouteFilter
     ? clients.filter(c => c.route_id && !assignedRouteIds.has(c.route_id))
-    : [];
-  const selectableClients = hasAssignedRouteFilter && showOtherRoutes ? otherClients : ownClients;
+    : [], [assignedRouteIds, clients, hasAssignedRouteFilter]);
+  const selectableClients = useMemo(() => hasAssignedRouteFilter && showOtherRoutes ? otherClients : ownClients, [hasAssignedRouteFilter, showOtherRoutes, otherClients, ownClients]);
   const canToggleOtherRoutes = hasAssignedRouteFilter && otherClients.length > 0;
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setUrgent(false);
       setExplicitRouteId('');
     }
-  }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver, defaultClientName]);
+  }, [isOpen, defaultArrDay, clients, routes, ownClients, defaultClientName, defaultType]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -351,7 +351,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setComment(clientNote !== undefined ? (clientNote || '') : (entry.comment || ''));
       setRouteId(entry.route_id || 1);
     }
-  }, [isOpen, entry]);
+  }, [isOpen, entry, clients, initiallyEditing]);
 
   if (!isOpen || !entry) return null;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
@@ -80,8 +80,6 @@ function nextWeekKey(wk) {
 }
 
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
-const pfInput = { padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', background: 'var(--bg-card)', color: 'var(--text-primary)' };
-const DAY_SHORT = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
 // Liczniki "zatwierdzone bez zapisu do kosztów" — lista id tras w app_settings.
 const KM_RESOLVED_KEY = 'km_resolved_trips';
 
@@ -93,25 +91,13 @@ function trolleyLabel(count) {
   return `${n} wózków`;
 }
 
-// Lista najbliższych dni roboczych (data + wyliczony dzień/tydzień odbioru)
-function pickupDateOptions() {
-  const opts = [];
-  const start = new Date();
-  for (let i = 1; i <= 14 && opts.length < 10; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    const wd = (d.getDay() + 6) % 7 + 1; // Pn=1 … Nd=7
-    if (wd > 5) continue;
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - (wd - 1));
-    opts.push({
-      value: ymd(d),
-      label: `${DAY_SHORT[wd - 1]} ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
-      pickDay: wd,
-      pickWeekKey: formatWeekKey(monday),
-    });
+function parseExtraClients(value) {
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
-  return opts;
 }
 
 function tripDateInfo(dateStr) {
@@ -187,7 +173,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const todayArrDay = Math.min(5, Math.max(1, (new Date().getDay() + 6) % 7 + 1)); // 1=Pn…5=Pt
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
 
-  const loadTrips = async () => {
+  const loadTrips = useCallback(async () => {
     let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
     if (!isAdmin) q = q.eq('driver_id', user?.id);
     const [{ data, error }, { data: costs }] = await Promise.all([
@@ -206,7 +192,7 @@ export default function DriverRouteView({ manageMode = false }) {
     setAllTrips(trips);
     setDailyCosts(costs || []);
     return trips;
-  };
+  }, [isAdmin, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,7 +220,7 @@ export default function DriverRouteView({ manageMode = false }) {
     };
     if (user?.id) load();
     return () => { cancelled = true; };
-  }, [user?.id, today, isAdmin]);
+  }, [user?.id, today, isAdmin, loadTrips]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);
@@ -245,7 +231,7 @@ export default function DriverRouteView({ manageMode = false }) {
       clearInterval(timer);
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isAdmin]);
+  }, [loadTrips]);
 
   // Przełączenie zakładki "Moja trasa" ↔ "Trasy na żywo" (zmiana manageMode
   // bez remountu) — czyścimy stan przejściowy, by widok nie był "zaklejony".
@@ -267,8 +253,7 @@ export default function DriverRouteView({ manageMode = false }) {
      (done) i dostawę do klienta (delivered). Dodatkowo przy kliencie można
      dorzucić "przyjazd" brudnego (nowy wpis w grafiku). */
   const activeRouteIds = trip ? parseRouteIds(trip.routes) : selectedRoutes;
-  let extraClients = [];
-  try { extraClients = JSON.parse(trip?.extra_clients || '[]'); } catch { extraClients = []; }
+  const extraClients = parseExtraClients(trip?.extra_clients);
   const extraSet = new Set(extraClients);
   const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
   const includeCleanEntryForCurrentTrip = e => {
@@ -333,8 +318,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const getTripStops = (sourceTrip) => {
     if (!sourceTrip) return [];
     const routeIds = parseRouteIds(sourceTrip.routes);
-    let extras = [];
-    try { extras = JSON.parse(sourceTrip.extra_clients || '[]'); } catch { extras = []; }
+    const extras = parseExtraClients(sourceTrip.extra_clients);
     const extrasSet = new Set(extras);
     const tripIncludesCleanEntry = (e) => {
       const includedByRoute = routeIds.size === 0 || routeIds.has(e.route_id) || extrasSet.has(e.client_name);
@@ -381,22 +365,6 @@ export default function DriverRouteView({ manageMode = false }) {
     if (names.length === 1) return names[0];
     return names.join(', ');
   };
-
-  const tripIncludesEntry = (sourceTrip, entry) => {
-    const routeIds = parseRouteIds(sourceTrip?.routes);
-    let extras = [];
-    try { extras = JSON.parse(sourceTrip?.extra_clients || '[]'); } catch { extras = []; }
-    const extrasSet = new Set(extras);
-    return routeIds.size === 0 || routeIds.has(entry.route_id) || extrasSet.has(entry.client_name);
-  };
-
-  const getTripDirtyEntries = (sourceTrip) => entries.filter(e =>
-    arrivalDateStr(e) === sourceTrip?.trip_date && tripIncludesEntry(sourceTrip, e)
-  );
-
-  const dirtyTrolleysForClient = (clientName, dateStr) => entries
-    .filter(e => e.client_name === clientName && arrivalDateStr(e) === dateStr)
-    .reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0);
 
   const getTripStats = (sourceTrip) => {
     const tripStops = getTripStops(sourceTrip);
@@ -451,12 +419,6 @@ export default function DriverRouteView({ manageMode = false }) {
     return dist >= 0 ? Number(dist.toFixed(1)) : null;
   };
 
-  const distanceLabel = (sourceTrip) => {
-    const dist = distanceForTrip(sourceTrip);
-    if (dist !== null) return `przejazd ${dist} km`;
-    return `licznik ${sourceTrip.end_km ?? '—'} km`;
-  };
-
   const tripKmApproval = (sourceTrip) => {
     if (!sourceTrip?.end_km) return { approved: false, currentValue: null, field: null };
     const field = vehicleEndColumn(sourceTrip.car);
@@ -468,7 +430,6 @@ export default function DriverRouteView({ manageMode = false }) {
     return { approved, currentValue, field };
   };
 
-  const activeTrips = allTrips.filter(t => t.status === 'active');
   // "Moja historia" = własne trasy zalogowanego (admin też może jeździć).
   // Panel zarządzania (wszystkie trasy) jest osobno, w zakładce "Trasy na żywo".
   const historyTrips = allTrips.filter(t => t.status === 'finished' && t.driver_id === user?.id).slice(0, 12);
@@ -499,8 +460,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const attachClientToTrip = async (targetTrip, clientName) => {
     if (!targetTrip || !clientName) return;
-    let extras = [];
-    try { extras = JSON.parse(targetTrip.extra_clients || '[]'); } catch { extras = []; }
+    const extras = parseExtraClients(targetTrip.extra_clients);
     const next = Array.from(new Set([...extras, clientName]));
     const nextExtraClients = JSON.stringify(next);
     if (next.length !== extras.length) {
@@ -633,8 +593,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
       const existingTrip = allTrips.find(t => {
         if (t.trip_date !== d.dirtyDate || t.status === 'finished') return false;
-        let extras = [];
-        try { extras = JSON.parse(t.extra_clients || '[]'); } catch { extras = []; }
+        const extras = parseExtraClients(t.extra_clients);
         return parseRouteIds(t.routes).has(routeId) || extras.includes(d.clientName);
       });
       if (existingTrip) {
@@ -776,17 +735,6 @@ export default function DriverRouteView({ manageMode = false }) {
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
-
-
-
-
-  const saveNote = async (stop) => {
-    const noteVal = draftVal(stop.key, 'note', stop.entries[0]?.driver_note);
-    const ids = stop.entries.map(e => e.id);
-    if (ids.length === 0) return;
-    await supabase.from('entries').update({ driver_note: noteVal || null }).in('id', ids);
-  };
-
   // Notatka klienta — wspólna (clients.note), widoczna w harmonogramie i na trasie
   const saveClientNote = async (clientName, val) => {
     const { error } = await supabase.from('clients').update({ note: val || null }).eq('name', clientName);
@@ -802,6 +750,25 @@ export default function DriverRouteView({ manageMode = false }) {
     });
   };
 
+  const findBlockingPickedLaundry = async () => {
+    if (!trip) return [];
+    const routeIds = parseRouteIds(trip.routes);
+    const extras = new Set(parseExtraClients(trip.extra_clients));
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*')
+      .is('deleted_at', null)
+      .eq('done', true)
+      .eq('picked_by', user.name)
+      .or('delivered.is.false,delivered.is.null');
+    if (error) throw error;
+    const blocking = (data || []).filter(e => {
+      if (pickupDateStr(e) !== trip.trip_date) return false;
+      return routeIds.size === 0 || routeIds.has(e.route_id) || extras.has(e.client_name);
+    });
+    return [...new Set(blocking.map(e => e.client_name).filter(Boolean))];
+  };
+
   const endTrip = async () => {
     if (pickedNotDeliveredStops.length > 0) {
       toastError(`Nie możesz zakończyć trasy. Najpierw dostarcz albo cofnij do pralni: ${pickedNotDeliveredNames.join(', ')}`);
@@ -811,6 +778,12 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!endKm || isNaN(km)) { toastError('Podaj końcowy stan licznika (km)'); return; }
     try {
       setBusy(true);
+      const freshBlockingNames = await findBlockingPickedLaundry();
+      if (freshBlockingNames.length > 0) {
+        toastError(`Nie możesz zakończyć trasy. Najpierw dostarcz albo cofnij do pralni: ${freshBlockingNames.join(', ')}`);
+        await refetch();
+        return;
+      }
       const { error: tErr } = await supabase.from('driver_trips')
         .update({ ended_at: new Date().toISOString(), end_km: km, status: 'finished' }).eq('id', trip.id);
       if (tErr) throw tErr;
@@ -1388,8 +1361,7 @@ export default function DriverRouteView({ manageMode = false }) {
     const selectedRouteId = Number(d.routeId || clientByName(d.clientName)?.route_id);
     const existingTrip = allTrips.find(t => {
       if (t.trip_date !== d.dirtyDate || t.status === 'finished') return false;
-      let extras = [];
-      try { extras = JSON.parse(t.extra_clients || '[]'); } catch { extras = []; }
+      const extras = parseExtraClients(t.extra_clients);
       return parseRouteIds(t.routes).has(selectedRouteId) || extras.includes(d.clientName);
     });
     const sortedRoutes = [...allRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -1894,7 +1866,6 @@ export default function DriverRouteView({ manageMode = false }) {
               const pickupOwner = actionOwnerLabel(stop, 'picked_by');
               const deliveryOwner = actionOwnerLabel(stop, 'delivered_by');
               const kg = Number(sumWeight(pickupEntries).toFixed(1));
-              const formOpen = false; // AddEntryModal zastąpił inline formularz
               // Przyjazdy brudnego dodane dziś dla tego klienta
               const todayArrivals = dirtyEntries.length > 0
                 ? dirtyEntries
@@ -1986,11 +1957,21 @@ export default function DriverRouteView({ manageMode = false }) {
                                 <button
                                   onClick={async () => {
                                     if (!window.confirm(`Usunąć: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
-                                    const { error } = await supabase.from('entries').delete().eq('id', a.id);
-                                    if (error) { toastError('Błąd: ' + error.message); return; }
-                                    await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
-                                    await refetch();
-                                    toastSuccess('Usunięto przyjazd');
+                                    try {
+                                      setBusy(true);
+                                      const { error } = await supabase
+                                        .from('entries')
+                                        .update({ deleted_at: new Date().toISOString(), deleted_by: user.name })
+                                        .eq('id', a.id);
+                                      if (error) throw error;
+                                      await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
+                                      await refetch();
+                                      toastSuccess('Usunięto przyjazd');
+                                    } catch (err) {
+                                      toastError('Błąd: ' + err.message);
+                                    } finally {
+                                      setBusy(false);
+                                    }
                                   }}
                                   disabled={busy}
                                   title="Usuń"

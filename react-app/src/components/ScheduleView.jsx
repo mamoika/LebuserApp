@@ -59,7 +59,7 @@ function groupPickupEntries(entries) {
 
 export default function ScheduleView() {
   const rawData = useAppData();
-  const { isAdmin, isDriver, canEdit, user } = useAuth();
+  const { isAdmin, isDriver, user } = useAuth();
   const { entries, clients, routes, loading, error, refetch } = rawData;
   const assignedRouteIds = parseRouteIds(user?.routes);
   

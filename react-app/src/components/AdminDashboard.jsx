@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
@@ -472,7 +472,7 @@ function EmployeesSection() {
     return { year: ny, month: nm };
   });
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     const [{ data: empData }, { data: grpData }, rosterData] = await Promise.all([
       supabase.from('employees').select('*').order('sort_order').order('name'),
@@ -483,9 +483,9 @@ function EmployeesSection() {
     setGroups(grpData || []);
     setRoster(rosterData || []);
     setLoading(false);
-  };
+  }, [cur.year, cur.month]);
 
-  useEffect(() => { fetchAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cur.year, cur.month]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active }) => {
     if (id) {
@@ -709,7 +709,7 @@ export default function AdminDashboard() {
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
   const [tab, setTab] = useState('users'); // 'users' | 'employees' | 'logs'
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
       setLoading(false);
       return;
@@ -723,9 +723,9 @@ export default function AdminDashboard() {
     else setUsers(data || []);
     setDriverCars(carsRow?.value || {});
     setLoading(false);
-  };
+  }, [isAdmin, sessionToken]);
 
-  useEffect(() => { fetchUsers(); }, [isAdmin, sessionToken]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
 

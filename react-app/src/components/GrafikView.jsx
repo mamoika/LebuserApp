@@ -140,9 +140,6 @@ export default function GrafikView() {
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
-  const [editingCell, setEditingCell] = useState(null);
-  const [editValue, setEditValue] = useState('');
-  const inputRef = useRef(null);
   const containerRef = useRef(null);
   const todayRef = useRef(null);
 
@@ -178,11 +175,6 @@ export default function GrafikView() {
   }, [year, month]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  useEffect(() => {
-    if (editingCell && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
-  }, [editingCell]);
-
 
   const groups = useMemo(() => {
     const res = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
@@ -220,28 +212,9 @@ export default function GrafikView() {
     );
   };
 
-  const commitEdit = (empIdx, day, value) => {
-    const emp = allEmps[empIdx];
-    if (emp) saveCell(emp.id, day, value ?? editValue);
-    setEditingCell(null);
-  };
-
-  const startEdit = (empIdx, day, initChar = null) => {
-    if (!isAdmin) return;
-    const emp = allEmps[empIdx];
-    if (!emp) return;
-    const current = getValue(emp, day);
-    const def = getDefaultValue(emp, day);
-    setEditingCell({ empIdx, day });
-    setEditValue(initChar !== null ? initChar : (current === def ? '' : current));
-    setSelectedCell({ empIdx, day });
-  };
-
   const handleContainerKeyDown = (e) => {
     if (!selectedCell || !isAdmin) return;
     const { empIdx, day } = selectedCell;
-
-    if (editingCell) return;
 
     const move = (dEmp, dDay) => {
       const newEmp = Math.max(0, Math.min(allEmps.length - 1, empIdx + dEmp));

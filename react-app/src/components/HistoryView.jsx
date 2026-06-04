@@ -136,7 +136,7 @@ export default function HistoryView() {
       setLoading(false);
     };
     fetchEntries();
-  }, [user?.routes]);
+  }, [isDriver, user?.routes]);
 
   // Filtrowanie
   const filtered = entries.filter(e => {

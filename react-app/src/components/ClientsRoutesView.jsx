@@ -3,7 +3,7 @@ import { useAppData } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { toastError, toastSuccess, toastWarn } from '../lib/toast';
+import { toastError, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 
 const SCHEDULE_OPTIONS = [
@@ -475,6 +475,17 @@ export default function ClientsRoutesView() {
 
   const handleDeleteClient = async (client) => {
     try {
+      const { data: usedEntry, error: usedErr } = await supabase
+        .from('entries')
+        .select('id')
+        .eq('client_name', client.name)
+        .limit(1)
+        .maybeSingle();
+      if (usedErr) throw usedErr;
+      if (usedEntry) {
+        toastWarn('Nie można usunąć klienta — ma historię wpisów. Zmień nazwę albo przenieś go na inną trasę.');
+        return;
+      }
       const { error } = await supabase.from('clients').delete().eq('id', client.id);
       if (error) throw error;
       setEditClient(null);
