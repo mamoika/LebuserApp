@@ -247,20 +247,17 @@ export default function DriverRouteView() {
   // 3) Przyjazd brudnego — prosty formularz: klient/trasa auto, wybór "na kiedy" + kg
   const openPrzyjazd = (stop) => {
     const options = pickupDateOptions();
-    const clientEntries = entries.filter(e => e.client_name === stop.client_name);
 
-    // Klient codzienny: ≥4 unikalnych dni przyjazdów → domyślnie jutro
-    // Klient tygodniowy/rzadszy: szukaj pierwszej opcji pasującej do jego typowego dnia odbioru
-    const uniqueArrDays = new Set(clientEntries.map(e => e.arr_day).filter(Boolean));
-    let pickValue;
-    if (uniqueArrDays.size >= 4) {
-      // Codzienny → jutro (pierwszy dzień roboczy)
-      pickValue = options[0]?.value || '';
-    } else {
-      // Rzadszy → dopasuj do typowego dnia odbioru (pick_day) klienta
-      const clientPickDays = new Set(clientEntries.map(e => e.pick_day).filter(Boolean));
-      pickValue = options.find(o => clientPickDays.has(o.pickDay))?.value || options[0]?.value || '';
-    }
+    // Wyznacz datę odbioru na podstawie harmonogramu trasy (schedule z bazy)
+    // daily: jutro; mwf: Pn/Śr/Pt; tth: Wt/Czw; other: jutro
+    const route = allRoutes.find(r => r.id === stop.route_id);
+    const schedule = route?.schedule || 'other';
+    const scheduleDays = schedule === 'mwf' ? new Set([1, 3, 5])  // Pn, Śr, Pt
+                       : schedule === 'tth' ? new Set([2, 4])      // Wt, Czw
+                       : null;                                      // daily / other → options[0]
+    const pickValue = scheduleDays
+      ? (options.find(o => scheduleDays.has(o.pickDay))?.value || options[0]?.value || '')
+      : (options[0]?.value || '');
 
     // Inteligentny domyślny typ: sprawdź co już dziś dodano dla tego klienta
     const todayArr = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
