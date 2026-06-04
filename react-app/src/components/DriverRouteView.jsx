@@ -106,8 +106,9 @@ export default function DriverRouteView() {
   const [tripLoading, setTripLoading] = useState(true);
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
+  const [selectedRoutes, setSelectedRoutes] = useState(() => parseRouteIds(user?.routes));
   const [busy, setBusy] = useState(false);
-  const [routeView, setRouteView] = useState('current');
+  const [routeView, setRouteView] = useState(isAdmin ? 'history' : 'current');
   
   // Filtry dla admina w historii
   const [filterDriver, setFilterDriver] = useState('');
