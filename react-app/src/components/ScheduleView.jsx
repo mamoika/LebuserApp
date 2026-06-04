@@ -79,7 +79,7 @@ export default function ScheduleView() {
 
   const renderGrid = (monday, weekKey) => {
     return (
-      <div className="grid">
+      <div className="grid schedule-grid">
         {DAY_NAMES.map((dayName, dayIndex) => {
           const dayDate = addDays(monday, dayIndex);
           const isToday = new Date().toDateString() === dayDate.toDateString();
@@ -92,7 +92,7 @@ export default function ScheduleView() {
           const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
           
           return (
-            <div key={dayName} className={`col ${isToday ? 'col-today' : ''}`}>
+            <div key={dayName} className={`col schedule-col ${isToday ? 'col-today' : ''}`}>
               <div className="col-header">
                 <span className="col-date">{formatDate(dayDate)}</span>
                 <span className="col-day-name" style={{ flex: 1, textAlign: 'center' }}>{dayName}</span>
@@ -111,19 +111,15 @@ export default function ScheduleView() {
               </div>
               
               <div className="sec-label">PRZYJAZD</div>
-              <div className="sortable-arr" style={{ minHeight: '10px' }}>
+              <div className="sortable-arr schedule-list schedule-list-arr">
                 {arrived.map(entry => renderEntryTag(entry, 'arr'))}
               </div>
 
-              {picked.length > 0 && (
-                <>
-                  <div className="divider"></div>
-                  <div className="sec-label">ODBIÓR</div>
-                  <div className="sortable-pick" style={{ minHeight: '10px' }}>
-                    {picked.map(entry => renderEntryTag(entry, 'pick'))}
-                  </div>
-                </>
-              )}
+              <div className="divider schedule-divider"></div>
+              <div className="sec-label">ODBIÓR</div>
+              <div className="sortable-pick schedule-list schedule-list-pick">
+                {picked.map(entry => renderEntryTag(entry, 'pick'))}
+              </div>
               
               {canEdit && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
             </div>

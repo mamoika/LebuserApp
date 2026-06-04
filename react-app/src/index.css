@@ -396,6 +396,9 @@ body{
   grid-template-columns:repeat(5,minmax(180px,1fr));
   gap:12px;
 }
+.schedule-grid {
+  align-items: start;
+}
 @media(max-width:1120px){.grid{grid-template-columns:repeat(3,minmax(180px,1fr))}}
 @media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:380px){.grid{grid-template-columns:1fr}}
@@ -418,6 +421,10 @@ body{
 .col:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.05); transform: translateY(-2px); }
 .col-today {
   box-shadow: 0 0 0 2px var(--accent), 0 4px 16px rgba(0,122,255,0.15) !important;
+}
+.schedule-col {
+  min-height: 520px;
+  animation: none;
 }
 
 .col-header {
@@ -1082,6 +1089,19 @@ html.phone-layout .hist-grid {
 
 .sortable-list{min-height:50px;display:flex;flex-direction:column;gap:6px}
 .sortable-arr,.sortable-pick{display:flex;flex-direction:column;gap:6px}
+.schedule-list {
+  min-height: 42px;
+  contain: layout;
+}
+.schedule-list-arr {
+  min-height: 96px;
+}
+.schedule-list-pick {
+  min-height: 96px;
+}
+.schedule-divider {
+  margin-top: 4px;
+}
 .tag-client {
   background:var(--bg-card-solid);
   border:1px solid var(--border);
@@ -1693,6 +1713,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 .col:nth-child(3){animation-delay:60ms}
 .col:nth-child(4){animation-delay:90ms}
 .col:nth-child(5){animation-delay:120ms}
+.col.schedule-col{animation:none}
 .hw,.staff-card{animation:fadeUp 0.2s ease both}
 
 /* ══════════════════════════════════════════════
