@@ -5,7 +5,6 @@ import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
-import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 /* ── helpery dat ── */
@@ -49,10 +48,10 @@ export default function DriverRouteView() {
   const [busy, setBusy] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({}); // { clientKey: { dBaskets, pBaskets, pKg, note } }
 
   const today = ymd(new Date());
-  const currentWeekKey = formatWeekKey(getCurrentMonday());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
 
   useEffect(() => {
@@ -78,17 +77,16 @@ export default function DriverRouteView() {
     return () => { cancelled = true; };
   }, [user?.id, today]);
 
-  /* ── budowanie przystanków ──
-     Trasy bierzemy z aktywnej trasy (wybrane na starcie); 1 przystanek = 1 klient.
-     Kotwica = klient z czymkolwiek na dziś; pokazujemy obie nogi z bież. tygodnia. */
+  /* ── budowanie przystanków — ŚCIŚLE wg harmonogramu ──
+     1 przystanek = 1 klient. U klienta pokazujemy tylko tę nogę, którą grafik
+     przewiduje DOKŁADNIE na dziś: dostawę jeśli przyjazd dziś, odbiór jeśli
+     odbiór dziś. Klient może mieć tylko jedną z nich. Bierzemy klientów z
+     wybranych tras + doraźnie dodane punkty (extra_clients) z obcych tras. */
   const activeRouteIds = trip ? parseRouteIds(trip.routes) : selectedRoutes;
-  const onSelectedRoute = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id);
-  const mine = entries.filter(onSelectedRoute);
-
-  const anchorClients = new Set();
-  mine.forEach(e => {
-    if (deliveryDateStr(e) === today || pickupDateStr(e) === today) anchorClients.add(e.client_name || '—');
-  });
+  let extraClients = [];
+  try { extraClients = JSON.parse(trip?.extra_clients || '[]'); } catch { extraClients = []; }
+  const extraSet = new Set(extraClients);
+  const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
 
   const stopsMap = new Map();
   const ensureStop = (e) => {
@@ -96,16 +94,22 @@ export default function DriverRouteView() {
     if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, deliveryEntries: [], pickupEntries: [] });
     return stopsMap.get(key);
   };
-  mine.forEach(e => {
-    const client = e.client_name || '—';
-    if (!anchorClients.has(client)) return;
-    const deliveryDue = deliveryDateStr(e) === today || (e.week_key === currentWeekKey && !e.delivered);
-    const pickupDue = pickupDateStr(e) === today || ((e.pick_week_key || e.week_key) === currentWeekKey && !e.done);
-    if (deliveryDue) ensureStop(e).deliveryEntries.push(e);
-    if (pickupDue) ensureStop(e).pickupEntries.push(e);
+  entries.filter(includeEntry).forEach(e => {
+    if (deliveryDateStr(e) === today) ensureStop(e).deliveryEntries.push(e);
+    if (pickupDateStr(e) === today) ensureStop(e).pickupEntries.push(e);
   });
   const stops = [...stopsMap.values()].sort((a, b) =>
     (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
+
+  // Kandydaci do dorzucenia: klienci z aktywnością dziś, których nie ma na liście
+  const shownClients = new Set(stops.map(s => s.client_name));
+  const candMap = new Map();
+  entries.forEach(e => {
+    if ((deliveryDateStr(e) === today || pickupDateStr(e) === today) && !shownClients.has(e.client_name)) {
+      if (!candMap.has(e.client_name)) candMap.set(e.client_name, e.route_id);
+    }
+  });
+  const candidates = [...candMap.entries()].map(([client_name, route_id]) => ({ client_name, route_id }));
 
   const draftVal = (key, field, fallback) => {
     const d = draft[key];
@@ -120,6 +124,15 @@ export default function DriverRouteView() {
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+
+  const addExtraClient = async (clientName) => {
+    if (!trip) return;
+    const next = Array.from(new Set([...extraClients, clientName]));
+    const { error } = await supabase.from('driver_trips').update({ extra_clients: JSON.stringify(next) }).eq('id', trip.id);
+    if (error) { toastError('Błąd dodawania punktu: ' + error.message); return; }
+    setTrip({ ...trip, extra_clients: JSON.stringify(next) });
+    setAddOpen(false);
+  };
 
   /* ── akcje ── */
   const startTrip = async () => {
@@ -405,6 +418,31 @@ export default function DriverRouteView() {
               </div>
             ))}
           </div>
+
+          {/* Dodaj punkt z obcej trasy */}
+          {candidates.length > 0 && (
+            <div>
+              <button onClick={() => setAddOpen(o => !o)} style={{
+                width: '100%', padding: '11px', borderRadius: '11px', cursor: 'pointer',
+                border: '1px dashed var(--border)', background: 'var(--bg-card)',
+                color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px',
+              }}>➕ Dodaj punkt z innej trasy</button>
+              {addOpen && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                  {candidates.map(c => (
+                    <button key={c.client_name} onClick={() => addExtraClient(c.client_name)} style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
+                      padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                      border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '13px', fontWeight: 600,
+                    }}>
+                      <RouteBadge id={c.route_id} />
+                      {c.client_name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
