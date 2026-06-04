@@ -1344,7 +1344,19 @@ export default function DriverRouteView({ manageMode = false }) {
       {/* START / STATUS */}
       {!trip ? (
         <div className="driver-start-card">
-          <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '12px' }}>Rozpocznij trasę</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ fontWeight: 700, fontSize: '16px' }}>Rozpocznij trasę</div>
+            <button className="driver-tool-btn" onClick={() => setRouteView('history')}>Historia tras</button>
+          </div>
+
+          {(() => {
+            const doneToday = allTrips.filter(t => t.driver_id === user?.id && t.trip_date === today && t.status === 'finished');
+            return doneToday.length > 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', background: 'var(--accent-green-light)', border: '1px solid rgba(52,199,89,0.25)', borderRadius: '10px', padding: '9px 12px', marginBottom: '16px', fontWeight: 600 }}>
+                ✓ Dziś zakończone trasy: {doneToday.length} — rozpoczynasz kolejną
+              </div>
+            ) : null;
+          })()}
 
           {plannedTrip && (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '12px 14px', borderRadius: '12px', background: 'var(--accent-light)', border: '1px solid var(--accent)', marginBottom: '16px' }}>
@@ -1404,6 +1416,9 @@ export default function DriverRouteView({ manageMode = false }) {
           <div className="driver-trip-actions">
             <button className="driver-tool-btn" onClick={() => setRouteView('history')}>Historia tras</button>
             {trip.status === 'finished' && <button className="driver-tool-btn" onClick={() => printCard(trip)}>🖨 Pobierz kartę</button>}
+            {trip.status === 'finished' && (
+              <button className="driver-end-btn" style={{ background: 'var(--accent)' }} onClick={() => { setTrip(null); setPlannedTrip(null); setSelectedRoutes(parseRouteIds(user?.routes)); setSelectedCar(defaultCar || VEHICLES[0].key); }}>▶ Rozpocznij kolejną trasę</button>
+            )}
             {trip.status === 'active' && <button className="driver-end-btn" onClick={() => { setEndOpen(true); setEndKm(''); }}>■ Zakończ</button>}
           </div>
         </div>
