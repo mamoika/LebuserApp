@@ -5,7 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle } from '../lib/visualSystem';
-import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
+import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 
 /* ── helpery dat ── */
@@ -45,6 +45,28 @@ function nextWeekKey(wk) {
 
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 const pfInput = { padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', background: 'var(--bg-card)', color: 'var(--text-primary)' };
+const DAY_SHORT = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
+
+// Lista najbliższych dni roboczych (data + wyliczony dzień/tydzień odbioru)
+function pickupDateOptions() {
+  const opts = [];
+  const start = new Date();
+  for (let i = 1; i <= 14 && opts.length < 10; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const wd = (d.getDay() + 6) % 7 + 1; // Pn=1 … Nd=7
+    if (wd > 5) continue;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (wd - 1));
+    opts.push({
+      value: ymd(d),
+      label: `${DAY_SHORT[wd - 1]} ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+      pickDay: wd,
+      pickWeekKey: formatWeekKey(monday),
+    });
+  }
+  return opts;
+}
 
 export default function DriverRouteView() {
   const { user } = useAuth();
@@ -216,12 +238,19 @@ export default function DriverRouteView() {
     finally { setBusy(false); }
   };
 
-  // 3) Przyjazd brudnego — otwiera formularz z auto-uzupełnionymi danymi
+  // 3) Przyjazd brudnego — prosty formularz: klient/trasa auto, wybór "na kiedy" + kg
   const openPrzyjazd = (stop) => {
-    const wd = (new Date().getDay() + 6) % 7 + 1;          // Pn=1 … Nd=7
+    const options = pickupDateOptions();
+    // domyślnie wyliczony dzień odbioru (jak w harmonogramie)
+    const wd = (new Date().getDay() + 6) % 7 + 1;
     const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
     const { pickDay, pickWeek } = defaultPick(arrDay);
-    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, kg: '', arrDay, pickDay, pickWeek, type: 'P' });
+    const wk = formatWeekKey(getCurrentMonday());
+    const pwk = pickWeek === 1 ? nextWeekKey(wk) : wk;
+    const defDate = parseMonday(pwk); defDate.setDate(defDate.getDate() + (pickDay - 1));
+    const defVal = ymd(defDate);
+    const pickValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
+    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: stop.entries[0]?.type || 'P', kg: '', pickValue, options });
   };
   const setPfField = (field, value) => setPf(p => ({ ...p, [field]: value }));
 
@@ -230,17 +259,18 @@ export default function DriverRouteView() {
     try {
       setBusy(true);
       const kg = parseFloat(String(pf.kg).replace(',', '.'));
-      const wk = formatWeekKey(getCurrentMonday());
-      const pickWeekKey = Number(pf.pickWeek) === 1 ? nextWeekKey(wk) : wk;
+      const opt = pf.options.find(o => o.value === pf.pickValue) || pf.options[0];
+      const wd = (new Date().getDay() + 6) % 7 + 1;
+      const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;          // przyjazd brudnego = dziś
       const id = 'ID_' + Date.now();
       const { error } = await supabase.from('entries').insert([{
-        id, week_key: wk, client_name: pf.client_name, arr_day: Number(pf.arrDay) || 1,
-        pick_day: Number(pf.pickDay) || 1, pick_week_key: pickWeekKey,
+        id, week_key: formatWeekKey(getCurrentMonday()), client_name: pf.client_name, arr_day: arrDay,
+        pick_day: opt.pickDay, pick_week_key: opt.pickWeekKey,
         weight: isNaN(kg) ? null : kg, weighed_kg: isNaN(kg) ? null : kg,
         route_id: pf.routeId, type: pf.type, added_by: user.name, urgent: false,
       }]);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'added', clientName: pf.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}` });
+      await logAction({ userName: user.name, action: 'added', clientName: pf.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}, odbiór ${opt.label}` });
       setPf(null);
       await refetch();
       toastSuccess('Dodano przyjazd brudnego do harmonogramu');
@@ -454,34 +484,17 @@ export default function DriverRouteView() {
                         cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
                       }}>➕ Przyjazd brudnego (do pralni)</button>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Przyjazd brudnego → Harmonogram</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          ➕ Przyjazd brudnego → Harmonogram
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                          {stop.client_name}{routeMap[stop.route_id] ? ` · T${routeMap[stop.route_id].num} ${routeMap[stop.route_id].name}` : ''}
+                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <label style={pfLabel}>Trasa
-                            <select value={pf.routeId} onChange={e => setPfField('routeId', Number(e.target.value))} style={pfInput}>
-                              {allRoutes.map((r, i) => <option key={r.id} value={r.id}>T{i + 1} {r.name}</option>)}
-                            </select>
-                          </label>
-                          <label style={pfLabel}>Rodzaj
-                            <select value={pf.type} onChange={e => setPfField('type', e.target.value)} style={pfInput}>
-                              <option value="P">Pościel</option>
-                              <option value="O">Obrusy</option>
-                            </select>
-                          </label>
-                          <label style={pfLabel}>Dzień przyjazdu
-                            <select value={pf.arrDay} onChange={e => setPfField('arrDay', Number(e.target.value))} style={pfInput}>
-                              {DAY_NAMES.map((n, i) => <option key={i} value={i + 1}>{n}</option>)}
-                            </select>
-                          </label>
-                          <label style={pfLabel}>Dzień odbioru (na kiedy)
-                            <select value={pf.pickDay} onChange={e => setPfField('pickDay', Number(e.target.value))} style={pfInput}>
-                              {DAY_NAMES.map((n, i) => <option key={i} value={i + 1}>{n}</option>)}
-                            </select>
-                          </label>
-                          <label style={pfLabel}>Tydzień odbioru
-                            <select value={pf.pickWeek} onChange={e => setPfField('pickWeek', Number(e.target.value))} style={pfInput}>
-                              <option value={0}>Ten sam tydzień</option>
-                              <option value={1}>Następny tydzień</option>
+                          <label style={pfLabel}>Oddać czyste (na kiedy)
+                            <select value={pf.pickValue} onChange={e => setPfField('pickValue', e.target.value)} style={pfInput}>
+                              {pf.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                           </label>
                           <label style={pfLabel}>Brudne kg (możesz później)
