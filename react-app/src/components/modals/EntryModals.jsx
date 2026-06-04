@@ -251,7 +251,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes, clients = [], contextMode = 'view' }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view' }) {
   const { isAdmin, canEdit, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -287,6 +287,19 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   const knownClientNames = new Set((clients || []).map(c => c.name));
   const selectedClient = (clients || []).find(c => c.name === clientName);
   const isPickupContext = contextMode === 'pick';
+  const pickupEntries = isPickupContext && relatedEntries.length > 0 ? relatedEntries : [entry];
+  const isGroupedPickup = isPickupContext && pickupEntries.length > 1;
+  const pickupTotalWeight = pickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+  const allPickupDone = pickupEntries.every(e => e.done);
+  const pickedByNames = [...new Set(pickupEntries.map(e => e.picked_by).filter(Boolean))];
+  const pickupArrivalDays = [...new Set(pickupEntries.map(e => DAY_NAMES[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
+  const hasPickupSheets = pickupEntries.some(e => (e.type || 'P') === 'P');
+  const hasPickupTablecloths = pickupEntries.some(e => e.type === 'O');
+  const pickupTypeLabel = hasPickupSheets && hasPickupTablecloths
+    ? 'Pościel + Obrusy'
+    : hasPickupTablecloths
+      ? 'Obrusy'
+      : 'Pościel';
 
   const handleClientChange = (name) => {
     setClientName(name);
@@ -302,15 +315,22 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   const toggleDone = async () => {
     try {
       setLoading(true);
-      const isDone = !entry.done;
+      const isDone = !allPickupDone;
       const pickedAt = isDone ? new Date().toISOString() : null;
       const pickedBy = isDone ? user.name : null;
       const updates = { done: isDone, picked_by: pickedBy, picked_at: pickedAt };
       if (!isDone) updates.comment = null;
 
-      const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
+      const ids = pickupEntries.map(e => e.id);
+      const { error } = await supabase.from('entries').update(updates).in('id', ids);
       if (error) throw error;
-      await logAction({ userName: user.name, action: isDone ? 'done' : 'undone', clientName: entry.client_name, entryId: entry.id });
+      await logAction({
+        userName: user.name,
+        action: isDone ? 'done' : 'undone',
+        clientName: entry.client_name,
+        entryId: entry.id,
+        details: isGroupedPickup ? `${pickupEntries.length} wpisy, ${pickupTotalWeight ? Number(pickupTotalWeight.toFixed(1)) + ' kg' : 'bez wagi'}` : undefined,
+      });
       onUpdated();
       onClose();
     } catch (err) {
@@ -486,23 +506,59 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             </div>
           </div>
 
-          <ROW label="Status" value={entry.done ? 'Odebrane ✓' : 'W toku'} valueColor={entry.done ? 'var(--accent-green)' : undefined} />
+          <ROW label="Status" value={allPickupDone ? 'Odebrane ✓' : 'W toku'} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
           <ROW label="Widok" value={isPickupContext ? 'Odbiór' : contextMode === 'arr' ? 'Przyjazd' : 'Szczegóły'} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
-          <ROW label="Rodzaj" value={entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
-          <ROW label="Waga" value={entry.weight ? `${entry.weight} kg` : '—'} />
-          <ROW label="Przyjazd" value={DAY_NAMES[entry.arr_day - 1]} />
+          <ROW label="Rodzaj" value={isPickupContext ? pickupTypeLabel : entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
+          <ROW label="Waga" value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
+          {isGroupedPickup && <ROW label="Wpisy" value={`${pickupEntries.length} przyjazdy`} />}
+          <ROW label={isGroupedPickup ? 'Przyjazdy' : 'Przyjazd'} value={isGroupedPickup ? pickupArrivalDays : DAY_NAMES[entry.arr_day - 1]} />
           <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
           {entry.added_by && <ROW label="Dodał" value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
-          {entry.done && entry.picked_by && <ROW label="Odebrał" value={`${entry.picked_by} · ${fmtDateTime(entry.picked_at)}`} valueColor="var(--accent-green)" />}
+          {allPickupDone && pickedByNames.length > 0 && <ROW label="Odebrał" value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
           {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
 
+          {isGroupedPickup && (
+            <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '8px' }}>
+                Szczegóły przyjazdów
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {pickupEntries.map((item, index) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '28px 1fr auto auto',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '8px 10px',
+                      borderRadius: '10px',
+                      background: item.done ? 'rgba(142,142,147,0.08)' : 'var(--accent-light)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 650,
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-tertiary)' }}>#{index + 1}</span>
+                    <span>
+                      {DAY_NAMES[item.arr_day - 1]}
+                      <span style={{ color: 'var(--text-tertiary)', fontWeight: 550 }}> · {item.added_by || '—'}</span>
+                    </span>
+                    <span>{item.type === 'O' ? 'Obrusy' : 'Pościel'}</span>
+                    <span>{item.weight ? `${item.weight} kg` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {(() => {
-            const canUndone = isPickupContext && (!entry.done || isAdmin || entry.picked_by === user?.name);
+            const canUndone = isPickupContext && (!allPickupDone || isAdmin || pickupEntries.some(e => e.picked_by === user?.name));
             return (
               <div className="ap-btn-group" style={{ marginTop: '16px' }}>
                 {canUndone && (
                   <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
-                    {entry.done ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
+                    {allPickupDone ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
                   </button>
                 )}
                 <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
@@ -510,7 +566,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             );
           })()}
           
-          {canEdit && (
+          {canEdit && !isGroupedPickup && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
               {isAdmin && (

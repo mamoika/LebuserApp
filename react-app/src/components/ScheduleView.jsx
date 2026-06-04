@@ -23,6 +23,40 @@ function parseRouteIds(routesStr) {
   );
 }
 
+function groupPickupEntries(entries) {
+  const groups = new Map();
+  entries.forEach(entry => {
+    const key = [
+      entry.pick_week_key,
+      entry.pick_day,
+      entry.route_id || '',
+      entry.client_name || '',
+    ].join('|');
+    const current = groups.get(key) || {
+      ...entry,
+      id: `pickup-${key}`,
+      entries: [],
+      isPickupGroup: true,
+      done: true,
+      weight: 0,
+      urgent: false,
+    };
+    current.entries.push(entry);
+    current.done = current.entries.every(e => e.done);
+    current.urgent = current.entries.some(e => e.urgent);
+    current.weight = current.entries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+    current.type = current.entries.some(e => e.type === 'O') && current.entries.some(e => (e.type || 'P') === 'P')
+      ? 'M'
+      : current.entries[0]?.type || 'P';
+    groups.set(key, current);
+  });
+  return [...groups.values()].sort((a, b) => {
+    const routeDiff = (a.route_id || 0) - (b.route_id || 0);
+    if (routeDiff) return routeDiff;
+    return String(a.client_name || '').localeCompare(String(b.client_name || ''), 'pl');
+  });
+}
+
 export default function ScheduleView() {
   const rawData = useAppData();
   const { isAdmin, isDriver, canEdit, user } = useAuth();
@@ -38,6 +72,7 @@ export default function ScheduleView() {
   
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [selectedRelatedEntries, setSelectedRelatedEntries] = useState([]);
   const [selectedEntryMode, setSelectedEntryMode] = useState('view');
   
   if (loading) return <div className="loader">Ładowanie danych...</div>;
@@ -59,18 +94,30 @@ export default function ScheduleView() {
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
     const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
+    const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
+    const entryCount = relatedEntries.length;
+    const totalWeight = entry.isPickupGroup
+      ? relatedEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0)
+      : parseFloat(entry.weight) || 0;
+    const hasMixedTypes = entry.isPickupGroup && relatedEntries.some(e => e.type === 'O') && relatedEntries.some(e => (e.type || 'P') === 'P');
 
     return (
       <div
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
-        onClick={() => { setSelectedEntry(entry); setSelectedEntryMode(mode); setViewModalOpen(true); }}
+        onClick={() => {
+          setSelectedEntry(entry);
+          setSelectedRelatedEntries(relatedEntries);
+          setSelectedEntryMode(mode);
+          setViewModalOpen(true);
+        }}
         style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>
-        <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
-        {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
+        {entry.isPickupGroup && entryCount > 1 && <span className="kg-badge">{entryCount}x</span>}
+        <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
+        {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
         <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
         <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
       </div>
@@ -87,6 +134,7 @@ export default function ScheduleView() {
           const arrived = entries.filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey);
           
           const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey);
+          const pickupGroups = groupPickupEntries(picked);
 
           const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
           const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
@@ -120,7 +168,7 @@ export default function ScheduleView() {
                   <div className="divider schedule-divider"></div>
                   <div className="sec-label schedule-pick-label">ODBIÓR</div>
                   <div className="sortable-pick schedule-list">
-                    {picked.map(entry => renderEntryTag(entry, 'pick'))}
+                    {pickupGroups.map(entry => renderEntryTag(entry, 'pick'))}
                   </div>
                 </>
               )}
@@ -169,8 +217,9 @@ export default function ScheduleView() {
       {viewModalOpen && selectedEntry && (
         <ViewEditEntryModal 
           isOpen={viewModalOpen} 
-          onClose={() => { setViewModalOpen(false); setSelectedEntry(null); }} 
+          onClose={() => { setViewModalOpen(false); setSelectedEntry(null); setSelectedRelatedEntries([]); }} 
           entry={selectedEntry}
+          relatedEntries={selectedRelatedEntries}
           contextMode={selectedEntryMode}
           onUpdated={() => {
             setViewModalOpen(false);
