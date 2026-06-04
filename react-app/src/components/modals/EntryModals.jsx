@@ -70,7 +70,6 @@ function buildEditDiff(entry, updates, routes) {
     { key: 'pick_day',     label: 'odbiór',          fmt: dayLabel },
     { key: 'pick_week_key', label: 'tydzień odbioru', fmt: v => (v ?? '') === '' ? '—' : String(v) },
     { key: 'urgent',       label: 'priorytet',       fmt: v => v ? 'tak' : 'nie' },
-    { key: 'comment',      label: 'komentarz',       fmt: v => (v ?? '') === '' ? '—' : String(v) },
     { key: 'route_id',     label: 'trasa',           fmt: v => (routes || []).find(r => r.id === v)?.name || '—' },
   ];
   const norm = v => (v === null || v === undefined) ? '' : (typeof v === 'number' ? String(v) : String(v).trim());
@@ -303,7 +302,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setPickDay(entry.pick_day || 1);
       setPickWeek(entry.week_key === entry.pick_week_key ? 0 : 1);
       setUrgent(entry.urgent || false);
-      setComment(entry.comment || '');
+      // Komentarz klienta (wspólna notatka) — preferuj clients.note, fallback na stary entry.comment
+      const clientNote = (clients || []).find(c => c.name === entry.client_name)?.note;
+      setComment(clientNote !== undefined ? (clientNote || '') : (entry.comment || ''));
       setRouteId(entry.route_id || 1);
     }
   }, [isOpen, entry]);
@@ -346,7 +347,6 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const pickedAt = isDone ? new Date().toISOString() : null;
       const pickedBy = isDone ? user.name : null;
       const updates = { done: isDone, picked_by: pickedBy, picked_at: pickedAt };
-      if (!isDone) updates.comment = null;
 
       const ids = pickupEntries.map(e => e.id);
       const { error } = await supabase.from('entries').update(updates).in('id', ids);
@@ -383,14 +383,25 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         pick_day: parseInt(pickDay),
         pick_week_key: pickWeekKey,
         urgent,
-        comment,
         route_id: nextRouteId
+        // comment usunięty z entries — teraz w clients.note (wspólna notatka)
       };
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
+
+      // Zapisz komentarz do clients.note (wspólny dla całego klienta)
+      const currentClientNote = (clients || []).find(c => c.name === entry.client_name)?.note || '';
+      if (comment !== (currentClientNote || '')) {
+        await supabase.from('clients').update({ note: comment || null }).eq('name', clientName.trim() || entry.client_name);
+      }
       // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
       const changes = buildEditDiff(entry, updates, routes);
+      // Śledź też zmianę komentarza klienta
+      const currentClientNote2 = (clients || []).find(c => c.name === entry.client_name)?.note || '';
+      if (comment !== (currentClientNote2 || '')) {
+        changes.push(`komentarz: "${currentClientNote2 || '—'}" → "${comment || '—'}"`);
+      }
       if (changes.length > 0) {
         await logAction({
           userName: user.name,
@@ -424,8 +435,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: 'deleted',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}, przyjazd: ${DAY_NAMES[entry.arr_day - 1] || '?'}, odbiór: ${DAY_NAMES[entry.pick_day - 1] || '?'}, waga: ${entry.weight ?? '—'}${entry.comment ? `, komentarz: ${entry.comment}` : ''}`,
-      });
+        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}, przyjazd: ${DAY_NAMES[entry.arr_day - 1] || '?'}, odbiór: ${DAY_NAMES[entry.pick_day - 1] || '?'}, waga: ${entry.weight ?? '—'}`,      });
       onDeleted();
       onClose();
     } catch (err) {
@@ -557,7 +567,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
           {entry.added_by && <ROW label="Dodał" value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
           {allPickupDone && pickedByNames.length > 0 && <ROW label="Odebrał" value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
-          {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
+          {(() => { const cn = (clients || []).find(c => c.name === entry.client_name)?.note || entry.comment; return cn ? <ROW label="Komentarz" value={cn} /> : null; })()}
 
           {isGroupedPickup && (
             <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
