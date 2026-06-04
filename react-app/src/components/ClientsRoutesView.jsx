@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +24,14 @@ function parseRouteIds(routesStr) {
   return new Set(
     (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
   );
+}
+
+function sortClientsByOrder(a, b) {
+  const orderDiff = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+  if (orderDiff !== 0) return orderDiff;
+  const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+  if (nameDiff !== 0) return nameDiff;
+  return String(a.id).localeCompare(String(b.id));
 }
 
 // ---- Modals ----
@@ -376,8 +384,10 @@ export default function ClientsRoutesView() {
   const [addClientForRoute, setAddClientForRoute] = useState(null);
   const [editClient, setEditClient] = useState(null);
   const [driverRoutesOpen, setDriverRoutesOpen] = useState(false);
+  const savingOrderRef = useRef(false);
 
   useEffect(() => {
+    if (savingOrderRef.current) return;
     setLocalClients(clients);
   }, [clients]);
 
@@ -510,29 +520,30 @@ export default function ClientsRoutesView() {
 
     const rest = localClients.filter(c => c.id !== draggableId);
 
-    let toUpsert;
+    const previousClients = localClients;
+    let toUpdate;
     let newLocalClients;
 
     if (sourceRouteId === destRouteId) {
       // Reorder w tej samej trasie
       const routeClients = rest
         .filter(c => c.route_id === sourceRouteId)
-        .sort((a, b) => a.sort_order - b.sort_order);
+        .sort(sortClientsByOrder);
       routeClients.splice(destination.index, 0, { ...clientToMove });
       const reordered = routeClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
 
       newLocalClients = [...rest.filter(c => c.route_id !== sourceRouteId), ...reordered];
-      toUpsert = reordered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name }));
+      toUpdate = reordered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order }));
     } else {
       // Przeniesienie między trasami
       const sourceClients = rest
         .filter(c => c.route_id === sourceRouteId)
-        .sort((a, b) => a.sort_order - b.sort_order)
+        .sort(sortClientsByOrder)
         .map((c, i) => ({ ...c, sort_order: i + 1 }));
 
       const destClients = rest
         .filter(c => c.route_id === destRouteId)
-        .sort((a, b) => a.sort_order - b.sort_order);
+        .sort(sortClientsByOrder);
       destClients.splice(destination.index, 0, { ...clientToMove, route_id: destRouteId });
       const destClientsOrdered = destClients.map((c, i) => ({ ...c, sort_order: i + 1 }));
 
@@ -541,21 +552,32 @@ export default function ClientsRoutesView() {
         ...sourceClients,
         ...destClientsOrdered,
       ];
-      toUpsert = [
-        ...sourceClients.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
-        ...destClientsOrdered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order, name: c.name })),
+      toUpdate = [
+        ...sourceClients.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order })),
+        ...destClientsOrdered.map(c => ({ id: c.id, route_id: c.route_id, sort_order: c.sort_order })),
       ];
     }
 
+    savingOrderRef.current = true;
     setLocalClients(newLocalClients);
 
     try {
-      const { error } = await supabase.from('clients').upsert(toUpsert);
-      if (error) throw error;
-      refetch();
+      const updates = toUpdate.map(c =>
+        supabase
+          .from('clients')
+          .update({ route_id: c.route_id, sort_order: c.sort_order })
+          .eq('id', c.id)
+      );
+      const results = await Promise.all(updates);
+      const failed = results.find(r => r.error);
+      if (failed?.error) throw failed.error;
+      await refetch();
     } catch (err) {
+      setLocalClients(previousClients);
       toastError('Błąd zapisu kolejności: ' + err.message);
-      refetch();
+      await refetch();
+    } finally {
+      savingOrderRef.current = false;
     }
   };
 
@@ -572,7 +594,7 @@ export default function ClientsRoutesView() {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
-      .sort((a, b) => a.sort_order - b.sort_order);
+      .sort(sortClientsByOrder);
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
 
