@@ -622,6 +622,7 @@ export default function DriverRouteView() {
           onClose={() => setViewEntry(null)}
           entry={viewEntry}
           contextMode="arr"
+          initiallyEditing={true}
           onUpdated={() => { setViewEntry(null); refetch(); }}
           onDeleted={() => { setViewEntry(null); refetch(); }}
           clients={clients}

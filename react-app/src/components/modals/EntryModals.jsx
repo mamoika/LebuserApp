@@ -291,7 +291,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view' }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false }) {
   const { isAdmin, canEdit, user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -308,7 +308,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
   useEffect(() => {
     if (isOpen && entry) {
-      setEditing(false);
+      setEditing(initiallyEditing);
       setClientName(entry.client_name || '');
       setType(entry.type || 'P');
       setWeight(entry.weight || '');
