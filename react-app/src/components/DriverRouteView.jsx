@@ -1797,6 +1797,52 @@ export default function DriverRouteView({ manageMode = false }) {
             })}
           </div>
 
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: 700 }}>
+              Punkty na wybranych trasach ({stops.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {stops.length === 0 && (
+                <div className="driver-empty-row">Brak punktów dla wybranych tras na dziś</div>
+              )}
+              {stops.map(stop => {
+                const pickupEntries = stop.entries || [];
+                const dirtyEntries = stop.dirtyEntries || [];
+                const kg = Number(sumWeight(pickupEntries).toFixed(1));
+                const dirtyTrolleys = dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0);
+                return (
+                  <div key={stop.key} style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    background: 'var(--bg-card)',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '7px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <RouteBadge id={stop.route_id} />
+                      <span style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', fontSize: '14px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {stop.client_name}
+                      </span>
+                      {kg > 0 && <span className="kg-badge">{kg} kg</span>}
+                    </div>
+                    {pickupEntries.length > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--accent-green)', fontWeight: 700 }}>
+                        🏭 Odbiór z pralni · {pickupEntries.length} {pickupEntries.length === 1 ? 'wpis' : 'wpisy'}
+                      </div>
+                    )}
+                    {dirtyEntries.length > 0 && (
+                      <div style={{ fontSize: '12px', color: '#B45309', fontWeight: 700 }}>
+                        🧺 Odbiór brudnego · {trolleyLabel(dirtyTrolleys)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <button onClick={startTrip} disabled={busy} style={{
             width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: 'pointer',
             background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '15px',
