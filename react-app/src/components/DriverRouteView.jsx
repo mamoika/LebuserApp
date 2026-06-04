@@ -262,6 +262,10 @@ export default function DriverRouteView({ manageMode = false }) {
     if (aOwn !== bOwn) return aOwn - bOwn;
     return (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl');
   });
+  const pickedNotDeliveredStops = stops.filter(s =>
+    (s.entries || []).some(e => e.done && e.picked_by === user?.name && !e.delivered)
+  );
+  const pickedNotDeliveredNames = pickedNotDeliveredStops.map(s => s.client_name).filter(Boolean);
 
   // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście.
   // Wzbogacamy o kg i typ (P/O), żeby kierowca widział to samo co na przystanku.
@@ -613,6 +617,10 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   const endTrip = async () => {
+    if (pickedNotDeliveredStops.length > 0) {
+      toastError(`Nie możesz zakończyć trasy. Najpierw dostarcz albo cofnij do pralni: ${pickedNotDeliveredNames.join(', ')}`);
+      return;
+    }
     const km = parseFloat(String(endKm).replace(',', '.'));
     if (!endKm || isNaN(km)) { toastError('Podaj końcowy stan licznika (km)'); return; }
     try {
@@ -1743,6 +1751,21 @@ export default function DriverRouteView({ manageMode = false }) {
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 Auto: <strong>{VEHICLE_LABELS[trip?.car] || trip?.car}</strong> · licznik trafi do zatwierdzenia admina ({today})
               </div>
+              {pickedNotDeliveredStops.length > 0 && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#B45309',
+                  background: 'rgba(255,149,0,0.12)',
+                  border: '1px solid rgba(255,149,0,0.28)',
+                  borderRadius: '10px',
+                  padding: '9px 11px',
+                  marginBottom: '14px',
+                  fontWeight: 650,
+                  lineHeight: 1.4,
+                }}>
+                  Masz pranie odebrane z pralni: {pickedNotDeliveredNames.join(', ')}. Dostarcz je albo cofnij odbiór przed zakończeniem trasy.
+                </div>
+              )}
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Końcowy stan licznika (km)</label>
               <input className="ap-input" type="text" inputMode="decimal" autoFocus value={endKm}
                 onChange={ev => setEndKm(ev.target.value)} placeholder="np. 379978" style={{ marginTop: '6px', marginBottom: '16px' }} />
