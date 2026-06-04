@@ -247,28 +247,8 @@ export default function DriverRouteView() {
   // 3) Przyjazd brudnego — prosty formularz: klient/trasa auto, wybór "na kiedy" + kg
   const openPrzyjazd = (stop) => {
     const options = pickupDateOptions();
-
-    // Wzorzec dni tygodnia odbioru tego klienta (z jego historycznych wpisów w harmonogramie)
-    // pickDay: 1=Pn ... 5=Pt — takie same kody jak options[].pickDay
-    const clientPickDays = new Set(
-      entries
-        .filter(e => e.client_name === stop.client_name && e.pick_day)
-        .map(e => e.pick_day)
-    );
-    // Pierwsza opcja (jutro → kolejne dni robocze), której dzień tygodnia pasuje do wzorca
-    const scheduleMatch = options.find(o => clientPickDays.has(o.pickDay))?.value;
-
-    // Fallback: stara reguła matematyczna (+2 dni przetwarzania)
-    const wd = (new Date().getDay() + 6) % 7 + 1;
-    const arrDay = (wd >= 1 && wd <= 5) ? wd : 1;
-    const { pickDay, pickWeek } = defaultPick(arrDay);
-    const wk = formatWeekKey(getCurrentMonday());
-    const pwk = pickWeek === 1 ? nextWeekKey(wk) : wk;
-    const defDate = parseMonday(pwk); defDate.setDate(defDate.getDate() + (pickDay - 1));
-    const defVal = ymd(defDate);
-    const fallbackValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
-
-    const pickValue = scheduleMatch || fallbackValue;
+    // Domyślnie: jutro (pierwszy dostępny dzień roboczy) — kierowca zmieni jeśli trzeba
+    const pickValue = options[0]?.value || '';
 
     // Inteligentny domyślny typ: sprawdź co już dziś dodano dla tego klienta
     const todayArr = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
