@@ -247,8 +247,20 @@ export default function DriverRouteView() {
   // 3) Przyjazd brudnego — prosty formularz: klient/trasa auto, wybór "na kiedy" + kg
   const openPrzyjazd = (stop) => {
     const options = pickupDateOptions();
-    // Domyślnie: jutro (pierwszy dostępny dzień roboczy) — kierowca zmieni jeśli trzeba
-    const pickValue = options[0]?.value || '';
+    const clientEntries = entries.filter(e => e.client_name === stop.client_name);
+
+    // Klient codzienny: ≥4 unikalnych dni przyjazdów → domyślnie jutro
+    // Klient tygodniowy/rzadszy: szukaj pierwszej opcji pasującej do jego typowego dnia odbioru
+    const uniqueArrDays = new Set(clientEntries.map(e => e.arr_day).filter(Boolean));
+    let pickValue;
+    if (uniqueArrDays.size >= 4) {
+      // Codzienny → jutro (pierwszy dzień roboczy)
+      pickValue = options[0]?.value || '';
+    } else {
+      // Rzadszy → dopasuj do typowego dnia odbioru (pick_day) klienta
+      const clientPickDays = new Set(clientEntries.map(e => e.pick_day).filter(Boolean));
+      pickValue = options.find(o => clientPickDays.has(o.pickDay))?.value || options[0]?.value || '';
+    }
 
     // Inteligentny domyślny typ: sprawdź co już dziś dodano dla tego klienta
     const todayArr = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
