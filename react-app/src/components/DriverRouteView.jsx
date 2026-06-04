@@ -187,6 +187,35 @@ export default function DriverRouteView() {
     finally { setBusy(false); }
   };
 
+  // Cofnij dostawę (np. klienta nie było, pranie wraca na pralnię)
+  const undoDelivered = async (stop) => {
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { error } = await supabase.from('entries')
+        .update({ delivered: false, delivered_by: null, delivered_at: null }).in('id', ids);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto dostawę' });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Cofnij odbiór z pralni — dozwolone dopiero gdy dostawa jest cofnięta
+  const undoPralnia = async (stop) => {
+    if (stop.entries.some(e => e.delivered)) { toastError('Najpierw cofnij dostawę'); return; }
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { error } = await supabase.from('entries')
+        .update({ done: false, picked_by: null, picked_at: null }).in('id', ids);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto odbiór z pralni' });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
   // 3) Przyjazd brudnego — otwiera formularz z auto-uzupełnionymi danymi
   const openPrzyjazd = (stop) => {
     const wd = (new Date().getDay() + 6) % 7 + 1;          // Pn=1 … Nd=7
@@ -306,11 +335,21 @@ export default function DriverRouteView() {
     return <span className="rt-badge" style={routeBadgeStyle(info.num)}>T{info.num}</span>;
   };
 
-  const ActionRow = ({ icon, label, color, done, at, btnLabel, onClick }) => (
+  const ActionRow = ({ icon, label, color, done, at, btnLabel, onClick, onUndo, undoDisabled, undoHint }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderTop: '1px solid var(--border)' }}>
       <span style={{ flex: 1, fontWeight: 700, fontSize: '13px', color }}>{icon} {label}</span>
       {done ? (
-        <span style={{ fontSize: '12px', fontWeight: 700, color, flexShrink: 0 }}>✓ {fmtTime(at)}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color }}>✓ {fmtTime(at)}</span>
+          {onUndo && trip && (
+            <button onClick={onUndo} disabled={busy || undoDisabled} title={undoDisabled ? undoHint : 'Cofnij'} style={{
+              padding: '6px 10px', borderRadius: '8px', cursor: undoDisabled ? 'not-allowed' : 'pointer',
+              border: '1px solid var(--border)', background: 'var(--bg-card)',
+              color: undoDisabled ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+              fontSize: '11px', fontWeight: 600, opacity: undoDisabled ? 0.5 : 1,
+            }}>↩︎ cofnij</button>
+          )}
+        </div>
       ) : trip ? (
         <button onClick={onClick} disabled={busy} style={{
           width: '120px', padding: '9px 0', borderRadius: '9px', border: 'none', cursor: 'pointer',
@@ -402,8 +441,10 @@ export default function DriverRouteView() {
                     {kg > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '3px 8px', borderRadius: '6px' }}>{kg} kg</span>}
                   </div>
 
-                  <ActionRow icon="🏭" label="Odbiór z pralni" color="#AF52DE" done={pralniaDone} at={stop.entries[0]?.picked_at} btnLabel="Odebrano z pralni" onClick={() => markPralnia(stop)} />
-                  <ActionRow icon="📦" label="Dostarczono" color="#34C759" done={deliveredDone} at={stop.entries[0]?.delivered_at} btnLabel="Dostarczono" onClick={() => markDelivered(stop)} />
+                  <ActionRow icon="🏭" label="Odbiór z pralni" color="#AF52DE" done={pralniaDone} at={stop.entries[0]?.picked_at} btnLabel="Odebrano z pralni"
+                    onClick={() => markPralnia(stop)} onUndo={() => undoPralnia(stop)} undoDisabled={deliveredDone} undoHint="Najpierw cofnij dostawę" />
+                  <ActionRow icon="📦" label="Dostarczono" color="#34C759" done={deliveredDone} at={stop.entries[0]?.delivered_at} btnLabel="Dostarczono"
+                    onClick={() => markDelivered(stop)} onUndo={() => undoDelivered(stop)} />
 
                   {/* Przyjazd brudnego → nowy wpis w harmonogramie */}
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
