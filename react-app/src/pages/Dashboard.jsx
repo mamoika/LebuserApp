@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { LogOut } from 'lucide-react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 import ScheduleView from '../components/ScheduleView';
 import ClientsRoutesView from '../components/ClientsRoutesView';
@@ -13,9 +13,23 @@ import TimelineView from '../components/TimelineView';
 import CostsView from '../components/CostsView';
 import ToastContainer from '../components/ToastContainer';
 
+// Tytuł nagłówka zależny od aktywnej zakładki
+const PAGE_TITLES = {
+  '/':         { title: 'Harmonogram',    subtitle: 'Zarządzanie logistyką' },
+  '/clients':  { title: 'Klienci i Trasy', subtitle: 'Baza klientów i tras' },
+  '/map':      { title: 'Mapa',           subtitle: 'Klienci na mapie' },
+  '/history':  { title: 'Historia',       subtitle: 'Archiwum przyjazdów i zmian' },
+  '/grafik':   { title: 'Grafik pracy',   subtitle: 'Grafik pracowników' },
+  '/timeline': { title: 'Oś czasu',       subtitle: 'Przegląd w czasie' },
+  '/costs':    { title: 'Koszty',         subtitle: 'Koszty i rozliczenia' },
+  '/admin':    { title: 'Panel Admina',   subtitle: 'Użytkownicy i ustawienia' },
+};
+
 export default function Dashboard() {
   const { user, adminBackup, signOut, stopImpersonating, isAdmin } = useAuth();
   const isImpersonating = !!adminBackup;
+  const location = useLocation();
+  const pageInfo = PAGE_TITLES[location.pathname] || PAGE_TITLES['/'];
 
   const handleStopImpersonating = () => {
     const result = stopImpersonating();
@@ -71,14 +85,17 @@ export default function Dashboard() {
         <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
           <img src={logoImg} alt="Logo LEBUSER" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div className="app-title" style={{ fontSize: '22px' }}>Harmonogram</div>
-            <div className="app-subtitle">Zarządzanie logistyką</div>
+            <div className="app-title" style={{ fontSize: '22px' }}>{pageInfo.title}</div>
+            <div className="app-subtitle">{pageInfo.subtitle}</div>
           </div>
         </div>
         <div className="app-header-actions">
-          <span style={{ fontSize: '13px', fontWeight: 700, color: isImpersonating ? '#FF9500' : 'var(--text-secondary)' }}>
-            {user?.name} <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: isImpersonating ? '#FF9500' : 'var(--text-secondary)' }}>
+              {user?.name}
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
+          </div>
           <button onClick={signOut} className="driver-btn">
             <LogOut size={14} /> Wyloguj
           </button>
