@@ -23,6 +23,12 @@ function pickupDateStr(e) {
   dt.setDate(dt.getDate() + ((e.pick_day || 1) - 1));
   return ymd(dt);
 }
+function arrivalDateStr(e) {
+  if (!e.week_key) return null;
+  const dt = parseMonday(e.week_key);
+  dt.setDate(dt.getDate() + ((e.arr_day || 1) - 1));
+  return ymd(dt);
+}
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
@@ -250,7 +256,13 @@ export default function DriverRouteView() {
     const defDate = parseMonday(pwk); defDate.setDate(defDate.getDate() + (pickDay - 1));
     const defVal = ymd(defDate);
     const pickValue = options.some(o => o.value === defVal) ? defVal : (options[0]?.value || defVal);
-    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: stop.entries[0]?.type || 'P', kg: '', pickValue, options, added: [] });
+    // Inteligentny domyślny typ: sprawdź co już dziś dodano dla tego klienta
+    // Jeśli jest Pościel ale nie ma Obrusów → podpowiedz Obrusy (i odwrotnie)
+    const todayArr = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
+    const hasP = todayArr.some(a => a.type === 'P');
+    const hasO = todayArr.some(a => a.type === 'O');
+    const smartType = (hasP && !hasO) ? 'O' : (hasO && !hasP) ? 'P' : (stop.entries[0]?.type || 'P');
+    setPf({ stopKey: stop.key, client_name: stop.client_name, routeId: stop.route_id, type: smartType, kg: '', pickValue, options });
   };
   const setPfField = (field, value) => setPf(p => ({ ...p, [field]: value }));
 
@@ -272,10 +284,9 @@ export default function DriverRouteView() {
       if (error) throw error;
       await logAction({ userName: user.name, action: 'added', clientName: pf.client_name, entryId: id, details: `przyjazd brudnego z trasy${isNaN(kg) ? '' : ', ' + kg + ' kg'}, odbiór ${opt.label}` });
       const label = `${pf.type === 'O' ? 'Obrusy' : 'Pościel'}${isNaN(kg) ? '' : ' ' + kg + ' kg'} · ${opt.label}`;
-      // Formularz zostaje otwarty — można dodać kolejny przyjazd (np. obrusy)
-      setPf(p => ({ ...p, kg: '', added: [...(p.added || []), label] }));
+      setPf(null); // zamknij — kolejny przyjazd dodasz przyciskiem ponownie
       await refetch();
-      toastSuccess('Dodano: ' + label);
+      toastSuccess('Dodano przyjazd: ' + label);
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
@@ -465,6 +476,8 @@ export default function DriverRouteView() {
               const deliveredDone = stop.entries.every(e => e.delivered);
               const kg = Number(sumWeight(stop.entries).toFixed(1));
               const formOpen = pf?.stopKey === stop.key;
+              // Przyjazdy brudnego dodane dziś dla tego klienta
+              const todayArrivals = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
               return (
                 <div key={stop.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -481,10 +494,36 @@ export default function DriverRouteView() {
                   {/* Przyjazd brudnego → nowy wpis w harmonogramie */}
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
                     {!formOpen ? (
-                      <button onClick={() => openPrzyjazd(stop)} style={{
-                        background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
-                        cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
-                      }}>➕ Przyjazd brudnego (do pralni)</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {todayArrivals.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {todayArrivals.map(a => (
+                              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(52,199,89,0.08)', borderRadius: '8px', padding: '5px 8px' }}>
+                                <span style={{ fontSize: '12px', color: '#34C759', fontWeight: 700, flex: 1 }}>
+                                  ✓ {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''}
+                                </span>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm(`Usunąć przyjazd: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
+                                    const { error } = await supabase.from('entries').delete().eq('id', a.id);
+                                    if (error) { toastError('Błąd usuwania: ' + error.message); return; }
+                                    await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
+                                    await refetch();
+                                    toastSuccess('Usunięto przyjazd');
+                                  }}
+                                  disabled={busy}
+                                  title="Usuń ten przyjazd"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '2px 4px', borderRadius: '4px' }}
+                                >×</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button onClick={() => openPrzyjazd(stop)} style={{
+                          alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '9px', padding: '8px 12px',
+                          cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
+                        }}>➕ Przyjazd brudnego (do pralni)</button>
+                      </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -518,23 +557,15 @@ export default function DriverRouteView() {
                           </label>
                         </div>
 
-                        {pf.added?.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            {pf.added.map((a, i) => (
-                              <div key={i} style={{ fontSize: '11px', color: '#34C759', fontWeight: 600 }}>✓ {a}</div>
-                            ))}
-                          </div>
-                        )}
-
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button onClick={addPrzyjazd} disabled={busy} style={{
                             flex: 2, padding: '10px', borderRadius: '9px', border: 'none', cursor: 'pointer',
                             background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '13px',
-                          }}>{busy ? 'Dodawanie…' : '➕ Dodaj'}</button>
+                          }}>{busy ? 'Dodawanie…' : '➕ Dodaj przyjazd'}</button>
                           <button onClick={() => setPf(null)} style={{
                             flex: 1, padding: '10px', borderRadius: '9px', border: '1px solid var(--border)', cursor: 'pointer',
                             background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600,
-                          }}>{pf.added?.length > 0 ? 'Gotowe' : 'Anuluj'}</button>
+                          }}>Anuluj</button>
                         </div>
                       </div>
                     )}
