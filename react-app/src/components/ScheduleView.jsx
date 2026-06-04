@@ -38,6 +38,7 @@ export default function ScheduleView() {
   
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [selectedEntryMode, setSelectedEntryMode] = useState('view');
   
   if (loading) return <div className="loader">Ładowanie danych...</div>;
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
@@ -63,7 +64,7 @@ export default function ScheduleView() {
       <div
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
-        onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
+        onClick={() => { setSelectedEntry(entry); setSelectedEntryMode(mode); setViewModalOpen(true); }}
         style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
@@ -170,6 +171,7 @@ export default function ScheduleView() {
           isOpen={viewModalOpen} 
           onClose={() => { setViewModalOpen(false); setSelectedEntry(null); }} 
           entry={selectedEntry}
+          contextMode={selectedEntryMode}
           onUpdated={() => {
             setViewModalOpen(false);
             refetch();

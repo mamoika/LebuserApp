@@ -6,12 +6,28 @@ import { toastError } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
-// PN→ŚR(0), WT→CZ(0), ŚR→PT(0), CZ→WT(1), PT→PN(1)
-function getDefaultPickInfo(arrDay) {
+function getDefaultPickInfo(arrDay, schedule = 'other') {
   const d = parseInt(arrDay);
+
+  if (schedule === 'daily') {
+    if (d <= 4) return { pickDay: d + 1, pickWeek: 0 };
+    return { pickDay: 1, pickWeek: 1 }; // PT → PN nast.
+  }
+
+  if (schedule === 'mwf') {
+    if (d <= 1) return { pickDay: 3, pickWeek: 0 }; // PN → ŚR
+    if (d <= 3) return { pickDay: 5, pickWeek: 0 }; // WT/ŚR → PT
+    return { pickDay: 1, pickWeek: 1 }; // CZ/PT → PN nast.
+  }
+
+  if (schedule === 'tth') {
+    if (d <= 2) return { pickDay: 4, pickWeek: 0 }; // PN/WT → CZW
+    return { pickDay: 2, pickWeek: 1 }; // ŚR/CZW/PT → WT nast.
+  }
+
   if (d <= 3) return { pickDay: d + 2, pickWeek: 0 };
-  if (d === 4) return { pickDay: 2, pickWeek: 1 }; // CZ → WT nast.
-  return { pickDay: 1, pickWeek: 1 }; // PT → PN nast.
+  if (d === 4) return { pickDay: 2, pickWeek: 1 };
+  return { pickDay: 1, pickWeek: 1 };
 }
 
 function parseRouteIds(routesStr) {
@@ -26,6 +42,19 @@ function firstClientByRouteOrder(clients, routes) {
   return firstRoute
     ? [...clients].filter(c => c.route_id === firstRoute.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
     : clients[0];
+}
+
+function clientRouteSchedule(clients, routes, clientName) {
+  const client = (clients || []).find(c => c.name === clientName);
+  const route = (routes || []).find(r => r.id === client?.route_id);
+  return route?.schedule || 'other';
+}
+
+function nextWeekKey(weekKey) {
+  const parts = weekKey.split('-');
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  d.setDate(d.getDate() + 7);
+  return formatWeekKey(d);
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded }) {
@@ -54,12 +83,13 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   useEffect(() => {
     if (isOpen) {
       const day = defaultArrDay || 1;
-      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day);
+      const firstClient = firstClientByRouteOrder(ownClients, routes);
+      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day, clientRouteSchedule(clients, routes, firstClient?.name));
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
       setShowOtherRoutes(false);
-      setClientName(firstClientByRouteOrder(ownClients, routes)?.name || '');
+      setClientName(firstClient?.name || '');
       setWeight('');
       setType('P');
       setUrgent(false);
@@ -71,8 +101,11 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     const nextClient = firstClientByRouteOrder(selectableClients, routes);
     if (!selectableClients.some(c => c.name === clientName)) {
       setClientName(nextClient?.name || '');
+      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, nextClient?.name));
+      setPickDay(pd);
+      setPickWeek(pw);
     }
-  }, [isOpen, showOtherRoutes, selectableClients, routes, clientName]);
+  }, [isOpen, showOtherRoutes, selectableClients, routes, clients, clientName, arrDay]);
 
   if (!isOpen) return null;
 
@@ -86,10 +119,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       // Calculate pick_week_key
       let pickWeekKey = weekKey;
       if (pickWeek === 1) {
-        const parts = weekKey.split('-');
-        const d = new Date(parts[0], parts[1] - 1, parts[2]);
-        d.setDate(d.getDate() + 7);
-        pickWeekKey = formatWeekKey(d);
+        pickWeekKey = nextWeekKey(weekKey);
       }
 
       const { error } = await supabase.from('entries').insert([{
@@ -131,7 +161,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           </div>
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
-          <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '12px' }} value={clientName} onChange={e => setClientName(e.target.value)}>
+          <select
+            className="ap-input"
+            style={{ padding: '12px 14px', marginBottom: '12px' }}
+            value={clientName}
+            onChange={e => {
+              setClientName(e.target.value);
+              const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, e.target.value));
+              setPickDay(pd);
+              setPickWeek(pw);
+            }}
+          >
             {routes
               .filter(r => selectableClients.some(c => c.route_id === r.id))
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -178,7 +218,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień przyjazdu</div>
-              <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
+              <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
                 {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
               </select>
             </div>
@@ -211,9 +251,10 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDeleted, routes, clients = [], contextMode = 'view' }) {
   const { isAdmin, canEdit, user } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [clientName, setClientName] = useState('');
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
   const [arrDay, setArrDay] = useState(1);
@@ -228,6 +269,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   useEffect(() => {
     if (isOpen && entry) {
       setEditing(false);
+      setClientName(entry.client_name || '');
       setType(entry.type || 'P');
       setWeight(entry.weight || '');
       setArrDay(entry.arr_day || 1);
@@ -240,6 +282,22 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
   }, [isOpen, entry]);
 
   if (!isOpen || !entry) return null;
+
+  const sortedRoutes = [...(routes || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const knownClientNames = new Set((clients || []).map(c => c.name));
+  const selectedClient = (clients || []).find(c => c.name === clientName);
+  const isPickupContext = contextMode === 'pick';
+
+  const handleClientChange = (name) => {
+    setClientName(name);
+    const selected = (clients || []).find(c => c.name === name);
+    if (selected?.route_id) {
+      setRouteId(selected.route_id);
+      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, name));
+      setPickDay(pd);
+      setPickWeek(pw);
+    }
+  };
 
   const toggleDone = async () => {
     try {
@@ -266,14 +324,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
       setLoading(true);
 
       let pickWeekKey = entry.week_key;
-      if (pickWeek === 1) {
-        const parts = entry.week_key.split('-');
-        const d = new Date(parts[0], parts[1] - 1, parts[2]);
-        d.setDate(d.getDate() + 7);
-        pickWeekKey = formatWeekKey(d);
-      }
+      if (pickWeek === 1) pickWeekKey = nextWeekKey(entry.week_key);
+
+      const nextRouteId = routeId || selectedClient?.route_id || entry.route_id || null;
 
       const updates = {
+        client_name: clientName.trim() || entry.client_name,
         type,
         weight: weight ? parseFloat(String(weight).replace(',', '.')) : null,
         arr_day: parseInt(arrDay),
@@ -281,12 +337,18 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
         pick_week_key: pickWeekKey,
         urgent,
         comment,
-        route_id: routeId
+        route_id: nextRouteId
       };
 
       const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'edited', clientName: entry.client_name, entryId: entry.id, details: `waga: ${weight || '—'}, komentarz: ${comment || '—'}` });
+      await logAction({
+        userName: user.name,
+        action: 'edited',
+        clientName: updates.client_name,
+        entryId: entry.id,
+        details: `klient: ${entry.client_name} → ${updates.client_name}, przyjazd: ${DAY_NAMES[updates.arr_day - 1]}, odbiór: ${DAY_NAMES[updates.pick_day - 1]}, priorytet: ${urgent ? 'tak' : 'nie'}, waga: ${weight || '—'}, komentarz: ${comment || '—'}`
+      });
       onUpdated();
       onClose();
     } catch (err) {
@@ -325,53 +387,75 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
               </div>
             </div>
 
-            {/* Pola dostępne tylko dla admina */}
-            {isAdmin && (<>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
-              <div className="segmented-control" style={{ marginBottom: '14px' }}>
-                <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
-                <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
-              </div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
+            <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
+              {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
+              {sortedRoutes
+                .filter(r => clients.some(c => c.route_id === r.id))
+                .map((r, index) => (
+                  <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
+                    {clients
+                      .filter(c => c.route_id === r.id)
+                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                ))}
+            </select>
 
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
+            <div className="segmented-control" style={{ marginBottom: '14px' }}>
+              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
+              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
+            </div>
+
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg)</div>
+            <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przyjazd</div>
+                <select
+                  className="ap-input"
+                  value={arrDay}
+                  onChange={e => {
+                    const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName));
+                    setArrDay(e.target.value);
+                    setPickDay(pd);
+                    setPickWeek(pw);
+                  }}
+                >
+                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
+                <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
+                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+            <select className="ap-input" style={{ marginBottom: '14px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+              <option value={0}>Ten sam tydzień</option>
+              <option value={1}>Następny tydzień</option>
+            </select>
+
+            {isAdmin && (
               <div className="ap-field" style={{ marginBottom: '14px' }}>
                 <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>Trasa logistyczna</label>
                 <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
-                  {routes.map((r, index) => (
+                  {sortedRoutes.map((r, index) => (
                     <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
                   ))}
                 </select>
               </div>
+            )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przyjazd</div>
-                  <select className="ap-input" value={arrDay} onChange={e => setArrDay(e.target.value)}>
-                    {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
-                  <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
-                    {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-              <select className="ap-input" style={{ marginBottom: '14px' }} value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
-                <option value={0}>Ten sam tydzień</option>
-                <option value={1}>Następny tydzień</option>
-              </select>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '14px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
-                <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
-                <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
-              </label>
-            </>)}
-
-            {/* Pola dostępne dla wszystkich (admin + kierowca) */}
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg)</div>
-            <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '14px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
+              <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
+              <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
+            </label>
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz</div>
             <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '18px' }} />
@@ -403,6 +487,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           </div>
 
           <ROW label="Status" value={entry.done ? 'Odebrane ✓' : 'W toku'} valueColor={entry.done ? 'var(--accent-green)' : undefined} />
+          <ROW label="Widok" value={isPickupContext ? 'Odbiór' : contextMode === 'arr' ? 'Przyjazd' : 'Szczegóły'} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
           <ROW label="Rodzaj" value={entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
           <ROW label="Waga" value={entry.weight ? `${entry.weight} kg` : '—'} />
           <ROW label="Przyjazd" value={DAY_NAMES[entry.arr_day - 1]} />
@@ -412,7 +497,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
           {entry.comment && <ROW label="Komentarz" value={entry.comment} />}
 
           {(() => {
-            const canUndone = !entry.done || isAdmin || entry.picked_by === user?.name;
+            const canUndone = isPickupContext && (!entry.done || isAdmin || entry.picked_by === user?.name);
             return (
               <div className="ap-btn-group" style={{ marginTop: '16px' }}>
                 {canUndone && (
@@ -425,7 +510,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, onUpdated, onDelete
             );
           })()}
           
-          {(isAdmin || entry.added_by === user?.name) && (
+          {canEdit && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
               {isAdmin && (
