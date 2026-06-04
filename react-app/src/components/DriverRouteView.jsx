@@ -663,44 +663,85 @@ export default function DriverRouteView({ manageMode = false }) {
     </div>
   );
 
-  const renderTripRow = (t, isLive = false) => {
+  // Pojedyncza metryka: duża wartość + mała etykieta (czytelniej niż "2/3 z pralni").
+  const Metric = ({ value, label, tone }) => (
+    <div className={`trip-metric ${tone ? 'tone-' + tone : ''}`}>
+      <span className="trip-metric-val">{value}</span>
+      <span className="trip-metric-label">{label}</span>
+    </div>
+  );
+
+  // Pasek postępu: jaśniejszy = odebrane z pralni, pełny = dostarczone do klienta.
+  const TripProgress = ({ stats }) => {
+    const total = stats.stops || 0;
+    if (!total) return null;
+    const pctPicked = Math.round((stats.picked / total) * 100);
+    const pctDelivered = Math.round((stats.delivered / total) * 100);
+    return (
+      <div className="trip-progress" title={`${stats.delivered}/${total} dostarczone · ${stats.picked}/${total} odebrane`}>
+        <div className="trip-progress-picked" style={{ width: `${pctPicked}%` }} />
+        <div className="trip-progress-delivered" style={{ width: `${pctDelivered}%` }} />
+      </div>
+    );
+  };
+
+  const renderTripRow = (t) => {
     const stats = getTripStats(t);
     const kmApproval = tripKmApproval(t);
+    const routeIds = [...parseRouteIds(t.routes)];
+    const statusClass = t.isVirtual ? 'is-planned' : t.status === 'active' ? 'is-live' : t.status === 'finished' ? 'is-finished' : 'is-planned';
+    const showFoot = t.end_km || t.status === 'finished';
     return (
       <div
         key={t.id}
-        className={`driver-trip-row ${isLive ? 'is-live' : ''} ${t.isVirtual ? 'is-virtual' : ''}`}
+        className={`trip-card ${statusClass}`}
         role="button"
         tabIndex={0}
-        style={{ cursor: 'pointer' }}
         onClick={() => setDetailTrip(t)}
         title="Pokaż progres trasy"
       >
-        <div>
-          <div className="driver-trip-row-title">
-            {fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} 
-            {t.car ? ` · ${VEHICLE_LABELS[t.car] || t.car}` : ''}
-            {t.isVirtual ? ' (wirtualna)' : ''}
+        <div className="trip-card-head">
+          <span className={`trip-dot ${t.status === 'active' ? 'live' : ''}`} />
+          <div className="trip-card-headtext">
+            <div className="trip-card-driver">{t.driver_name || 'Brak kierowcy'}</div>
+            <div className="trip-card-meta">
+              {t.car ? (VEHICLE_LABELS[t.car] || t.car) : (t.isVirtual ? 'nieprzypisana' : '—')}
+              {!t.isVirtual && t.started_at ? ` · ${fmtTime(t.started_at)}` : ''}
+              {t.ended_at ? `–${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : (t.status === 'active' ? ` · ${fmtDuration(t.started_at, null)}` : '')}
+            </div>
           </div>
-          <div className="driver-trip-row-sub">
-            {routeNamesForTrip(t)}
-            {!t.isVirtual && ` · Start ${fmtTime(t.started_at)}`}
-            {t.ended_at ? `-${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : (!t.isVirtual ? ` · ${fmtDuration(t.started_at, null)}` : '')}
-            {t.end_km ? ` · zgłoszony licznik ${t.end_km} km` : ''}
-            {t.end_km ? ` · ${kmApproval.approved ? 'km zatwierdzone' : 'km do zatwierdzenia'}` : ''}
+          <span className="trip-card-date">{fmtDate(t.trip_date)}</span>
+        </div>
+
+        <div className="trip-card-routes">
+          {routeIds.length > 0
+            ? routeIds.map(id => <RouteBadge key={id} id={id} />)
+            : <span className="trip-card-allroutes">Wszystkie trasy</span>}
+        </div>
+
+        <TripProgress stats={stats} />
+
+        <div className="trip-card-metrics">
+          <Metric value={`${stats.delivered}/${stats.stops}`} label="dostarczone" tone="delivered" />
+          <Metric value={`${stats.picked}/${stats.stops}`} label="odebrane" tone="picked" />
+          <Metric value={stats.kg || 0} label="kg" />
+          <Metric value={stats.cleanTrolleys} label="czyste wózki" />
+          <Metric value={stats.dirtyTrolleys} label="brudne wózki" />
+        </div>
+
+        {showFoot && (
+          <div className="trip-card-foot">
+            <span className="trip-km">
+              {t.end_km ? `${kmApproval.approved ? '✓' : '⏳'} licznik ${t.end_km} km` : ''}
+            </span>
+            <div className="trip-card-actions">
+              {isAdmin && t.end_km && !kmApproval.approved && (
+                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); approveTripKm(t); }} disabled={busy}>Zatwierdź km</button>
+              )}
+              {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>}
+            </div>
           </div>
-        </div>
-        <div className="driver-trip-row-stats">
-          <span>{stats.delivered}/{stats.stops} dost.</span>
-          <span>{stats.picked}/{stats.stops} z pralni</span>
-          <span>{stats.kg || 0} kg</span>
-          <span>{stats.cleanTrolleys} z pralni</span>
-          <span>{stats.dirtyTrolleys} brudne</span>
-          {isAdmin && t.end_km && !kmApproval.approved && (
-            <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); approveTripKm(t); }} disabled={busy}>Zatwierdź km</button>
-          )}
-          {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>}
-        </div>
+        )}
       </div>
     );
   };
@@ -728,12 +769,15 @@ export default function DriverRouteView({ manageMode = false }) {
           <button className="driver-tool-btn" onClick={() => setDetailTrip(null)}>← Wróć do listy</button>
         </div>
 
-        <div className="driver-trip-row-stats" style={{ margin: '4px 0 16px', flexWrap: 'wrap' }}>
-          <span>{stats.delivered}/{stats.stops} dostarczone</span>
-          <span>{stats.picked}/{stats.stops} z pralni</span>
-          <span>{stats.kg || 0} kg</span>
-          <span>{stats.cleanTrolleys} czyste wózki</span>
-          <span>{stats.dirtyTrolleys} brudne wózki</span>
+        <div style={{ margin: '4px 0 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <TripProgress stats={stats} />
+          <div className="trip-card-metrics">
+            <Metric value={`${stats.delivered}/${stats.stops}`} label="dostarczone" tone="delivered" />
+            <Metric value={`${stats.picked}/${stats.stops}`} label="odebrane" tone="picked" />
+            <Metric value={stats.kg || 0} label="kg" />
+            <Metric value={stats.cleanTrolleys} label="czyste wózki" />
+            <Metric value={stats.dirtyTrolleys} label="brudne wózki" />
+          </div>
         </div>
 
         <div className="driver-stops-list">
@@ -916,7 +960,7 @@ export default function DriverRouteView({ manageMode = false }) {
               </div>
               <div className="admin-trip-list-inner">
                 {liveTrips.length === 0 && <div className="driver-empty-row">Brak tras na żywo</div>}
-                {liveTrips.map(t => renderTripRow(t, true))}
+                {liveTrips.map(t => renderTripRow(t))}
               </div>
             </div>
 
@@ -927,7 +971,7 @@ export default function DriverRouteView({ manageMode = false }) {
               </div>
               <div className="admin-trip-list-inner">
                 {plannedTrips.length === 0 && <div className="driver-empty-row">Brak planowanych tras</div>}
-                {plannedTrips.map(t => renderTripRow(t, false))}
+                {plannedTrips.map(t => renderTripRow(t))}
               </div>
             </div>
 
@@ -938,7 +982,7 @@ export default function DriverRouteView({ manageMode = false }) {
               </div>
               <div className="admin-trip-list-inner">
                 {finTrips.length === 0 && <div className="driver-empty-row">Brak skończonych tras</div>}
-                {finTrips.map(t => renderTripRow(t, false))}
+                {finTrips.map(t => renderTripRow(t))}
               </div>
             </div>
           </div>
@@ -963,7 +1007,7 @@ export default function DriverRouteView({ manageMode = false }) {
           </div>
           <div className="driver-trip-list">
             {historyTrips.length === 0 && <div className="driver-empty-row">Brak zakończonych tras</div>}
-            {historyTrips.map(t => renderTripRow(t, false))}
+            {historyTrips.map(t => renderTripRow(t))}
           </div>
         </section>
       </div>
