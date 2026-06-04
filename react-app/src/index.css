@@ -1184,12 +1184,15 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   .driver-trip-actions {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .driver-tool-btn,
   .driver-end-btn {
     width: 100%;
     padding: 10px 8px;
+  }
+  .driver-next-trip-btn {
+    grid-column: 1 / -1;
   }
   .driver-section-toolbar {
     margin-top: 2px;
@@ -3804,4 +3807,3 @@ select.ap-input {
 }
 .route-alert.warn { background: rgba(255,149,0,0.09); color: #B45309; border-color: rgba(255,149,0,0.25); }
 .route-alert.info { background: var(--accent-light); color: var(--accent); border-color: rgba(0,122,255,0.2); }
-

@@ -307,6 +307,19 @@ export default function DriverRouteView({ manageMode = false }) {
     return Number.isFinite(n) && n > 0 ? n : 1;
   };
 
+  const stopPickedByCurrentUser = (stop) =>
+    (stop?.entries?.length || 0) > 0 && stop.entries.every(e => e.done && e.picked_by === user?.name);
+
+  const stopDeliveredByCurrentUser = (stop) =>
+    (stop?.entries?.length || 0) > 0 && stop.entries.every(e => e.delivered && e.delivered_by === user?.name);
+
+  const actionOwnerLabel = (stop, field) => {
+    const names = [...new Set((stop?.entries || []).map(e => e[field]).filter(Boolean))];
+    if (names.length === 0) return 'inny kierowca';
+    if (names.length === 1) return names[0];
+    return names.join(', ');
+  };
+
   const tripIncludesEntry = (sourceTrip, entry) => {
     const routeIds = parseRouteIds(sourceTrip?.routes);
     let extras = [];
@@ -480,10 +493,13 @@ export default function DriverRouteView({ manageMode = false }) {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
       const basketCount = Math.max(0, Number(baskets) || 1);
-      const { error } = await supabase.from('entries')
+      const { data, error } = await supabase.from('entries')
         .update({ done: true, picked_by: user.name, picked_at: new Date().toISOString(), picked_baskets: basketCount })
-        .in('id', ids);
+        .in('id', ids)
+        .eq('done', false)
+        .select('id');
       if (error) throw error;
+      if ((data || []).length !== ids.length) throw new Error('Ten punkt jest już odebrany przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór z pralni, ${Number(sumWeight(stop.entries).toFixed(1))} kg, ${trolleyLabel(basketCount)}` });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -492,13 +508,21 @@ export default function DriverRouteView({ manageMode = false }) {
 
   // 2) Dostawa do klienta
   const markDelivered = async (stop) => {
+    if (!stopPickedByCurrentUser(stop)) {
+      toastError(`Dostarczyć może tylko kierowca, który odebrał pranie z pralni (${actionOwnerLabel(stop, 'picked_by')})`);
+      return;
+    }
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { error } = await supabase.from('entries')
+      const { data, error } = await supabase.from('entries')
         .update({ delivered: true, delivered_by: user.name, delivered_at: new Date().toISOString() })
-        .in('id', ids);
+        .in('id', ids)
+        .eq('picked_by', user.name)
+        .eq('done', true)
+        .select('id');
       if (error) throw error;
+      if ((data || []).length !== ids.length) throw new Error('Nie można dostarczyć prania odebranego przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta` });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -507,12 +531,20 @@ export default function DriverRouteView({ manageMode = false }) {
 
   // Cofnij dostawę (np. klienta nie było, pranie wraca na pralnię)
   const undoDelivered = async (stop) => {
+    if (!stopDeliveredByCurrentUser(stop)) {
+      toastError(`Cofnąć dostawę może tylko kierowca, który ją oznaczył (${actionOwnerLabel(stop, 'delivered_by')})`);
+      return;
+    }
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { error } = await supabase.from('entries')
-        .update({ delivered: false, delivered_by: null, delivered_at: null }).in('id', ids);
+      const { data, error } = await supabase.from('entries')
+        .update({ delivered: false, delivered_by: null, delivered_at: null })
+        .in('id', ids)
+        .eq('delivered_by', user.name)
+        .select('id');
       if (error) throw error;
+      if ((data || []).length !== ids.length) throw new Error('Nie można cofnąć dostawy oznaczonej przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto dostawę' });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -522,12 +554,20 @@ export default function DriverRouteView({ manageMode = false }) {
   // Cofnij odbiór z pralni — dozwolone dopiero gdy dostawa jest cofnięta
   const undoPralnia = async (stop) => {
     if (stop.entries.some(e => e.delivered)) { toastError('Najpierw cofnij dostawę'); return; }
+    if (!stopPickedByCurrentUser(stop)) {
+      toastError(`Cofnąć odbiór może tylko kierowca, który odebrał pranie (${actionOwnerLabel(stop, 'picked_by')})`);
+      return;
+    }
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { error } = await supabase.from('entries')
-        .update({ done: false, picked_by: null, picked_at: null, picked_baskets: null }).in('id', ids);
+      const { data, error } = await supabase.from('entries')
+        .update({ done: false, picked_by: null, picked_at: null, picked_baskets: null })
+        .in('id', ids)
+        .eq('picked_by', user.name)
+        .select('id');
       if (error) throw error;
+      if ((data || []).length !== ids.length) throw new Error('Nie można cofnąć odbioru oznaczonego przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto odbiór z pralni' });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -1438,7 +1478,7 @@ export default function DriverRouteView({ manageMode = false }) {
             <button className="driver-tool-btn" onClick={() => setRouteView('history')}>Historia tras</button>
             {trip.status === 'finished' && <button className="driver-tool-btn" onClick={() => printCard(trip)}>🖨 Pobierz kartę</button>}
             {trip.status === 'finished' && (
-              <button className="driver-end-btn" style={{ background: 'var(--accent)' }} onClick={() => { setTrip(null); setPlannedTrip(null); setSelectedRoutes(parseRouteIds(user?.routes)); setSelectedCar(defaultCar || VEHICLES[0].key); }}>▶ Rozpocznij kolejną trasę</button>
+              <button className="driver-end-btn driver-next-trip-btn" style={{ background: 'var(--accent)' }} onClick={() => { setTrip(null); setPlannedTrip(null); setSelectedRoutes(parseRouteIds(user?.routes)); setSelectedCar(defaultCar || VEHICLES[0].key); }}>▶ Rozpocznij kolejną trasę</button>
             )}
             {trip.status === 'active' && <button className="driver-end-btn" onClick={() => { setEndOpen(true); setEndKm(''); }}>■ Zakończ</button>}
           </div>
@@ -1464,6 +1504,10 @@ export default function DriverRouteView({ manageMode = false }) {
               const hasPickupEntries = pickupEntries.length > 0;
               const pralniaDone = hasPickupEntries && pickupEntries.every(e => e.done);
               const deliveredDone = hasPickupEntries && pickupEntries.every(e => e.delivered);
+              const pickedByMe = stopPickedByCurrentUser(stop);
+              const deliveredByMe = stopDeliveredByCurrentUser(stop);
+              const pickupOwner = actionOwnerLabel(stop, 'picked_by');
+              const deliveryOwner = actionOwnerLabel(stop, 'delivered_by');
               const kg = Number(sumWeight(pickupEntries).toFixed(1));
               const formOpen = false; // AddEntryModal zastąpił inline formularz
               // Przyjazdy brudnego dodane dziś dla tego klienta
@@ -1519,10 +1563,15 @@ export default function DriverRouteView({ manageMode = false }) {
                         quantityValue={draftVal(stop.key, 'pickedBaskets', 1)}
                         onQuantityChange={value => setDraftVal(stop.key, 'pickedBaskets', value)}
                         onClick={() => markPralnia(stop, draftVal(stop.key, 'pickedBaskets', 1))}
-                        onUndo={() => undoPralnia(stop)} undoDisabled={deliveredDone} undoHint="Najpierw cofnij dostawę" />
+                        onUndo={() => undoPralnia(stop)}
+                        undoDisabled={deliveredDone || !pickedByMe}
+                        undoHint={deliveredDone ? 'Najpierw cofnij dostawę' : `Odbiór oznaczył: ${pickupOwner}`} />
                       <ActionRow icon="📦" label="Dostarczono" tone="delivered" done={deliveredDone} at={pickupEntries[0]?.delivered_at} btnLabel="Dostarczono"
                         onClick={() => markDelivered(stop)} onUndo={() => undoDelivered(stop)}
-                        actionDisabled={!pralniaDone} actionHint="Najpierw odbierz pranie z pralni" />
+                        undoDisabled={!deliveredByMe}
+                        undoHint={`Dostawę oznaczył: ${deliveryOwner}`}
+                        actionDisabled={!pralniaDone || !pickedByMe}
+                        actionHint={!pralniaDone ? 'Najpierw odbierz pranie z pralni' : `Dostarczyć może: ${pickupOwner}`} />
                     </>
                   )}
 
