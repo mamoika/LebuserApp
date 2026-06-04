@@ -615,6 +615,7 @@ function LogsSection() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -625,7 +626,8 @@ function LogsSection() {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
-      .then(({ data, count }) => {
+      .then(({ data, count, error }) => {
+        setError(error ? error.message : null);
         setLogs(data || []);
         if (typeof count === 'number') setTotal(count);
         setLoading(false);
@@ -641,6 +643,7 @@ function LogsSection() {
   };
 
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie logów…</div>;
+  if (error) return <div style={{ color: 'var(--accent-red)', fontSize: '13px', padding: '12px 0' }}>Błąd wczytywania logów: {error}</div>;
   if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Brak logów</div>;
 
   return (

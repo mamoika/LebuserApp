@@ -5,6 +5,25 @@ import { useAppData } from '../hooks/useAppData';
 import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 
 const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
+const FULL_DAYS = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+
+// Data dostawy = poniedziałek tygodnia (week_key) + (arr_day - 1)
+function parseMonday(weekKey) {
+  const [y, m, d] = weekKey.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function deliveryDate(e) {
+  if (!e.week_key) return null;
+  const dt = parseMonday(e.week_key);
+  dt.setDate(dt.getDate() + ((e.arr_day || 1) - 1));
+  return dt;
+}
+function fullDayName(date) {
+  return FULL_DAYS[(date.getDay() + 6) % 7];
+}
+function formatDayDate(date) {
+  return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+}
 
 const LOG_ACTION_LABELS = {
   added:   { label: 'Dodano',    color: '#34C759' },
@@ -89,7 +108,7 @@ export default function HistoryView() {
   const [filterDriver, setFilterDriver] = useState('');
   const [filterDone, setFilterDone] = useState(''); // '' | 'done' | 'pending'
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 7; // dni na stronę
 
   useEffect(() => {
     const fetchEntries = async () => {
@@ -127,10 +146,21 @@ export default function HistoryView() {
     return true;
   });
 
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  // Grupowanie po dniu dostawy (jak w harmonogramie), najnowsze dni u góry
+  const groupsMap = new Map();
+  filtered.forEach(e => {
+    const dt = deliveryDate(e);
+    const key = dt ? `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}` : 'none';
+    if (!groupsMap.has(key)) groupsMap.set(key, { key, date: dt, entries: [] });
+    groupsMap.get(key).entries.push(e);
+  });
+  const dayGroups = [...groupsMap.values()].sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+
+  const totalPages = Math.ceil(dayGroups.length / PAGE_SIZE);
+  const pagedGroups = dayGroups.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const routeMap = Object.fromEntries(rawData.allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
+  const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; })();
 
   if (loading) return <div className="loader">Ładowanie historii…</div>;
   if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
@@ -192,17 +222,49 @@ export default function HistoryView() {
       </div>
 
       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '10px' }}>
-        {filtered.length} wpisów {filtered.length !== entries.length ? `(z ${entries.length})` : ''}
+        {filtered.length} wpisów {filtered.length !== entries.length ? `(z ${entries.length})` : ''} · {dayGroups.length} dni
       </div>
 
-      {/* Lista */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {paginated.length === 0 && (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
-            Brak wpisów
-          </div>
-        )}
-        {paginated.map(e => {
+      {pagedGroups.length === 0 && (
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
+          Brak wpisów
+        </div>
+      )}
+
+      {/* Historia w stylu harmonogramu — sekcje po dniach dostawy */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {pagedGroups.map(group => {
+          const isToday = group.key === todayKey;
+          const dayWeight = group.entries.reduce((s, e) => s + (parseFloat(e.weight) || 0), 0);
+          return (
+            <div key={group.key}>
+              {/* Nagłówek dnia */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', marginBottom: '8px',
+                background: isToday ? 'rgba(0,122,255,0.10)' : 'var(--bg-card)',
+                border: `1px solid ${isToday ? 'rgba(0,122,255,0.35)' : 'var(--border)'}`,
+                borderRadius: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '14px' }}>
+                    {group.date ? fullDayName(group.date) : 'Bez daty'}
+                  </span>
+                  {group.date && (
+                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{formatDayDate(group.date)}</span>
+                  )}
+                  {isToday && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#007AFF', background: 'rgba(0,122,255,0.12)', padding: '2px 7px', borderRadius: '6px' }}>Dziś</span>
+                  )}
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {group.entries.length} {group.entries.length === 1 ? 'wpis' : 'wpisów'}{dayWeight > 0 ? ` · ${Number(dayWeight.toFixed(1))} kg` : ''}
+                </span>
+              </div>
+
+              {/* Wpisy danego dnia */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {group.entries.map(e => {
           const routeInfo = routeMap[e.route_id];
           const arrDay = DAY_NAMES[e.arr_day - 1] || '?';
           const pickDay = DAY_NAMES[e.pick_day - 1] || '?';
@@ -266,10 +328,14 @@ export default function HistoryView() {
               <EntryChangeLog entryId={e.id} />
             </div>
           );
+                })}
+              </div>
+            </div>
+          );
         })}
       </div>
 
-      {/* Paginacja */}
+      {/* Paginacja po dniach */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '20px', alignItems: 'center' }}>
           <button
