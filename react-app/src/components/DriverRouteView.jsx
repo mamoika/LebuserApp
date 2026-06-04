@@ -582,7 +582,7 @@ export default function DriverRouteView({ manageMode = false }) {
       trolleys: 1,
       urgent: false,
       driverId: '',
-      car: VEHICLES[0].key,
+      car: '',
     });
     setPlanPickupOpen(true);
   };
@@ -644,7 +644,7 @@ export default function DriverRouteView({ manageMode = false }) {
           driver_id: driver?.id || null,
           driver_name: driver?.name || null,
           trip_date: d.dirtyDate,
-          car: d.car || VEHICLES[0].key,
+          car: d.car || '',
           routes: String(routeId),
           status: 'planned',
           extra_clients: JSON.stringify([d.clientName]),
@@ -1461,7 +1461,8 @@ export default function DriverRouteView({ manageMode = false }) {
               </div>
               <div>
                 <label style={pfLabel}>Auto</label>
-                <select className="ap-input" value={d.car || VEHICLES[0].key} onChange={e => setPlanField('car', e.target.value)}>
+                <select className="ap-input" value={d.car || ''} onChange={e => setPlanField('car', e.target.value)}>
+                  <option value="">Brak przypisania</option>
                   {VEHICLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
                 </select>
               </div>
@@ -1484,7 +1485,7 @@ export default function DriverRouteView({ manageMode = false }) {
               lineHeight: 1.4,
             }}>
               {existingTrip
-                ? `Zostanie dopięte do istniejącej trasy: ${existingTrip.driver_name || 'bez kierowcy'} · ${VEHICLE_LABELS[existingTrip.car] || existingTrip.car}`
+                ? `Zostanie dopięte do istniejącej trasy: ${existingTrip.driver_name || 'bez kierowcy'} · ${existingTrip.car ? (VEHICLE_LABELS[existingTrip.car] || existingTrip.car) : 'bez auta'}`
                 : 'Powstanie nowa trasa planowana na wybrany dzień.'}
             </div>
 
