@@ -449,8 +449,13 @@ export default function DriverRouteView() {
       {/* PRZYSTANKI */}
       {trip && (
         <>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-            Przystanki dziś ({stops.length})
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Przystanki dziś ({stops.length})
+            </div>
+            <button onClick={() => setAddEntryFor('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, fontSize: '13px', cursor: 'pointer', padding: '4px' }}>
+              ➕ Dodaj przejazd
+            </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {stops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
@@ -631,6 +636,14 @@ export default function DriverRouteView() {
               )}
             </div>
           )}
+
+          <div style={{ marginTop: '16px' }}>
+            <button onClick={() => setAddEntryFor('')} style={{
+              width: '100%', padding: '12px', borderRadius: '12px', cursor: 'pointer',
+              border: 'none', background: 'var(--accent)',
+              color: '#fff', fontWeight: 700, fontSize: '14px',
+            }}>➕ Dodaj przejazd</button>
+          </div>
         </>
       )}
 

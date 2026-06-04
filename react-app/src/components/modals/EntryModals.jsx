@@ -128,6 +128,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
   useEffect(() => {
     if (!isOpen) return;
+    if (defaultClientName) return; // Blokada dla pre-wybranego klienta
     const nextClient = firstClientByRouteOrder(selectableClients, routes);
     if (!selectableClients.some(c => c.name === clientName)) {
       setClientName(nextClient?.name || '');
@@ -135,7 +136,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setPickDay(pd);
       setPickWeek(pw);
     }
-  }, [isOpen, showOtherRoutes, selectableClients, routes, clients, clientName, arrDay]);
+  }, [isOpen, showOtherRoutes, selectableClients, routes, clients, clientName, arrDay, defaultClientName]);
 
   if (!isOpen) return null;
 
@@ -192,49 +193,57 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           </div>
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
-          <select
-            className="ap-input"
-            style={{ padding: '12px 14px', marginBottom: '12px' }}
-            value={clientName}
-            onChange={e => {
-              setClientName(e.target.value);
-              const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, e.target.value));
-              setPickDay(pd);
-              setPickWeek(pw);
-            }}
-          >
-            {routes
-              .filter(r => selectableClients.some(c => c.route_id === r.id))
-              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-              .map(r => (
-                <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? ' · twoja trasa' : ''}`}>
-                  {selectableClients
-                    .filter(c => c.route_id === r.id)
-                    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                    .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </optgroup>
-              ))}
-          </select>
-          {canToggleOtherRoutes && (
-            <button
-              type="button"
-              onClick={() => setShowOtherRoutes(v => !v)}
-              style={{
-                width: '100%',
-                border: '1px solid rgba(0,122,255,0.22)',
-                background: showOtherRoutes ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.06)',
-                color: 'var(--accent)',
-                borderRadius: '12px',
-                padding: '10px 12px',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: '-4px',
-                marginBottom: '12px',
-              }}
-            >
-              {showOtherRoutes ? 'Wróć do moich tras' : 'Dodaj klienta z innej trasy'}
-            </button>
+          {defaultClientName ? (
+            <div className="ap-input" style={{ padding: '12px 14px', marginBottom: '12px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600, border: '1px solid var(--border)', borderRadius: '12px' }}>
+              {clientName}
+            </div>
+          ) : (
+            <>
+              <select
+                className="ap-input"
+                style={{ padding: '12px 14px', marginBottom: '12px' }}
+                value={clientName}
+                onChange={e => {
+                  setClientName(e.target.value);
+                  const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, e.target.value));
+                  setPickDay(pd);
+                  setPickWeek(pw);
+                }}
+              >
+                {routes
+                  .filter(r => selectableClients.some(c => c.route_id === r.id))
+                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                  .map(r => (
+                    <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? ' · twoja trasa' : ''}`}>
+                      {selectableClients
+                        .filter(c => c.route_id === r.id)
+                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                  ))}
+              </select>
+              {canToggleOtherRoutes && (
+                <button
+                  type="button"
+                  onClick={() => setShowOtherRoutes(v => !v)}
+                  style={{
+                    width: '100%',
+                    border: '1px solid rgba(0,122,255,0.22)',
+                    background: showOtherRoutes ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.06)',
+                    color: 'var(--accent)',
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    marginTop: '-4px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  {showOtherRoutes ? 'Wróć do moich tras' : 'Dodaj klienta z innej trasy'}
+                </button>
+              )}
+            </>
           )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
