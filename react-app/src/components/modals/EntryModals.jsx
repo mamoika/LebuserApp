@@ -158,7 +158,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         pickWeekKey = nextWeekKey(weekKey);
       }
 
-      const newEntryId = 'ID_' + new Date().getTime();
+      // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
+      // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
+      const newEntryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       const { error } = await supabase.from('entries').insert([{
         id: newEntryId,
         week_key: weekKey,

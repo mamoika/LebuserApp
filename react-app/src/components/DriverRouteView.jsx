@@ -285,15 +285,22 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const getTripStats = (sourceTrip) => {
     const tripStops = getTripStops(sourceTrip);
-    const flat = tripStops.flatMap(s => s.entries);
-    const dirtyEntries = getTripDirtyEntries(sourceTrip);
+    // Flow 1 — DOSTAWA CZYSTEGO: tylko przystanki z odbiorem czystego z pralni.
+    // Postęp trasy liczymy WYŁĄCZNIE z tych punktów ("zawiezione czyste").
+    const deliveryStops = tripStops.filter(s => s.entries.length > 0);
+    const flat = deliveryStops.flatMap(s => s.entries);
+    // Flow 2 — ODBIÓR BRUDNEGO: niezależny. Klient może mieć brudne bez dostawy,
+    // brudne może być "z poza trasy" — liczy się do roboty kierowcy, który je dodał.
+    const dirtyFlat = tripStops.flatMap(s => s.dirtyEntries || []);
     return {
-      stops: tripStops.length,
-      picked: tripStops.filter(s => s.entries.length > 0 && s.entries.every(e => e.done)).length,
-      delivered: tripStops.filter(s => s.entries.length > 0 && s.entries.every(e => e.delivered)).length,
+      stops: deliveryStops.length,
+      picked: deliveryStops.filter(s => s.entries.every(e => e.done)).length,
+      delivered: deliveryStops.filter(s => s.entries.every(e => e.delivered)).length,
       kg: Number(sumWeight(flat).toFixed(1)),
-      cleanTrolleys: tripStops.reduce((sum, s) => s.entries.length > 0 && s.entries.every(e => e.done) ? sum + getPickedBaskets(s) : sum, 0),
-      dirtyTrolleys: dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0),
+      cleanTrolleys: deliveryStops.reduce((sum, s) => s.entries.every(e => e.done) ? sum + getPickedBaskets(s) : sum, 0),
+      dirtyStops: tripStops.filter(s => (s.dirtyEntries?.length || 0) > 0).length,
+      dirtyPickups: dirtyFlat.length,
+      dirtyTrolleys: dirtyFlat.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0),
     };
   };
 
@@ -685,6 +692,30 @@ export default function DriverRouteView({ manageMode = false }) {
     );
   };
 
+  // Dwa rozdzielone flow: dostawa czystego (postęp trasy) + odbiór brudnego (osobno).
+  const TripMetrics = ({ stats }) => (
+    <div className="trip-metric-groups">
+      <div className="trip-metric-group">
+        <div className="trip-metric-grouplabel">📦 Dostawa czystego</div>
+        <div className="trip-card-metrics">
+          <Metric value={`${stats.delivered}/${stats.stops}`} label="dostarczone" tone="delivered" />
+          <Metric value={`${stats.picked}/${stats.stops}`} label="z pralni" tone="picked" />
+          <Metric value={stats.kg || 0} label="kg" />
+          <Metric value={stats.cleanTrolleys} label="wózki" />
+        </div>
+      </div>
+      {(stats.dirtyStops > 0 || stats.dirtyTrolleys > 0) && (
+        <div className="trip-metric-group">
+          <div className="trip-metric-grouplabel">🧺 Odbiór brudnego</div>
+          <div className="trip-card-metrics">
+            <Metric value={stats.dirtyStops} label="punkty" tone="dirty" />
+            <Metric value={stats.dirtyTrolleys} label="wózki" tone="dirty" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const renderTripRow = (t) => {
     const stats = getTripStats(t);
     const kmApproval = tripKmApproval(t);
@@ -721,13 +752,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
         <TripProgress stats={stats} />
 
-        <div className="trip-card-metrics">
-          <Metric value={`${stats.delivered}/${stats.stops}`} label="dostarczone" tone="delivered" />
-          <Metric value={`${stats.picked}/${stats.stops}`} label="odebrane" tone="picked" />
-          <Metric value={stats.kg || 0} label="kg" />
-          <Metric value={stats.cleanTrolleys} label="czyste wózki" />
-          <Metric value={stats.dirtyTrolleys} label="brudne wózki" />
-        </div>
+        <TripMetrics stats={stats} />
 
         {showFoot && (
           <div className="trip-card-foot">
@@ -771,13 +796,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
         <div style={{ margin: '4px 0 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <TripProgress stats={stats} />
-          <div className="trip-card-metrics">
-            <Metric value={`${stats.delivered}/${stats.stops}`} label="dostarczone" tone="delivered" />
-            <Metric value={`${stats.picked}/${stats.stops}`} label="odebrane" tone="picked" />
-            <Metric value={stats.kg || 0} label="kg" />
-            <Metric value={stats.cleanTrolleys} label="czyste wózki" />
-            <Metric value={stats.dirtyTrolleys} label="brudne wózki" />
-          </div>
+          <TripMetrics stats={stats} />
         </div>
 
         <div className="driver-stops-list">
@@ -859,39 +878,56 @@ export default function DriverRouteView({ manageMode = false }) {
         return true;
       });
 
-      // Wirtualne planowane trasy z dzisiejszego dnia
-      const todayRoutes = new Set();
+      // Okno planowania: dziś + kolejne dni robocze (Pn–Pt) do ~2 tygodni w przód.
+      const horizonSet = new Set();
+      for (let i = 0; i < 14; i++) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + i);
+        const wd = (d.getDay() + 6) % 7 + 1; // Pn=1 … Nd=7
+        if (wd <= 5) horizonSet.add(ymd(d));
+      }
+
+      // (data → zbiór tras mających tego dnia robotę: czyste LUB brudne)
+      const plannedByDate = new Map();
       entries.forEach(e => {
-        if (pickupDateStr(e) === today || arrivalDateStr(e) === today) {
-          if (e.route_id) todayRoutes.add(e.route_id);
-        }
+        if (!e.route_id) return;
+        [pickupDateStr(e), arrivalDateStr(e)].forEach(ds => {
+          if (!ds || !horizonSet.has(ds)) return;
+          if (!plannedByDate.has(ds)) plannedByDate.set(ds, new Set());
+          plannedByDate.get(ds).add(e.route_id);
+        });
       });
-      const activeRoutesToday = new Set();
+
+      // (data → zbiór tras już obsłużonych realną trasą tego dnia)
+      const coveredByDate = new Map();
       allTrips.forEach(t => {
-        if (t.trip_date === today && t.status !== 'planned') {
-          parseRouteIds(t.routes).forEach(id => activeRoutesToday.add(id));
-        }
+        if (t.status === 'planned' || !t.trip_date) return;
+        if (!coveredByDate.has(t.trip_date)) coveredByDate.set(t.trip_date, new Set());
+        parseRouteIds(t.routes).forEach(id => coveredByDate.get(t.trip_date).add(id));
       });
-      
+
       const virtualPlannedTrips = [];
-      todayRoutes.forEach(rId => {
-        if (!activeRoutesToday.has(rId)) {
+      [...plannedByDate.keys()].sort().forEach(ds => {
+        const covered = coveredByDate.get(ds) || new Set();
+        [...plannedByDate.get(ds)].sort((a, b) => a - b).forEach(rId => {
+          if (covered.has(rId)) return;
           virtualPlannedTrips.push({
-            id: 'virtual_' + rId,
+            id: `virtual_${ds}_${rId}`,
             status: 'planned',
-            trip_date: today,
+            trip_date: ds,
             driver_name: 'Brak przypisania',
             car: null,
             routes: String(rId),
-            isVirtual: true
+            isVirtual: true,
           });
-        }
+        });
       });
 
       const filteredVirtual = virtualPlannedTrips.filter(t => {
         if (filterDriver && filterDriver !== 'Brak przypisania') return false;
         if (filterCar) return false;
-        if (filterRoute && String(filterRoute) !== String(t.routes)) return false;
+        if (filterRoute && !parseRouteIds(t.routes).has(Number(filterRoute))) return false;
         return true;
       });
 

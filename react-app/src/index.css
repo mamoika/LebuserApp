@@ -3765,6 +3765,9 @@ select.ap-input {
 .trip-progress-picked { background: rgba(52,199,89,0.4); }
 .trip-progress-delivered { background: #34C759; }
 
+.trip-metric-groups { display: flex; flex-direction: column; gap: 8px; }
+.trip-metric-group { display: flex; flex-direction: column; gap: 5px; }
+.trip-metric-grouplabel { font-size: 10px; font-weight: 750; color: var(--text-tertiary); letter-spacing: .2px; }
 .trip-card-metrics { display: flex; flex-wrap: wrap; gap: 6px; }
 .trip-metric {
   flex: 1 1 auto; min-width: 56px;
@@ -3776,6 +3779,8 @@ select.ap-input {
 .trip-metric-label { font-size: 9px; font-weight: 650; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .2px; }
 .trip-metric.tone-delivered .trip-metric-val { color: #34C759; }
 .trip-metric.tone-picked .trip-metric-val { color: var(--accent); }
+.trip-metric.tone-dirty { background: rgba(255,149,0,0.07); border-color: rgba(255,149,0,0.22); }
+.trip-metric.tone-dirty .trip-metric-val { color: #C2410C; }
 
 .trip-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 2px; }
 .trip-km { font-size: 11px; font-weight: 700; color: var(--text-tertiary); }
