@@ -4,11 +4,12 @@ import { useAuth } from '../context/AuthContext';
 export default function Navigation() {
   const { isAdmin, canEdit } = useAuth();
 
-  const navItems = [
-    { to: '/', icon: '📅', label: 'Harmonogram' },
-  ];
+  const navItems = [];
 
+  // Dla kierowców: Moja trasa jest pierwsza
   if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: 'Moja trasa' });
+
+  navItems.push({ to: '/', icon: '📅', label: 'Harmonogram' });
 
   navItems.push(
     { to: '/clients', icon: '🗂', label: 'Klienci i Trasy' },

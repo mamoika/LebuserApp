@@ -76,7 +76,7 @@ function pickupDateOptions() {
 
 export default function DriverRouteView() {
   const { user } = useAuth();
-  const { entries, allRoutes, loading, refetch } = useAppData();
+  const { entries, allRoutes, clients, loading, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
   const [tripLoading, setTripLoading] = useState(true);
@@ -89,6 +89,7 @@ export default function DriverRouteView() {
   const [addOpen, setAddOpen] = useState(false);
   const [pf, setPf] = useState(null); // formularz przyjazdu brudnego (lub null)
   const [draft, setDraft] = useState({}); // { clientKey: { note } }
+  const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
 
   const today = ymd(new Date());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
@@ -133,8 +134,14 @@ export default function DriverRouteView() {
     if (!stopsMap.has(key)) stopsMap.set(key, { key, client_name: e.client_name, route_id: e.route_id, entries: [] });
     stopsMap.get(key).entries.push(e);
   });
-  const stops = [...stopsMap.values()].sort((a, b) =>
-    (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
+  const driverRouteIds = parseRouteIds(user?.routes);
+  const stops = [...stopsMap.values()].sort((a, b) => {
+    // Trasy kierowcy zawsze pierwsze
+    const aOwn = driverRouteIds.has(a.route_id) ? 0 : 1;
+    const bOwn = driverRouteIds.has(b.route_id) ? 0 : 1;
+    if (aOwn !== bOwn) return aOwn - bOwn;
+    return (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl');
+  });
 
   // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście
   const shownClients = new Set(stops.map(s => s.client_name));
@@ -298,6 +305,21 @@ export default function DriverRouteView() {
     const ids = stop.entries.map(e => e.id);
     if (ids.length === 0) return;
     await supabase.from('entries').update({ driver_note: noteVal || null }).in('id', ids);
+  };
+
+  // Notatka klienta — wspólna (clients.note), widoczna w harmonogramie i na trasie
+  const saveClientNote = async (clientName, val) => {
+    const { error } = await supabase.from('clients').update({ note: val || null }).eq('name', clientName);
+    if (error) { toastError('Błąd zapisu notatki: ' + error.message); return; }
+    await refetch();
+  };
+  const toggleNoteEdit = (clientName, currentNote) => {
+    setNoteEdit(prev => {
+      if (clientName in prev) {
+        const next = { ...prev }; delete next[clientName]; return next;
+      }
+      return { ...prev, [clientName]: currentNote || '' };
+    });
   };
 
   const endTrip = async () => {
@@ -480,12 +502,46 @@ export default function DriverRouteView() {
               const formOpen = pf?.stopKey === stop.key && !pf?.editId;
               // Przyjazdy brudnego dodane dziś dla tego klienta
               const todayArrivals = entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
+              // Notatka klienta (wspólna)
+              const clientObj = clients.find(c => c.name === stop.client_name);
+              const clientNote = clientObj?.note || '';
+              const isNoteEditing = stop.client_name in noteEdit;
               return (
                 <div key={stop.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <RouteBadge id={stop.route_id} />
-                    <span style={{ fontWeight: 700, fontSize: '15px', flex: 1 }}>{stop.client_name}</span>
-                    {kg > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '3px 8px', borderRadius: '6px' }}>{kg} kg</span>}
+                  {/* Nagłówek klienta */}
+                  <div style={{ marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <RouteBadge id={stop.route_id} />
+                      <span style={{ fontWeight: 700, fontSize: '15px', flex: 1 }}>{stop.client_name}</span>
+                      {/* Przycisk notatki */}
+                      <button
+                        onClick={() => toggleNoteEdit(stop.client_name, clientNote)}
+                        title={clientNote ? 'Edytuj komentarz' : 'Dodaj komentarz'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', opacity: clientNote || isNoteEditing ? 1 : 0.35, padding: '2px 4px', lineHeight: 1 }}
+                      >💬</button>
+                      {kg > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '3px 8px', borderRadius: '6px' }}>{kg} kg</span>}
+                    </div>
+                    {/* Tekst notatki — zawsze widoczny jeśli istnieje */}
+                    {clientNote && !isNoteEditing && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', paddingLeft: '24px', marginTop: '3px', lineHeight: 1.4, fontStyle: 'italic' }}>
+                        {clientNote}
+                      </div>
+                    )}
+                    {/* Edytor notatki inline */}
+                    {isNoteEditing && (
+                      <textarea
+                        autoFocus
+                        rows={2}
+                        value={noteEdit[stop.client_name]}
+                        onChange={e => setNoteEdit(prev => ({ ...prev, [stop.client_name]: e.target.value }))}
+                        onBlur={async (e) => {
+                          await saveClientNote(stop.client_name, e.target.value);
+                          setNoteEdit(prev => { const next = { ...prev }; delete next[stop.client_name]; return next; });
+                        }}
+                        placeholder="Komentarz do klienta (widoczny wszędzie)…"
+                        style={{ width: '100%', marginTop: '6px', padding: '7px 10px', borderRadius: '9px', border: '1px solid var(--accent)', fontSize: '12px', resize: 'none', fontFamily: 'var(--font)', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    )}
                   </div>
 
                   <ActionRow icon="🏭" label="Odbiór z pralni" color="#AF52DE" done={pralniaDone} at={stop.entries[0]?.picked_at} btnLabel="Odebrano z pralni"
@@ -633,13 +689,7 @@ export default function DriverRouteView() {
                     )}
                   </div>
 
-                  <input
-                    type="text" placeholder="Uwagi do przystanku…"
-                    value={draftVal(stop.key, 'note', stop.entries[0]?.driver_note)}
-                    onChange={e => setDraftVal(stop.key, 'note', e.target.value)}
-                    onBlur={() => saveNote(stop)}
-                    style={{ width: '100%', marginTop: '8px', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border)', fontSize: '12px' }}
-                  />
+
                 </div>
               );
             })}
