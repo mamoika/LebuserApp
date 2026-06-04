@@ -256,15 +256,23 @@ export default function DriverRouteView({ manageMode = false }) {
     return (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl');
   });
 
-  // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście
+  // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście.
+  // Wzbogacamy o kg i typ (P/O), żeby kierowca widział to samo co na przystanku.
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
     if (pickupDateStr(e) === today && !shownClients.has(e.client_name)) {
-      if (!candMap.has(e.client_name)) candMap.set(e.client_name, e.route_id);
+      if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
+      candMap.get(e.client_name).entries.push(e);
     }
   });
-  const candidates = [...candMap.entries()].map(([client_name, route_id]) => ({ client_name, route_id }));
+  const candidates = [...candMap.entries()].map(([client_name, v]) => ({
+    client_name,
+    route_id: v.route_id,
+    kg: Number(sumWeight(v.entries).toFixed(1)),
+    hasP: v.entries.some(e => (e.type || 'P') === 'P'),
+    hasO: v.entries.some(e => e.type === 'O'),
+  }));
 
   const getTripStops = (sourceTrip) => {
     if (!sourceTrip) return [];
@@ -912,9 +920,16 @@ export default function DriverRouteView({ manageMode = false }) {
     entries.forEach(e => {
       if (!e.client_name || !e.route_id || onTrip.has(e.client_name)) return;
       if (pickupDateStr(e) !== t.trip_date && arrivalDateStr(e) !== t.trip_date) return;
-      if (!candMap.has(e.client_name)) candMap.set(e.client_name, e.route_id);
+      if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
+      candMap.get(e.client_name).entries.push(e);
     });
-    const addCandidates = [...candMap.entries()].map(([client_name, route_id]) => ({ client_name, route_id }));
+    const addCandidates = [...candMap.entries()].map(([client_name, v]) => ({
+      client_name,
+      route_id: v.route_id,
+      kg: Number(sumWeight(v.entries).toFixed(1)),
+      hasP: v.entries.some(e => (e.type || 'P') === 'P'),
+      hasO: v.entries.some(e => e.type === 'O'),
+    }));
     const canAddStop = isAdmin && t.status === 'active' && !t.isVirtual;
     return (
       <div className="admin-dashboard-shell">
@@ -960,7 +975,13 @@ export default function DriverRouteView({ manageMode = false }) {
                     border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '13px', fontWeight: 600,
                   }}>
                     <RouteBadge id={c.route_id} />
-                    {c.client_name}
+                    <span style={{ flex: 1 }}>{c.client_name}</span>
+                    {(c.hasP || c.hasO) && (
+                      <span className={`laundry-type-badge ${c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
+                        {c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
+                      </span>
+                    )}
+                    {c.kg > 0 && <span className="kg-badge">{c.kg} kg</span>}
                   </button>
                 ))}
               </div>
@@ -1432,7 +1453,7 @@ export default function DriverRouteView({ manageMode = false }) {
               Przystanki dziś ({stops.length})
             </div>
             {trip.status === 'active' && <button className="driver-link-btn" onClick={() => setAddEntryFor('')}>
-              ➕ Dodaj przejazd
+              🧺 Dodaj brudne
             </button>}
           </div>
           <div className="driver-stops-list">
@@ -1558,36 +1579,53 @@ export default function DriverRouteView({ manageMode = false }) {
             })}
           </div>
 
-          {/* Dodaj punkt z obcej trasy */}
-          {trip.status === 'active' && candidates.length > 0 && (
-            <div>
-              <button onClick={() => setAddOpen(o => !o)} style={{
-                width: '100%', padding: '11px', borderRadius: '11px', cursor: 'pointer',
-                border: '1px dashed var(--border)', background: 'var(--bg-card)',
-                color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px',
-              }}>➕ Dodaj punkt z innej trasy</button>
-              {addOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-                  {candidates.map(c => (
-                    <button key={c.client_name} onClick={() => addExtraClient(c.client_name)} style={{
-                      display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
-                      padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
-                      border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '13px', fontWeight: 600,
-                    }}>
-                      <RouteBadge id={c.route_id} />
-                      {c.client_name}
-                    </button>
-                  ))}
+          {trip.status === 'active' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '18px' }}>
+
+              {/* ODBIÓR CZYSTEGO — punkt z innej trasy (zielony) */}
+              {candidates.length > 0 && (
+                <div>
+                  <button onClick={() => setAddOpen(o => !o)} style={{
+                    width: '100%', padding: '13px', borderRadius: '12px', cursor: 'pointer',
+                    border: '1px solid rgba(52,199,89,0.4)', background: 'var(--accent-green-light)',
+                    color: '#1F7A36', fontWeight: 700, fontSize: '14px',
+                  }}>🏭 Odbiór czystego — dodaj punkt z innej trasy</button>
+                  {addOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                      {candidates.map(c => (
+                        <button key={c.client_name} onClick={() => addExtraClient(c.client_name)} style={{
+                          display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
+                          padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                          border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '13px', fontWeight: 600,
+                        }}>
+                          <RouteBadge id={c.route_id} />
+                          <span style={{ flex: 1 }}>{c.client_name}</span>
+                          {(c.hasP || c.hasO) && (
+                            <span className={`laundry-type-badge ${c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
+                              {c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
+                            </span>
+                          )}
+                          {c.kg > 0 && <span className="kg-badge">{c.kg} kg</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* DODANIE BRUDNEGO PRANIA (pomarańczowy) */}
+              <button onClick={() => setAddEntryFor('')} style={{
+                width: '100%', padding: '14px', borderRadius: '12px', cursor: 'pointer',
+                border: '1px solid rgba(255,149,0,0.45)', background: 'rgba(255,149,0,0.12)',
+                color: '#B45309', fontWeight: 700, fontSize: '15px',
+              }}>🧺 Dodaj brudne pranie do pralni</button>
+
+              {/* ZAKOŃCZ TRASĘ (czerwony) — drugi przycisk na dole */}
+              <button onClick={() => { setEndOpen(true); setEndKm(''); }} className="driver-end-btn" style={{
+                width: '100%', padding: '14px', fontSize: '15px',
+              }}>■ Zakończ trasę</button>
             </div>
           )}
-
-          {trip.status === 'active' && <div style={{ marginTop: '16px' }}>
-            <button onClick={() => setAddEntryFor('')} style={{
-              width: '100%',
-            }} className="driver-add-primary">➕ Dodaj przejazd</button>
-          </div>}
         </>
       )}
 
