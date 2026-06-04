@@ -56,6 +56,23 @@ function defaultPick(d) {
   if (d === 4) return { pickDay: 2, pickWeek: 1 };
   return { pickDay: 1, pickWeek: 1 };
 }
+function defaultPickForSchedule(arrDay, schedule = 'other') {
+  const d = Number(arrDay);
+  if (schedule === 'daily') {
+    if (d <= 4) return { pickDay: d + 1, pickWeek: 0 };
+    return { pickDay: 1, pickWeek: 1 };
+  }
+  if (schedule === 'mwf') {
+    if (d <= 1) return { pickDay: 3, pickWeek: 0 };
+    if (d <= 3) return { pickDay: 5, pickWeek: 0 };
+    return { pickDay: 1, pickWeek: 1 };
+  }
+  if (schedule === 'tth') {
+    if (d <= 2) return { pickDay: 4, pickWeek: 0 };
+    return { pickDay: 2, pickWeek: 1 };
+  }
+  return defaultPick(d);
+}
 function nextWeekKey(wk) {
   const dt = parseMonday(wk);
   dt.setDate(dt.getDate() + 7);
@@ -105,6 +122,23 @@ function tripDateInfo(dateStr) {
   return { arrDay: day, weekKey: formatWeekKey(monday) };
 }
 
+function workDateOptions(days = 14) {
+  const opts = [];
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const wd = (d.getDay() + 6) % 7 + 1;
+    if (wd > 5) continue;
+    opts.push({
+      value: ymd(d),
+      label: d.toLocaleDateString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit' }),
+    });
+  }
+  return opts;
+}
+
 export default function DriverRouteView({ manageMode = false }) {
   const { user, isAdmin, sessionToken } = useAuth();
   const { entries, allRoutes, clients, loading, refetch } = useAppData();
@@ -140,6 +174,8 @@ export default function DriverRouteView({ manageMode = false }) {
   const [kmEditTrip, setKmEditTrip] = useState(null); // trasa, której licznik admin zatwierdza/koryguje
   const [kmEditValue, setKmEditValue] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [planPickupOpen, setPlanPickupOpen] = useState(false);
+  const [planPickupDraft, setPlanPickupDraft] = useState({});
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
   const [addDirtyTrip, setAddDirtyTrip] = useState(null); // trasa admina, do której dorzucamy odbiór brudnego
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
@@ -392,6 +428,16 @@ export default function DriverRouteView({ manageMode = false }) {
     }).join(', ');
   };
 
+  const clientByName = (name) => clients.find(c => c.name === name);
+  const routeScheduleForId = (routeId) => allRoutes.find(r => Number(r.id) === Number(routeId))?.schedule || 'other';
+  const plannedPickupDateFor = (dirtyDate, routeId) => {
+    const dirty = tripDateInfo(dirtyDate);
+    const rule = defaultPickForSchedule(dirty.arrDay, routeScheduleForId(routeId));
+    const monday = parseMonday(rule.pickWeek ? nextWeekKey(dirty.weekKey) : dirty.weekKey);
+    monday.setDate(monday.getDate() + (rule.pickDay - 1));
+    return ymd(monday);
+  };
+
   const distanceForTrip = (sourceTrip) => {
     if (!sourceTrip?.end_km) return null;
     const field = vehicleEndColumn(sourceTrip.car);
@@ -518,6 +564,108 @@ export default function DriverRouteView({ manageMode = false }) {
       toastError('Błąd dopinania odbioru do trasy: ' + err.message);
     } finally {
       setAddDirtyTrip(null);
+    }
+  };
+
+  const openPlanPickup = () => {
+    const dates = workDateOptions();
+    const dirtyDate = dates[0]?.value || today;
+    const firstClient = [...clients].filter(c => c.route_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
+    const routeId = firstClient?.route_id || allRoutes[0]?.id || '';
+    setPlanPickupDraft({
+      dirtyDate,
+      cleanDate: plannedPickupDateFor(dirtyDate, routeId),
+      clientName: firstClient?.name || '',
+      routeId: routeId ? String(routeId) : '',
+      type: 'P',
+      weight: '',
+      trolleys: 1,
+      urgent: false,
+      driverId: '',
+      car: VEHICLES[0].key,
+    });
+    setPlanPickupOpen(true);
+  };
+
+  const setPlanField = (field, value) => {
+    setPlanPickupDraft(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'clientName') {
+        const c = clientByName(value);
+        if (c?.route_id) next.routeId = String(c.route_id);
+      }
+      if (field === 'clientName' || field === 'dirtyDate' || field === 'routeId') {
+        const routeId = field === 'routeId' ? value : next.routeId;
+        const dirtyDate = field === 'dirtyDate' ? value : next.dirtyDate;
+        if (dirtyDate && routeId) next.cleanDate = plannedPickupDateFor(dirtyDate, routeId);
+      }
+      return next;
+    });
+  };
+
+  const createPlannedPickup = async () => {
+    if (!isAdmin) return;
+    const d = planPickupDraft;
+    const client = clientByName(d.clientName);
+    const routeId = Number(d.routeId || client?.route_id);
+    if (!d.dirtyDate || !d.clientName || !routeId) { toastError('Wybierz datę, klienta i trasę'); return; }
+    const dirty = tripDateInfo(d.dirtyDate);
+    const clean = tripDateInfo(d.cleanDate || plannedPickupDateFor(d.dirtyDate, routeId));
+    const driver = driverOptions.find(x => String(x.id) === String(d.driverId));
+    try {
+      setBusy(true);
+      const entryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const { error: entryErr } = await supabase.from('entries').insert([{
+        id: entryId,
+        week_key: dirty.weekKey,
+        client_name: d.clientName,
+        arr_day: dirty.arrDay,
+        pick_day: clean.arrDay,
+        pick_week_key: clean.weekKey,
+        weight: d.weight ? parseFloat(String(d.weight).replace(',', '.')) : null,
+        route_id: routeId,
+        type: d.type || 'P',
+        trolleys: d.trolleys !== '' ? Number(d.trolleys) : 1,
+        urgent: !!d.urgent,
+        added_by: user.name,
+      }]);
+      if (entryErr) throw entryErr;
+
+      const existingTrip = allTrips.find(t => {
+        if (t.trip_date !== d.dirtyDate || t.status === 'finished') return false;
+        let extras = [];
+        try { extras = JSON.parse(t.extra_clients || '[]'); } catch { extras = []; }
+        return parseRouteIds(t.routes).has(routeId) || extras.includes(d.clientName);
+      });
+      if (existingTrip) {
+        await attachClientToTrip(existingTrip, d.clientName);
+      } else {
+        const { error: tripErr } = await supabase.from('driver_trips').insert({
+          driver_id: driver?.id || null,
+          driver_name: driver?.name || null,
+          trip_date: d.dirtyDate,
+          car: d.car || VEHICLES[0].key,
+          routes: String(routeId),
+          status: 'planned',
+          extra_clients: JSON.stringify([d.clientName]),
+        });
+        if (tripErr) throw tripErr;
+      }
+
+      await logAction({
+        userName: user.name,
+        action: 'added',
+        clientName: d.clientName,
+        entryId,
+        details: `Zlecono odbiór brudnego na ${fmtDate(d.dirtyDate)}${driver ? ` → ${driver.name}` : ' · trasa planowana bez kierowcy'}`,
+      });
+      await Promise.all([refetch(), loadTrips()]);
+      setPlanPickupOpen(false);
+      toastSuccess(`Zlecono odbiór: ${d.clientName} · ${fmtDate(d.dirtyDate)}`);
+    } catch (err) {
+      toastError('Błąd zlecania odbioru: ' + err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -1233,6 +1381,123 @@ export default function DriverRouteView({ manageMode = false }) {
     );
   };
 
+  const renderPlanPickupModal = () => {
+    if (!planPickupOpen) return null;
+    const d = planPickupDraft;
+    const dates = workDateOptions();
+    const selectedRouteId = Number(d.routeId || clientByName(d.clientName)?.route_id);
+    const existingTrip = allTrips.find(t => {
+      if (t.trip_date !== d.dirtyDate || t.status === 'finished') return false;
+      let extras = [];
+      try { extras = JSON.parse(t.extra_clients || '[]'); } catch { extras = []; }
+      return parseRouteIds(t.routes).has(selectedRouteId) || extras.includes(d.clientName);
+    });
+    const sortedRoutes = [...allRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const sortedClients = [...clients].filter(c => c.route_id).sort((a, b) => {
+      const ar = routeMap[a.route_id]?.num || 999;
+      const br = routeMap[b.route_id]?.num || 999;
+      return ar - br || (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, 'pl');
+    });
+    return (
+      <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setPlanPickupOpen(false)}>
+        <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+          <div className="ap-handle"></div>
+          <div className="ap-content">
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Zleć nowy odbiór</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              Planowanie odbioru brudnego i trasy w oknie 14 dni
+            </div>
+
+            <label style={pfLabel}>Data odbioru brudnego</label>
+            <select className="ap-input" value={d.dirtyDate || ''} onChange={e => setPlanField('dirtyDate', e.target.value)} style={{ marginBottom: '12px' }}>
+              {dates.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+
+            <label style={pfLabel}>Klient</label>
+            <select className="ap-input" value={d.clientName || ''} onChange={e => setPlanField('clientName', e.target.value)} style={{ marginBottom: '12px' }}>
+              {sortedRoutes.map(r => (
+                <optgroup key={r.id} label={`T${routeMap[r.id]?.num || r.sort_order || r.id} · ${r.name}`}>
+                  {sortedClients
+                    .filter(c => c.route_id === r.id)
+                    .map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+
+            <label style={pfLabel}>Trasa</label>
+            <select className="ap-input" value={d.routeId || ''} onChange={e => setPlanField('routeId', e.target.value)} style={{ marginBottom: '12px' }}>
+              {sortedRoutes.map(r => <option key={r.id} value={r.id}>T{routeMap[r.id]?.num || r.sort_order || r.id} · {r.name}</option>)}
+            </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={pfLabel}>Rodzaj</label>
+                <select className="ap-input" value={d.type || 'P'} onChange={e => setPlanField('type', e.target.value)}>
+                  <option value="P">Pościel</option>
+                  <option value="O">Obrusy</option>
+                </select>
+              </div>
+              <div>
+                <label style={pfLabel}>Wózki</label>
+                <input className="ap-input" type="number" min="0" value={d.trolleys ?? 1} onChange={e => setPlanField('trolleys', e.target.value ? Number(e.target.value) : '')} />
+              </div>
+            </div>
+
+            <label style={pfLabel}>Waga (kg) — opcjonalnie</label>
+            <input className="ap-input" type="text" inputMode="decimal" value={d.weight || ''} onChange={e => setPlanField('weight', e.target.value)} placeholder="np. 150.5" style={{ marginBottom: '12px' }} />
+
+            <label style={pfLabel}>Odbiór czystego z pralni</label>
+            <select className="ap-input" value={d.cleanDate || ''} onChange={e => setPlanField('cleanDate', e.target.value)} style={{ marginBottom: '12px' }}>
+              {workDateOptions(21).filter(opt => !d.dirtyDate || opt.value >= d.dirtyDate).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={pfLabel}>Kierowca</label>
+                <select className="ap-input" value={d.driverId || ''} onChange={e => setPlanField('driverId', e.target.value)}>
+                  <option value="">Brak przypisania</option>
+                  {driverOptions.map(x => <option key={x.id} value={x.id}>{x.name}{x.role === 'admin' ? ' (admin)' : ''}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={pfLabel}>Auto</label>
+                <select className="ap-input" value={d.car || VEHICLES[0].key} onChange={e => setPlanField('car', e.target.value)}>
+                  {VEHICLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 650, marginBottom: '12px', cursor: 'pointer' }}>
+              <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={!!d.urgent} onChange={e => setPlanField('urgent', e.target.checked)} />
+              <span style={{ color: 'var(--accent-red)' }}>Pilne</span>
+            </label>
+
+            <div style={{
+              fontSize: '12px',
+              color: existingTrip ? 'var(--accent)' : 'var(--text-secondary)',
+              background: existingTrip ? 'var(--accent-light)' : 'var(--bg-secondary)',
+              border: `1px solid ${existingTrip ? 'rgba(0,122,255,0.2)' : 'var(--border)'}`,
+              borderRadius: '10px',
+              padding: '9px 11px',
+              marginBottom: '14px',
+              fontWeight: 650,
+              lineHeight: 1.4,
+            }}>
+              {existingTrip
+                ? `Zostanie dopięte do istniejącej trasy: ${existingTrip.driver_name || 'bez kierowcy'} · ${VEHICLE_LABELS[existingTrip.car] || existingTrip.car}`
+                : 'Powstanie nowa trasa planowana na wybrany dzień.'}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setPlanPickupOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+              <button onClick={createPlannedPickup} disabled={busy || !d.clientName || !d.dirtyDate} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 750 }}>{busy ? 'Zapisywanie…' : 'Zleć odbiór'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Podgląd progresu wybranej trasy (read-only) — wspólny dla obu trybów.
   if (detailTrip) {
     const live = allTrips.find(t => t.id === detailTrip.id) || detailTrip;
@@ -1347,6 +1612,7 @@ export default function DriverRouteView({ manageMode = false }) {
         <div className="admin-dashboard-shell">
           {renderKmApproveModal()}
           {renderAssignModal()}
+          {renderPlanPickupModal()}
           <div className="driver-history-header">
             <div>
               <div className="driver-trip-kicker">Panel Administratora</div>
@@ -1396,7 +1662,7 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
             
             {/* Przycisk Ad-hoc Zlecenie */}
-            <button className="driver-add-primary" style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: '8px', minWidth: 'auto', width: 'auto', fontSize: '13px' }} onClick={() => setAddEntryFor('')}>
+            <button className="driver-add-primary" style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: '8px', minWidth: 'auto', width: 'auto', fontSize: '13px' }} onClick={openPlanPickup}>
               ➕ Zleć nowy odbiór
             </button>
 
