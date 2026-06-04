@@ -14,9 +14,24 @@ function getDefaultPickInfo(arrDay) {
   return { pickDay: 1, pickWeek: 1 }; // PT → PN nast.
 }
 
+function parseRouteIds(routesStr) {
+  return new Set(
+    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
+  );
+}
+
+function firstClientByRouteOrder(clients, routes) {
+  const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const firstRoute = sortedRoutes.find(r => clients.some(c => c.route_id === r.id));
+  return firstRoute
+    ? [...clients].filter(c => c.route_id === firstRoute.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
+    : clients[0];
+}
+
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded }) {
-  const { user } = useAuth();
+  const { user, isDriver } = useAuth();
   const [clientName, setClientName] = useState('');
+  const [showOtherRoutes, setShowOtherRoutes] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
   const [arrDay, setArrDay] = useState(defaultArrDay || 1);
@@ -25,6 +40,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const assignedRouteIds = parseRouteIds(user?.routes);
+  const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
+  const ownClients = hasAssignedRouteFilter
+    ? clients.filter(c => assignedRouteIds.has(c.route_id))
+    : clients;
+  const otherClients = hasAssignedRouteFilter
+    ? clients.filter(c => c.route_id && !assignedRouteIds.has(c.route_id))
+    : [];
+  const selectableClients = hasAssignedRouteFilter && showOtherRoutes ? otherClients : ownClients;
+  const canToggleOtherRoutes = hasAssignedRouteFilter && otherClients.length > 0;
+
   useEffect(() => {
     if (isOpen) {
       const day = defaultArrDay || 1;
@@ -32,18 +58,21 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
-      // Pierwszy klient wg kolejności grup (sort_order trasy, potem klienta)
-      const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-      const firstRoute = sortedRoutes.find(r => clients.some(c => c.route_id === r.id));
-      const firstClient = firstRoute
-        ? [...clients].filter(c => c.route_id === firstRoute.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
-        : clients[0];
-      setClientName(firstClient?.name || '');
+      setShowOtherRoutes(false);
+      setClientName(firstClientByRouteOrder(ownClients, routes)?.name || '');
       setWeight('');
       setType('P');
       setUrgent(false);
     }
-  }, [isOpen, defaultArrDay, clients, routes]);
+  }, [isOpen, defaultArrDay, clients, routes, user?.routes, isDriver]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const nextClient = firstClientByRouteOrder(selectableClients, routes);
+    if (!selectableClients.some(c => c.name === clientName)) {
+      setClientName(nextClient?.name || '');
+    }
+  }, [isOpen, showOtherRoutes, selectableClients, routes, clientName]);
 
   if (!isOpen) return null;
 
@@ -51,6 +80,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     try {
       setLoading(true);
       const client = clients.find(c => c.name === clientName);
+      if (!client) throw new Error('Wybierz klienta');
       const routeId = client ? client.route_id : 1;
 
       // Calculate pick_week_key
@@ -103,17 +133,38 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
           <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '12px' }} value={clientName} onChange={e => setClientName(e.target.value)}>
             {routes
-              .filter(r => clients.some(c => c.route_id === r.id))
+              .filter(r => selectableClients.some(c => c.route_id === r.id))
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
               .map(r => (
-                <optgroup key={r.id} label={r.name}>
-                  {clients
+                <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? ' · twoja trasa' : ''}`}>
+                  {selectableClients
                     .filter(c => c.route_id === r.id)
                     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                     .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </optgroup>
               ))}
           </select>
+          {canToggleOtherRoutes && (
+            <button
+              type="button"
+              onClick={() => setShowOtherRoutes(v => !v)}
+              style={{
+                width: '100%',
+                border: '1px solid rgba(0,122,255,0.22)',
+                background: showOtherRoutes ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.06)',
+                color: 'var(--accent)',
+                borderRadius: '12px',
+                padding: '10px 12px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginTop: '-4px',
+                marginBottom: '12px',
+              }}
+            >
+              {showOtherRoutes ? 'Wróć do moich tras' : 'Dodaj klienta z innej trasy'}
+            </button>
+          )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
           <div className="segmented-control" style={{ marginBottom: '12px' }}>
