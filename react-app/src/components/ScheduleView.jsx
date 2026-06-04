@@ -57,14 +57,14 @@ export default function ScheduleView() {
     const rIndex = routes.findIndex(r => r.id === routeId);
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
     const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
-    const isOwnRoute = isDriver && assignedRouteIds.has(routeId);
+    const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
 
     return (
       <div
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
         onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
-        style={isOwnRoute ? OWN_ROUTE_STYLE : undefined}
+        style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>

@@ -36,10 +36,8 @@ export const STATUS_COLORS = {
 };
 
 export const OWN_ROUTE_STYLE = {
-  borderLeft: '4px solid var(--accent)',
-  borderColor: 'rgba(0,122,255,0.45)',
-  boxShadow: '0 0 0 1.5px rgba(0,122,255,0.14)',
-  background: 'linear-gradient(90deg, rgba(0,122,255,0.08) 0%, var(--bg-card-solid) 34%)',
+  borderColor: '#8FC7FF',
+  boxShadow: '0 0 0 2px rgba(0,122,255,0.20)',
 };
 
 export function getRouteColorByDisplay(displayNum) {
