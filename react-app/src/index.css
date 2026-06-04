@@ -1792,6 +1792,20 @@ html.phone-layout .hist-grid {
   transform: translateY(-4px);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-strong);
 }
+.clients-routes-view .route-card,
+.clients-routes-view .route-card:hover,
+.clients-routes-view .tag-client,
+.clients-routes-view .tag-client:hover,
+.clients-routes-view .tag-client.draggable:active {
+  transform: none;
+}
+.clients-routes-view .route-card {
+  animation: none;
+}
+.clients-routes-view .tag-client.draggable:active {
+  border-color: var(--accent);
+  background: var(--bg-card-solid);
+}
 .route-title {
   font-size:13px;
   font-weight:700;

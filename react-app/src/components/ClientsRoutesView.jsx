@@ -700,7 +700,7 @@ export default function ClientsRoutesView() {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div>
+      <div className="clients-routes-view">
         {isAdmin && (
           <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
             <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>＋ Nowa trasa</button>
