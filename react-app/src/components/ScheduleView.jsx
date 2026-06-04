@@ -58,7 +58,6 @@ export default function ScheduleView() {
     const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
     const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnRoute = isDriver && assignedRouteIds.has(routeId);
-    const routeColor = isOwnRoute ? 'var(--accent)' : undefined;
 
     return (
       <div
@@ -66,29 +65,14 @@ export default function ScheduleView() {
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
         onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
         style={isOwnRoute ? {
+          borderLeft: '4px solid var(--accent)',
           borderColor: 'rgba(0,122,255,0.45)',
-          boxShadow: '0 0 0 2px rgba(0,122,255,0.12)',
-          background: 'linear-gradient(90deg, rgba(0,122,255,0.10) 0%, var(--bg-card-solid) 42%)',
+          boxShadow: '0 0 0 1.5px rgba(0,122,255,0.14)',
+          background: 'linear-gradient(90deg, rgba(0,122,255,0.08) 0%, var(--bg-card-solid) 34%)',
         } : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>
-        {isOwnRoute && (
-          <span
-            style={{
-              color: routeColor,
-              background: 'rgba(0,122,255,0.12)',
-              border: '1px solid rgba(0,122,255,0.24)',
-              borderRadius: '999px',
-              padding: '1px 5px',
-              fontSize: '9px',
-              fontWeight: 800,
-              flexShrink: 0,
-            }}
-          >
-            Twoja
-          </span>
-        )}
         <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
         {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
         <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
