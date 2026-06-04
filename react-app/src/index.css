@@ -3784,5 +3784,24 @@ select.ap-input {
 
 .trip-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 2px; }
 .trip-km { font-size: 11px; font-weight: 700; color: var(--text-tertiary); }
-.trip-card-actions { display: flex; gap: 6px; margin-left: auto; }
+.trip-card-actions { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+
+/* ── Podsumowanie dnia (KPI) ── */
+.kpi-bar {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px;
+}
+.kpi-bar .trip-metric { min-width: 90px; padding: 10px 12px; }
+.kpi-bar .trip-metric-val { font-size: 19px; }
+.kpi-bar .trip-metric-label { font-size: 10px; }
+
+/* ── Alerty ── */
+.route-alerts { display: flex; flex-direction: column; gap: 8px; }
+.route-alert {
+  font-size: 13px; font-weight: 650; padding: 11px 14px; border-radius: 12px;
+  border: 1px solid transparent;
+}
+.route-alert.warn { background: rgba(255,149,0,0.09); color: #B45309; border-color: rgba(255,149,0,0.25); }
+.route-alert.info { background: var(--accent-light); color: var(--accent); border-color: rgba(0,122,255,0.2); }
 

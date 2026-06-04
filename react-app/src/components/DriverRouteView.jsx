@@ -96,11 +96,17 @@ function pickupDateOptions() {
 }
 
 export default function DriverRouteView({ manageMode = false }) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, sessionToken } = useAuth();
   const { entries, allRoutes, clients, loading, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
+  const [plannedTrip, setPlannedTrip] = useState(null); // zaplanowana przez admina trasa kierowcy (jeszcze nie ruszona)
   const [allTrips, setAllTrips] = useState([]);
+  const [driverOptions, setDriverOptions] = useState([]); // lista kierowców do przypisania (admin)
+  const [assignTrip, setAssignTrip] = useState(null); // wirtualna trasa, którą admin przypisuje
+  const [assignDriverId, setAssignDriverId] = useState('');
+  const [assignCar, setAssignCar] = useState(VEHICLES[0].key);
+  const [addStopOpen, setAddStopOpen] = useState(false); // panel "dorzuć przystanek" w podglądzie trasy
   const [dailyCosts, setDailyCosts] = useState([]);
   const [, setClock] = useState(Date.now());
   const [tripLoading, setTripLoading] = useState(true);
@@ -120,6 +126,8 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
+  const [kmEditTrip, setKmEditTrip] = useState(null); // trasa, której licznik admin zatwierdza/koryguje
+  const [kmEditValue, setKmEditValue] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
@@ -162,11 +170,14 @@ export default function DriverRouteView({ manageMode = false }) {
       ]);
       if (cancelled) return;
       const ownToday = (trips || []).filter(t => t.driver_id === user?.id && t.trip_date === today);
-      const currentTrip = ownToday.find(t => t.status === 'active') || ownToday[0] || null;
-      setTrip(currentTrip);
+      const startedTrip = ownToday.find(t => t.status === 'active') || ownToday.find(t => t.status === 'finished') || null;
+      const plannedOwn = ownToday.find(t => t.status === 'planned') || null;
+      setTrip(startedTrip);
+      setPlannedTrip(plannedOwn);
       const car = setting?.value?.[user?.id] || null;
       setDefaultCar(car);
-      if (currentTrip) setSelectedCar(currentTrip.car);
+      if (startedTrip) setSelectedCar(startedTrip.car);
+      else if (plannedOwn) { setSelectedCar(plannedOwn.car || car || VEHICLES[0].key); setSelectedRoutes(parseRouteIds(plannedOwn.routes)); }
       else if (car) setSelectedCar(car);
       setTripLoading(false);
     };
@@ -184,6 +195,21 @@ export default function DriverRouteView({ manageMode = false }) {
       supabase.removeChannel(channel);
     };
   }, [user?.id, isAdmin]);
+
+  // Przełączenie zakładki "Moja trasa" ↔ "Trasy na żywo" (zmiana manageMode
+  // bez remountu) — czyścimy stan przejściowy, by widok nie był "zaklejony".
+  useEffect(() => {
+    setDetailTrip(null);
+    setRouteView(manageMode ? 'history' : 'current');
+  }, [manageMode]);
+
+  // Lista kierowców do przypisywania planowanych tras (tylko panel zarządzania).
+  useEffect(() => {
+    if (!manageMode || !sessionToken) return;
+    supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
+      setDriverOptions((data || []).filter(u => u.role === 'driver' || u.role === 'admin'));
+    });
+  }, [manageMode, sessionToken]);
 
   /* ── przystanki = klienci z ODBIOREM dziś (wg harmonogramu) ──
      Każdy taki wpis ma dziś 2 czynności kierowcy: odbiór czystego z pralni
@@ -374,16 +400,61 @@ export default function DriverRouteView({ manageMode = false }) {
   const startTrip = async () => {
     try {
       setBusy(true);
-      const { data, error } = await supabase.from('driver_trips').insert({
-        driver_id: user.id, driver_name: user.name, trip_date: today, car: selectedCar,
-        routes: [...selectedRoutes].join(','), status: 'active',
-      }).select().single();
+      const payload = {
+        car: selectedCar, routes: [...selectedRoutes].join(','),
+        status: 'active', started_at: new Date().toISOString(),
+      };
+      // Jeśli admin zaplanował tę trasę — startujemy ją (update), zamiast tworzyć nową.
+      const { data, error } = plannedTrip
+        ? await supabase.from('driver_trips').update(payload).eq('id', plannedTrip.id).select().single()
+        : await supabase.from('driver_trips').insert({ driver_id: user.id, driver_name: user.name, trip_date: today, ...payload }).select().single();
       if (error) throw error;
       setTrip(data);
+      setPlannedTrip(null);
       await loadTrips();
-      await logAction({ userName: user.name, action: 'trip_start', details: `Auto: ${VEHICLE_LABELS[selectedCar] || selectedCar}` });
+      await logAction({ userName: user.name, action: 'trip_start', details: `Auto: ${VEHICLE_LABELS[selectedCar] || selectedCar}${plannedTrip ? ' (trasa zaplanowana)' : ''}` });
       toastSuccess('Trasa rozpoczęta');
     } catch (err) { toastError('Błąd startu trasy: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Przerzut (additive): admin dorzuca klienta do trasy innego kierowcy na żywo
+  // przez extra_clients — bez zmian w schemacie. Klient pojawia się u kierowcy docelowego.
+  const addClientToTrip = async (targetTrip, clientName) => {
+    if (!isAdmin || !targetTrip) return;
+    try {
+      setBusy(true);
+      let extras = [];
+      try { extras = JSON.parse(targetTrip.extra_clients || '[]'); } catch { extras = []; }
+      const next = Array.from(new Set([...extras, clientName]));
+      const { error } = await supabase.from('driver_trips').update({ extra_clients: JSON.stringify(next) }).eq('id', targetTrip.id);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'edited', details: `Dorzucono przystanek ${clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})` });
+      await loadTrips();
+      setAddStopOpen(false);
+      toastSuccess(`Dorzucono: ${clientName} → ${targetTrip.driver_name || 'kierowca'}`);
+    } catch (err) { toastError('Błąd dorzucania: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Admin przypisuje kierowcę+auto do planowanej (wirtualnej) trasy → tworzy
+  // realną trasę status='planned', którą kierowca zobaczy gotową w "Mojej trasie".
+  const assignPlannedTrip = async () => {
+    if (!isAdmin || !assignTrip || !assignDriverId) return;
+    try {
+      setBusy(true);
+      const drv = driverOptions.find(d => String(d.id) === String(assignDriverId));
+      if (!drv) { toastError('Wybierz kierowcę'); setBusy(false); return; }
+      const { error } = await supabase.from('driver_trips').insert({
+        driver_id: drv.id, driver_name: drv.name, trip_date: assignTrip.trip_date,
+        car: assignCar, routes: String(assignTrip.routes), status: 'planned',
+      });
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'edited', details: `Przypisano trasę ${routeNamesForTrip(assignTrip)} (${fmtDate(assignTrip.trip_date)}) → ${drv.name}, ${VEHICLE_LABELS[assignCar] || assignCar}` });
+      setAssignTrip(null); setAssignDriverId('');
+      await loadTrips();
+      toastSuccess(`Przypisano: ${drv.name} · ${fmtDate(assignTrip.trip_date)}`);
+    } catch (err) { toastError('Błąd przypisania: ' + err.message); }
     finally { setBusy(false); }
   };
 
@@ -490,20 +561,30 @@ export default function DriverRouteView({ manageMode = false }) {
     finally { setBusy(false); }
   };
 
-  const approveTripKm = async (sourceTrip) => {
+  // Zatwierdza licznik trasy do kosztów. overrideKm — opcjonalna korekta admina.
+  // Km ZAWSZE trafiają do dnia trasy (sourceTrip.trip_date), nie dnia zatwierdzenia.
+  const approveTripKm = async (sourceTrip, overrideKm) => {
     if (!isAdmin || !sourceTrip?.end_km) return;
     try {
       setBusy(true);
       const col = vehicleEndColumn(sourceTrip.car);
-      const km = sourceTrip.end_km;
+      const hasOverride = overrideKm !== undefined && overrideKm !== null && String(overrideKm).trim() !== '';
+      const km = hasOverride ? Number(String(overrideKm).replace(',', '.')) : Number(sourceTrip.end_km);
+      if (!Number.isFinite(km)) { toastError('Nieprawidłowa wartość licznika'); setBusy(false); return; }
+      const corrected = String(km) !== String(sourceTrip.end_km);
+      // Korekta admina staje się źródłem prawdy — zapisujemy ją też na trasie.
+      if (corrected) {
+        const { error: tErr } = await supabase.from('driver_trips').update({ end_km: km }).eq('id', sourceTrip.id);
+        if (tErr) throw tErr;
+      }
       const { data: existing } = await supabase.from('daily_costs').select('entry_date').eq('entry_date', sourceTrip.trip_date).maybeSingle();
       const { error } = existing
         ? await supabase.from('daily_costs').update({ [col]: km }).eq('entry_date', sourceTrip.trip_date)
         : await supabase.from('daily_costs').insert({ entry_date: sourceTrip.trip_date, [col]: km });
       if (error) throw error;
-      await logAction({ userName: user.name, action: 'edited', details: `Zatwierdzono licznik trasy: ${sourceTrip.driver_name || 'kierowca'}, ${VEHICLE_LABELS[sourceTrip.car] || sourceTrip.car}, ${km} km` });
+      await logAction({ userName: user.name, action: 'edited', details: `Zatwierdzono licznik (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${VEHICLE_LABELS[sourceTrip.car] || sourceTrip.car}, ${km} km${corrected ? ` (korekta z ${sourceTrip.end_km})` : ''}` });
       await loadTrips();
-      toastSuccess('Licznik zatwierdzony i zapisany w kosztach');
+      toastSuccess(`Licznik zatwierdzony — koszty dnia ${fmtDate(sourceTrip.trip_date)}`);
     } catch (err) {
       toastError('Błąd zatwierdzania licznika: ' + err.message);
     } finally {
@@ -723,14 +804,15 @@ export default function DriverRouteView({ manageMode = false }) {
     const kmApproval = tripKmApproval(t);
     const routeIds = [...parseRouteIds(t.routes)];
     const statusClass = t.isVirtual ? 'is-planned' : t.status === 'active' ? 'is-live' : t.status === 'finished' ? 'is-finished' : 'is-planned';
-    const showFoot = t.end_km || t.status === 'finished';
+    const canAssign = manageMode && t.isVirtual;
+    const showFoot = t.end_km || t.status === 'finished' || canAssign;
     return (
       <div
         key={t.id}
         className={`trip-card ${statusClass}`}
         role="button"
         tabIndex={0}
-        onClick={() => setDetailTrip(t)}
+        onClick={() => { setDetailTrip(t); setAddStopOpen(false); }}
         title="Pokaż progres trasy"
       >
         <div className="trip-card-head">
@@ -762,8 +844,11 @@ export default function DriverRouteView({ manageMode = false }) {
               {t.end_km ? `${kmApproval.approved ? '✓' : '⏳'} licznik ${t.end_km} km` : ''}
             </span>
             <div className="trip-card-actions">
+              {canAssign && (
+                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setAssignTrip(t); setAssignDriverId(''); setAssignCar(VEHICLES[0].key); }} disabled={busy}>👤 Przypisz</button>
+              )}
               {isAdmin && t.end_km && !kmApproval.approved && (
-                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); approveTripKm(t); }} disabled={busy}>Zatwierdź km</button>
+                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setKmEditTrip(t); setKmEditValue(String(t.end_km ?? '')); }} disabled={busy}>Zatwierdź km</button>
               )}
               {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>}
             </div>
@@ -779,6 +864,16 @@ export default function DriverRouteView({ manageMode = false }) {
     const stats = getTripStats(t);
     const statusLabel = t.isVirtual ? 'Planowana' : t.status === 'active' ? 'Na żywo' : t.status === 'finished' ? 'Zakończona' : 'Planowana';
     const muted = { fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 };
+    // Kandydaci do dorzucenia: klienci z robotą tego dnia, których nie ma jeszcze na tej trasie.
+    const onTrip = new Set(tripStops.map(s => s.client_name));
+    const candMap = new Map();
+    entries.forEach(e => {
+      if (!e.client_name || !e.route_id || onTrip.has(e.client_name)) return;
+      if (pickupDateStr(e) !== t.trip_date && arrivalDateStr(e) !== t.trip_date) return;
+      if (!candMap.has(e.client_name)) candMap.set(e.client_name, e.route_id);
+    });
+    const addCandidates = [...candMap.entries()].map(([client_name, route_id]) => ({ client_name, route_id }));
+    const canAddStop = isAdmin && t.status === 'active' && !t.isVirtual;
     return (
       <div className="admin-dashboard-shell">
         <div className="driver-history-header">
@@ -800,6 +895,31 @@ export default function DriverRouteView({ manageMode = false }) {
           <TripProgress stats={stats} />
           <TripMetrics stats={stats} />
         </div>
+
+        {canAddStop && (
+          <div style={{ marginBottom: '14px' }}>
+            <button onClick={() => setAddStopOpen(o => !o)} disabled={busy} style={{
+              width: '100%', padding: '11px', borderRadius: '11px', cursor: 'pointer',
+              border: '1px dashed var(--accent)', background: 'var(--accent-light)',
+              color: 'var(--accent)', fontWeight: 700, fontSize: '13px',
+            }}>➕ Dorzuć przystanek do tej trasy (inny kierowca)</button>
+            {addStopOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                {addCandidates.length === 0 && <div className="driver-empty-row">Brak klientów do dorzucenia na ten dzień</div>}
+                {addCandidates.map(c => (
+                  <button key={c.client_name} onClick={() => addClientToTrip(t, c.client_name)} disabled={busy} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
+                    padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                    border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '13px', fontWeight: 600,
+                  }}>
+                    <RouteBadge id={c.route_id} />
+                    {c.client_name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="driver-stops-list">
           {tripStops.length === 0 && <div className="driver-empty-row">Brak przystanków dla tej trasy</div>}
@@ -860,15 +980,86 @@ export default function DriverRouteView({ manageMode = false }) {
     );
   };
 
-  if (routeView === 'history') {
-    // Podgląd progresu wybranej trasy (read-only) — wspólny dla admina i kierowcy.
-    if (detailTrip) {
-      const live = allTrips.find(t => t.id === detailTrip.id) || detailTrip;
-      return renderTripDetail(live);
-    }
-    // Panel zarządzania (wszystkie trasy, filtry, planowanie) tylko w zakładce
-    // "Trasy na żywo". W "Mojej trasie" każdy — także admin — widzi własną historię.
-    if (manageMode) {
+  // Modal zatwierdzania/korekty licznika (admin). Renderowany w gałęziach,
+  // które pokazują przycisk "Zatwierdź km".
+  const renderKmApproveModal = () => {
+    if (!kmEditTrip) return null;
+    const t = kmEditTrip;
+    const v = Number(String(kmEditValue).replace(',', '.'));
+    const previewDist = Number.isFinite(v) ? distanceForTrip({ ...t, end_km: v }) : null;
+    return (
+      <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setKmEditTrip(null)}>
+        <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+          <div className="ap-handle"></div>
+          <div className="ap-content">
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Zatwierdź licznik</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              {t.driver_name || 'Kierowca'} · {VEHICLE_LABELS[t.car] || t.car} · <strong>{fmtDate(t.trip_date)}</strong>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '10px' }}>
+              Zgłoszony przez kierowcę: <strong>{t.end_km} km</strong>
+            </div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Stan licznika (km) — możesz skorygować</label>
+            <input className="ap-input" type="text" inputMode="decimal" autoFocus value={kmEditValue}
+              onChange={e => setKmEditValue(e.target.value)} style={{ marginTop: '6px', marginBottom: '10px' }} />
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
+              Trafi do kosztów na dzień <strong>{fmtDate(t.trip_date)}</strong>{previewDist !== null ? ` · przejazd ${previewDist} km` : ''}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setKmEditTrip(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+              <button onClick={async () => { await approveTripKm(t, kmEditValue); setKmEditTrip(null); }} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zatwierdź'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Modal przypisania kierowcy do planowanej (wirtualnej) trasy.
+  const renderAssignModal = () => {
+    if (!assignTrip) return null;
+    const t = assignTrip;
+    return (
+      <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setAssignTrip(null)}>
+        <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+          <div className="ap-handle"></div>
+          <div className="ap-content">
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Przypisz trasę</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              {routeNamesForTrip(t)} · <strong>{fmtDate(t.trip_date)}</strong>
+            </div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Kierowca</label>
+            <select className="ap-input" value={assignDriverId} onChange={e => setAssignDriverId(e.target.value)} style={{ marginTop: '6px', marginBottom: '14px', padding: '12px 14px' }}>
+              <option value="">— wybierz kierowcę —</option>
+              {driverOptions.map(d => <option key={d.id} value={d.id}>{d.name}{d.role === 'admin' ? ' (admin)' : ''}</option>)}
+            </select>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Auto</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', marginBottom: '18px' }}>
+              {VEHICLES.map(v => {
+                const active = assignCar === v.key;
+                return <button key={v.key} type="button" onClick={() => setAssignCar(v.key)} style={{ flex: '1 1 100px', padding: '10px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13px', border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-light)' : 'var(--bg-card)', color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>{v.label}</button>;
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setAssignTrip(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+              <button onClick={assignPlannedTrip} disabled={busy || !assignDriverId} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, opacity: assignDriverId ? 1 : 0.5 }}>{busy ? 'Zapisywanie…' : 'Przypisz'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Podgląd progresu wybranej trasy (read-only) — wspólny dla obu trybów.
+  if (detailTrip) {
+    const live = allTrips.find(t => t.id === detailTrip.id) || detailTrip;
+    return renderTripDetail(live);
+  }
+
+  // Zakładka "Trasy na żywo" — panel zarządzania. Sterowany WYŁĄCZNIE propsem
+  // manageMode (nie stanem routeView), dzięki czemu przełączanie zakładek
+  // "Moja trasa" ↔ "Trasy na żywo" działa od razu, bez remountu i zaklejonego stanu.
+  if (manageMode) {
       const uniqueDrivers = [...new Set(allTrips.map(t => t.driver_name || 'Nieznany').filter(Boolean))].sort();
       const uniqueCars = [...new Set(allTrips.map(t => t.car).filter(Boolean))].sort();
 
@@ -903,10 +1094,13 @@ export default function DriverRouteView({ manageMode = false }) {
         });
       });
 
-      // (data → zbiór tras już obsłużonych realną trasą tego dnia)
+      // (data → zbiór tras już objętych JAKĄKOLWIEK trasą tego dnia:
+      //  aktywną, skończoną lub zaplanowaną/przypisaną). Przypisana planowana
+      //  trasa pokaże się jako realny kafelek (dbPlannedTrips), więc wirtualnej
+      //  już nie generujemy — żeby nie dublować.
       const coveredByDate = new Map();
       allTrips.forEach(t => {
-        if (t.status === 'planned' || !t.trip_date) return;
+        if (!t.trip_date) return;
         if (!coveredByDate.has(t.trip_date)) coveredByDate.set(t.trip_date, new Set());
         parseRouteIds(t.routes).forEach(id => coveredByDate.get(t.trip_date).add(id));
       });
@@ -940,6 +1134,26 @@ export default function DriverRouteView({ manageMode = false }) {
       const plannedTrips = [...filteredVirtual, ...dbPlannedTrips];
       const finTrips = filteredTrips.filter(t => t.status === 'finished').slice(0, 100);
 
+      // ── Podsumowanie dnia (KPI) ──
+      const todaysStarted = filteredTrips.filter(t => t.trip_date === today && t.status !== 'planned');
+      const dayAgg = todaysStarted.reduce((a, t) => {
+        const s = getTripStats(t);
+        a.delivered += s.delivered; a.stops += s.stops; a.kg += s.kg; a.dirtyTrolleys += s.dirtyTrolleys;
+        return a;
+      }, { delivered: 0, stops: 0, kg: 0, dirtyTrolleys: 0 });
+
+      // ── Alerty (coś wymaga uwagi) ──
+      const todayUnassigned = filteredVirtual.filter(t => t.trip_date === today).length;
+      const stalledTrips = liveTrips.filter(t => {
+        const s = getTripStats(t);
+        const mins = t.started_at ? (Date.now() - new Date(t.started_at).getTime()) / 60000 : 0;
+        return mins > 180 && s.stops > 0 && s.delivered < s.stops;
+      });
+      const alerts = [];
+      if (todayUnassigned > 0) alerts.push({ tone: 'warn', text: `⚠️ ${todayUnassigned} tras na dziś bez kierowcy / nieruszonych` });
+      if (stalledTrips.length > 0) alerts.push({ tone: 'warn', text: `🐌 ${stalledTrips.length} tras stoi (ponad 3h, niedokończone)` });
+      if (pendingKmTrips.length > 0) alerts.push({ tone: 'info', text: `⏳ ${pendingKmTrips.length} liczników czeka na zatwierdzenie` });
+
       // Dodajemy "Brak przypisania" do opcji kierowców jeśli są wirtualne trasy
       if (virtualPlannedTrips.length > 0 && !uniqueDrivers.includes('Brak przypisania')) {
         uniqueDrivers.push('Brak przypisania');
@@ -948,6 +1162,8 @@ export default function DriverRouteView({ manageMode = false }) {
 
       return (
         <div className="admin-dashboard-shell">
+          {renderKmApproveModal()}
+          {renderAssignModal()}
           <div className="driver-history-header">
             <div>
               <div className="driver-trip-kicker">Panel Administratora</div>
@@ -956,6 +1172,22 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
             {!manageMode && <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć do widoku</button>}
           </div>
+
+          {/* Podsumowanie dnia */}
+          <div className="kpi-bar">
+            <Metric value={todaysStarted.length} label="tras dziś" />
+            <Metric value={`${dayAgg.delivered}/${dayAgg.stops}`} label="dostarczone" tone="delivered" />
+            <Metric value={Number(dayAgg.kg.toFixed(1))} label="kg dziś" />
+            <Metric value={dayAgg.dirtyTrolleys} label="brudne wózki" tone="dirty" />
+            <Metric value={pendingKmTrips.length} label="km do zatw." tone="picked" />
+          </div>
+
+          {/* Alerty */}
+          {alerts.length > 0 && (
+            <div className="route-alerts">
+              {alerts.map((a, i) => <div key={i} className={`route-alert ${a.tone}`}>{a.text}</div>)}
+            </div>
+          )}
 
           <div className="admin-filters-bar">
             <div className="filter-group">
@@ -1028,10 +1260,13 @@ export default function DriverRouteView({ manageMode = false }) {
           </div>
         </div>
       );
-    }
+  }
 
+  // "Moja trasa" — historia własnych zakończonych tras zalogowanego.
+  if (routeView === 'history') {
     return (
       <div className="driver-route-shell">
+        {renderKmApproveModal()}
         <div className="driver-history-header">
           <div>
             <div className="driver-trip-kicker">Kierowca</div>
@@ -1060,6 +1295,15 @@ export default function DriverRouteView({ manageMode = false }) {
       {!trip ? (
         <div className="driver-start-card">
           <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '12px' }}>Rozpocznij trasę</div>
+
+          {plannedTrip && (
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '12px 14px', borderRadius: '12px', background: 'var(--accent-light)', border: '1px solid var(--accent)', marginBottom: '16px' }}>
+              <span style={{ fontSize: '18px' }}>📋</span>
+              <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.4 }}>
+                Admin zaplanował Ci trasę na dziś — auto i trasy są już wybrane. Sprawdź i kliknij „Rozpocznij".
+              </div>
+            </div>
+          )}
 
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Auto na dziś</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
