@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
+import { getRouteColorByDisplay } from '../lib/visualSystem';
 
 const SCHEDULE_OPTIONS = [
   { value: 'daily', label: 'Codziennie (Pn–Pt)' },
@@ -23,15 +24,6 @@ function parseRouteIds(routesStr) {
   return new Set(
     (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
   );
-}
-
-const ROUTE_COLORS = [
-  '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6',
-  '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
-];
-
-function getRouteColor(displayNum) {
-  return ROUTE_COLORS[(displayNum - 1) % ROUTE_COLORS.length];
 }
 
 // ---- Modals ----
@@ -571,7 +563,7 @@ export default function ClientsRoutesView() {
       .filter(c => c.route_id === route.id)
       .sort((a, b) => a.sort_order - b.sort_order);
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
-    const routeColor = getRouteColor(displayNum);
+    const routeColor = getRouteColorByDisplay(displayNum);
 
     return (
       <div

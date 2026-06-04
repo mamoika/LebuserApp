@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
+import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 function addDays(date, days) {
@@ -55,7 +56,6 @@ export default function ScheduleView() {
     const routeId = entry.route_id || 1;
     const rIndex = routes.findIndex(r => r.id === routeId);
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
-    const cssRtNum = (displayNum % 10) === 0 ? 10 : (displayNum % 10);
     const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnRoute = isDriver && assignedRouteIds.has(routeId);
 
@@ -64,18 +64,13 @@ export default function ScheduleView() {
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
         onClick={() => { setSelectedEntry(entry); setViewModalOpen(true); }}
-        style={isOwnRoute ? {
-          borderLeft: '4px solid var(--accent)',
-          borderColor: 'rgba(0,122,255,0.45)',
-          boxShadow: '0 0 0 1.5px rgba(0,122,255,0.14)',
-          background: 'linear-gradient(90deg, rgba(0,122,255,0.08) 0%, var(--bg-card-solid) 34%)',
-        } : undefined}
+        style={isOwnRoute ? OWN_ROUTE_STYLE : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>
         <span className={`laundry-type-badge ${typeBadgeClass}`}>{entry.type || 'P'}</span>
         {entry.weight ? <span className="kg-badge">{entry.weight}kg</span> : null}
-        <span className={`rt-badge rt-${cssRtNum}`}>T{displayNum}</span>
+        <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
         <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
       </div>
     );

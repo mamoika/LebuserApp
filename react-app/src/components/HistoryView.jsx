@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { useAppData, filterForDriver } from '../hooks/useAppData';
+import { useAppData } from '../hooks/useAppData';
+import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 
 const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
 
@@ -15,7 +16,6 @@ function formatDate(isoStr) {
 export default function HistoryView() {
   const rawData = useAppData();
   const { isAdmin, isDriver, user } = useAuth();
-  const { routes } = isDriver ? filterForDriver(rawData, user?.routes) : rawData;
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -144,7 +144,7 @@ export default function HistoryView() {
             <div key={e.id} style={{
               background: 'var(--bg-card)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '12px 14px',
-              borderLeft: `3px solid ${e.done ? '#34C759' : e.urgent ? '#FF3B30' : '#007AFF'}`,
+              borderLeft: `3px solid ${e.done ? STATUS_COLORS.done.color : e.urgent ? STATUS_COLORS.urgent.color : STATUS_COLORS.pickup.color}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <div style={{ fontWeight: 700, fontSize: '14px' }}>
@@ -153,18 +153,23 @@ export default function HistoryView() {
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.type === 'O' ? 'rgba(255,149,0,0.15)' : 'rgba(0,122,255,0.12)',
-                    color: e.type === 'O' ? '#CC6600' : '#007AFF',
+                    background: e.type === 'O' ? 'rgba(175,82,222,0.10)' : 'rgba(0,122,255,0.10)',
+                    color: e.type === 'O' ? '#AF52DE' : '#007AFF',
                   }}>{e.type || 'P'}</span>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.done ? 'rgba(52,199,89,0.12)' : 'rgba(0,0,0,0.06)',
-                    color: e.done ? '#25A244' : 'var(--text-tertiary)',
+                    background: e.done ? STATUS_COLORS.arrival.background : 'rgba(0,0,0,0.06)',
+                    color: e.done ? STATUS_COLORS.arrival.color : 'var(--text-tertiary)',
                   }}>{e.done ? '✓ Odebrane' : 'Oczekuje'}</span>
                 </div>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {routeInfo && <span>📍 T{routeInfo.num} {routeInfo.name}</span>}
+                {routeInfo && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <span className="rt-badge" style={routeBadgeStyle(routeInfo.num)}>T{routeInfo.num}</span>
+                    {routeInfo.name}
+                  </span>
+                )}
                 <span>📅 Dostawa: {arrDay} · Odbiór: {pickDay}</span>
                 {e.weight && <span>⚖️ {e.weight} kg</span>}
                 {e.added_by && <span>👤 {e.added_by}</span>}

@@ -4,18 +4,10 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../hooks/useAppData';
 import { useAuth } from '../context/AuthContext';
+import { getRouteColorByIndex } from '../lib/visualSystem';
 
 const BASE_LAT = 52.7229319;
 const BASE_LNG = 15.2520164;
-
-const ROUTE_COLORS = [
-  '#007AFF', '#FF9500', '#AF52DE', '#FF3B30', '#32ADE6',
-  '#34C759', '#5856D6', '#c49500', '#FF453A', '#636366'
-];
-
-function getRouteColor(index) {
-  return ROUTE_COLORS[index % ROUTE_COLORS.length];
-}
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -142,7 +134,7 @@ export default function MapView() {
         <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
 
         {sortedRoutes.map((route, i) => {
-          const color = getRouteColor(i);
+          const color = getRouteColorByIndex(i);
           const hidden = hiddenRoutes.has(route.id);
           const hasGps = clients.some(c => c.route_id === route.id && c.lat && c.lng);
           const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
@@ -197,7 +189,7 @@ export default function MapView() {
           {/* Markery i polyline dla każdej trasy */}
           {sortedRoutes.map((route, routeIndex) => {
             if (hiddenRoutes.has(route.id)) return null;
-            const color = getRouteColor(routeIndex);
+            const color = getRouteColorByIndex(routeIndex);
             const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
             const routeClients = clients
               .filter(c => c.route_id === route.id && c.lat && c.lng)
