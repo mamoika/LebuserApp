@@ -3600,3 +3600,129 @@ select.ap-input {
 @media(prefers-color-scheme: dark) {
   .tl-summary-cell { border-bottom: 1px solid #2C2C2E; }
 }
+
+/* =========================================================
+   DRIVER ROUTE VIEW - ADMIN HISTORY DASHBOARD
+========================================================= */
+
+.admin-dashboard-shell {
+  width: 100%;
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  align-items: flex-end;
+}
+
+.admin-filters-bar select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  min-width: 150px;
+}
+
+.admin-filters-bar .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-filters-bar .filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-trip-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-trip-group-header {
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-trip-group-header .count-badge {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.admin-trip-group.live .admin-trip-group-header {
+  background: rgba(255,59,48,0.05);
+  color: #FF3B30;
+  border-bottom-color: rgba(255,59,48,0.1);
+}
+.admin-trip-group.live .count-badge {
+  background: rgba(255,59,48,0.1);
+  color: #FF3B30;
+}
+
+.admin-trip-group.planned .admin-trip-group-header {
+  background: rgba(255,149,0,0.05);
+  color: #FF9500;
+  border-bottom-color: rgba(255,149,0,0.1);
+}
+.admin-trip-group.planned .count-badge {
+  background: rgba(255,149,0,0.1);
+  color: #FF9500;
+}
+
+.admin-trip-group.finished .admin-trip-group-header {
+  background: rgba(52,199,89,0.05);
+  color: #34C759;
+  border-bottom-color: rgba(52,199,89,0.1);
+}
+.admin-trip-group.finished .count-badge {
+  background: rgba(52,199,89,0.1);
+  color: #34C759;
+}
+
+.admin-trip-list-inner {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+

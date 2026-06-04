@@ -106,9 +106,14 @@ export default function DriverRouteView() {
   const [tripLoading, setTripLoading] = useState(true);
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
-  const [selectedRoutes, setSelectedRoutes] = useState(() => parseRouteIds(user?.routes));
   const [busy, setBusy] = useState(false);
   const [routeView, setRouteView] = useState('current');
+  
+  // Filtry dla admina w historii
+  const [filterDriver, setFilterDriver] = useState('');
+  const [filterCar, setFilterCar] = useState('');
+  const [filterRoute, setFilterRoute] = useState('');
+
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -654,82 +659,151 @@ export default function DriverRouteView() {
     </div>
   );
 
+  const renderTripRow = (t, isLive = false) => {
+    const stats = getTripStats(t);
+    const kmApproval = tripKmApproval(t);
+    return (
+      <div key={t.id} className={`driver-trip-row ${isLive ? 'is-live' : ''}`}>
+        <div>
+          <div className="driver-trip-row-title">{fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} · {VEHICLE_LABELS[t.car] || t.car}</div>
+          <div className="driver-trip-row-sub">
+            {routeNamesForTrip(t)} · Start {fmtTime(t.started_at)}
+            {t.ended_at ? `-${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : ` · ${fmtDuration(t.started_at, null)}`}
+            {t.end_km ? ` · zgłoszony licznik ${t.end_km} km` : ''}
+            {t.end_km ? ` · ${kmApproval.approved ? 'km zatwierdzone' : 'km do zatwierdzenia'}` : ''}
+          </div>
+        </div>
+        <div className="driver-trip-row-stats">
+          <span>{stats.delivered}/{stats.stops} dost.</span>
+          <span>{stats.picked}/{stats.stops} z pralni</span>
+          <span>{stats.kg || 0} kg</span>
+          <span>{stats.cleanTrolleys} z pralni</span>
+          <span>{stats.dirtyTrolleys} brudne</span>
+          {isAdmin && t.end_km && !kmApproval.approved && (
+            <button className="driver-mini-card-btn" onClick={() => approveTripKm(t)} disabled={busy}>Zatwierdź km</button>
+          )}
+          {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={() => printCard(t)}>Karta</button>}
+        </div>
+      </div>
+    );
+  };
+
   if (routeView === 'history') {
+    if (isAdmin) {
+      const uniqueDrivers = [...new Set(allTrips.map(t => t.driver_name || 'Nieznany').filter(Boolean))].sort();
+      const uniqueCars = [...new Set(allTrips.map(t => t.car).filter(Boolean))].sort();
+
+      const filteredTrips = allTrips.filter(t => {
+        if (filterDriver && (t.driver_name || 'Nieznany') !== filterDriver) return false;
+        if (filterCar && t.car !== filterCar) return false;
+        if (filterRoute) {
+          const rIds = parseRouteIds(t.routes);
+          if (rIds.size > 0 && !rIds.has(Number(filterRoute))) return false;
+        }
+        return true;
+      });
+
+      const liveTrips = filteredTrips.filter(t => t.status === 'active');
+      const plannedTrips = filteredTrips.filter(t => t.status === 'planned');
+      const finTrips = filteredTrips.filter(t => t.status === 'finished').slice(0, 100);
+
+      return (
+        <div className="admin-dashboard-shell">
+          <div className="driver-history-header">
+            <div>
+              <div className="driver-trip-kicker">Panel Administratora</div>
+              <div className="driver-trip-title">Zarządzanie Trasami</div>
+              <div className="driver-trip-subtitle">Sortowanie i grupowanie tras ({allTrips.length} w historii)</div>
+            </div>
+            <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć do widoku</button>
+          </div>
+
+          <div className="admin-filters-bar">
+            <div className="filter-group">
+              <span className="filter-label">Kierowca</span>
+              <select value={filterDriver} onChange={e => setFilterDriver(e.target.value)}>
+                <option value="">Wszyscy kierowcy</option>
+                {uniqueDrivers.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Samochód</span>
+              <select value={filterCar} onChange={e => setFilterCar(e.target.value)}>
+                <option value="">Wszystkie auta</option>
+                {uniqueCars.map(c => <option key={c} value={c}>{VEHICLE_LABELS[c] || c}</option>)}
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Trasa</span>
+              <select value={filterRoute} onChange={e => setFilterRoute(e.target.value)}>
+                <option value="">Wszystkie trasy</option>
+                {allRoutes.map(r => <option key={r.id} value={r.id}>T{routeMap[r.id]?.num} - {r.name}</option>)}
+              </select>
+            </div>
+            
+            {pendingKmTrips.length > 0 && (
+              <button className="driver-tool-btn" onClick={approvePendingTripKms} disabled={busy} style={{ marginLeft: 'auto', background: 'var(--accent-green)', color: '#fff', border: 'none' }}>
+                ✓ Zatwierdź kilometry ({pendingKmTrips.length})
+              </button>
+            )}
+          </div>
+
+          <div className="admin-section-grid">
+            <div className="admin-trip-group live">
+              <div className="admin-trip-group-header">
+                Trasy na żywo
+                <span className="count-badge">{liveTrips.length}</span>
+              </div>
+              <div className="admin-trip-list-inner">
+                {liveTrips.length === 0 && <div className="driver-empty-row">Brak tras na żywo</div>}
+                {liveTrips.map(t => renderTripRow(t, true))}
+              </div>
+            </div>
+
+            <div className="admin-trip-group planned">
+              <div className="admin-trip-group-header">
+                Planowane trasy
+                <span className="count-badge">{plannedTrips.length}</span>
+              </div>
+              <div className="admin-trip-list-inner">
+                {plannedTrips.length === 0 && <div className="driver-empty-row">Brak planowanych tras</div>}
+                {plannedTrips.map(t => renderTripRow(t, false))}
+              </div>
+            </div>
+
+            <div className="admin-trip-group finished">
+              <div className="admin-trip-group-header">
+                Skończone trasy
+                <span className="count-badge">{finTrips.length}</span>
+              </div>
+              <div className="admin-trip-list-inner">
+                {finTrips.length === 0 && <div className="driver-empty-row">Brak skończonych tras</div>}
+                {finTrips.map(t => renderTripRow(t, false))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="driver-route-shell">
         <div className="driver-history-header">
           <div>
-            <div className="driver-trip-kicker">{isAdmin ? 'Wszystkie trasy' : 'Kierowca'}</div>
-            <div className="driver-trip-title">{isAdmin ? 'Historia tras' : 'Moja historia tras'}</div>
-            <div className="driver-trip-subtitle">{isAdmin ? 'Podgląd wszystkich kierowców' : user?.name}</div>
+            <div className="driver-trip-kicker">Kierowca</div>
+            <div className="driver-trip-title">Moja historia tras</div>
+            <div className="driver-trip-subtitle">{user?.name}</div>
           </div>
           <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć</button>
         </div>
 
-        {isAdmin && (
-          <section className="driver-admin-live">
-            <div className="driver-section-title">Aktywne trasy na żywo ({activeTrips.length})</div>
-            <div className="driver-trip-list">
-              {activeTrips.length === 0 && <div className="driver-empty-row">Brak rozpoczętych tras</div>}
-              {activeTrips.map(t => {
-                const stats = getTripStats(t);
-                return (
-                  <div key={t.id} className="driver-trip-row is-live">
-                    <div>
-                      <div className="driver-trip-row-title">{t.driver_name || 'Kierowca'} · {VEHICLE_LABELS[t.car] || t.car}</div>
-                      <div className="driver-trip-row-sub">Start {fmtTime(t.started_at)} · {fmtDuration(t.started_at, null)} · {routeNamesForTrip(t)}</div>
-                    </div>
-                    <div className="driver-trip-row-stats">
-                      <span>{stats.delivered}/{stats.stops} dost.</span>
-                      <span>{stats.picked}/{stats.stops} z pralni</span>
-                      <span>{stats.kg || 0} kg</span>
-                      <span>{stats.cleanTrolleys} z pralni</span>
-                      <span>{stats.dirtyTrolleys} brudne</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
         <section className="driver-history-panel">
           <div className="driver-section-toolbar" style={{ marginBottom: '10px' }}>
-            <div className="driver-section-title">{isAdmin ? 'Historia tras' : 'Moja historia tras'}</div>
-            {isAdmin && pendingKmTrips.length > 0 && (
-              <button className="driver-tool-btn" onClick={approvePendingTripKms} disabled={busy}>
-                Zatwierdź wszystkie km ({pendingKmTrips.length})
-              </button>
-            )}
+            <div className="driver-section-title">Moja historia tras</div>
           </div>
           <div className="driver-trip-list">
             {historyTrips.length === 0 && <div className="driver-empty-row">Brak zakończonych tras</div>}
-            {historyTrips.map(t => {
-              const stats = getTripStats(t);
-              const kmApproval = tripKmApproval(t);
-              return (
-                <div key={t.id} className="driver-trip-row">
-                  <div>
-                    <div className="driver-trip-row-title">{fmtDate(t.trip_date)} · {t.driver_name || 'Kierowca'} · {VEHICLE_LABELS[t.car] || t.car}</div>
-                    <div className="driver-trip-row-sub">
-                      {routeNamesForTrip(t)} · {fmtTime(t.started_at)}-{fmtTime(t.ended_at)} · {fmtDuration(t.started_at, t.ended_at)} · zgłoszony licznik {t.end_km ?? '—'} km
-                      {t.end_km ? ` · ${kmApproval.approved ? 'km zatwierdzone' : 'km do zatwierdzenia'}` : ''}
-                    </div>
-                  </div>
-                  <div className="driver-trip-row-stats">
-                    <span>{stats.delivered}/{stats.stops} dost.</span>
-                    <span>{stats.picked}/{stats.stops} z pralni</span>
-                    <span>{stats.kg || 0} kg</span>
-                    <span>{stats.cleanTrolleys} z pralni</span>
-                    <span>{stats.dirtyTrolleys} brudne</span>
-                    {isAdmin && t.end_km && !kmApproval.approved && (
-                      <button className="driver-mini-card-btn" onClick={() => approveTripKm(t)} disabled={busy}>Zatwierdź km</button>
-                    )}
-                    <button className="driver-mini-card-btn" onClick={() => printCard(t)}>Karta</button>
-                  </div>
-                </div>
-              );
-            })}
+            {historyTrips.map(t => renderTripRow(t, false))}
           </div>
         </section>
       </div>
