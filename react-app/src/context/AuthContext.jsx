@@ -115,6 +115,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const role = user?.role ?? null;
+  const isAdmin = role === 'admin';
+  const isAdminViewer = role === 'admin_viewer';
+  const isDriver = role === 'driver';
+  const isViewer = role === 'viewer';
+  const canViewAdminData = isAdmin || isAdminViewer;
 
   return (
     <AuthContext.Provider value={{
@@ -127,10 +132,12 @@ export const AuthProvider = ({ children }) => {
       impersonate,
       stopImpersonating,
       signOut,
-      isAdmin:  role === 'admin',
-      isDriver: role === 'driver',
-      isViewer: role === 'viewer',
-      canEdit:  role === 'admin' || role === 'driver',
+      isAdmin,
+      isAdminViewer,
+      isDriver,
+      isViewer,
+      canViewAdminData,
+      canEdit:  isAdmin || isDriver,
     }}>
       {children}
     </AuthContext.Provider>

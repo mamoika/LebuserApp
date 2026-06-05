@@ -203,7 +203,7 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
 }
 
 export default function CostsView() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canViewAdminData } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
@@ -220,13 +220,14 @@ export default function CostsView() {
   // progi wydajności (kg/rbh) — PER MIESIĄC (app_settings: performance_progi_<month>)
   const [progi, setProgi] = useState(() => loadProgiCache(`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`));
   const updateProgi = useCallback(async (next) => {
+    if (!isAdmin) return;
     const mk = monthKey;
     setProgi(next);
     try { localStorage.setItem(progiLsKey(mk), JSON.stringify(next)); } catch { /* ignore */ }
     const { error } = await supabase.from('app_settings')
       .upsert({ key: progiDbKey(mk), value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) toastError('Nie udało się zapisać progów');
-  }, [monthKey]);
+  }, [isAdmin, monthKey]);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -247,7 +248,7 @@ export default function CostsView() {
   const saveTimer = useRef(null);
 
   const fetchData = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canViewAdminData) return;
     setLoading(true);
 
     const year = currentDate.getFullYear();
@@ -354,14 +355,14 @@ export default function CostsView() {
     setTimelineStats(tStats);
 
     setLoading(false);
-  }, [currentDate, monthKey, isAdmin]);
+  }, [currentDate, monthKey, canViewAdminData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // Historia: agreguj miesiące od STYCZNIA bieżącego roku do miesiąca przed bieżącym
   // (bieżący doklejamy w renderze z monthlyTotals → na ekranie styczeń → aktualny miesiąc).
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canViewAdminData) return;
     let alive = true;
     const y = currentDate.getFullYear(), m = currentDate.getMonth() + 1;
     const winFrom = toDateStr(new Date(y - 1, 11, 1));  // 1 grudnia poprz. roku — zapas na carryover liczników do stycznia
@@ -384,12 +385,12 @@ export default function CostsView() {
       if (alive) setHistory(months);
     })();
     return () => { alive = false; };
-  }, [isAdmin, monthKey, currentDate]);
+  }, [canViewAdminData, monthKey, currentDate]);
 
   // Progi wydajności są PER MIESIĄC — wczytaj progi tego miesiąca z app_settings.
   // Brak własnych → odziedzicz z ostatniego wcześniejszego miesiąca (jak stawki); inaczej domyślne.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canViewAdminData) return;
     let alive = true;
     setProgi(loadProgiCache(monthKey)); // natychmiast z cache tego miesiąca
     (async () => {
@@ -408,10 +409,11 @@ export default function CostsView() {
       }
     })();
     return () => { alive = false; };
-  }, [isAdmin, monthKey]);
+  }, [canViewAdminData, monthKey]);
 
   // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
   const flushSave = useCallback(async () => {
+    if (!isAdmin) return;
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     const days = [...dirtyDays.current];
     const setDirty = dirtySettings.current;
@@ -443,7 +445,7 @@ export default function CostsView() {
       setAutoSave('idle');
       toastError('Nie udało się zapisać — zmiany niezapisane');
     }
-  }, []);
+  }, [isAdmin]);
 
   const scheduleAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -454,6 +456,7 @@ export default function CostsView() {
   useEffect(() => () => { flushSave(); }, [monthKey, flushSave]);
 
   const handleCostChange = (dateStr, field, value) => {
+    if (!isAdmin) return;
     let parsed = value;
     if (value === '') {
       parsed = null;
@@ -472,6 +475,7 @@ export default function CostsView() {
   };
 
   const handleSettingChange = (field, value) => {
+    if (!isAdmin) return;
     const num = value === '' ? null : parseFloat(value);
     setSettings(prev => ({ ...prev, [field]: num }));
     dirtySettings.current = true;
@@ -480,6 +484,7 @@ export default function CostsView() {
   };
 
   const saveAll = async () => {
+    if (!isAdmin) return;
     setSaving(true);
     const { error: setErr } = await supabase.from('cost_settings').upsert({
       ...settings, month_key: monthKey, updated_at: new Date().toISOString()
@@ -498,7 +503,7 @@ export default function CostsView() {
     fetchData();
   };
 
-  if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -701,7 +706,7 @@ export default function CostsView() {
           <button onClick={() => setShowRates(v => !v)} title="Stawki" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
             <Settings size={16}/> Stawki
           </button>
-          <button onClick={saveAll} disabled={saving} className="costs-save-btn" title="Zapisz wszystko teraz" style={{
+          {isAdmin && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title="Zapisz wszystko teraz" style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: autoSave === 'saved' ? '#34C759' : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
             color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: 600, fontSize: '14px',
@@ -709,12 +714,12 @@ export default function CostsView() {
             cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.2s'
           }}>
             <Save size={18}/> {saving ? 'Zapisuję...' : autoSave === 'saving' ? 'Auto-zapis…' : autoSave === 'saved' ? 'Zapisano ✓' : 'Zapisz'}
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* RATES PANEL */}
-      {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} />}
+      {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!isAdmin} />}
 
       {loading ? (
         <div style={{ ...cardStyle, padding: '60px', textAlign: 'center', color: IOS_THEME.textSecondary, fontSize: '15px' }}>Ładowanie danych finansowych...</div>
@@ -725,11 +730,11 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} />
+            <EntryGrid days={days} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} />
           )}
 
           {activeTab === 'performance' && (
-            <PerformanceGrid days={days} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} />
+            <PerformanceGrid days={days} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} />
           )}
         </>
       )}
@@ -1094,7 +1099,7 @@ function TrendChart({ data, days, avg }) {
 }
 
 /* ───────────── RATES PANEL ───────────── */
-function RatesPanel({ settings, onChange }) {
+function RatesPanel({ settings, onChange, readOnly = false }) {
   const groups = [
     { title: 'Transport', color: CAT.transport, fields: [
       ['fiat_l_100km', 'Fiat L/100km'], ['isuzu_l_100km', 'Isuzu L/100km'], ['merc_l_100km', 'Merc. L/100km'],
@@ -1118,7 +1123,7 @@ function RatesPanel({ settings, onChange }) {
   ];
   return (
     <div style={cardStyle}>
-      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={16}/> Stawki — {' '}<span style={{ fontWeight: 500, color: IOS_THEME.textSecondary, fontSize: '13px' }}>edytuj i kliknij „Zapisz"</span></div>
+      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={16}/> Stawki — {' '}<span style={{ fontWeight: 500, color: IOS_THEME.textSecondary, fontSize: '13px' }}>{readOnly ? 'podgląd' : 'edytuj i kliknij „Zapisz"'}</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px', marginTop: '4px' }}>
         {groups.map(g => (
           <div key={g.title} style={{ borderLeft: `3px solid ${g.color}`, paddingLeft: '12px' }}>
@@ -1127,7 +1132,7 @@ function RatesPanel({ settings, onChange }) {
               {g.fields.map(([field, label]) => (
                 <label key={field} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '13px' }}>
                   <span style={{ color: IOS_THEME.textSecondary }}>{label}</span>
-                  <input type="number" value={settings[field] ?? ''} onChange={(e) => onChange(field, e.target.value)} className="costs-inp" style={{ ...rateInpStyle }} />
+                  <input type="number" value={settings[field] ?? ''} onChange={(e) => onChange(field, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...rateInpStyle, opacity: readOnly ? 0.75 : 1 }} />
                 </label>
               ))}
             </div>
@@ -1139,7 +1144,7 @@ function RatesPanel({ settings, onChange }) {
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, dailyData, calcDay, totals, onChange }) {
+function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = false }) {
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label) => (
     <th className="sticky-head" style={newThStyle}>
@@ -1160,7 +1165,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange }) {
   );
   const reading = (dStr, dt, base, cons, unit) => valCell(
     newTdStyle,
-    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} className="costs-inp" style={newInpStyle}/>,
+    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
     cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
   );
   const footMeter = (val, unit) => (
@@ -1235,7 +1240,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange }) {
                   {valCell(costCellStyle(CAT.water), FMT(c.water_cost), '')}
                   {valCell(costCellStyle(CAT.workers), c.worker_cost > 0 ? FMT(c.worker_cost) : '—', '')}
                   {valCell(newTdStyle,
-                    <input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} className="costs-inp" style={newInpStyle}/>,
+                    <input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
                     '')}
                   {valCell(
                     { ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' },
@@ -1286,7 +1291,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange }) {
 // Formatuje próg w postaci XX.X (np. 4 → "4.0", 5.5 → "5.5")
 const fmtProg = (v) => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(1) : String(v ?? ''); };
 // Remontowany przez key={...value} u rodzica, więc draft startuje od aktualnej wartości
-function ProgInput({ value, onCommit }) {
+function ProgInput({ value, onCommit, readOnly = false }) {
   const [draft, setDraft] = useState(fmtProg(value));
   const commit = () => {
     const v = parseFloat(draft.replace(',', '.'));
@@ -1300,13 +1305,14 @@ function ProgInput({ value, onCommit }) {
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-      style={{ width: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, fontWeight: 700, fontSize: '13px', color: IOS_THEME.textPrimary }}
+      disabled={readOnly}
+      style={{ width: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, fontWeight: 700, fontSize: '13px', color: IOS_THEME.textPrimary, opacity: readOnly ? 0.75 : 1 }}
     />
   );
 }
 
 // Edytor JEDNEGO pasma (kliknięty kolor) — przedział od–do dla każdej grupy (ZD1/ZD2/Ogółem)
-function ThresholdEditor({ band, progi, onChange, onClose }) {
+function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
   const GROUPS = [['ZD1', 'ZD 1'], ['ZD2', 'ZD 2'], ['WSP', 'Ogółem']];
   const def = PERF_BANDS.find(b => b.id === band);
   const isDefault = JSON.stringify(progi) === JSON.stringify(PROGI_DEFAULT);
@@ -1326,7 +1332,7 @@ function ThresholdEditor({ band, progi, onChange, onClose }) {
         <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kg/rbh · format XX.X · osobne dla każdego miesiąca · kolory na żywo</span>
         <button
           onClick={() => onChange(PROGI_DEFAULT)}
-          disabled={isDefault}
+          disabled={isDefault || readOnly}
           style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF', color: isDefault ? IOS_THEME.textSecondary : IOS_THEME.accent, fontWeight: 700, fontSize: '11px', cursor: isDefault ? 'default' : 'pointer', opacity: isDefault ? 0.5 : 1 }}
         >
           Przywróć domyślne
@@ -1346,11 +1352,11 @@ function ThresholdEditor({ band, progi, onChange, onClose }) {
             {lbl('od')}
             {def.from === null
               ? staticBox('0')
-              : <ProgInput key={`${gKey}-from-${progi[gKey][def.from]}`} value={progi[gKey][def.from]} onCommit={(v) => setVal(gKey, def.from, v)} />}
+              : <ProgInput key={`${gKey}-from-${progi[gKey][def.from]}`} value={progi[gKey][def.from]} onCommit={(v) => setVal(gKey, def.from, v)} readOnly={readOnly} />}
             {lbl('do')}
             {def.to === null
               ? staticBox('∞')
-              : <ProgInput key={`${gKey}-to-${progi[gKey][def.to]}`} value={progi[gKey][def.to]} onCommit={(v) => setVal(gKey, def.to, v)} />}
+              : <ProgInput key={`${gKey}-to-${progi[gKey][def.to]}`} value={progi[gKey][def.to]} onCommit={(v) => setVal(gKey, def.to, v)} readOnly={readOnly} />}
             {lbl('kg/rbh')}
           </div>
         ))}
@@ -1360,7 +1366,7 @@ function ThresholdEditor({ band, progi, onChange, onClose }) {
 }
 
 /* ───────────── PERFORMANCE GRID ───────────── */
-function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, progi, onProgiChange }) {
+function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, progi, onProgiChange, readOnly = false }) {
   const [editBand, setEditBand] = useState(null); // id klikniętego pasma (kolor) lub null
   const effTd = (val, thr, perPerson) => {
     const c = effStyle(val, thr);
@@ -1426,7 +1432,7 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
         <Settings size={13} style={{ color: editBand ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
         <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>kg/h kolorowane · kg/os pod spodem · godziny i obsada z osi czasu</span>
       </div>
-      {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} />}
+      {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
@@ -1472,9 +1478,9 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
                       <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{WEEKDAYS_PL[d.getDay()]}</span>
                     </div>
                   </td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} className="costs-inp" style={newInpStyle}/></td>
+                  <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
+                  <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
+                  <td style={newTdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{t_suma > 0 ? t_suma : '—'}</td>
                   {hoursTd(hZd1, ts.ZD1?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(hZd2, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}

@@ -126,7 +126,7 @@ function workDateOptions(days = 14) {
 }
 
 export default function DriverRouteView({ manageMode = false }) {
-  const { user, isAdmin, sessionToken } = useAuth();
+  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const { entries, allRoutes, clients, loading, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
@@ -175,7 +175,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const loadTrips = useCallback(async () => {
     let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
-    if (!isAdmin) q = q.eq('driver_id', user?.id);
+    if (!canViewAdminData) q = q.eq('driver_id', user?.id);
     const [{ data, error }, { data: costs }] = await Promise.all([
       q,
       supabase.from('daily_costs')
@@ -192,7 +192,7 @@ export default function DriverRouteView({ manageMode = false }) {
     setAllTrips(trips);
     setDailyCosts(costs || []);
     return trips;
-  }, [isAdmin, user?.id]);
+  }, [canViewAdminData, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -220,7 +220,7 @@ export default function DriverRouteView({ manageMode = false }) {
     };
     if (user?.id) load();
     return () => { cancelled = true; };
-  }, [user?.id, today, isAdmin, loadTrips]);
+  }, [user?.id, today, canViewAdminData, loadTrips]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);

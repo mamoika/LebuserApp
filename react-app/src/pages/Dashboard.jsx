@@ -29,7 +29,7 @@ const PAGE_TITLES = {
 };
 
 export default function Dashboard() {
-  const { user, adminBackup, signOut, stopImpersonating, isAdmin } = useAuth();
+  const { user, adminBackup, signOut, stopImpersonating, isAdmin, canViewAdminData } = useAuth();
   const isImpersonating = !!adminBackup;
   const location = useLocation();
   const pageInfo = PAGE_TITLES[location.pathname] || PAGE_TITLES['/'];
@@ -113,7 +113,7 @@ export default function Dashboard() {
         <Routes>
           <Route path="/" element={<ScheduleView />} />
           <Route path="/route" element={<DriverRouteView />} />
-          <Route path="/routes" element={isAdmin ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
+          <Route path="/routes" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />

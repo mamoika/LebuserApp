@@ -108,6 +108,7 @@ function AddUserModal({ onClose, onSave }) {
           <div style={LABEL_STYLE}>Rola</div>
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
             <option value="viewer">Tylko podgląd</option>
+            <option value="admin_viewer">Admin do wglądu</option>
             <option value="driver">Kierowca</option>
             <option value="admin">Administrator</option>
           </select>
@@ -174,6 +175,7 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
           <div style={LABEL_STYLE}>Rola</div>
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
             <option value="viewer">Tylko podgląd</option>
+            <option value="admin_viewer">Admin do wglądu</option>
             <option value="driver">Kierowca</option>
             <option value="admin">Administrator</option>
           </select>
@@ -833,7 +835,7 @@ export default function AdminDashboard() {
             <div>
               <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                @{u.username} · {u.role === 'admin' ? '⚙️ Admin' : u.role === 'driver' ? '🚛 Kierowca' : '👁 Podgląd'}
+                @{u.username} · {u.role === 'admin' ? '⚙️ Admin' : u.role === 'admin_viewer' ? '👁 Admin do wglądu' : u.role === 'driver' ? '🚛 Kierowca' : '👁 Podgląd'}
                 {u.routes ? ` · Trasy: ${u.routes}` : ''}
               </div>
             </div>

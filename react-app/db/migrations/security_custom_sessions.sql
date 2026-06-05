@@ -261,7 +261,7 @@ declare
 begin
   perform public.require_admin(p_session_token);
 
-  if lower(trim(p_role)) not in ('admin', 'driver', 'viewer') then
+  if lower(trim(p_role)) not in ('admin', 'admin_viewer', 'driver', 'viewer') then
     return json_build_object('error', 'Nieprawidłowa rola');
   end if;
 
@@ -308,7 +308,7 @@ as $$
 begin
   perform public.require_admin(p_session_token);
 
-  if lower(trim(p_role)) not in ('admin', 'driver', 'viewer') then
+  if lower(trim(p_role)) not in ('admin', 'admin_viewer', 'driver', 'viewer') then
     return json_build_object('error', 'Nieprawidłowa rola');
   end if;
 

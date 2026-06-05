@@ -122,7 +122,7 @@ AS $$
 DECLARE
   v_id UUID;
 BEGIN
-  IF lower(trim(p_role)) NOT IN ('admin', 'driver', 'viewer') THEN
+  IF lower(trim(p_role)) NOT IN ('admin', 'admin_viewer', 'driver', 'viewer') THEN
     RETURN json_build_object('error', 'Nieprawidłowa rola');
   END IF;
 

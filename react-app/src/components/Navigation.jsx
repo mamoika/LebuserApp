@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
-  const { isAdmin, canEdit } = useAuth();
+  const { isAdmin, canEdit, canViewAdminData } = useAuth();
 
   const navItems = [];
 
@@ -17,11 +17,14 @@ export default function Navigation() {
     { to: '/history', icon: '📋', label: 'Historia' },
   );
 
-  if (isAdmin) {
+  if (canViewAdminData) {
     navItems.push({ to: '/routes', icon: '📍', label: 'Trasy na żywo' });
     navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });
     navItems.push({ to: '/timeline', icon: '⏱', label: 'Oś czasu' });
     navItems.push({ to: '/costs', icon: '💰', label: 'Koszty' });
+  }
+
+  if (isAdmin) {
     navItems.push({ to: '/admin', icon: '⚙️', label: 'Panel Admina' });
   }
 
