@@ -1,4 +1,5 @@
-import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
+import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -28,9 +29,64 @@ const PAGE_TITLES = {
   '/admin':    { title: 'Panel Admina',   subtitle: 'Użytkownicy i ustawienia' },
 };
 
+function PrivacyNoticeModal() {
+  const { acknowledgePrivacyNotice } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConfirm = async () => {
+    setSaving(true);
+    setError('');
+    const result = await acknowledgePrivacyNotice(PRIVACY_NOTICE_VERSION);
+    setSaving(false);
+    if (result?.error) setError(result.error);
+  };
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex', zIndex: 5000 }}>
+      <div className="ap-sheet" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#0A84FF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, flexShrink: 0 }}>i</div>
+            <div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Informacja RODO</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Wersja: {PRIVACY_NOTICE_VERSION}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: 1.45, color: 'var(--text-secondary)' }}>
+            <p style={{ margin: 0 }}>
+              Aplikacja LEBUSER przetwarza dane potrzebne do organizacji pracy, tras, dostaw, odbiorów, kosztów oraz bezpieczeństwa systemu.
+            </p>
+            <p style={{ margin: 0 }}>
+              Mogą to być m.in. dane konta, rola użytkownika, przypisane trasy, wpisy dostaw i odbiorów, historia działań, informacje o klientach/punktach oraz dane operacyjne widoczne w aplikacji.
+            </p>
+            <p style={{ margin: 0 }}>
+              Dane są używane do realizacji procesów logistycznych, rozliczeń wewnętrznych, kontroli dostępu, audytu działań i ochrony systemu. Szczegółowa klauzula i rejestr czynności są prowadzone w dokumentacji firmy.
+            </p>
+            <p style={{ margin: 0 }}>
+              Potwierdzenie oznacza, że zapoznałeś/zapoznałaś się z tą informacją. Nie jest to zgoda marketingowa ani zgoda na dowolne przetwarzanie danych.
+            </p>
+          </div>
+
+          {error && <div className="ap-error" style={{ marginTop: '14px' }}>{error}</div>}
+
+          <div className="ap-btn-group" style={{ marginTop: '18px' }}>
+            <button className="ap-btn ap-btn-primary" onClick={handleConfirm} disabled={saving}>
+              {saving ? 'Zapisywanie...' : 'Potwierdzam zapoznanie się'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, adminBackup, signOut, stopImpersonating, isAdmin, canViewAdminData } = useAuth();
   const isImpersonating = !!adminBackup;
+  const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
   const pageInfo = PAGE_TITLES[location.pathname] || PAGE_TITLES['/'];
 
@@ -124,6 +180,7 @@ export default function Dashboard() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      {needsPrivacyNotice && <PrivacyNoticeModal />}
       <ToastContainer />
     </div>
   );

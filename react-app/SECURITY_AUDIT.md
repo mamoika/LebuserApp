@@ -107,6 +107,9 @@ After the write-hardening SQL run, live verification showed:
 - Live verification after running `revoke_logs_direct_reads.sql` showed direct
   anon `select` on `logs` is denied while admin logs and entry history still
   load through RPC.
+- Added privacy notice acknowledgement flow:
+  `db/migrations/privacy_notice_ack.sql`, a post-login RODO modal and admin
+  acknowledgement status on the user list.
 
 ## Remaining Hardening Plan
 
@@ -156,7 +159,13 @@ After the write-hardening SQL run, live verification showed:
    - processor/DPA list,
    - retention policy.
 
-5. Add retention automation
+5. Track privacy notice versions
+
+   The app now stores acknowledgement of `privacy_notice_v1`. When the privacy
+   notice text materially changes, increment `PRIVACY_NOTICE_VERSION` in
+   `src/context/AuthContext.jsx` so users see the notice again.
+
+6. Add retention automation
 
    Once retention periods are approved, add database cleanup/anonymization for
    expired sessions, logs, inactive users and old operational records.

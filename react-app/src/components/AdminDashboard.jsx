@@ -881,6 +881,9 @@ export default function AdminDashboard() {
                 @{u.username} · {u.role === 'admin' ? '⚙️ Admin' : u.role === 'admin_viewer' ? '👁 Admin do wglądu' : u.role === 'driver' ? '🚛 Kierowca' : '👁 Podgląd'}
                 {u.routes ? ` · Trasy: ${u.routes}` : ''}
               </div>
+              <div style={{ fontSize: '11px', color: u.privacy_notice_ack_version ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
+                RODO: {u.privacy_notice_ack_version ? `potwierdzone ${u.privacy_notice_ack_version}` : 'brak potwierdzenia'}
+              </div>
             </div>
             <div style={{
               fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px',

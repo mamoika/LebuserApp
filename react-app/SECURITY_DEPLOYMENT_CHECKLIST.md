@@ -69,3 +69,16 @@ Complete the operational documents in `docs/compliance`:
 - `ACCESS_CONTROL_CHECKLIST.md`
 
 Then add database/app automation for the approved retention periods.
+
+## Phase 6: Privacy Notice Acknowledgement
+
+Run:
+
+1. `db/migrations/privacy_notice_ack.sql`
+
+Then deploy the frontend and verify:
+
+- users who have not acknowledged the current notice version see the RODO modal after login,
+- clicking `Potwierdzam zapoznanie się` saves the acknowledgement,
+- the modal does not return after refresh/login for the same version,
+- Panel Admina shows the RODO acknowledgement status for each user.

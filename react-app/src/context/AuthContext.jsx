@@ -7,6 +7,7 @@ export const useAuth = () => useContext(AuthContext);
 const STORAGE_KEY = 'lebuser_user';
 const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impersonacji
 const MAX_SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+export const PRIVACY_NOTICE_VERSION = 'privacy_notice_v1';
 
 const isSessionExpired = (session) => {
   if (!session?.session_expires_at) return false;
@@ -33,6 +34,11 @@ const readStoredSession = (key) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => readStoredSession(STORAGE_KEY));
   const [adminBackup, setAdminBackup] = useState(() => readStoredSession(BACKUP_KEY));
+
+  const storeUser = useCallback((userData) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    setUser(userData);
+  }, []);
 
   useEffect(() => {
     if (!user?.session_expires_at) return undefined;
@@ -86,11 +92,12 @@ export const AuthProvider = ({ children }) => {
       name: data.name,
       role: data.role,
       routes: data.routes,
+      privacy_notice_ack_at: data.privacy_notice_ack_at,
+      privacy_notice_ack_version: data.privacy_notice_ack_version,
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    setUser(userData);
+    storeUser(userData);
     return { ok: true };
   };
 
@@ -115,11 +122,29 @@ export const AuthProvider = ({ children }) => {
       role: data.role,
       routes: data.routes,
       has_password: data.has_password,
+      privacy_notice_ack_at: data.privacy_notice_ack_at,
+      privacy_notice_ack_version: data.privacy_notice_ack_version,
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(targetUser));
-    setUser(targetUser);
+    storeUser(targetUser);
+    return { ok: true };
+  };
+
+  const acknowledgePrivacyNotice = async (version = PRIVACY_NOTICE_VERSION) => {
+    const { data, error } = await supabase.rpc('acknowledge_privacy_notice', {
+      p_session_token: user?.session_token,
+      p_version: version,
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+
+    const nextUser = {
+      ...user,
+      privacy_notice_ack_at: data.privacy_notice_ack_at,
+      privacy_notice_ack_version: data.privacy_notice_ack_version,
+    };
+    storeUser(nextUser);
     return { ok: true };
   };
 
@@ -168,6 +193,7 @@ export const AuthProvider = ({ children }) => {
       setFirstPassword,
       impersonate,
       stopImpersonating,
+      acknowledgePrivacyNotice,
       signOut,
       isAdmin,
       isAdminViewer,
