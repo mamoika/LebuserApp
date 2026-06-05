@@ -36,3 +36,36 @@ Then repeat the smoke test.
 ## Phase 4: Later Read Hardening
 
 Direct table reads still exist and are intentionally not blocked yet. The next hardening phase should move reads behind session-token RPCs before revoking `select`.
+
+First read-hardening migration:
+
+1. `db/migrations/logs_read_rpc.sql`
+
+Status: run in Supabase and smoke-tested.
+
+After deploying the frontend that uses it, verify:
+
+- Admin panel log list loads.
+- Entry history change log opens.
+- No frontend direct reads from `logs` remain.
+
+Then run:
+
+1. `db/migrations/revoke_logs_direct_reads.sql`
+
+Repeat the same smoke test.
+
+Status: run in Supabase and smoke-tested.
+
+## Phase 5: RODO/EU Operations
+
+Complete the operational documents in `docs/compliance`:
+
+- `PRIVACY_NOTICE_TEMPLATE.md`
+- `RECORD_OF_PROCESSING.md`
+- `DATA_BREACH_PROCEDURE.md`
+- `PROCESSORS_AND_TRANSFERS.md`
+- `RETENTION_POLICY.md`
+- `ACCESS_CONTROL_CHECKLIST.md`
+
+Then add database/app automation for the approved retention periods.

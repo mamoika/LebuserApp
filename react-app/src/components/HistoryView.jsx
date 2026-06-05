@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
+import { getEntryLogs } from '../lib/logsRpc';
 
 const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
 const FULL_DAYS = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
@@ -47,6 +48,7 @@ function formatDate(isoStr) {
 
 // Oś czasu zmian danego wpisu — dociągana z tabeli logs po kliknięciu.
 function EntryChangeLog({ entryId }) {
+  const { sessionToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState(null); // null = jeszcze nie wczytano
   const [loading, setLoading] = useState(false);
@@ -56,12 +58,12 @@ function EntryChangeLog({ entryId }) {
     setOpen(next);
     if (next && logs === null) {
       setLoading(true);
-      const { data } = await supabase
-        .from('logs')
-        .select('*')
-        .eq('entry_id', entryId)
-        .order('created_at', { ascending: true });
-      setLogs(data || []);
+      try {
+        const data = await getEntryLogs(sessionToken, entryId);
+        setLogs(data.logs || []);
+      } catch {
+        setLogs([]);
+      }
       setLoading(false);
     }
   };

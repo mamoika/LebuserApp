@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { loadMonthRoster } from '../lib/roster';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting } from '../lib/adminRpc';
+import { getLogsPage } from '../lib/logsRpc';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -659,6 +660,7 @@ const ACTION_LABELS = {
 const LOGS_PAGE_SIZE = 50;
 
 function LogsSection() {
+  const { sessionToken } = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -668,19 +670,18 @@ function LogsSection() {
   useEffect(() => {
     setLoading(true);
     const from = page * LOGS_PAGE_SIZE;
-    const to = from + LOGS_PAGE_SIZE - 1;
-    supabase
-      .from('logs')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
-      .then(({ data, count, error }) => {
-        setError(error ? error.message : null);
-        setLogs(data || []);
-        if (typeof count === 'number') setTotal(count);
-        setLoading(false);
-      });
-  }, [page]);
+    getLogsPage(sessionToken, { limit: LOGS_PAGE_SIZE, offset: from })
+      .then(data => {
+        setError(null);
+        setLogs(data.logs || []);
+        if (typeof data.total === 'number') setTotal(data.total);
+      })
+      .catch(error => {
+        setError(error.message);
+        setLogs([]);
+      })
+      .finally(() => setLoading(false));
+  }, [page, sessionToken]);
 
   const totalPages = Math.max(1, Math.ceil(total / LOGS_PAGE_SIZE));
 
