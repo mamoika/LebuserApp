@@ -2286,14 +2286,19 @@ export default function DriverRouteView({ manageMode = false }) {
                 </>
               ) : (
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.4 }}>
-                  Nic jeszcze nie zrobiono — zmienimy auto bez licznika. Trasy i to, co załadowane, zostają.
+                  Nic nie odebrano z pralni — auto jest puste, więc zmieniamy je bez licznika. Wybrane trasy zostają.
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setChangeCarOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
-                <button onClick={changeCar} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zmień auto'}</button>
-              </div>
+              {(() => {
+                const laundryInCar = tripHasProgress && pickedNotDeliveredStops.length > 0;
+                return (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => setChangeCarOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+                    <button onClick={changeCar} disabled={busy || laundryInCar} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: laundryInCar ? 'var(--border)' : 'var(--accent)', color: '#fff', cursor: laundryInCar ? 'not-allowed' : 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : laundryInCar ? 'Najpierw rozładuj auto' : 'Zmień auto'}</button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
