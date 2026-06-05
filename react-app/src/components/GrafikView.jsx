@@ -29,6 +29,30 @@ function getCellStyle(value, isWeekendOrHoliday) {
   return { bg: '#fff', color: '#374151', pattern: false };
 }
 
+// Dłuższe wpisy (np. "7,30+11") nie mieszczą się w wąskiej kolumnie — dobieramy
+// rozmiar czcionki do długości najdłuższej linii.
+function cellFontSize(value) {
+  const s = String(value || '');
+  const longest = s.includes('+')
+    ? Math.max(...s.split('+').map((p, i) => (i === 0 ? p : '+' + p).length))
+    : s.length;
+  if (longest <= 3) return 11;
+  if (longest <= 4) return 9.5;
+  if (longest <= 5) return 8.5;
+  if (longest <= 6) return 7.5;
+  return 6.5;
+}
+// Zmianę dzieloną ("7,30+11") pokazujemy w osobnych liniach: "7,30" nad "+11".
+function renderCellValue(value) {
+  const s = String(value);
+  if (s.includes('+')) {
+    return s.split('+').map((p, i) => (
+      <div key={i} style={{ lineHeight: 1.05 }}>{i === 0 ? p : `+${p}`}</div>
+    ));
+  }
+  return s;
+}
+
 function parseHours(value) {
   const v = String(value || '').trim().toUpperCase();
   if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NN' || v === 'I' || v === 'END') return 0;
@@ -498,9 +522,14 @@ export default function GrafikView() {
                               cursor: 'default',
                               padding: 0, width: `${dayColW}px`,
                               boxSizing: 'border-box',
-                              position: 'relative'
+                              position: 'relative',
+                              verticalAlign: 'middle', overflow: 'hidden'
                             }}>
-                            {val || null}
+                            {val ? (
+                              <div style={{ fontSize: `${cellFontSize(val)}px`, lineHeight: 1.05, wordBreak: 'break-word', padding: '0 1px' }}>
+                                {renderCellValue(val)}
+                              </div>
+                            ) : null}
                           </td>
                         );
                       })}
