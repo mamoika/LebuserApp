@@ -160,6 +160,9 @@ export default function DriverRouteView({ manageMode = false }) {
   const [changeCarOpen, setChangeCarOpen] = useState(false);
   const [changeCarTarget, setChangeCarTarget] = useState(null);
   const [changeCarKm, setChangeCarKm] = useState('');
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffTrip, setHandoffTrip] = useState(null);
+  const [handoffTarget, setHandoffTarget] = useState('');
   const [kmEditTrip, setKmEditTrip] = useState(null); // trasa, której licznik admin zatwierdza/koryguje
   const [kmEditValue, setKmEditValue] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -178,7 +181,8 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const loadTrips = useCallback(async () => {
     let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
-    if (!canViewAdminData) q = q.eq('driver_id', user?.id);
+    // Nie-admin widzi własne trasy + pulę „do przejęcia" (handover) innych kierowców.
+    if (!canViewAdminData) q = q.or(`driver_id.eq.${user?.id},status.eq.handover`);
     const [{ data, error }, { data: costs }] = await Promise.all([
       q,
       supabase.from('daily_costs')
@@ -248,6 +252,14 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!manageMode || !sessionToken) return;
     supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
       setDriverOptions((data || []).filter(u => u.role === 'driver' || u.role === 'admin'));
+    });
+  }, [manageMode, sessionToken]);
+
+  // Lekka lista kierowców dla pickera przekazania trasy (dostępna też kierowcom).
+  useEffect(() => {
+    if (manageMode || !sessionToken) return;
+    supabase.rpc('list_drivers', { p_session_token: sessionToken }).then(({ data }) => {
+      setDriverOptions(data || []);
     });
   }, [manageMode, sessionToken]);
 
@@ -903,6 +915,82 @@ export default function DriverRouteView({ manageMode = false }) {
     finally { setBusy(false); }
   };
 
+  // Po przekazaniu/oddaniu własnej trasy — zwolnij widok do ekranu startowego.
+  const releaseOwnTripView = (tripId) => {
+    if (trip?.id !== tripId) return;
+    setTrip(null);
+    setPlannedTrip(null);
+    setSelectedRoutes(parseRouteIds(user?.routes));
+    setSelectedCar(defaultCar || VEHICLES[0].key);
+  };
+
+  // Przekaż trasę (z praniem) wprost wskazanemu kierowcy.
+  const transferTrip = async () => {
+    if (!handoffTrip?.id) return;
+    if (!handoffTarget) { toastError('Wybierz kierowcę'); return; }
+    try {
+      setBusy(true);
+      const { data, error } = await supabase.rpc('transfer_loaded_trip', {
+        p_session_token: sessionToken,
+        p_trip_id: handoffTrip.id,
+        p_target_driver_id: handoffTarget,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ userName: user.name, action: 'edited', details: `Przekazano trasę ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car}) → ${data.driver}` });
+      releaseOwnTripView(handoffTrip.id);
+      setHandoffOpen(false); setHandoffTrip(null); setHandoffTarget('');
+      await loadTrips();
+      toastSuccess(`Trasa przekazana: ${data.driver}`);
+    } catch (err) { toastError('Błąd przekazania: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Zostaw trasę do przejęcia (pula).
+  const parkTrip = async () => {
+    if (!handoffTrip?.id) return;
+    if (!window.confirm('Zostawić trasę do przejęcia? Auto z praniem czeka, inny kierowca ją przejmie.')) return;
+    try {
+      setBusy(true);
+      const { data, error } = await supabase.rpc('park_loaded_trip', {
+        p_session_token: sessionToken,
+        p_trip_id: handoffTrip.id,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ userName: user.name, action: 'edited', details: `Zostawiono trasę do przejęcia: ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car})` });
+      releaseOwnTripView(handoffTrip.id);
+      setHandoffOpen(false); setHandoffTrip(null); setHandoffTarget('');
+      await loadTrips();
+      toastSuccess('Trasa zostawiona do przejęcia');
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Przejmij trasę z puli (handover).
+  const claimTrip = async (poolTrip) => {
+    if (!poolTrip?.id) return;
+    if (!window.confirm(`Przejąć trasę ${routeNamesForTrip(poolTrip)} (auto ${VEHICLE_LABELS[poolTrip.car] || poolTrip.car})?`)) return;
+    try {
+      setBusy(true);
+      const { data, error } = await supabase.rpc('claim_loaded_trip', {
+        p_session_token: sessionToken,
+        p_trip_id: poolTrip.id,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ userName: user.name, action: 'edited', details: `Przejęto trasę ${routeNamesForTrip(poolTrip)} (auto ${VEHICLE_LABELS[poolTrip.car] || poolTrip.car})` });
+      const trips = await loadTrips();
+      const claimed = (trips || []).find(t => t.id === poolTrip.id);
+      if (claimed) { setTrip(claimed); setSelectedCar(claimed.car); }
+      toastSuccess('Trasa przejęta');
+    } catch (err) { toastError('Błąd przejęcia: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Pula tras do przejęcia (handover) na dziś — do pokazania na ekranie startowym.
+  const handoverPool = allTrips.filter(t => t.status === 'handover' && t.trip_date === today);
+
   // Zatwierdza licznik trasy do kosztów. overrideKm — opcjonalna korekta admina.
   // Km ZAWSZE trafiają do dnia trasy (sourceTrip.trip_date), nie dnia zatwierdzenia.
   const approveTripKm = async (sourceTrip, overrideKm) => {
@@ -1273,6 +1361,9 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            {isAdmin && !t.isVirtual && t.status === 'active' && (
+              <button className="driver-tool-btn" onClick={() => { setHandoffTrip(t); setHandoffTarget(''); setHandoffOpen(true); }} disabled={busy} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>🔁 Przekaż</button>
+            )}
             {isAdmin && !t.isVirtual && (
               <button className="driver-tool-btn" onClick={() => deleteTrip(t)} disabled={busy} style={{ color: 'var(--accent-red)', borderColor: 'var(--accent-red)' }}>🗑 Usuń trasę</button>
             )}
@@ -1845,6 +1936,23 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
           )}
 
+          {handoverPool.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#B45309', marginBottom: '8px', fontWeight: 700 }}>🔁 Trasy do przejęcia ({handoverPool.length})</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {handoverPool.map(pt => (
+                  <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '12px', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.28)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{VEHICLE_LABELS[pt.car] || pt.car} · {routeNamesForTrip(pt)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>zostawił: {pt.driver_name || '—'}</div>
+                    </div>
+                    <button className="driver-tool-btn" onClick={() => claimTrip(pt)} disabled={busy} style={{ color: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 700 }}>Przejmij</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Auto na dziś</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {VEHICLES.map(v => {
@@ -1938,6 +2046,9 @@ export default function DriverRouteView({ manageMode = false }) {
             )}
             {trip.status === 'active' && (
               <button className="driver-tool-btn" onClick={() => { setChangeCarTarget(VEHICLES.find(v => v.key !== trip.car)?.key || null); setChangeCarKm(''); setChangeCarOpen(true); }} disabled={busy}>🚐 Zmień auto</button>
+            )}
+            {trip.status === 'active' && (
+              <button className="driver-tool-btn" onClick={() => { setHandoffTrip(trip); setHandoffTarget(''); setHandoffOpen(true); }} disabled={busy}>🔁 Przekaż trasę</button>
             )}
             {trip.status === 'active' && !tripHasProgress && (
               <button className="driver-tool-btn" onClick={cancelTrip} disabled={busy} style={{ color: 'var(--danger, #DC2626)', borderColor: 'var(--danger, #DC2626)' }}>Anuluj trasę</button>
@@ -2299,6 +2410,39 @@ export default function DriverRouteView({ manageMode = false }) {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: przekaż trasę */}
+      {handoffOpen && handoffTrip && (
+        <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setHandoffOpen(false)}>
+          <div className="ap-sheet" onClick={ev => ev.stopPropagation()}>
+            <div className="ap-handle"></div>
+            <div className="ap-content">
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Przekaż trasę</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car} · {routeNamesForTrip(handoffTrip)} — auto z praniem trafi do wybranego kierowcy.
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: 700 }}>Przekaż kierowcy</div>
+              <select className="ap-input" value={handoffTarget} onChange={ev => setHandoffTarget(ev.target.value)} style={{ marginBottom: '10px', padding: '12px 14px' }}>
+                <option value="">— wybierz kierowcę —</option>
+                {driverOptions.filter(d => String(d.id) !== String(handoffTrip.driver_id)).map(d => (
+                  <option key={d.id} value={d.id}>{d.name}{d.role === 'admin' ? ' (admin)' : ''}</option>
+                ))}
+              </select>
+              <button onClick={transferTrip} disabled={busy || !handoffTarget} style={{ width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: handoffTarget ? 'var(--accent)' : 'var(--border)', color: '#fff', cursor: handoffTarget ? 'pointer' : 'not-allowed', fontWeight: 700, marginBottom: '16px' }}>{busy ? 'Zapisywanie…' : 'Przekaż wskazanemu'}</button>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4 }}>
+                  Nie masz komu teraz dać? Zostaw trasę do przejęcia — auto z praniem poczeka, a Ty możesz ruszyć inną trasą innym autem.
+                </div>
+                <button onClick={parkTrip} disabled={busy} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--accent)', background: 'var(--bg-card)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700 }}>Zostaw do przejęcia</button>
+              </div>
+
+              <button onClick={() => setHandoffOpen(false)} disabled={busy} style={{ width: '100%', marginTop: '12px', padding: '11px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
             </div>
           </div>
         </div>
