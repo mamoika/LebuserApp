@@ -30,7 +30,7 @@ const PAGE_TITLES = {
 };
 
 function PrivacyNoticeModal() {
-  const { acknowledgePrivacyNotice } = useAuth();
+  const { acknowledgePrivacyNotice, signOut } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -75,6 +75,9 @@ function PrivacyNoticeModal() {
           <div className="ap-btn-group" style={{ marginTop: '18px' }}>
             <button className="ap-btn ap-btn-primary" onClick={handleConfirm} disabled={saving}>
               {saving ? 'Zapisywanie...' : 'Potwierdzam zapoznanie się'}
+            </button>
+            <button className="ap-btn" onClick={signOut} disabled={saving} style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
+              Wyloguj
             </button>
           </div>
         </div>

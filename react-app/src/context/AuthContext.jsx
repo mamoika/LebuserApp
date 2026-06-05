@@ -101,10 +101,9 @@ export const AuthProvider = ({ children }) => {
     return { ok: true };
   };
 
-  // Admin wchodzi na konto innego usera
   const impersonate = async (targetUserId) => {
     const { data, error } = await supabase.rpc('admin_impersonate_user', {
-      p_session_token: user?.session_token,
+      p_session_token: user?.session_token || null,
       p_user_id: targetUserId,
     });
     if (error) return { error: error.message };
@@ -133,7 +132,7 @@ export const AuthProvider = ({ children }) => {
 
   const acknowledgePrivacyNotice = async (version = PRIVACY_NOTICE_VERSION) => {
     const { data, error } = await supabase.rpc('acknowledge_privacy_notice', {
-      p_session_token: user?.session_token,
+      p_session_token: user?.session_token || null,
       p_version: version,
     });
     if (error) return { error: error.message };
