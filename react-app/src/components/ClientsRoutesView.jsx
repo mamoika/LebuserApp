@@ -373,7 +373,7 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
 
 export default function ClientsRoutesView() {
   const rawData = useAppData();
-  const { isAdmin, isDriver, user } = useAuth();
+  const { isAdmin, isDriver, user, sessionToken } = useAuth();
   const { clients, routes, loading, error, refetch } = rawData;
   const assignedRouteIds = parseRouteIds(user?.routes);
 
@@ -399,14 +399,14 @@ export default function ClientsRoutesView() {
   const handleAddRoute = async (name, schedule) => {
     try {
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
-      await supabase.rpc('reset_routes_id_sequence');
-
-      let { error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 });
-      if (error?.code === '23505') {
-        await supabase.rpc('reset_routes_id_sequence');
-        ({ error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 }));
-      }
+      const { data, error } = await supabase.rpc('admin_create_route', {
+        p_session_token: sessionToken,
+        p_name: name,
+        p_schedule: schedule,
+        p_sort_order: maxSort + 1,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setAddRouteOpen(false);
       refetch();
     } catch (err) {
@@ -416,8 +416,14 @@ export default function ClientsRoutesView() {
 
   const handleSaveRoute = async (routeId, name, schedule) => {
     try {
-      const { error } = await supabase.from('routes').update({ name, schedule }).eq('id', routeId);
+      const { data, error } = await supabase.rpc('admin_update_route', {
+        p_session_token: sessionToken,
+        p_route_id: routeId,
+        p_name: name,
+        p_schedule: schedule,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setEditRouteModal(null);
       refetch();
     } catch (err) {
@@ -432,8 +438,12 @@ export default function ClientsRoutesView() {
       return;
     }
     try {
-      const { error } = await supabase.from('routes').delete().eq('id', route.id);
+      const { data, error } = await supabase.rpc('admin_delete_route', {
+        p_session_token: sessionToken,
+        p_route_id: route.id,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setEditRouteModal(null);
       refetch();
     } catch (err) {
