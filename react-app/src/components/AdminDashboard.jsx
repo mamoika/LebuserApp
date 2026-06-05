@@ -4,6 +4,7 @@ import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { loadMonthRoster } from '../lib/roster';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
+import { upsertAppSetting } from '../lib/adminRpc';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -736,7 +737,7 @@ function LogsSection() {
 }
 
 export default function AdminDashboard() {
-  const { impersonate, isAdmin, sessionToken } = useAuth();
+  const { impersonate, isAdmin, sessionToken, signOut } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -755,11 +756,15 @@ export default function AdminDashboard() {
       supabase.rpc('get_all_users', { p_session_token: sessionToken }),
       supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
     ]);
+    if (error?.message === 'Invalid or expired session') {
+      signOut();
+      return;
+    }
     if (error) setError(error.message);
     else setUsers(data || []);
     setDriverCars(carsRow?.value || {});
     setLoading(false);
-  }, [isAdmin, sessionToken]);
+  }, [isAdmin, sessionToken, signOut]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -787,9 +792,12 @@ export default function AdminDashboard() {
     // Domyślne auto kierowcy → app_settings (jeden wiersz 'driver_cars')
     const nextCars = { ...driverCars };
     if (car) nextCars[userId] = car; else delete nextCars[userId];
-    const { error: e3 } = await supabase.from('app_settings')
-      .upsert({ key: DRIVER_CARS_KEY, value: nextCars, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-    if (e3) { toastError('Błąd zapisu auta: ' + e3.message); return; }
+    try {
+      await upsertAppSetting(sessionToken, DRIVER_CARS_KEY, nextCars);
+    } catch (e3) {
+      toastError('Błąd zapisu auta: ' + e3.message);
+      return;
+    }
     setDriverCars(nextCars);
     setEditUser(null);
     toastSuccess('Zapisano');

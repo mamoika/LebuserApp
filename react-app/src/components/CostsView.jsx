@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
+import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import * as XLSX from 'xlsx';
@@ -203,7 +204,7 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
 }
 
 export default function CostsView() {
-  const { isAdmin, canViewAdminData } = useAuth();
+  const { isAdmin, canViewAdminData, sessionToken } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
@@ -224,10 +225,12 @@ export default function CostsView() {
     const mk = monthKey;
     setProgi(next);
     try { localStorage.setItem(progiLsKey(mk), JSON.stringify(next)); } catch { /* ignore */ }
-    const { error } = await supabase.from('app_settings')
-      .upsert({ key: progiDbKey(mk), value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-    if (error) toastError('Nie udało się zapisać progów');
-  }, [isAdmin, monthKey]);
+    try {
+      await upsertAppSetting(sessionToken, progiDbKey(mk), next);
+    } catch {
+      toastError('Nie udało się zapisać progów');
+    }
+  }, [isAdmin, monthKey, sessionToken]);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -424,17 +427,14 @@ export default function CostsView() {
     setAutoSave('saving');
     try {
       if (setDirty && setKey) {
-        const { error } = await supabase.from('cost_settings')
-          .upsert({ ...settingsRef.current, month_key: setKey, updated_at: new Date().toISOString() }, { onConflict: 'month_key' });
-        if (error) throw error;
+        await upsertCostSettings(sessionToken, { ...settingsRef.current, month_key: setKey });
       }
       const rows = days
         .map(ds => dailyDataRef.current[ds])
         .filter(d => d && Object.keys(d).length > 1)
         .map(d => ({ ...d, updated_at: new Date().toISOString() }));
       if (rows.length) {
-        const { error } = await supabase.from('daily_costs').upsert(rows, { onConflict: 'entry_date' });
-        if (error) throw error;
+        await upsertDailyCosts(sessionToken, rows);
       }
       setAutoSave('saved');
       setTimeout(() => setAutoSave(s => (s === 'saved' ? 'idle' : s)), 1500);
@@ -445,7 +445,7 @@ export default function CostsView() {
       setAutoSave('idle');
       toastError('Nie udało się zapisać — zmiany niezapisane');
     }
-  }, [isAdmin]);
+  }, [isAdmin, sessionToken]);
 
   const scheduleAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -486,19 +486,18 @@ export default function CostsView() {
   const saveAll = async () => {
     if (!isAdmin) return;
     setSaving(true);
-    const { error: setErr } = await supabase.from('cost_settings').upsert({
-      ...settings, month_key: monthKey, updated_at: new Date().toISOString()
-    }, { onConflict: 'month_key' });
-    const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
-    let dayErr = null;
-    if (toSave.length > 0) {
-      ({ error: dayErr } = await supabase.from('daily_costs').upsert(
-        toSave.map(d => ({ ...d, updated_at: new Date().toISOString() })),
-        { onConflict: 'entry_date' }
-      ));
+    try {
+      await upsertCostSettings(sessionToken, { ...settings, month_key: monthKey });
+      const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
+      if (toSave.length > 0) {
+        await upsertDailyCosts(sessionToken, toSave);
+      }
+    } catch {
+      setSaving(false);
+      toastError('Nie udało się zapisać');
+      return;
     }
     setSaving(false);
-    if (setErr || dayErr) { toastError('Nie udało się zapisać'); return; }
     toastSuccess('Zapisano');
     fetchData();
   };

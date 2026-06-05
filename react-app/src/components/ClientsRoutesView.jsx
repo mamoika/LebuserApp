@@ -471,7 +471,7 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveClient = async ({ id, name, routeId, lat, lng, oldName, oldRouteId }) => {
+  const handleSaveClient = async ({ id, name, routeId, lat, lng }) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
     if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext({});
@@ -6,19 +6,56 @@ export const useAuth = () => useContext(AuthContext);
 
 const STORAGE_KEY = 'lebuser_user';
 const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impersonacji
+const MAX_SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+
+const isSessionExpired = (session) => {
+  if (!session?.session_expires_at) return false;
+  const expiresAt = Date.parse(session.session_expires_at);
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+};
+
+const readStoredSession = (key) => {
+  const stored = localStorage.getItem(key);
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored);
+    if (isSessionExpired(parsed)) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    try { return JSON.parse(stored); } catch { localStorage.removeItem(STORAGE_KEY); return null; }
-  });
+  const [user, setUser] = useState(() => readStoredSession(STORAGE_KEY));
+  const [adminBackup, setAdminBackup] = useState(() => readStoredSession(BACKUP_KEY));
 
-  const [adminBackup, setAdminBackup] = useState(() => {
-    const backup = localStorage.getItem(BACKUP_KEY);
-    if (!backup) return null;
-    try { return JSON.parse(backup); } catch { localStorage.removeItem(BACKUP_KEY); return null; }
-  });
+  useEffect(() => {
+    if (!user?.session_expires_at) return undefined;
+    const expiresAt = Date.parse(user.session_expires_at);
+    if (!Number.isFinite(expiresAt)) return undefined;
+
+    const msUntilExpiry = expiresAt - Date.now();
+    if (msUntilExpiry <= 0) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(BACKUP_KEY);
+      setUser(null);
+      setAdminBackup(null);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(BACKUP_KEY);
+      setUser(null);
+      setAdminBackup(null);
+    }, Math.min(msUntilExpiry, MAX_SESSION_TIMEOUT_MS));
+    return () => window.clearTimeout(timeoutId);
+  }, [user?.session_expires_at]);
 
   const checkUsername = async (username) => {
     const { data, error } = await supabase.rpc('check_username', { p_username: username });
@@ -103,7 +140,7 @@ export const AuthProvider = ({ children }) => {
     return { ok: true };
   };
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     const token = user?.session_token;
     if (token) {
       supabase.rpc('logout_user', { p_session_token: token });
@@ -112,7 +149,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(BACKUP_KEY);
     setUser(null);
     setAdminBackup(null);
-  };
+  }, [user?.session_token]);
 
   const role = user?.role ?? null;
   const isAdmin = role === 'admin';

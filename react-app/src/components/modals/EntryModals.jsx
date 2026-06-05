@@ -207,7 +207,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ userName: user.name, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
       onClose();
     } catch (err) {
@@ -432,7 +432,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await logAction({
-        userName: user.name,
+        sessionToken,
         action: isDone ? 'done' : 'undone',
         clientName: entry.client_name,
         entryId: entry.id,
@@ -461,7 +461,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await logAction({
-        userName: user.name,
+        sessionToken,
         action: next ? 'washed' : 'unwashed',
         clientName: entry.client_name,
         entryId: entry.id,
@@ -531,7 +531,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       }
       if (changes.length > 0) {
         await logAction({
-          userName: user.name,
+          sessionToken,
           action: 'edited',
           clientName: updates.client_name,
           entryId: entry.id,
@@ -560,7 +560,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await logAction({
-        userName: user.name,
+        sessionToken,
         action: 'deleted',
         clientName: entry.client_name,
         entryId: entry.id,
