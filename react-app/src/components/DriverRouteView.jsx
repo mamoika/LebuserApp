@@ -301,6 +301,14 @@ export default function DriverRouteView({ manageMode = false }) {
   const previewStops = stops
     .map(s => ({ ...s, pendingClean: (s.entries || []).filter(e => !e.delivered) }))
     .filter(s => s.pendingClean.length > 0);
+  // Trasa w toku: przystanek widoczny, gdy ma czyste do dowiezienia dla tego
+  // kierowcy (entries po filtrze własności) LUB brudne dodane przez niego.
+  // Przystanki w całości obsłużone przez innego kierowcę (jego czyste + jego
+  // brudne) znikają — nowe brudne dodaje się dolnym przyciskiem.
+  const visibleTripStops = stops.filter(s =>
+    (s.entries || []).length > 0 ||
+    (s.dirtyEntries || []).some(e => e.added_by === user?.name)
+  );
 
   // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście.
   // Wzbogacamy o kg i typ (P/O), żeby kierowca widział to samo co na przystanku.
@@ -1852,15 +1860,15 @@ export default function DriverRouteView({ manageMode = false }) {
         <>
           <div className="driver-section-toolbar">
             <div className="driver-section-title">
-              Przystanki dziś ({stops.length})
+              Przystanki dziś ({visibleTripStops.length})
             </div>
             {trip.status === 'active' && <button className="driver-link-btn" onClick={() => setAddEntryFor('')}>
               🧺 Dodaj brudne
             </button>}
           </div>
           <div className="driver-stops-list">
-            {stops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
-            {stops.map(stop => {
+            {visibleTripStops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
+            {visibleTripStops.map(stop => {
               const pickupEntries = stop.entries || [];
               const dirtyEntries = stop.dirtyEntries || [];
               const hasPickupEntries = pickupEntries.length > 0;
