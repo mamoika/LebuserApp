@@ -296,6 +296,11 @@ export default function DriverRouteView({ manageMode = false }) {
     (s.entries || []).some(e => e.done && e.picked_by === user?.name && !e.delivered)
   );
   const pickedNotDeliveredNames = pickedNotDeliveredStops.map(s => s.client_name).filter(Boolean);
+  // Ekran startowy ma pokazywać tylko CZYSTE do rozwiezienia dziś (pick_day),
+  // jeszcze nie dostarczone. Brudne (arr_day) nie należy do tego widoku.
+  const previewStops = stops
+    .map(s => ({ ...s, pendingClean: (s.entries || []).filter(e => !e.delivered) }))
+    .filter(s => s.pendingClean.length > 0);
 
   // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście.
   // Wzbogacamy o kg i typ (P/O), żeby kierowca widział to samo co na przystanku.
@@ -1778,17 +1783,15 @@ export default function DriverRouteView({ manageMode = false }) {
 
           <div style={{ marginBottom: '16px' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: 700 }}>
-              Punkty na wybranych trasach ({stops.length})
+              Punkty na wybranych trasach ({previewStops.length})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {stops.length === 0 && (
-                <div className="driver-empty-row">Brak punktów dla wybranych tras na dziś</div>
+              {previewStops.length === 0 && (
+                <div className="driver-empty-row">Brak czystego do rozwiezienia na wybranych trasach</div>
               )}
-              {stops.map(stop => {
-                const pickupEntries = stop.entries || [];
-                const dirtyEntries = stop.dirtyEntries || [];
+              {previewStops.map(stop => {
+                const pickupEntries = stop.pendingClean || [];
                 const kg = Number(sumWeight(pickupEntries).toFixed(1));
-                const dirtyTrolleys = dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0);
                 return (
                   <div key={stop.key} style={{
                     border: '1px solid var(--border)',
@@ -1809,11 +1812,6 @@ export default function DriverRouteView({ manageMode = false }) {
                     {pickupEntries.length > 0 && (
                       <div style={{ fontSize: '12px', color: 'var(--accent-green)', fontWeight: 700 }}>
                         🏭 Odbiór z pralni · {pickupEntries.length} {pickupEntries.length === 1 ? 'wpis' : 'wpisy'}
-                      </div>
-                    )}
-                    {dirtyEntries.length > 0 && (
-                      <div style={{ fontSize: '12px', color: '#B45309', fontWeight: 700 }}>
-                        🧺 Odbiór brudnego · {trolleyLabel(dirtyTrolleys)}
                       </div>
                     )}
                   </div>
