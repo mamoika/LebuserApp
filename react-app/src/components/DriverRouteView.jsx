@@ -157,6 +157,9 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
+  const [changeCarOpen, setChangeCarOpen] = useState(false);
+  const [changeCarTarget, setChangeCarTarget] = useState(null);
+  const [changeCarKm, setChangeCarKm] = useState('');
   const [kmEditTrip, setKmEditTrip] = useState(null); // trasa, której licznik admin zatwierdza/koryguje
   const [kmEditValue, setKmEditValue] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -842,6 +845,61 @@ export default function DriverRouteView({ manageMode = false }) {
       await loadTrips();
       toastSuccess('Trasa anulowana');
     } catch (err) { toastError('Błąd anulowania: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Zmiana auta w trakcie trasy. Dwa przypadki (rozróżnik = tripHasProgress):
+  //  - nic nie zrobiono: podmiana car w tym samym wierszu, bez licznika,
+  //  - coś zrobiono: zamknięcie nogi starego auta z licznikiem (km → koszty),
+  //    a potem ekran startowy z nowym autem (kierowca wybiera trasy nowej nogi).
+  const changeCar = async () => {
+    if (!trip?.id || trip.status !== 'active') return;
+    const newCar = changeCarTarget;
+    if (!newCar || newCar === trip.car) { toastError('Wybierz inne auto'); return; }
+
+    // Przypadek B — nic nie zrobiono: tylko podmiana auta.
+    if (!tripHasProgress) {
+      try {
+        setBusy(true);
+        const { error } = await supabase.from('driver_trips').update({ car: newCar }).eq('id', trip.id);
+        if (error) throw error;
+        await logAction({ userName: user.name, action: 'edited', details: `Zmiana auta bez licznika: ${VEHICLE_LABELS[trip.car] || trip.car} → ${VEHICLE_LABELS[newCar] || newCar} (${fmtDate(trip.trip_date)})` });
+        setTrip({ ...trip, car: newCar });
+        setSelectedCar(newCar);
+        setChangeCarOpen(false);
+        await loadTrips();
+        toastSuccess('Auto zmienione');
+      } catch (err) { toastError('Błąd zmiany auta: ' + err.message); }
+      finally { setBusy(false); }
+      return;
+    }
+
+    // Przypadek A — coś zrobiono: zamknij nogę starego auta z licznikiem.
+    const km = parseFloat(String(changeCarKm).replace(',', '.'));
+    if (!changeCarKm || isNaN(km)) { toastError(`Podaj licznik auta ${VEHICLE_LABELS[trip.car] || trip.car}`); return; }
+    try {
+      setBusy(true);
+      const freshBlockingNames = await findBlockingPickedLaundry();
+      if (freshBlockingNames.length > 0) {
+        toastError(`Najpierw dostarcz albo cofnij do pralni: ${freshBlockingNames.join(', ')}`);
+        await refetch();
+        return;
+      }
+      const oldCarLabel = VEHICLE_LABELS[trip.car] || trip.car;
+      const { error } = await supabase.from('driver_trips')
+        .update({ ended_at: new Date().toISOString(), end_km: km, status: 'finished' }).eq('id', trip.id);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'trip_end', details: `Zmiana auta — zamknięto nogę ${oldCarLabel}, licznik ${km} km; dalej ${VEHICLE_LABELS[newCar] || newCar}` });
+      await loadTrips();
+      // Ekran startowy z nowym autem — kierowca wybiera trasy nowej nogi.
+      setTrip(null);
+      setPlannedTrip(null);
+      setSelectedCar(newCar);
+      setSelectedRoutes(parseRouteIds(user?.routes));
+      setChangeCarOpen(false);
+      setChangeCarKm('');
+      toastSuccess(`Noga ${oldCarLabel} zamknięta — wybierz trasy i rusz autem ${VEHICLE_LABELS[newCar] || newCar}`);
+    } catch (err) { toastError('Błąd zmiany auta: ' + err.message); }
     finally { setBusy(false); }
   };
 
@@ -1878,6 +1936,9 @@ export default function DriverRouteView({ manageMode = false }) {
             {trip.status === 'finished' && (
               <button className="driver-end-btn driver-next-trip-btn" style={{ background: 'var(--accent)' }} onClick={() => { setTrip(null); setPlannedTrip(null); setSelectedRoutes(parseRouteIds(user?.routes)); setSelectedCar(defaultCar || VEHICLES[0].key); }}>▶ Rozpocznij kolejną trasę</button>
             )}
+            {trip.status === 'active' && (
+              <button className="driver-tool-btn" onClick={() => { setChangeCarTarget(VEHICLES.find(v => v.key !== trip.car)?.key || null); setChangeCarKm(''); setChangeCarOpen(true); }} disabled={busy}>🚐 Zmień auto</button>
+            )}
             {trip.status === 'active' && !tripHasProgress && (
               <button className="driver-tool-btn" onClick={cancelTrip} disabled={busy} style={{ color: 'var(--danger, #DC2626)', borderColor: 'var(--danger, #DC2626)' }}>Anuluj trasę</button>
             )}
@@ -2177,6 +2238,61 @@ export default function DriverRouteView({ manageMode = false }) {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setEndOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
                 <button onClick={endTrip} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zakończ i zgłoś licznik'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: zmień auto */}
+      {changeCarOpen && trip && (
+        <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setChangeCarOpen(false)}>
+          <div className="ap-sheet" onClick={ev => ev.stopPropagation()}>
+            <div className="ap-handle"></div>
+            <div className="ap-content">
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Zmień auto</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                Obecne auto: <strong>{VEHICLE_LABELS[trip.car] || trip.car}</strong>
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: 700 }}>Nowe auto</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                {VEHICLES.filter(v => v.key !== trip.car).map(v => {
+                  const active = changeCarTarget === v.key;
+                  return (
+                    <button key={v.key} onClick={() => setChangeCarTarget(v.key)} style={{
+                      flex: '1 1 110px', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px',
+                      border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      background: active ? 'var(--accent-light)' : 'var(--bg-card)',
+                      color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                    }}>{v.label}</button>
+                  );
+                })}
+              </div>
+
+              {tripHasProgress ? (
+                <>
+                  {pickedNotDeliveredStops.length > 0 && (
+                    <div style={{ fontSize: '12px', color: '#B45309', background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.28)', borderRadius: '10px', padding: '9px 11px', marginBottom: '14px', fontWeight: 650, lineHeight: 1.4 }}>
+                      Masz pranie odebrane z pralni: {pickedNotDeliveredNames.join(', ')}. Dostarcz je albo cofnij odbiór przed zmianą auta.
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
+                    Auto już jeździło — zamkniemy tę nogę z licznikiem (km trafią do kosztów <strong>{VEHICLE_LABELS[trip.car] || trip.car}</strong>), a potem wybierzesz trasy dla nowego auta.
+                  </div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Licznik auta {VEHICLE_LABELS[trip.car] || trip.car} (km)</label>
+                  <input className="ap-input" type="text" inputMode="decimal" autoFocus value={changeCarKm}
+                    onChange={ev => setChangeCarKm(ev.target.value)} placeholder="np. 379978" style={{ marginTop: '6px', marginBottom: '16px' }} />
+                </>
+              ) : (
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.4 }}>
+                  Nic jeszcze nie zrobiono — zmienimy auto bez licznika. Trasy i to, co załadowane, zostają.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setChangeCarOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+                <button onClick={changeCar} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zmień auto'}</button>
               </div>
             </div>
           </div>
