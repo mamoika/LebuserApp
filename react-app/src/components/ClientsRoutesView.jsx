@@ -399,7 +399,13 @@ export default function ClientsRoutesView() {
   const handleAddRoute = async (name, schedule) => {
     try {
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
-      const { error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 });
+      await supabase.rpc('reset_routes_id_sequence');
+
+      let { error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 });
+      if (error?.code === '23505') {
+        await supabase.rpc('reset_routes_id_sequence');
+        ({ error } = await supabase.from('routes').insert({ name, schedule, sort_order: maxSort + 1 }));
+      }
       if (error) throw error;
       setAddRouteOpen(false);
       refetch();
