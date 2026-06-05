@@ -473,6 +473,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
 }
 
 function EmployeesSection() {
+  const { sessionToken } = useAuth();
   const [allEmployees, setAllEmployees] = useState([]); // globalna lista (do dodawania istniejących)
   const [roster, setRoster] = useState([]);             // skład wybranego miesiąca (z nieaktywnymi)
   const [groups, setGroups] = useState([]);
@@ -508,26 +509,24 @@ function EmployeesSection() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active }) => {
-    if (id) {
-      // dane stałe → employees (globalnie)
-      await supabase.from('employees').update({ name, contract_type, default_start, default_end }).eq('id', id);
-      // dane miesięczne → employee_months
-      const sort = roster.find(r => r.id === id)?.sort_order ?? 0;
-      await supabase.from('employee_months').upsert(
-        { employee_id: id, year: cur.year, month: cur.month, active, group_name, sort_order: sort },
-        { onConflict: 'employee_id,year,month' }
-      );
-    } else {
-      const maxOrder = allEmployees.length > 0 ? Math.max(...allEmployees.map(e => e.sort_order || 0)) : 0;
-      const { data: ins } = await supabase.from('employees')
-        .insert({ name, group_name, contract_type, default_start, default_end, active: true, sort_order: maxOrder + 1 })
-        .select('id').single();
-      if (ins?.id) {
-        await supabase.from('employee_months').upsert(
-          { employee_id: ins.id, year: cur.year, month: cur.month, active, group_name, sort_order: maxOrder + 1 },
-          { onConflict: 'employee_id,year,month' }
-        );
-      }
+    const maxOrder = allEmployees.length > 0 ? Math.max(...allEmployees.map(e => e.sort_order || 0)) : 0;
+    const sort = id ? (roster.find(r => r.id === id)?.sort_order ?? 0) : maxOrder + 1;
+    const { data, error } = await supabase.rpc('admin_save_employee', {
+      p_session_token: sessionToken,
+      p_employee_id: id || null,
+      p_year: cur.year,
+      p_month: cur.month,
+      p_name: name,
+      p_group_name: group_name,
+      p_contract_type: contract_type,
+      p_default_start: default_start,
+      p_default_end: default_end,
+      p_active: active,
+      p_sort_order: sort,
+    });
+    if (error || data?.error) {
+      toastError('Błąd zapisu pracownika: ' + (error?.message || data.error));
+      return;
     }
     setModal(null);
     fetchAll();
@@ -535,7 +534,16 @@ function EmployeesSection() {
 
   // Usuń pracownika TYLKO z tego miesiąca (historia innych miesięcy zostaje)
   const handleRemoveFromMonth = async (id) => {
-    await supabase.from('employee_months').delete().eq('employee_id', id).eq('year', cur.year).eq('month', cur.month);
+    const { data, error } = await supabase.rpc('admin_remove_employee_from_month', {
+      p_session_token: sessionToken,
+      p_employee_id: id,
+      p_year: cur.year,
+      p_month: cur.month,
+    });
+    if (error || data?.error) {
+      toastError('Błąd usuwania z miesiąca: ' + (error?.message || data.error));
+      return;
+    }
     setModal(null);
     fetchAll();
   };
@@ -543,10 +551,18 @@ function EmployeesSection() {
   // Dodaj istniejącego pracownika do tego miesiąca
   const handleAddExisting = async (emp) => {
     const maxOrder = roster.length > 0 ? Math.max(...roster.map(r => r.sort_order || 0)) : 0;
-    await supabase.from('employee_months').upsert(
-      { employee_id: emp.id, year: cur.year, month: cur.month, active: true, group_name: emp.group_name, sort_order: emp.sort_order ?? maxOrder + 1 },
-      { onConflict: 'employee_id,year,month' }
-    );
+    const { data, error } = await supabase.rpc('admin_add_employee_to_month', {
+      p_session_token: sessionToken,
+      p_employee_id: emp.id,
+      p_year: cur.year,
+      p_month: cur.month,
+      p_group_name: emp.group_name,
+      p_sort_order: emp.sort_order ?? maxOrder + 1,
+    });
+    if (error || data?.error) {
+      toastError('Błąd dodawania do miesiąca: ' + (error?.message || data.error));
+      return;
+    }
     setShowAdd(false);
     fetchAll();
   };
