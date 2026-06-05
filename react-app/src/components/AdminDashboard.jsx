@@ -266,7 +266,7 @@ function GroupModal({ group, onClose, onSave, onDelete }) {
     const res = await onDelete(group.id, group.name);
     setSaving(false);
     if (res?.error) {
-      import('../lib/toast').then(m => m.toastError(res.error));
+      toastError(res.error);
     }
   };
 
@@ -309,6 +309,7 @@ function GroupModal({ group, onClose, onSave, onDelete }) {
 }
 
 function GroupsSection() {
+  const { sessionToken } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -322,10 +323,22 @@ function GroupsSection() {
   useEffect(() => { fetch(); }, []);
 
   const handleSave = async ({ id, name, color, sort_order }) => {
-    if (id) {
-      await supabase.from('groups').update({ name, color, sort_order }).eq('id', id);
-    } else {
-      await supabase.from('groups').insert({ name, color, sort_order });
+    const args = {
+      p_session_token: sessionToken,
+      p_name: name,
+      p_color: color,
+      p_sort_order: sort_order,
+    };
+    const { data, error } = id
+      ? await supabase.rpc('admin_update_group', { ...args, p_group_id: id })
+      : await supabase.rpc('admin_create_group', args);
+    if (error) {
+      toastError('Błąd zapisu grupy: ' + error.message);
+      return;
+    }
+    if (data?.error) {
+      toastError(data.error);
+      return;
     }
     setModal(null);
     fetch();
@@ -336,7 +349,12 @@ function GroupsSection() {
     if (error) return { error: error.message };
     if (count > 0) return { error: `Nie można usunąć grupy, do której przypisanych jest ${count} pracowników.` };
     
-    await supabase.from('groups').delete().eq('id', id);
+    const { data, error: deleteErr } = await supabase.rpc('admin_delete_group', {
+      p_session_token: sessionToken,
+      p_group_id: id,
+    });
+    if (deleteErr) return { error: deleteErr.message };
+    if (data?.error) return { error: data.error };
     setModal(null);
     fetch();
     return { ok: true };
