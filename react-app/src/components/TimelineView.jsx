@@ -247,7 +247,7 @@ const sumCellStyle = (val, color, isLast, borderColor = 'var(--border)') => ({
 });
 
 export default function TimelineView() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, sessionToken } = useAuth();
   const today = new Date();
   const [monday, setMonday] = useState(() => getMondayOfWeek(new Date()));
   const [employees, setEmployees] = useState([]);
@@ -372,14 +372,15 @@ export default function TimelineView() {
       if (newRole) next[key] = newRole; else delete next[key];
       return next;
     });
-    // Zapis do bazy — supabase wykonuje żądanie dopiero po await/.then()
-    const { error } = newRole
-      ? await supabase.from('timeline_entries').upsert(
-          { employee_id: empId, entry_date: dateStr, hour, role: newRole, updated_at: new Date().toISOString(), updated_by: user?.name },
-          { onConflict: 'employee_id,entry_date,hour' }
-        )
-      : await supabase.from('timeline_entries').delete().eq('employee_id', empId).eq('entry_date', dateStr).eq('hour', hour);
-    if (error) {
+    const { data, error } = await supabase.rpc('admin_save_timeline_entry', {
+      p_session_token: sessionToken,
+      p_employee_id: empId,
+      p_entry_date: dateStr,
+      p_hour: hour,
+      p_role: newRole,
+      p_updated_by: user?.name || null,
+    });
+    if (error || data?.error) {
       // cofnij zmianę lokalną gdy zapis się nie powiódł
       setEntries(prev => {
         const next = { ...prev };
@@ -388,7 +389,7 @@ export default function TimelineView() {
       });
       toastError('Nie udało się zapisać — spróbuj ponownie');
     }
-  }, [isAdmin, brushRole, entries, user]);
+  }, [isAdmin, brushRole, entries, user, sessionToken]);
 
   // Kopiowanie dnia jednej osoby na inny dzień (tryb "dołóż")
   const handleCopyClick = useCallback(async (empId, dateStr) => {
@@ -426,12 +427,16 @@ export default function TimelineView() {
     });
 
     const results = await Promise.all(toWrite.map(({ h, role }) =>
-      supabase.from('timeline_entries').upsert(
-        { employee_id: empId, entry_date: dateStr, hour: h, role, updated_at: new Date().toISOString(), updated_by: user?.name },
-        { onConflict: 'employee_id,entry_date,hour' }
-      )
+      supabase.rpc('admin_save_timeline_entry', {
+        p_session_token: sessionToken,
+        p_employee_id: empId,
+        p_entry_date: dateStr,
+        p_hour: h,
+        p_role: role,
+        p_updated_by: user?.name || null,
+      })
     ));
-    if (results.some(r => r.error)) {
+    if (results.some(r => r.error || r.data?.error)) {
       setEntries(prev => {
         const next = { ...prev };
         prevValues.forEach(({ h, role }) => { if (role) next[`${empId}_${dateStr}_${h}`] = role; else delete next[`${empId}_${dateStr}_${h}`]; });
@@ -441,7 +446,7 @@ export default function TimelineView() {
     } else {
       toastSuccess(`Skopiowano ${toWrite.length} godz. → ${tgtEmp.name}, ${fmtDate(new Date(dateStr + 'T00:00:00'))}`);
     }
-  }, [isAdmin, copySource, employees, scheduleMap, entries, user]);
+  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = monday <= minMonday;

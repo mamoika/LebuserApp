@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
 import { loadMonthRoster } from '../lib/roster';
+import { toastError } from '../lib/toast';
 import * as XLSX from 'xlsx';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
 
@@ -155,7 +156,7 @@ function formatDiff(diff) {
 }
 
 export default function GrafikView() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, sessionToken } = useAuth();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -229,11 +230,26 @@ export default function GrafikView() {
 
   const saveCell = async (empId, day, raw) => {
     const val = raw.trim().toUpperCase() || getDefaultValue(employees.find(e => e.id === empId), day);
+    const key = `${empId}_${day}`;
+    const previous = entries[key];
     setEntries(prev => ({ ...prev, [`${empId}_${day}`]: val }));
-    await supabase.from('schedule_entries').upsert(
-      { employee_id: empId, year, month, day, value: val, updated_at: new Date().toISOString(), updated_by: user?.name },
-      { onConflict: 'employee_id,year,month,day' }
-    );
+    const { data, error } = await supabase.rpc('admin_save_schedule_entry', {
+      p_session_token: sessionToken,
+      p_employee_id: empId,
+      p_year: year,
+      p_month: month,
+      p_day: day,
+      p_value: val,
+      p_updated_by: user?.name || null,
+    });
+    if (error || data?.error) {
+      setEntries(prev => {
+        const next = { ...prev };
+        if (previous !== undefined) next[key] = previous; else delete next[key];
+        return next;
+      });
+      toastError('Nie udało się zapisać grafiku');
+    }
   };
 
   const handleContainerKeyDown = (e) => {
