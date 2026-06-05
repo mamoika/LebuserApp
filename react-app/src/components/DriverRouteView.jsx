@@ -309,6 +309,14 @@ export default function DriverRouteView({ manageMode = false }) {
     (s.entries || []).length > 0 ||
     (s.dirtyEntries || []).some(e => e.added_by === user?.name)
   );
+  // Czy na trasie w toku cokolwiek zrobiono (odbiór z pralni lub dostawa przez
+  // tego kierowcę). Steruje dostępnością „Anuluj trasę".
+  const tripHasProgress = !!trip && stops.some(s =>
+    (s.entries || []).some(e =>
+      (e.done && e.picked_by === user?.name) ||
+      (e.delivered && e.delivered_by === user?.name)
+    )
+  );
 
   // Kandydaci do dorzucenia: klienci z odbiorem dziś, których nie ma na liście.
   // Wzbogacamy o kg i typ (P/O), żeby kierowca widział to samo co na przystanku.
@@ -814,6 +822,26 @@ export default function DriverRouteView({ manageMode = false }) {
       setEndOpen(false); setEndKm('');
       toastSuccess('Trasa zakończona, licznik czeka na zatwierdzenie admina');
     } catch (err) { toastError('Błąd zakończenia trasy: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Anuluje trasę w toku, gdy nic nie zostało zrobione (zero odbiorów/dostaw
+  // przez tego kierowcę). Usuwa wpis driver_trips — nie zostaje w historii.
+  const cancelTrip = async () => {
+    if (!trip?.id || trip.status !== 'active' || tripHasProgress) return;
+    if (!window.confirm('Anulować trasę? Zostanie usunięta — nic nie było zrobione.')) return;
+    try {
+      setBusy(true);
+      const { error } = await supabase.from('driver_trips').delete().eq('id', trip.id);
+      if (error) throw error;
+      await logAction({ userName: user.name, action: 'deleted', details: `Anulowano trasę (nic nie zrobiono): ${trip.driver_name || user.name}, ${fmtDate(trip.trip_date)}, ${routeNamesForTrip(trip)}` });
+      setTrip(null);
+      setPlannedTrip(null);
+      setSelectedRoutes(parseRouteIds(user?.routes));
+      setSelectedCar(defaultCar || VEHICLES[0].key);
+      await loadTrips();
+      toastSuccess('Trasa anulowana');
+    } catch (err) { toastError('Błąd anulowania: ' + err.message); }
     finally { setBusy(false); }
   };
 
@@ -1849,6 +1877,9 @@ export default function DriverRouteView({ manageMode = false }) {
             {trip.status === 'finished' && <button className="driver-tool-btn" onClick={() => printCard(trip)}>🖨 Pobierz kartę</button>}
             {trip.status === 'finished' && (
               <button className="driver-end-btn driver-next-trip-btn" style={{ background: 'var(--accent)' }} onClick={() => { setTrip(null); setPlannedTrip(null); setSelectedRoutes(parseRouteIds(user?.routes)); setSelectedCar(defaultCar || VEHICLES[0].key); }}>▶ Rozpocznij kolejną trasę</button>
+            )}
+            {trip.status === 'active' && !tripHasProgress && (
+              <button className="driver-tool-btn" onClick={cancelTrip} disabled={busy} style={{ color: 'var(--danger, #DC2626)', borderColor: 'var(--danger, #DC2626)' }}>Anuluj trasę</button>
             )}
             {trip.status === 'active' && <button className="driver-end-btn" onClick={() => { setEndOpen(true); setEndKm(''); }}>■ Zakończ</button>}
           </div>
