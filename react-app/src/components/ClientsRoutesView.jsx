@@ -457,8 +457,13 @@ export default function ClientsRoutesView() {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
     if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
     try {
-      const { error } = await supabase.from('clients').insert({ name, route_id: routeId, sort_order: 9999 });
+      const { data, error } = await supabase.rpc('admin_insert_client', {
+        p_session_token: sessionToken,
+        p_name: name,
+        p_route_id: routeId,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setAddClientForRoute(null);
       refetch();
     } catch (err) {
@@ -473,24 +478,18 @@ export default function ClientsRoutesView() {
     const parsedLat = lat !== '' ? parseFloat(String(lat).replace(',', '.')) : null;
     const parsedLng = lng !== '' ? parseFloat(String(lng).replace(',', '.')) : null;
 
-    const updates = {
-      name,
-      route_id: routeId,
-      lat: !isNaN(parsedLat) ? parsedLat : null,
-      lng: !isNaN(parsedLng) ? parsedLng : null,
-    };
-    // Gdy zmiana trasy — przesuń na koniec nowej trasy
-    if (routeId !== oldRouteId) updates.sort_order = 9999;
-
     try {
-      const { error: clientErr } = await supabase.from('clients').update(updates).eq('id', id);
+      // Update klienta + kaskada client_name w entries (gdy zmiana nazwy) — w jednym RPC
+      const { data, error: clientErr } = await supabase.rpc('admin_update_client', {
+        p_session_token: sessionToken,
+        p_id: id,
+        p_name: name,
+        p_route_id: routeId,
+        p_lat: !isNaN(parsedLat) ? parsedLat : null,
+        p_lng: !isNaN(parsedLng) ? parsedLng : null,
+      });
       if (clientErr) throw clientErr;
-
-      // Cascade: aktualizuj client_name w entries gdy nazwa się zmieniła
-      if (name !== oldName) {
-        const { error: entryErr } = await supabase.from('entries').update({ client_name: name }).eq('client_name', oldName);
-        if (entryErr) console.error('Cascade entries update failed:', entryErr.message);
-      }
+      if (data?.error) throw new Error(data.error);
 
       setEditClient(null);
       refetch();
@@ -512,8 +511,12 @@ export default function ClientsRoutesView() {
         toastWarn('Nie można usunąć klienta — ma historię wpisów. Zmień nazwę albo przenieś go na inną trasę.');
         return;
       }
-      const { error } = await supabase.from('clients').delete().eq('id', client.id);
+      const { data, error } = await supabase.rpc('admin_delete_client', {
+        p_session_token: sessionToken,
+        p_id: client.id,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setEditClient(null);
       refetch();
     } catch (err) {
@@ -578,15 +581,12 @@ export default function ClientsRoutesView() {
     setLocalClients(newLocalClients);
 
     try {
-      const updates = toUpdate.map(c =>
-        supabase
-          .from('clients')
-          .update({ route_id: c.route_id, sort_order: c.sort_order })
-          .eq('id', c.id)
-      );
-      const results = await Promise.all(updates);
-      const failed = results.find(r => r.error);
-      if (failed?.error) throw failed.error;
+      const { data, error } = await supabase.rpc('admin_reorder_clients', {
+        p_session_token: sessionToken,
+        p_updates: toUpdate,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await refetch();
     } catch (err) {
       setLocalClients(previousClients);

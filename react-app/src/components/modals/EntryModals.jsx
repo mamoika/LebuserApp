@@ -111,7 +111,7 @@ function buildEditDiff(entry, updates, routes) {
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
-  const { user, isDriver, isAdmin } = useAuth();
+  const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const [clientName, setClientName] = useState('');
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
   const [type, setType] = useState('P');
@@ -189,22 +189,24 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
       // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
       const newEntryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const { error } = await supabase.from('entries').insert([{
-        id: newEntryId,
-        week_key: weekKey,
-        client_name: clientName,
-        arr_day: parseInt(arrDay),
-        pick_day: parseInt(pickDay),
-        pick_week_key: pickWeekKey,
-        weight: weight ? parseFloat(weight.replace(',', '.')) : null,
-        route_id: routeId,
-        type: type,
-        trolleys: trolleys !== '' ? Number(trolleys) : 1,
-        added_by: user.name,
-        urgent: urgent
-      }]);
+      const { data, error } = await supabase.rpc('admin_insert_entry', {
+        p_session_token: sessionToken,
+        p_id: newEntryId,
+        p_week_key: weekKey,
+        p_client_name: clientName,
+        p_arr_day: parseInt(arrDay),
+        p_pick_day: parseInt(pickDay),
+        p_pick_week_key: pickWeekKey,
+        p_route_id: routeId,
+        p_type: type,
+        p_weight: weight ? parseFloat(weight.replace(',', '.')) : null,
+        p_trolleys: trolleys !== '' ? Number(trolleys) : 1,
+        p_urgent: urgent,
+        p_added_by: user.name,
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await logAction({ userName: user.name, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
       onClose();
@@ -348,7 +350,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false }) {
-  const { isAdmin, canEdit, user } = useAuth();
+  const { isAdmin, canEdit, user, sessionToken } = useAuth();
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
   const [type, setType] = useState('P');
@@ -419,13 +421,16 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     try {
       setLoading(true);
       const isDone = !allPickupDone;
-      const pickedAt = isDone ? new Date().toISOString() : null;
-      const pickedBy = isDone ? user.name : null;
-      const updates = { done: isDone, picked_by: pickedBy, picked_at: pickedAt };
 
       const ids = pickupEntries.map(e => e.id);
-      const { error } = await supabase.from('entries').update(updates).in('id', ids);
+      const { data, error } = await supabase.rpc('admin_set_entries_done', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+        p_done: isDone,
+        p_by: user.name,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await logAction({
         userName: user.name,
         action: isDone ? 'done' : 'undone',
@@ -447,13 +452,14 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     try {
       setWashing(true);
       const next = !entry.washed;
-      const updates = {
-        washed: next,
-        washed_at: next ? new Date().toISOString() : null,
-        washed_by: next ? user.name : null,
-      };
-      const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
+      const { data, error } = await supabase.rpc('admin_set_entry_washed', {
+        p_session_token: sessionToken,
+        p_id: entry.id,
+        p_washed: next,
+        p_by: user.name,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await logAction({
         userName: user.name,
         action: next ? 'washed' : 'unwashed',
@@ -491,13 +497,30 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         // comment usunięty z entries — teraz w clients.note (wspólna notatka)
       };
 
-      const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
+      const { data: editData, error } = await supabase.rpc('admin_update_entry', {
+        p_session_token: sessionToken,
+        p_id: entry.id,
+        p_client_name: clientName,
+        p_type: type,
+        p_arr_day: parseInt(arrDay),
+        p_pick_day: parseInt(pickDay),
+        p_pick_week_key: pickWeekKey,
+        p_route_id: nextRouteId,
+        p_weight: weight ? parseFloat(String(weight).replace(',', '.')) : null,
+        p_trolleys: trolleys !== '' ? Number(trolleys) : 1,
+        p_urgent: urgent,
+      });
       if (error) throw error;
+      if (editData?.error) throw new Error(editData.error);
 
       // Zapisz komentarz do clients.note (wspólny dla całego klienta)
       const currentClientNote = (clients || []).find(c => c.name === entry.client_name)?.note || '';
       if (comment !== (currentClientNote || '')) {
-        await supabase.from('clients').update({ note: comment || null }).eq('name', clientName.trim() || entry.client_name);
+        await supabase.rpc('admin_set_client_note', {
+          p_session_token: sessionToken,
+          p_name: clientName.trim() || entry.client_name,
+          p_note: comment || null,
+        });
       }
       // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
       const changes = buildEditDiff(entry, updates, routes);
@@ -529,11 +552,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setLoading(true);
       // Miękkie usuwanie: oznaczamy wpis jako usunięty zamiast kasować go z bazy,
       // dzięki czemu zostaje w historii i nic nie przepada.
-      const { error } = await supabase
-        .from('entries')
-        .update({ deleted_at: new Date().toISOString(), deleted_by: user.name })
-        .eq('id', entry.id);
+      const { data, error } = await supabase.rpc('admin_soft_delete_entry', {
+        p_session_token: sessionToken,
+        p_id: entry.id,
+        p_by: user.name,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await logAction({
         userName: user.name,
         action: 'deleted',

@@ -575,21 +575,23 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       const entryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const { error: entryErr } = await supabase.from('entries').insert([{
-        id: entryId,
-        week_key: dirty.weekKey,
-        client_name: d.clientName,
-        arr_day: dirty.arrDay,
-        pick_day: clean.arrDay,
-        pick_week_key: clean.weekKey,
-        weight: d.weight ? parseFloat(String(d.weight).replace(',', '.')) : null,
-        route_id: routeId,
-        type: d.type || 'P',
-        trolleys: d.trolleys !== '' ? Number(d.trolleys) : 1,
-        urgent: !!d.urgent,
-        added_by: user.name,
-      }]);
+      const { data: plannedData, error: entryErr } = await supabase.rpc('admin_insert_entry', {
+        p_session_token: sessionToken,
+        p_id: entryId,
+        p_week_key: dirty.weekKey,
+        p_client_name: d.clientName,
+        p_arr_day: dirty.arrDay,
+        p_pick_day: clean.arrDay,
+        p_pick_week_key: clean.weekKey,
+        p_route_id: routeId,
+        p_type: d.type || 'P',
+        p_weight: d.weight ? parseFloat(String(d.weight).replace(',', '.')) : null,
+        p_trolleys: d.trolleys !== '' ? Number(d.trolleys) : 1,
+        p_urgent: !!d.urgent,
+        p_added_by: user.name,
+      });
       if (entryErr) throw entryErr;
+      if (plannedData?.error) throw new Error(plannedData.error);
 
       const existingTrip = allTrips.find(t => {
         if (t.trip_date !== d.dirtyDate || t.status === 'finished') return false;
@@ -655,13 +657,14 @@ export default function DriverRouteView({ manageMode = false }) {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
       const basketCount = Math.max(0, Number(baskets) || 1);
-      const { data, error } = await supabase.from('entries')
-        .update({ done: true, picked_by: user.name, picked_at: new Date().toISOString(), picked_baskets: basketCount })
-        .in('id', ids)
-        .eq('done', false)
-        .select('id');
+      const { data, error } = await supabase.rpc('driver_pickup_entries', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+        p_baskets: basketCount,
+      });
       if (error) throw error;
-      if ((data || []).length !== ids.length) throw new Error('Ten punkt jest już odebrany przez innego kierowcę. Odświeżam widok.');
+      if (data?.error) throw new Error(data.error);
+      if ((data?.affected ?? 0) !== ids.length) throw new Error('Ten punkt jest już odebrany przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór z pralni, ${Number(sumWeight(stop.entries).toFixed(1))} kg, ${trolleyLabel(basketCount)}` });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -677,14 +680,13 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { data, error } = await supabase.from('entries')
-        .update({ delivered: true, delivered_by: user.name, delivered_at: new Date().toISOString() })
-        .in('id', ids)
-        .eq('picked_by', user.name)
-        .eq('done', true)
-        .select('id');
+      const { data, error } = await supabase.rpc('driver_deliver_entries', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+      });
       if (error) throw error;
-      if ((data || []).length !== ids.length) throw new Error('Nie można dostarczyć prania odebranego przez innego kierowcę. Odświeżam widok.');
+      if (data?.error) throw new Error(data.error);
+      if ((data?.affected ?? 0) !== ids.length) throw new Error('Nie można dostarczyć prania odebranego przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta` });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -700,13 +702,13 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { data, error } = await supabase.from('entries')
-        .update({ delivered: false, delivered_by: null, delivered_at: null })
-        .in('id', ids)
-        .eq('delivered_by', user.name)
-        .select('id');
+      const { data, error } = await supabase.rpc('driver_undo_deliver', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+      });
       if (error) throw error;
-      if ((data || []).length !== ids.length) throw new Error('Nie można cofnąć dostawy oznaczonej przez innego kierowcę. Odświeżam widok.');
+      if (data?.error) throw new Error(data.error);
+      if ((data?.affected ?? 0) !== ids.length) throw new Error('Nie można cofnąć dostawy oznaczonej przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto dostawę' });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -723,13 +725,13 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
-      const { data, error } = await supabase.from('entries')
-        .update({ done: false, picked_by: null, picked_at: null, picked_baskets: null })
-        .in('id', ids)
-        .eq('picked_by', user.name)
-        .select('id');
+      const { data, error } = await supabase.rpc('driver_undo_pickup', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+      });
       if (error) throw error;
-      if ((data || []).length !== ids.length) throw new Error('Nie można cofnąć odbioru oznaczonego przez innego kierowcę. Odświeżam widok.');
+      if (data?.error) throw new Error(data.error);
+      if ((data?.affected ?? 0) !== ids.length) throw new Error('Nie można cofnąć odbioru oznaczonego przez innego kierowcę. Odświeżam widok.');
       await logAction({ userName: user.name, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto odbiór z pralni' });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
@@ -737,8 +739,13 @@ export default function DriverRouteView({ manageMode = false }) {
   };
   // Notatka klienta — wspólna (clients.note), widoczna w harmonogramie i na trasie
   const saveClientNote = async (clientName, val) => {
-    const { error } = await supabase.from('clients').update({ note: val || null }).eq('name', clientName);
+    const { data, error } = await supabase.rpc('driver_set_client_note', {
+      p_session_token: sessionToken,
+      p_name: clientName,
+      p_note: val || null,
+    });
     if (error) { toastError('Błąd zapisu notatki: ' + error.message); return; }
+    if (data?.error) { toastError('Błąd zapisu notatki: ' + data.error); return; }
     await refetch();
   };
   const toggleNoteEdit = (clientName, currentNote) => {
@@ -1959,11 +1966,12 @@ export default function DriverRouteView({ manageMode = false }) {
                                     if (!window.confirm(`Usunąć: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
                                     try {
                                       setBusy(true);
-                                      const { error } = await supabase
-                                        .from('entries')
-                                        .update({ deleted_at: new Date().toISOString(), deleted_by: user.name })
-                                        .eq('id', a.id);
+                                      const { data, error } = await supabase.rpc('driver_soft_delete_entry', {
+                                        p_session_token: sessionToken,
+                                        p_id: a.id,
+                                      });
                                       if (error) throw error;
+                                      if (data?.error) throw new Error(data.error);
                                       await logAction({ userName: user.name, action: 'deleted', clientName: stop.client_name, entryId: a.id, details: 'cofnięto przyjazd brudnego' });
                                       await refetch();
                                       toastSuccess('Usunięto przyjazd');
