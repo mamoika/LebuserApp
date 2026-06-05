@@ -23,6 +23,57 @@ function parseRouteIds(routesStr) {
   );
 }
 
+function addDaysToWeekKey(weekKey, days) {
+  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + days);
+  return formatWeekKey(dt);
+}
+
+// Czas absolutny dnia roboczego (1=Pn..5=Pt) w danym tygodniu — do porównań.
+function dayWeekToTime(day, weekKey) {
+  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + (Number(day) - 1));
+  return dt.getTime();
+}
+
+// Dzień prania danego wpisu — liczony od WYJAZDU (odbioru), nie przyjazdu:
+// - pierzemy w dzień roboczy tuż PRZED wyjazdem (pn → pt poprzedniego tygodnia),
+// - dla tras nie-codziennych nie pierzemy w dniu przyjazdu: jeśli „dzień przed
+//   wyjazdem" wypada w dniu przyjazdu lub wcześniej (np. przyjazd Pt → wyjazd Pn,
+//   gdzie pomiędzy jest tylko weekend), pierzemy w dniu wyjazdu.
+// - dla tras codziennych „dzień przed wyjazdem" zawsze == dzień przyjazdu, więc
+//   reguła automatycznie daje pranie tego samego dnia (np. miasto).
+function washSlotOf(entry, scheduleByRoute) {
+  const arrDay = Number(entry.arr_day);
+  const arrWeek = entry.week_key;
+  const depDay = Number(entry.pick_day);
+  const depWeek = entry.pick_week_key;
+  const isDaily = (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
+
+  // Brak danych o wyjeździe → awaryjnie licz wg przyjazdu (następny dzień roboczy).
+  if (!depDay || !depWeek) {
+    if (!arrDay || !arrWeek) return null;
+    if (isDaily) return `${arrWeek}|${arrDay}`;
+    if (arrDay < 5) return `${arrWeek}|${arrDay + 1}`;
+    return `${addDaysToWeekKey(arrWeek, 7)}|1`;
+  }
+
+  // Dzień roboczy tuż przed wyjazdem.
+  let washDay, washWeek;
+  if (depDay > 1) { washDay = depDay - 1; washWeek = depWeek; }
+  else { washDay = 5; washWeek = addDaysToWeekKey(depWeek, -7); } // pn → pt poprz. tygodnia
+
+  // Trasy nie-codzienne: nie pierzemy w dniu przyjazdu (ani wcześniej) → wtedy w dniu wyjazdu.
+  if (!isDaily && arrDay && arrWeek) {
+    if (dayWeekToTime(washDay, washWeek) <= dayWeekToTime(arrDay, arrWeek)) {
+      washDay = depDay; washWeek = depWeek;
+    }
+  }
+  return `${washWeek}|${washDay}`;
+}
+
 function groupPickupEntries(entries) {
   const groups = new Map();
   entries.forEach(entry => {
@@ -87,6 +138,17 @@ export default function ScheduleView() {
   const w1End = addDays(currentMonday, 4);
   const w2End = addDays(nextMonday, 4);
 
+  // kg do prania per (tydzień|dzień) — liczone od dnia WYJAZDU (patrz washSlotOf),
+  // z pominięciem wpisów już oznaczonych jako wyprane. Budujemy mapę raz, ze wszystkich wpisów.
+  const scheduleByRoute = new Map(routes.map(r => [r.id, r.schedule || 'other']));
+  const washKgBySlot = new Map();
+  entries.forEach(e => {
+    if (e.washed) return; // już wyprane → nie liczymy do prania
+    const slot = washSlotOf(e, scheduleByRoute);
+    if (!slot) return;
+    washKgBySlot.set(slot, (washKgBySlot.get(slot) || 0) + (parseFloat(e.weight) || 0));
+  });
+
   const renderEntryTag = (entry, mode) => {
     const tagClass = entry.done ? 'tag-done' : mode === 'pick' ? 'tag-pick' : 'tag-arr';
     const routeId = entry.route_id || 1;
@@ -115,6 +177,9 @@ export default function ScheduleView() {
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>
+        {!entry.isPickupGroup && entry.washed && (
+          <span className="kg-badge" title="Wyprane" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>🫧 uprane</span>
+        )}
         {entry.isPickupGroup && entryCount > 1 && <span className="kg-badge">{entryCount}x</span>}
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
         {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
@@ -138,6 +203,7 @@ export default function ScheduleView() {
 
           const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
           const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+          const sumWash = washKgBySlot.get(`${weekKey}|${dayIndex + 1}`) || 0;
           
           return (
             <div key={dayName} className={`col schedule-col ${isToday ? 'col-today' : ''}`}>
@@ -151,6 +217,10 @@ export default function ScheduleView() {
                 <div className="metric-chip arr">
                   <div className="metric-chip-label">Dostawa</div>
                   <div className="metric-chip-val">{sumArr > 0 ? sumArr.toFixed(1) : 0} kg</div>
+                </div>
+                <div className="metric-chip towash">
+                  <div className="metric-chip-label">Do prania</div>
+                  <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0} kg</div>
                 </div>
                 <div className="metric-chip wash">
                   <div className="metric-chip-label">Odbiór</div>

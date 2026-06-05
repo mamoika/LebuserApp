@@ -57,6 +57,34 @@ function nextWeekKey(weekKey) {
   return formatWeekKey(d);
 }
 
+// Data dnia roboczego (1=Pn..5=Pt) w tygodniu zaczynającym się od weekKey (poniedziałek).
+function dateForDay(weekKey, day) {
+  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + (Number(day) - 1));
+  return dt;
+}
+function shortDate(dt) {
+  return `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}`;
+}
+function dayWithDate(weekKey, day) {
+  return `${DAY_NAMES[day - 1]} ${shortDate(dateForDay(weekKey, day))}`;
+}
+// Dni ODBIORU dla wybranego tygodnia. „Ten sam tydzień" (pickWeek 0) startuje od
+// dnia przyjazdu — nie da się wybrać dnia wcześniejszego niż przyjazd. „Następny
+// tydzień" (pickWeek 1) ma wszystkie dni (zawsze jest po przyjeździe). `includeDay`
+// chroni bieżącą wartość (np. starszy wpis) przed cichą zmianą przy otwarciu.
+function buildPickDayOptions(baseWeekKey, arrDay, pickWeek, includeDay) {
+  const wk = Number(pickWeek) === 1 ? nextWeekKey(baseWeekKey) : baseWeekKey;
+  const min = Number(pickWeek) === 1 ? 1 : (parseInt(arrDay) || 1);
+  const out = [];
+  const seen = new Set();
+  for (let d = min; d <= 5; d++) { out.push({ value: d, label: dayWithDate(wk, d) }); seen.add(d); }
+  const inc = Number(includeDay);
+  if (inc && !seen.has(inc)) out.unshift({ value: inc, label: dayWithDate(wk, inc) });
+  return out;
+}
+
 // Porównuje wpis przed i po edycji, zwraca listę zmienionych pól w formacie
 // "etykieta: stara → nowa". Dzięki temu log edycji jest zawsze kompletny —
 // łapie KAŻDE zmienione pole, nie tylko te wpisane ręcznie.
@@ -279,13 +307,13 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień przyjazdu</div>
               <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
-                {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(weekKey, i + 1))}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień odbioru</div>
-              <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
-                {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+              <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
+                {buildPickDayOptions(weekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           </div>
@@ -293,7 +321,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-              <select className="ap-input" value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+              <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
                 <option value={0}>Ten sam tydzień</option>
                 <option value={1}>Następny tydzień</option>
               </select>
@@ -334,6 +362,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [loading, setLoading] = useState(false);
   const [routeId, setRouteId] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [washing, setWashing] = useState(false);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -409,6 +438,34 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     } catch (err) {
       toastError("Błąd: " + err.message);
       setLoading(false);
+    }
+    };
+
+    // Prywatny status „wyprane" — nie rusza odbioru (done) ani dostawy.
+    // Pomniejsza tylko licznik „Do prania" w harmonogramie.
+    const toggleWashed = async () => {
+    try {
+      setWashing(true);
+      const next = !entry.washed;
+      const updates = {
+        washed: next,
+        washed_at: next ? new Date().toISOString() : null,
+        washed_by: next ? user.name : null,
+      };
+      const { error } = await supabase.from('entries').update(updates).eq('id', entry.id);
+      if (error) throw error;
+      await logAction({
+        userName: user.name,
+        action: next ? 'washed' : 'unwashed',
+        clientName: entry.client_name,
+        entryId: entry.id,
+        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
+      });
+      onUpdated();
+      onClose();
+    } catch (err) {
+      toastError('Błąd: ' + err.message);
+      setWashing(false);
     }
     };
 
@@ -551,13 +608,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     setPickWeek(pw);
                   }}
                 >
-                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(entry.week_key, i + 1))}</option>)}
                 </select>
               </div>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
-                <select className="ap-input" value={pickDay} onChange={e => setPickDay(e.target.value)}>
-                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
+                <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
+                  {buildPickDayOptions(entry.week_key, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
@@ -565,7 +622,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
-                <select className="ap-input" value={pickWeek} onChange={e => setPickWeek(Number(e.target.value))}>
+                <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
                   <option value={0}>Ten sam tydzień</option>
                   <option value={1}>Następny tydzień</option>
                 </select>
@@ -631,6 +688,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
           {entry.added_by && <ROW label="Dodał" value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
           {allPickupDone && pickedByNames.length > 0 && <ROW label="Odebrał" value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
+          {!isGroupedPickup && entry.washed && <ROW label="Pranie" value={`Wyprane ✓${entry.washed_by ? ` · ${entry.washed_by}` : ''}${entry.washed_at ? ` · ${fmtDateTime(entry.washed_at)}` : ''}`} valueColor="var(--accent-green)" />}
           {(() => { const cn = (clients || []).find(c => c.name === entry.client_name)?.note || entry.comment; return cn ? <ROW label="Komentarz" value={cn} /> : null; })()}
 
           {isGroupedPickup && (
@@ -681,7 +739,22 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               </div>
             );
           })()}
-          
+
+          {canEdit && !isGroupedPickup && !isPickupContext && (
+            <button
+              className="ap-btn"
+              style={{
+                width: '100%', marginTop: '8px',
+                background: entry.washed ? 'var(--accent-green-light)' : 'var(--bg-secondary)',
+                color: entry.washed ? 'var(--accent-green)' : 'var(--text-primary)',
+              }}
+              onClick={toggleWashed}
+              disabled={washing || loading}
+            >
+              {entry.washed ? '🫧 Wyprane ✓ — cofnij' : '🫧 Oznacz jako wyprane'}
+            </button>
+          )}
+
           {canEdit && !isGroupedPickup && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
               <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>

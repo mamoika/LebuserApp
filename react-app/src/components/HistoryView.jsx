@@ -32,6 +32,8 @@ const LOG_ACTION_LABELS = {
   undone:     { label: 'Cofnięto',   color: '#FF3B30' },
   deleted:    { label: 'Usunięto',   color: '#FF3B30' },
   delivered:  { label: 'Dostarczono', color: '#34C759' },
+  washed:     { label: 'Wyprane',    color: '#30B0C7' },
+  unwashed:   { label: 'Cofnięto pranie', color: '#FF9500' },
   trip_start: { label: 'Start trasy', color: '#5856D6' },
   trip_end:   { label: 'Koniec trasy', color: '#5856D6' },
 };

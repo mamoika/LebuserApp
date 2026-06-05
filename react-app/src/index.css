@@ -475,6 +475,7 @@ body{
   border:0.5px solid transparent;
 }
 .metric-chip.arr { background:var(--accent-light); border-color:rgba(0,122,255,0.12); }
+.metric-chip.towash { background:var(--accent-orange-light); border-color:rgba(255,149,0,0.12); }
 .metric-chip.wash { background:var(--accent-green-light); border-color:rgba(52,199,89,0.12); }
 .metric-chip-label {
   font-size:9px;
@@ -484,6 +485,7 @@ body{
   opacity:0.65;
 }
 .metric-chip.arr .metric-chip-label { color:#0055CC; }
+.metric-chip.towash .metric-chip-label { color:#B26A00; }
 .metric-chip.wash .metric-chip-label { color:#1A7A37; }
 .metric-chip-val {
   font-size:14px;
@@ -493,9 +495,11 @@ body{
   white-space:nowrap;
 }
 .metric-chip.arr .metric-chip-val { color:#0055CC; }
+.metric-chip.towash .metric-chip-val { color:#B26A00; }
 .metric-chip.wash .metric-chip-val { color:#1A7A37; }
 @media(prefers-color-scheme:dark){
   .metric-chip.arr .metric-chip-label,.metric-chip.arr .metric-chip-val { color:var(--accent); }
+  .metric-chip.towash .metric-chip-label,.metric-chip.towash .metric-chip-val { color:var(--accent-orange); }
   .metric-chip.wash .metric-chip-label,.metric-chip.wash .metric-chip-val { color:var(--accent-green); }
 }
 
