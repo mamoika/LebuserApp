@@ -91,13 +91,14 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
 
   useEffect(() => {
     setCustomValue(selectedValue || '');
-    // Need a tiny timeout to ensure the DOM has updated and value is set before selecting
-    setTimeout(() => {
+    const tId = setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
         inputRef.current.select();
+        try { inputRef.current.setSelectionRange(0, 9999); } catch(e){}
       }
-    }, 10);
+    }, 50);
+    return () => clearTimeout(tId);
   }, [selectedValue]);
 
   return (
@@ -127,7 +128,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               ref={inputRef}
               autoFocus
               value={customValue} onChange={e => setCustomValue(e.target.value)}
-              onFocus={e => e.target.select()}
+              onFocus={e => { e.target.select(); try { e.target.setSelectionRange(0, 9999); } catch(err){} }}
               placeholder={t('grafik.otherValue')}
               onKeyDown={e => { 
                 if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); }
