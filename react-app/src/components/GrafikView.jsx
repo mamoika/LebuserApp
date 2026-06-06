@@ -87,10 +87,17 @@ function isPresent(value) {
 function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
-  const PRESETS = ['8', 'W', 'UW', 'L4', 'NN', 'I', 'END'];
+  const inputRef = useRef(null);
 
   useEffect(() => {
     setCustomValue(selectedValue || '');
+    // Need a tiny timeout to ensure the DOM has updated and value is set before selecting
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+    }, 10);
   }, [selectedValue]);
 
   return (
@@ -117,6 +124,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
           }}>{b}</button>,
           idx === 0 && [
             <input key="inna"
+              ref={inputRef}
               autoFocus
               value={customValue} onChange={e => setCustomValue(e.target.value)}
               onFocus={e => e.target.select()}
