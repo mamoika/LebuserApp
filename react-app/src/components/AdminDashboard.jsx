@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
@@ -6,12 +7,20 @@ import { loadMonthRoster } from '../lib/roster';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
+import { currentLocale, monthNames } from '../lib/dateUtils';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
-const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
+const roleLabel = (t, role) => ({
+  viewer: t('admin.roleViewer'),
+  admin_viewer: t('admin.roleAdminViewer'),
+  driver: t('admin.roleDriver'),
+  admin: t('admin.roleAdmin'),
+}[role] || role);
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
+  const { t } = useTranslation();
   const [allRoutes, setAllRoutes] = useState([]);
 
   useEffect(() => {
@@ -53,13 +62,14 @@ function RoutesPicker({ value, onChange }) {
         );
       })}
       {allRoutes.length === 0 && (
-        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Ładowanie tras…</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('admin.loadingRoutes')}</span>
       )}
     </div>
   );
 }
 
 function AddUserModal({ onClose, onSave }) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('driver');
@@ -82,44 +92,44 @@ function AddUserModal({ onClose, onSave }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>👤</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowy użytkownik</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('admin.newUser')}</div>
           </div>
 
           {error && <div className="ap-error" style={{ marginBottom: '12px' }}>{error}</div>}
 
-          <div style={LABEL_STYLE}>Login</div>
+          <div style={LABEL_STYLE}>{t('auth.login')}</div>
           <input
             className="ap-input"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            placeholder="np. jan.kowalski"
+            placeholder={t('auth.loginPlaceholder')}
             style={{ marginBottom: '12px' }}
             autoFocus
             autoComplete="off"
           />
 
-          <div style={LABEL_STYLE}>Imię i nazwisko</div>
+          <div style={LABEL_STYLE}>{t('auth.fullName')}</div>
           <input
             className="ap-input"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Jan Kowalski"
+            placeholder={t('auth.fullNamePlaceholder')}
             style={{ marginBottom: '12px' }}
           />
 
-          <div style={LABEL_STYLE}>Rola</div>
+          <div style={LABEL_STYLE}>{t('admin.role')}</div>
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
-            <option value="viewer">Tylko podgląd</option>
-            <option value="admin_viewer">Admin do wglądu</option>
-            <option value="driver">Kierowca</option>
-            <option value="admin">Administrator</option>
+            <option value="viewer">{t('admin.roleViewer')}</option>
+            <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
+            <option value="driver">{t('admin.roleDriver')}</option>
+            <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !username.trim() || !name.trim()}>
-              {saving ? 'Tworzenie…' : 'Utwórz użytkownika'}
+              {saving ? t('admin.creating') : t('admin.createUser')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -128,6 +138,7 @@ function AddUserModal({ onClose, onSave }) {
 }
 
 function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [routes, setRoutes] = useState(user.routes || '');
@@ -166,30 +177,30 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj użytkownika</div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>{t('admin.editUser')}</div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>@{user.username}</div>
             </div>
           </div>
 
-          <div style={LABEL_STYLE}>Imię i nazwisko</div>
+          <div style={LABEL_STYLE}>{t('auth.fullName')}</div>
           <input className="ap-input" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: '12px' }} autoFocus />
 
-          <div style={LABEL_STYLE}>Rola</div>
+          <div style={LABEL_STYLE}>{t('admin.role')}</div>
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
-            <option value="viewer">Tylko podgląd</option>
-            <option value="admin_viewer">Admin do wglądu</option>
-            <option value="driver">Kierowca</option>
-            <option value="admin">Administrator</option>
+            <option value="viewer">{t('admin.roleViewer')}</option>
+            <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
+            <option value="driver">{t('admin.roleDriver')}</option>
+            <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
 
           {role === 'driver' && (
             <>
-              <div style={LABEL_STYLE}>Przypisane trasy</div>
+              <div style={LABEL_STYLE}>{t('admin.assignedRoutes')}</div>
               <RoutesPicker value={routes} onChange={setRoutes} />
 
-              <div style={LABEL_STYLE}>Domyślne auto</div>
+              <div style={LABEL_STYLE}>{t('admin.defaultCar')}</div>
               <select className="ap-input" value={car} onChange={e => setCar(e.target.value)} style={{ marginBottom: '12px' }}>
-                <option value="">— brak —</option>
+                <option value="">{t('admin.noneDash')}</option>
                 {VEHICLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
               </select>
             </>
@@ -201,11 +212,11 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
             marginBottom: '16px', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.08)',
           }}>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Status hasła</div>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>{t('admin.passwordStatus')}</div>
               <div style={{ fontSize: '12px', fontWeight: 500, marginTop: '2px', color: resetDone ? '#CC6600' : user.has_password ? '#25A244' : '#CC6600' }}>
                 {resetDone
-                  ? '⚠️ Zresetowane — user ustawi przy następnym logowaniu'
-                  : user.has_password ? '✓ Ustawione' : '— Nie ustawione jeszcze'}
+                  ? t('admin.passwordResetPending')
+                  : user.has_password ? t('admin.passwordSet') : t('admin.passwordNotSet')}
               </div>
             </div>
             {user.has_password && !resetDone && (
@@ -219,14 +230,14 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
                   flexShrink: 0,
                 }}
               >
-                {resetting ? '…' : 'Resetuj hasło'}
+                {resetting ? '…' : t('admin.resetPassword')}
               </button>
             )}
           </div>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+              {saving ? t('common.saving') : t('admin.saveChanges')}
             </button>
             <button
               className="ap-btn"
@@ -234,12 +245,12 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
               onClick={onImpersonate}
               disabled={saving}
             >
-              👁 Zaloguj jako ten użytkownik
+              {t('admin.impersonateUser')}
             </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
-              {confirmDelete ? 'Na pewno usunąć użytkownika?' : 'Usuń użytkownika'}
+              {confirmDelete ? t('admin.confirmDeleteUser') : t('admin.deleteUser')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.close')}</button>
           </div>
         </div>
       </div>
@@ -248,6 +259,7 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
 }
 
 function GroupModal({ group, onClose, onSave, onDelete }) {
+  const { t } = useTranslation();
   const isNew = !group;
   const [name, setName] = useState(group?.name || '');
   const [color, setColor] = useState(group?.color || '#455a64');
@@ -279,30 +291,30 @@ function GroupModal({ group, onClose, onSave, onDelete }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${color}, ${color}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🏷️</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? 'Nowa grupa' : 'Edytuj grupę'}</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newGroup') : t('admin.editGroup')}</div>
           </div>
 
-          <div style={LABEL_STYLE}>Nazwa grupy</div>
-          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder="np. KIEROWCY" style={{ marginBottom: '12px' }} autoFocus />
+          <div style={LABEL_STYLE}>{t('admin.groupName')}</div>
+          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('admin.groupNamePlaceholder')} style={{ marginBottom: '12px' }} autoFocus />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={LABEL_STYLE}>Kolor HEX</div>
+              <div style={LABEL_STYLE}>{t('admin.hexColor')}</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: '44px', height: '44px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
                 <input className="ap-input" value={color} onChange={e => setColor(e.target.value)} placeholder="#000000" />
               </div>
             </div>
             <div>
-              <div style={LABEL_STYLE}>Kolejność (Sort)</div>
+              <div style={LABEL_STYLE}>{t('admin.sortOrder')}</div>
               <input type="number" className="ap-input" value={sortOrder} onChange={e => setSortOrder(e.target.value)} placeholder="10" />
             </div>
           </div>
 
           <div className="ap-btn-group" style={{ marginTop: '24px' }}>
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? 'Zapisywanie…' : 'Zapisz'}</button>
-            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? 'Na pewno usunąć?' : 'Usuń'}</button>}
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : t('common.save')}</button>
+            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? t('admin.confirmDelete') : t('common.delete')}</button>}
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -311,6 +323,7 @@ function GroupModal({ group, onClose, onSave, onDelete }) {
 }
 
 function GroupsSection() {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -335,7 +348,7 @@ function GroupsSection() {
       ? await supabase.rpc('admin_update_group', { ...args, p_group_id: id })
       : await supabase.rpc('admin_create_group', args);
     if (error) {
-      toastError('Błąd zapisu grupy: ' + error.message);
+      toastError(t('admin.errSaveGroup') + ' ' + error.message);
       return;
     }
     if (data?.error) {
@@ -349,7 +362,7 @@ function GroupsSection() {
   const handleDelete = async (id, groupName) => {
     const { count, error } = await supabase.from('employees').select('id', { count: 'exact', head: true }).eq('group_name', groupName);
     if (error) return { error: error.message };
-    if (count > 0) return { error: `Nie można usunąć grupy, do której przypisanych jest ${count} pracowników.` };
+    if (count > 0) return { error: t('admin.groupHasEmployees', { count }) };
     
     const { data, error: deleteErr } = await supabase.rpc('admin_delete_group', {
       p_session_token: sessionToken,
@@ -362,13 +375,13 @@ function GroupsSection() {
     return { ok: true };
   };
 
-  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie grup…</div>;
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingGroups')}</div>;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ fontSize: '17px', fontWeight: 700 }}>Grupy pracowników</div>
-        <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Dodaj grupę</button>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.employeeGroups')}</div>
+        <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addGroup')}</button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -376,7 +389,7 @@ function GroupsSection() {
           <div key={g.id} onClick={() => setModal(g)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)', cursor: 'pointer' }}>
             <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: g.color }} />
             <div style={{ flex: 1, fontWeight: 600, fontSize: '15px' }}>{g.name}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sort: {g.sort_order}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('admin.sort')}: {g.sort_order}</div>
           </div>
         ))}
       </div>
@@ -396,6 +409,7 @@ function GroupsSection() {
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 
 function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth }) {
+  const { t } = useTranslation();
   const isNew = !employee;
   const [name, setName] = useState(employee?.name || '');
   const [groupName, setGroupName] = useState(employee?.group_name || (groups[0]?.name || ''));
@@ -429,44 +443,44 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${grpColor}, ${grpColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? 'Nowy pracownik' : 'Edytuj pracownika'}</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newEmployee') : t('admin.editEmployee')}</div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>Miesiąc: <b>{monthLabel}</b> — grupa i aktywność dotyczą tego miesiąca</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>{t('admin.employeeMonthHint', { month: monthLabel })}</div>
 
-          <div style={LABEL_STYLE}>Nazwisko i imię</div>
-          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder="np. Kowalski Jan" style={{ marginBottom: '12px' }} autoFocus />
+          <div style={LABEL_STYLE}>{t('admin.employeeName')}</div>
+          <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('admin.employeeNamePlaceholder')} style={{ marginBottom: '12px' }} autoFocus />
 
-          <div style={LABEL_STYLE}>Grupa (w tym miesiącu)</div>
+          <div style={LABEL_STYLE}>{t('admin.groupThisMonth')}</div>
           <select className="ap-input" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '12px' }}>
             {groups.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
           </select>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={LABEL_STYLE}>Umowa</div>
+              <div style={LABEL_STYLE}>{t('admin.contract')}</div>
               <select className="ap-input" value={contractType} onChange={e => setContractType(e.target.value)}>
                 {CONTRACT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <div style={LABEL_STYLE}>Start</div>
+              <div style={LABEL_STYLE}>{t('admin.start')}</div>
               <input className="ap-input" value={defaultStart} onChange={e => setDefaultStart(e.target.value)} placeholder="7" />
             </div>
             <div>
-              <div style={LABEL_STYLE}>Koniec</div>
+              <div style={LABEL_STYLE}>{t('admin.end')}</div>
               <input className="ap-input" value={defaultEnd} onChange={e => setDefaultEnd(e.target.value)} placeholder="15" />
             </div>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
-            Aktywny w tym miesiącu
+            {t('admin.activeThisMonth')}
           </label>
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? 'Zapisywanie…' : 'Zapisz'}</button>
-            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? 'Na pewno usunąć z miesiąca?' : 'Usuń z miesiąca'}</button>}
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : t('common.save')}</button>
+            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? t('admin.confirmRemoveFromMonth') : t('admin.removeFromMonth')}</button>}
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -475,6 +489,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
 }
 
 function EmployeesSection() {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const [allEmployees, setAllEmployees] = useState([]); // globalna lista (do dodawania istniejących)
   const [roster, setRoster] = useState([]);             // skład wybranego miesiąca (z nieaktywnymi)
@@ -485,7 +500,7 @@ function EmployeesSection() {
   const now = new Date();
   const [cur, setCur] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
 
-  const monthLabel = `${MONTHS_PL[cur.month - 1]} ${cur.year}`;
+  const monthLabel = `${monthNames()[cur.month - 1]} ${cur.year}`;
   const atMinMonth = cur.year === 2026 && cur.month === 1; // start: styczeń 2026
   const shiftMonth = (delta) => setCur(c => {
     const m0 = c.month - 1 + delta;
@@ -527,7 +542,7 @@ function EmployeesSection() {
       p_sort_order: sort,
     });
     if (error || data?.error) {
-      toastError('Błąd zapisu pracownika: ' + (error?.message || data.error));
+      toastError(t('admin.errSaveEmployee') + ' ' + (error?.message || data.error));
       return;
     }
     setModal(null);
@@ -543,7 +558,7 @@ function EmployeesSection() {
       p_month: cur.month,
     });
     if (error || data?.error) {
-      toastError('Błąd usuwania z miesiąca: ' + (error?.message || data.error));
+      toastError(t('admin.errRemoveFromMonth') + ' ' + (error?.message || data.error));
       return;
     }
     setModal(null);
@@ -562,14 +577,14 @@ function EmployeesSection() {
       p_sort_order: emp.sort_order ?? maxOrder + 1,
     });
     if (error || data?.error) {
-      toastError('Błąd dodawania do miesiąca: ' + (error?.message || data.error));
+      toastError(t('admin.errAddToMonth') + ' ' + (error?.message || data.error));
       return;
     }
     setShowAdd(false);
     fetchAll();
   };
 
-  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie…</div>;
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('common.loading')}</div>;
 
   const rosterIds = new Set(roster.map(r => r.id));
   const notInMonth = allEmployees.filter(e => !rosterIds.has(e.id));
@@ -589,24 +604,24 @@ function EmployeesSection() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ fontSize: '17px', fontWeight: 700 }}>Pracownicy — {roster.filter(e => e.active).length} w miesiącu</div>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.employeesInMonth', { count: roster.filter(e => e.active).length })}</div>
         <div style={{ display: 'flex', gap: '8px' }}>
           {notInMonth.length > 0 && (
-            <button onClick={() => setShowAdd(s => !s)} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Istniejący</button>
+            <button onClick={() => setShowAdd(s => !s)} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addExisting')}</button>
           )}
-          <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Nowy</button>
+          <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addNew')}</button>
         </div>
       </div>
 
       {/* Dodaj istniejącego do miesiąca */}
       {showAdd && (
         <div style={{ marginBottom: '14px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)' }}>Dodaj do {monthLabel} (poza składem):</div>
+          <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)' }}>{t('admin.addToMonth', { month: monthLabel })}</div>
           {notInMonth.map((e, i) => (
             <div key={e.id} onClick={() => handleAddExisting(e)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer' }}>
               <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{e.name}</span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{e.group_name}</span>
-              <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700 }}>+ dodaj</span>
+              <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700 }}>{t('admin.addSmall')}</span>
             </div>
           ))}
         </div>
@@ -621,7 +636,7 @@ function EmployeesSection() {
                 <div key={emp.id} onClick={() => setModal(emp)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer', opacity: emp.active ? 1 : 0.45 }}>
                   <div style={{ flex: 1 }}>
                     <span style={{ fontWeight: 600, fontSize: '14px' }}>{emp.name}</span>
-                    {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>nieaktywny</span>}
+                    {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>{t('admin.inactive')}</span>}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: emp.contract_type === 'UoP' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.12)', color: emp.contract_type === 'UoP' ? '#007AFF' : '#CC6600' }}>{emp.contract_type}</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{emp.default_start}–{emp.default_end}</span>
@@ -646,20 +661,21 @@ function EmployeesSection() {
   );
 }
 
-const ACTION_LABELS = {
-  added:      { label: 'Dodał',       color: '#34C759' },
-  edited:     { label: 'Edytował',    color: '#FF9500' },
-  done:       { label: 'Odebrał',     color: '#007AFF' },
-  undone:     { label: 'Cofnął',      color: '#FF3B30' },
-  deleted:    { label: 'Usunął',      color: '#FF3B30' },
-  delivered:  { label: 'Dostarczył',  color: '#34C759' },
-  trip_start: { label: 'Start trasy', color: '#5856D6' },
-  trip_end:   { label: 'Koniec trasy', color: '#5856D6' },
+const ACTION_COLORS = {
+  added: '#34C759',
+  edited: '#FF9500',
+  done: '#007AFF',
+  undone: '#FF3B30',
+  deleted: '#FF3B30',
+  delivered: '#34C759',
+  trip_start: '#5856D6',
+  trip_end: '#5856D6',
 };
 
 const LOGS_PAGE_SIZE = 50;
 
 function LogsSection() {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -688,25 +704,27 @@ function LogsSection() {
   const fmt = (iso) => {
     if (!iso) return '';
     const d = new Date(iso);
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return d.toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit' })
+      + ' ' + d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Ładowanie logów…</div>;
-  if (error) return <div style={{ color: 'var(--accent-red)', fontSize: '13px', padding: '12px 0' }}>Błąd wczytywania logów: {error}</div>;
-  if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>Brak logów</div>;
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingLogs')}</div>;
+  if (error) return <div style={{ color: 'var(--accent-red)', fontSize: '13px', padding: '12px 0' }}>{t('admin.errLoadingLogs')} {error}</div>;
+  if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noLogs')}</div>;
 
   return (
     <div>
       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
-        {total} akcji w dzienniku
+        {t('admin.logsCount', { count: total })}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {logs.map(log => {
-          const meta = ACTION_LABELS[log.action] || { label: log.action, color: '#636366' };
+          const color = ACTION_COLORS[log.action] || '#636366';
+          const label = t(`logActions.${log.action}`, { defaultValue: log.action });
           return (
             <div key={log.id} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '10px 14px', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>{meta.label}</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color, background: color + '18', padding: '2px 7px', borderRadius: '6px', flexShrink: 0 }}>{label}</span>
                 <span style={{ fontWeight: 600, fontSize: '13px', flex: 1 }}>{log.client_name || '—'}</span>
                 <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', flexShrink: 0 }}>{log.user_name}</span>
                 <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', flexShrink: 0 }}>{fmt(log.created_at)}</span>
@@ -738,6 +756,7 @@ function LogsSection() {
 }
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { impersonate, isAdmin, sessionToken, signOut } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -769,7 +788,7 @@ export default function AdminDashboard() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
+  if (!isAdmin) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
 
   const handleAddUser = async (username, name, role) => {
     const { data, error } = await supabase.rpc('admin_create_user', {
@@ -787,60 +806,60 @@ export default function AdminDashboard() {
 
   const handleSaveUser = async (userId, name, role, routes, car) => {
     const { error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
-    if (e1) { toastError('Błąd zapisu roli: ' + e1.message); return; }
+    if (e1) { toastError(t('admin.errSaveRole') + ' ' + e1.message); return; }
     const { error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
-    if (e2) { toastError('Błąd zapisu tras: ' + e2.message); return; }
+    if (e2) { toastError(t('admin.errSaveRoutes') + ' ' + e2.message); return; }
     // Domyślne auto kierowcy → app_settings (jeden wiersz 'driver_cars')
     const nextCars = { ...driverCars };
     if (car) nextCars[userId] = car; else delete nextCars[userId];
     try {
       await upsertAppSetting(sessionToken, DRIVER_CARS_KEY, nextCars);
     } catch (e3) {
-      toastError('Błąd zapisu auta: ' + e3.message);
+      toastError(t('admin.errSaveCar') + ' ' + e3.message);
       return;
     }
     setDriverCars(nextCars);
     setEditUser(null);
-    toastSuccess('Zapisano');
+    toastSuccess(t('admin.saved'));
     fetchUsers();
   };
 
   const handleResetPassword = async (userId) => {
     const { data, error } = await supabase.rpc('admin_reset_password', { p_session_token: sessionToken, p_user_id: userId });
     if (error || data?.error) {
-      toastError('Błąd resetu: ' + (error?.message || data?.error));
+      toastError(t('admin.errReset') + ' ' + (error?.message || data?.error));
       return;
     }
-    toastSuccess('Hasło zresetowane');
+    toastSuccess(t('admin.passwordReset'));
     fetchUsers();
   };
 
   const handleDeleteUser = async (userId) => {
     const { data, error } = await supabase.rpc('admin_delete_user', { p_session_token: sessionToken, p_user_id: userId });
-    if (error || data?.error) { toastError('Błąd usuwania: ' + (error?.message || data?.error)); return; }
+    if (error || data?.error) { toastError(t('admin.errDeleting') + ' ' + (error?.message || data?.error)); return; }
     setEditUser(null);
-    toastSuccess('Użytkownik usunięty');
+    toastSuccess(t('admin.userDeleted'));
     fetchUsers();
   };
 
   const handleImpersonate = async (userId) => {
     const result = await impersonate(userId);
-    if (result?.error) { toastError('Błąd: ' + result.error); return; }
+    if (result?.error) { toastError(t('common.error') + ': ' + result.error); return; }
     setEditUser(null);
     // Przekieruj na stronę główną
     window.location.href = '/';
   };
 
-  if (loading) return <div className="loader">Ładowanie użytkowników…</div>;
-  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
+  if (loading) return <div className="loader">{t('admin.loadingUsers')}</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>{t('common.error')}: {error}</div>;
 
   return (
     <div style={{ maxWidth: '600px' }}>
       <div className="segmented-control" style={{ marginBottom: '16px' }}>
-        <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>Użytkownicy</button>
-        <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>Grupy</button>
-        <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Pracownicy</button>
-        <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>Logi</button>
+        <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
+        <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
+        <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
+        <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
       </div>
 
       {tab === 'logs' && <LogsSection />}
@@ -849,7 +868,7 @@ export default function AdminDashboard() {
 
       {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ fontSize: '17px', fontWeight: 700 }}>Użytkownicy ({users.length})</div>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.usersWithCount', { count: users.length })}</div>
         <button
           onClick={() => setAddUserOpen(true)}
           style={{
@@ -859,7 +878,7 @@ export default function AdminDashboard() {
             cursor: 'pointer',
           }}
         >
-          + Nowy użytkownik
+          {t('admin.newUserBtn')}
         </button>
       </div>
 
@@ -878,11 +897,11 @@ export default function AdminDashboard() {
             <div>
               <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                @{u.username} · {u.role === 'admin' ? '⚙️ Admin' : u.role === 'admin_viewer' ? '👁 Admin do wglądu' : u.role === 'driver' ? '🚛 Kierowca' : '👁 Podgląd'}
-                {u.routes ? ` · Trasy: ${u.routes}` : ''}
+                @{u.username} · {roleLabel(t, u.role)}
+                {u.routes ? ` · ${t('admin.routes')}: ${u.routes}` : ''}
               </div>
               <div style={{ fontSize: '11px', color: u.privacy_notice_ack_version ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
-                RODO: {u.privacy_notice_ack_version ? `potwierdzone ${u.privacy_notice_ack_version}` : 'brak potwierdzenia'}
+                {t('admin.rodo')}: {u.privacy_notice_ack_version ? t('admin.rodoConfirmed', { version: u.privacy_notice_ack_version }) : t('admin.rodoMissing')}
               </div>
             </div>
             <div style={{
@@ -891,7 +910,7 @@ export default function AdminDashboard() {
               color: u.has_password ? '#25A244' : '#CC6600',
               flexShrink: 0,
             }}>
-              {u.has_password ? 'Aktywny' : 'Brak hasła'}
+              {u.has_password ? t('admin.active') : t('admin.noPassword')}
             </div>
           </div>
         ))}

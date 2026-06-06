@@ -1,31 +1,33 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
+  const { t } = useTranslation();
   const { isAdmin, canEdit, canViewAdminData } = useAuth();
 
   const navItems = [];
 
   // Dla kierowców: Moja trasa jest pierwsza
-  if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: 'Moja trasa' });
+  if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
 
-  navItems.push({ to: '/', icon: '📅', label: 'Harmonogram' });
+  navItems.push({ to: '/', icon: '📅', label: t('nav.schedule') });
 
   navItems.push(
-    { to: '/clients', icon: '🗂', label: 'Klienci i Trasy' },
-    { to: '/map', icon: '🗺', label: 'Mapa' },
-    { to: '/history', icon: '📋', label: 'Historia' },
+    { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
+    { to: '/map', icon: '🗺', label: t('nav.map') },
+    { to: '/history', icon: '📋', label: t('nav.history') },
   );
 
   if (canViewAdminData) {
-    navItems.push({ to: '/routes', icon: '📍', label: 'Trasy na żywo' });
-    navItems.push({ to: '/grafik', icon: '📊', label: 'Grafik pracy' });
-    navItems.push({ to: '/timeline', icon: '⏱', label: 'Oś czasu' });
-    navItems.push({ to: '/costs', icon: '💰', label: 'Koszty' });
+    navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
+    navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
+    navItems.push({ to: '/timeline', icon: '⏱', label: t('nav.timeline') });
+    navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
   }
 
   if (isAdmin) {
-    navItems.push({ to: '/admin', icon: '⚙️', label: 'Panel Admina' });
+    navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
   }
 
   return (

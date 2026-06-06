@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { DAY_NAMES, formatWeekKey } from '../../lib/dateUtils';
+import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils';
 import { toastError } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 
@@ -68,7 +69,7 @@ function shortDate(dt) {
   return `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}`;
 }
 function dayWithDate(weekKey, day) {
-  return `${DAY_NAMES[day - 1]} ${shortDate(dateForDay(weekKey, day))}`;
+  return `${dayNamesShort()[day - 1]} ${shortDate(dateForDay(weekKey, day))}`;
 }
 // Dni ODBIORU dla wybranego tygodnia. „Ten sam tydzień" (pickWeek 0) startuje od
 // dnia przyjazdu — nie da się wybrać dnia wcześniejszego niż przyjazd. „Następny
@@ -88,17 +89,18 @@ function buildPickDayOptions(baseWeekKey, arrDay, pickWeek, includeDay) {
 // Porównuje wpis przed i po edycji, zwraca listę zmienionych pól w formacie
 // "etykieta: stara → nowa". Dzięki temu log edycji jest zawsze kompletny —
 // łapie KAŻDE zmienione pole, nie tylko te wpisane ręcznie.
-function buildEditDiff(entry, updates, routes) {
-  const dayLabel = v => DAY_NAMES[v - 1] || '?';
+function buildEditDiff(entry, updates, routes, t) {
+  const days = dayNamesShort();
+  const dayLabel = v => days[v - 1] || '?';
   const fields = [
-    { key: 'client_name',  label: 'klient',          fmt: v => (v ?? '') === '' ? '—' : String(v) },
-    { key: 'type',         label: 'typ',             fmt: v => v === 'O' ? 'Obrusy' : 'Pościel' },
-    { key: 'weight',       label: 'waga',            fmt: v => (v === null || v === undefined || v === '') ? '—' : `${v} kg` },
-    { key: 'arr_day',      label: 'przyjazd',        fmt: dayLabel },
-    { key: 'pick_day',     label: 'odbiór',          fmt: dayLabel },
-    { key: 'pick_week_key', label: 'tydzień odbioru', fmt: v => (v ?? '') === '' ? '—' : String(v) },
-    { key: 'urgent',       label: 'priorytet',       fmt: v => v ? 'tak' : 'nie' },
-    { key: 'route_id',     label: 'trasa',           fmt: v => (routes || []).find(r => r.id === v)?.name || '—' },
+    { key: 'client_name',  label: t('entry.diffClient'),     fmt: v => (v ?? '') === '' ? '—' : String(v) },
+    { key: 'type',         label: t('entry.diffType'),       fmt: v => v === 'O' ? t('entry.tablecloths') : t('entry.sheets') },
+    { key: 'weight',       label: t('entry.diffWeight'),     fmt: v => (v === null || v === undefined || v === '') ? '—' : `${v} kg` },
+    { key: 'arr_day',      label: t('entry.diffArrival'),    fmt: dayLabel },
+    { key: 'pick_day',     label: t('entry.diffPickup'),     fmt: dayLabel },
+    { key: 'pick_week_key', label: t('entry.diffPickupWeek'), fmt: v => (v ?? '') === '' ? '—' : String(v) },
+    { key: 'urgent',       label: t('entry.diffUrgent'),     fmt: v => v ? t('entry.yes') : t('entry.no') },
+    { key: 'route_id',     label: t('entry.diffRoute'),      fmt: v => (routes || []).find(r => r.id === v)?.name || '—' },
   ];
   const norm = v => (v === null || v === undefined) ? '' : (typeof v === 'number' ? String(v) : String(v).trim());
   const changes = [];
@@ -111,6 +113,7 @@ function buildEditDiff(entry, updates, routes) {
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
+  const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const [clientName, setClientName] = useState('');
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
@@ -177,7 +180,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     try {
       setLoading(true);
       const client = clients.find(c => c.name === clientName);
-      if (!client) throw new Error('Wybierz klienta');
+      if (!client) throw new Error(t('entry.selectClient'));
       const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
 
       // Calculate pick_week_key
@@ -207,11 +210,11 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? 'Obrusy' : 'Pościel'}${weight ? ', ' + weight + ' kg' : ''}` });
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}` });
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
       onClose();
     } catch (err) {
-      toastError("Błąd dodawania: " + err.message);
+      toastError(t('entry.errAdding') + ' ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -226,17 +229,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>📦</div>
             <div>
               <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>
-                {isClientScoped ? (clientName || defaultClientName) : 'Dodaj przyjazd'}
+                {isClientScoped ? (clientName || defaultClientName) : t('entry.addArrival')}
               </div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)', fontWeight: 400 }}>
-                {isClientScoped ? 'Brudne pranie do pralni' : user?.name}
+                {isClientScoped ? t('entry.dirtyToLaundry') : user?.name}
               </div>
             </div>
           </div>
 
           {!isClientScoped && (
             <>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.client')}</div>
               <select
                 className="ap-input"
                 style={{ padding: '12px 14px', marginBottom: '12px' }}
@@ -252,7 +255,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                   .filter(r => selectableClients.some(c => c.route_id === r.id))
                   .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                   .map(r => (
-                    <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? ' · twoja trasa' : ''}`}>
+                    <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}`}>
                       {selectableClients
                         .filter(c => c.route_id === r.id)
                         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -278,7 +281,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                     marginBottom: '12px',
                   }}
                 >
-                  {showOtherRoutes ? 'Wróć do moich tras' : 'Dodaj klienta z innej trasy'}
+                  {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
                 </button>
               )}
             </>
@@ -286,9 +289,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
           {isAdmin && (
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przypisz do trasy (Opcjonalnie)</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.assignToRoute')}</div>
               <select className="ap-input" value={explicitRouteId} onChange={e => setExplicitRouteId(e.target.value)}>
-                <option value="">Domyślna trasa klienta</option>
+                <option value="">{t('entry.defaultClientRoute')}</option>
                 {routes.map(r => (
                   <option key={r.id} value={r.id}>T{r.sort_order ?? r.id} - {r.name}</option>
                 ))}
@@ -296,24 +299,24 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             </div>
           )}
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
           <div className="segmented-control" style={{ marginBottom: '12px' }}>
-            <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
-            <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
+            <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
+            <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
           </div>
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg) — opcjonalnie</div>
-          <input type="text" className="ap-input" placeholder="np. 150.5" style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weightOptional')}</div>
+          <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień przyjazdu</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.arrivalDay')}</div>
               <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
-                {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(weekKey, i + 1))}</option>)}
+                {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(weekKey, i + 1))}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Dzień odbioru</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupDay')}</div>
               <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
                 {buildPickDayOptions(weekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -322,26 +325,26 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupWeek')}</div>
               <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                <option value={0}>Ten sam tydzień</option>
-                <option value={1}>Następny tydzień</option>
+                <option value={0}>{t('entry.sameWeek')}</option>
+                <option value={1}>{t('entry.nextWeek')}</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Wózki</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
               <input type="number" className="ap-input" value={trolleys} onChange={e => setTrolleys(e.target.value ? Number(e.target.value) : '')} min="0" />
             </div>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '4px', cursor: 'pointer' }}>
             <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} />
-            <span style={{ color: 'var(--accent-red)' }}>🚩 Pilne (priorytet)</span>
+            <span style={{ color: 'var(--accent-red)' }}>{t('entry.urgent')}</span>
           </label>
 
           <div className="ap-btn-group" style={{ marginTop: '18px' }}>
-            <button className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? 'Dodawanie...' : 'Dodaj'}</button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Anuluj</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? t('entry.adding') : t('entry.add')}</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -350,6 +353,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false }) {
+  const { t } = useTranslation();
   const { isAdmin, canEdit, user, sessionToken } = useAuth();
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -395,14 +399,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const pickupTotalWeight = pickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const allPickupDone = pickupEntries.every(e => e.done);
   const pickedByNames = [...new Set(pickupEntries.map(e => e.picked_by).filter(Boolean))];
-  const pickupArrivalDays = [...new Set(pickupEntries.map(e => DAY_NAMES[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
+  const daysFull = dayNamesFull();
+  const pickupArrivalDays = [...new Set(pickupEntries.map(e => daysFull[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
   const hasPickupSheets = pickupEntries.some(e => (e.type || 'P') === 'P');
   const hasPickupTablecloths = pickupEntries.some(e => e.type === 'O');
   const pickupTypeLabel = hasPickupSheets && hasPickupTablecloths
-    ? 'Pościel + Obrusy'
+    ? t('entry.sheetsTablecloths')
     : hasPickupTablecloths
-      ? 'Obrusy'
-      : 'Pościel';
+      ? t('entry.tablecloths')
+      : t('entry.sheets');
   const directEditMode = contextMode === 'arr' && initiallyEditing;
   const showEditForm = canEdit && (editing || directEditMode);
 
@@ -436,12 +441,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: isDone ? 'done' : 'undone',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: isGroupedPickup ? `${pickupEntries.length} wpisy, ${pickupTotalWeight ? Number(pickupTotalWeight.toFixed(1)) + ' kg' : 'bez wagi'}` : undefined,
+        details: isGroupedPickup ? t('entry.logDoneDetails', { count: pickupEntries.length, weight: pickupTotalWeight ? Number(pickupTotalWeight.toFixed(1)) + ' kg' : t('entry.noWeight') }) : undefined,
       });
       onUpdated();
       onClose();
     } catch (err) {
-      toastError("Błąd: " + err.message);
+      toastError(t('entry.errGeneric') + ' ' + err.message);
       setLoading(false);
     }
     };
@@ -465,12 +470,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: next ? 'washed' : 'unwashed',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
+        details: `${entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
       });
       onUpdated();
       onClose();
     } catch (err) {
-      toastError('Błąd: ' + err.message);
+      toastError(t('entry.errGeneric') + ' ' + err.message);
       setWashing(false);
     }
     };
@@ -523,11 +528,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         });
       }
       // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
-      const changes = buildEditDiff(entry, updates, routes);
+      const changes = buildEditDiff(entry, updates, routes, t);
       // Śledź też zmianę komentarza klienta
       const currentClientNote2 = (clients || []).find(c => c.name === entry.client_name)?.note || '';
       if (comment !== (currentClientNote2 || '')) {
-        changes.push(`komentarz: "${currentClientNote2 || '—'}" → "${comment || '—'}"`);
+        changes.push(`${t('entry.diffComment')}: "${currentClientNote2 || '—'}" → "${comment || '—'}"`);
       }
       if (changes.length > 0) {
         await logAction({
@@ -541,7 +546,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       onUpdated();
       onClose();
     } catch (err) {
-      toastError("Błąd edycji: " + err.message);
+      toastError(t('entry.errEdit') + ' ' + err.message);
       setLoading(false);
     }
     };
@@ -564,11 +569,16 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: 'deleted',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: `${entry.type === 'O' ? 'Obrusy' : 'Pościel'}, przyjazd: ${DAY_NAMES[entry.arr_day - 1] || '?'}, odbiór: ${DAY_NAMES[entry.pick_day - 1] || '?'}, waga: ${entry.weight ?? '—'}`,      });
+        details: t('entry.logDeletedDetails', {
+          type: entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
+          arrival: daysFull[entry.arr_day - 1] || '?',
+          pickup: daysFull[entry.pick_day - 1] || '?',
+          weight: entry.weight ?? '—',
+        }),      });
       onDeleted();
       onClose();
     } catch (err) {
-      toastError("Błąd: " + err.message);
+      toastError(t('entry.errGeneric') + ' ' + err.message);
       setLoading(false);
     }
     };
@@ -584,17 +594,17 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>✏️</div>
               <div>
                 <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>
-                  {contextMode === 'arr' ? (clientName || entry.client_name) : 'Edytuj wpis'}
+                  {contextMode === 'arr' ? (clientName || entry.client_name) : t('entry.editEntry')}
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>
-                  {contextMode === 'arr' ? 'Edytuj wpis' : entry.client_name}
+                  {contextMode === 'arr' ? t('entry.editEntry') : entry.client_name}
                 </div>
               </div>
             </div>
 
             {contextMode !== 'arr' && (
               <>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Klient</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.client')}</div>
                 <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
                   {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
                   {sortedRoutes
@@ -611,18 +621,18 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               </>
             )}
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Rodzaj prania</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
             <div className="segmented-control" style={{ marginBottom: '14px' }}>
-              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>Pościel</button>
-              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>Obrusy</button>
+              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
+              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
             </div>
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Waga (kg)</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weight')}</div>
             <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Przyjazd</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.arrival')}</div>
                 <select
                   className="ap-input"
                   value={arrDay}
@@ -633,11 +643,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     setPickWeek(pw);
                   }}
                 >
-                  {DAY_NAMES.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(entry.week_key, i + 1))}</option>)}
+                  {daysFull.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(entry.week_key, i + 1))}</option>)}
                 </select>
               </div>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Odbiór</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickup')}</div>
                 <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
                   {buildPickDayOptions(entry.week_key, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -646,21 +656,21 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Tydzień odbioru</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupWeek')}</div>
                 <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                  <option value={0}>Ten sam tydzień</option>
-                  <option value={1}>Następny tydzień</option>
+                  <option value={0}>{t('entry.sameWeek')}</option>
+                  <option value={1}>{t('entry.nextWeek')}</option>
                 </select>
               </div>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Wózki</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
                 <input type="number" className="ap-input" value={trolleys} onChange={e => setTrolleys(e.target.value ? Number(e.target.value) : '')} min="0" />
               </div>
             </div>
 
             {isAdmin && (
               <div className="ap-field" style={{ marginBottom: '14px' }}>
-                <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>Trasa logistyczna</label>
+                <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>{t('entry.logisticsRoute')}</label>
                 <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
                   {sortedRoutes.map((r, index) => (
                     <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
@@ -671,15 +681,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500, marginBottom: '14px', cursor: 'pointer', padding: '12px 14px', background: 'rgba(255,59,48,0.06)', borderRadius: '12px', border: '1px solid rgba(255,59,48,0.15)' }}>
               <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#FF3B30' }} />
-              <span style={{ color: '#FF3B30', fontWeight: 600 }}>🚩 Pilne (priorytet)</span>
+              <span style={{ color: '#FF3B30', fontWeight: 600 }}>{t('entry.urgent')}</span>
             </label>
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Komentarz</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.comment')}</div>
             <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '18px' }} />
 
             <div className="ap-btn-group">
-              <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading}>Zapisz</button>
-              <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>Anuluj</button>
+              <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading}>{t('entry.save')}</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>{t('common.cancel')}</button>
             </div>
           </div>
         </div>
@@ -699,27 +709,27 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>📋</div>
             <div>
               <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>{entry.client_name}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{routeName}{entry.urgent ? ' · 🚩 Pilne' : ''}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{routeName}{entry.urgent ? ` · ${t('entry.urgentShort')}` : ''}</div>
             </div>
           </div>
 
-          <ROW label="Status" value={allPickupDone ? 'Odebrane ✓' : 'W toku'} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
-          <ROW label="Widok" value={isPickupContext ? 'Odbiór' : contextMode === 'arr' ? 'Przyjazd' : 'Szczegóły'} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
-          <ROW label="Rodzaj" value={isPickupContext ? pickupTypeLabel : entry.type === 'O' ? 'Obrusy' : 'Pościel'} />
-          <ROW label="Waga" value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
-          {!isGroupedPickup && <ROW label="Wózki" value={entry.trolleys ?? 1} />}
-          {isGroupedPickup && <ROW label="Wpisy" value={`${pickupEntries.length} przyjazdy`} />}
-          <ROW label={isGroupedPickup ? 'Przyjazdy' : 'Przyjazd'} value={isGroupedPickup ? pickupArrivalDays : DAY_NAMES[entry.arr_day - 1]} />
-          <ROW label="Odbiór" value={DAY_NAMES[entry.pick_day - 1]} />
-          {entry.added_by && <ROW label="Dodał" value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
-          {allPickupDone && pickedByNames.length > 0 && <ROW label="Odebrał" value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
-          {!isGroupedPickup && entry.washed && <ROW label="Pranie" value={`Wyprane ✓${entry.washed_by ? ` · ${entry.washed_by}` : ''}${entry.washed_at ? ` · ${fmtDateTime(entry.washed_at)}` : ''}`} valueColor="var(--accent-green)" />}
-          {(() => { const cn = (clients || []).find(c => c.name === entry.client_name)?.note || entry.comment; return cn ? <ROW label="Komentarz" value={cn} /> : null; })()}
+          <ROW label={t('entry.status')} value={allPickupDone ? t('entry.pickedUpCheck') : t('entry.inProgress')} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
+          <ROW label={t('entry.view')} value={isPickupContext ? t('entry.pickup') : contextMode === 'arr' ? t('entry.arrival') : t('entry.viewDetails')} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
+          <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')} />
+          <ROW label={t('entry.weight')} value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
+          {!isGroupedPickup && <ROW label={t('entry.trolleys')} value={entry.trolleys ?? 1} />}
+          {isGroupedPickup && <ROW label={t('entry.entriesField')} value={t('entry.arrivalsCount', { count: pickupEntries.length })} />}
+          <ROW label={isGroupedPickup ? t('entry.arrivals') : t('entry.arrival')} value={isGroupedPickup ? pickupArrivalDays : daysFull[entry.arr_day - 1]} />
+          <ROW label={t('entry.pickup')} value={daysFull[entry.pick_day - 1]} />
+          {entry.added_by && <ROW label={t('entry.addedBy')} value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
+          {allPickupDone && pickedByNames.length > 0 && <ROW label={t('entry.pickedBy')} value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
+          {!isGroupedPickup && entry.washed && <ROW label={t('entry.washingRow')} value={`${t('entry.washedCheck')}${entry.washed_by ? ` · ${entry.washed_by}` : ''}${entry.washed_at ? ` · ${fmtDateTime(entry.washed_at)}` : ''}`} valueColor="var(--accent-green)" />}
+          {(() => { const cn = (clients || []).find(c => c.name === entry.client_name)?.note || entry.comment; return cn ? <ROW label={t('entry.comment')} value={cn} /> : null; })()}
 
           {isGroupedPickup && (
             <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '8px' }}>
-                Szczegóły przyjazdów
+                {t('entry.arrivalDetails')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {pickupEntries.map((item, index) => (
@@ -740,10 +750,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   >
                     <span style={{ color: 'var(--text-tertiary)' }}>#{index + 1}</span>
                     <span>
-                      {DAY_NAMES[item.arr_day - 1]}
+                      {daysFull[item.arr_day - 1]}
                       <span style={{ color: 'var(--text-tertiary)', fontWeight: 550 }}> · {item.added_by || '—'}</span>
                     </span>
-                    <span>{item.type === 'O' ? 'Obrusy' : 'Pościel'}</span>
+                    <span>{item.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}</span>
                     <span>{item.weight ? `${item.weight} kg` : '—'}</span>
                   </div>
                 ))}
@@ -757,10 +767,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               <div className="ap-btn-group" style={{ marginTop: '16px' }}>
                 {canUndone && (
                   <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
-                    {allPickupDone ? 'Cofnij odbiór' : 'Oznacz jako odebrane'}
+                    {allPickupDone ? t('entry.undoPickup') : t('entry.markPickedUp')}
                   </button>
                 )}
-                <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>Zamknij</button>
+                <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>{t('entry.close')}</button>
               </div>
             );
           })()}
@@ -776,16 +786,16 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               onClick={toggleWashed}
               disabled={washing || loading}
             >
-              {entry.washed ? '🫧 Wyprane ✓ — cofnij' : '🫧 Oznacz jako wyprane'}
+              {entry.washed ? t('entry.washedUndo') : t('entry.markWashed')}
             </button>
           )}
 
           {canEdit && !isGroupedPickup && (
             <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: '8px', marginTop: '8px' }}>
-              <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>Edytuj</button>
+              <button className="ap-btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => setEditing(true)} disabled={loading}>{t('entry.edit')}</button>
               {isAdmin && (
                 <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>
-                  {confirmDelete ? 'Na pewno?' : 'Usuń'}
+                  {confirmDelete ? t('entry.confirmDeleteShort') : t('entry.delete')}
                 </button>
               )}
             </div>

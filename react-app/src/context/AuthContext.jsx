@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import i18n, { SUPPORTED_LANGUAGES } from '../i18n';
+
+const applyLanguage = (lang) => {
+  if (lang && SUPPORTED_LANGUAGES.includes(lang) && i18n.language !== lang) {
+    i18n.changeLanguage(lang);
+  }
+};
 
 const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
@@ -34,6 +41,12 @@ const readStoredSession = (key) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => readStoredSession(STORAGE_KEY));
   const [adminBackup, setAdminBackup] = useState(() => readStoredSession(BACKUP_KEY));
+
+  // Po odświeżeniu strony przywróć język z zapisanej sesji (źródło prawdy = baza).
+  useEffect(() => {
+    applyLanguage(user?.language);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const storeUser = useCallback((userData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
@@ -92,12 +105,14 @@ export const AuthProvider = ({ children }) => {
       name: data.name,
       role: data.role,
       routes: data.routes,
+      language: data.language,
       privacy_notice_ack_at: data.privacy_notice_ack_at,
       privacy_notice_ack_version: data.privacy_notice_ack_version,
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
     storeUser(userData);
+    applyLanguage(data.language);
     return { ok: true };
   };
 
@@ -120,6 +135,7 @@ export const AuthProvider = ({ children }) => {
       name: data.name,
       role: data.role,
       routes: data.routes,
+      language: data.language,
       has_password: data.has_password,
       privacy_notice_ack_at: data.privacy_notice_ack_at,
       privacy_notice_ack_version: data.privacy_notice_ack_version,
@@ -127,8 +143,31 @@ export const AuthProvider = ({ children }) => {
       session_expires_at: data.session_expires_at,
     };
     storeUser(targetUser);
+    applyLanguage(data.language);
     return { ok: true };
   };
+
+  // Zmiana języka interfejsu. Aktualizuje i18n + localStorage (przez detektor),
+  // a dla zalogowanego użytkownika zapisuje preferencję w bazie.
+  const setLanguage = useCallback(async (lang) => {
+    if (!SUPPORTED_LANGUAGES.includes(lang)) return { error: i18n.t('auth.unsupportedLanguage') };
+    await i18n.changeLanguage(lang);
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, language: lang };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    const token = user?.session_token;
+    if (token) {
+      const { error } = await supabase.rpc('set_user_language', {
+        p_session_token: token,
+        p_language: lang,
+      });
+      if (error) return { error: error.message };
+    }
+    return { ok: true };
+  }, [user?.session_token]);
 
   const acknowledgePrivacyNotice = async (version = PRIVACY_NOTICE_VERSION) => {
     const { data, error } = await supabase.rpc('acknowledge_privacy_notice', {
@@ -149,7 +188,7 @@ export const AuthProvider = ({ children }) => {
 
   // Wróć do konta admina
   const stopImpersonating = () => {
-    if (!adminBackup) return { error: 'Brak zapisanej sesji admina' };
+    if (!adminBackup) return { error: i18n.t('auth.noSavedAdminSession') };
     if (!adminBackup.session_token) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(BACKUP_KEY);
@@ -193,6 +232,7 @@ export const AuthProvider = ({ children }) => {
       impersonate,
       stopImpersonating,
       acknowledgePrivacyNotice,
+      setLanguage,
       signOut,
       isAdmin,
       isAdminViewer,

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 import { getEntryLogs } from '../lib/logsRpc';
-
-const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt'];
-const FULL_DAYS = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+import { dayNamesShort, weekdayFull, currentLocale } from '../lib/dateUtils';
 
 // Data dostawy = poniedziałek tygodnia (week_key) + (arr_day - 1)
 function parseMonday(weekKey) {
@@ -20,34 +19,30 @@ function deliveryDate(e) {
   return dt;
 }
 function fullDayName(date) {
-  return FULL_DAYS[(date.getDay() + 6) % 7];
+  return weekdayFull()[(date.getDay() + 6) % 7];
 }
 function formatDayDate(date) {
   return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
 }
 
-const LOG_ACTION_LABELS = {
-  added:      { label: 'Dodano',     color: '#34C759' },
-  edited:     { label: 'Edytowano',  color: '#FF9500' },
-  done:       { label: 'Odebrano',   color: '#007AFF' },
-  undone:     { label: 'Cofnięto',   color: '#FF3B30' },
-  deleted:    { label: 'Usunięto',   color: '#FF3B30' },
-  delivered:  { label: 'Dostarczono', color: '#34C759' },
-  washed:     { label: 'Wyprane',    color: '#30B0C7' },
-  unwashed:   { label: 'Cofnięto pranie', color: '#FF9500' },
-  trip_start: { label: 'Start trasy', color: '#5856D6' },
-  trip_end:   { label: 'Koniec trasy', color: '#5856D6' },
+// Kolory akcji logu; etykiety pobierane z t(`logActions.<action>`).
+const LOG_ACTION_COLORS = {
+  added: '#34C759', edited: '#FF9500', done: '#007AFF', undone: '#FF3B30',
+  deleted: '#FF3B30', delivered: '#34C759', washed: '#30B0C7',
+  unwashed: '#FF9500', trip_start: '#5856D6', trip_end: '#5856D6',
 };
 
 function formatDate(isoStr) {
   if (!isoStr) return '—';
   const d = new Date(isoStr);
-  return d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    + ' ' + d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  const loc = currentLocale();
+  return d.toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' ' + d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
 }
 
 // Oś czasu zmian danego wpisu — dociągana z tabeli logs po kliknięciu.
 function EntryChangeLog({ entryId }) {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState(null); // null = jeszcze nie wczytano
@@ -74,20 +69,21 @@ function EntryChangeLog({ entryId }) {
         onClick={toggle}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}
       >
-        🕓 {open ? 'Ukryj historię zmian' : 'Historia zmian'}
+        🕓 {open ? t('history.changeLogHide') : t('history.changeLogShow')}
       </button>
       {open && (
         <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
-          {loading && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Ładowanie…</div>}
+          {loading && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('common.loading')}</div>}
           {!loading && logs && logs.length === 0 && (
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Brak zapisanych zmian</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('history.noChanges')}</div>
           )}
           {!loading && logs && logs.map(l => {
-            const meta = LOG_ACTION_LABELS[l.action] || { label: l.action, color: '#636366' };
+            const color = LOG_ACTION_COLORS[l.action] || '#636366';
+            const label = t(`logActions.${l.action}`, { defaultValue: l.action });
             return (
               <div key={l.id} style={{ fontSize: '11px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '1px 6px', borderRadius: '5px' }}>{meta.label}</span>
+                  <span style={{ fontWeight: 700, color: color, background: color + '18', padding: '1px 6px', borderRadius: '5px' }}>{label}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{l.user_name}</span>
                   <span style={{ color: 'var(--text-tertiary)' }}>· {formatDate(l.created_at)}</span>
                 </div>
@@ -104,6 +100,7 @@ function EntryChangeLog({ entryId }) {
 }
 
 export default function HistoryView() {
+  const { t } = useTranslation();
   const rawData = useAppData();
   const { isAdmin, isDriver, user } = useAuth();
 
@@ -169,8 +166,8 @@ export default function HistoryView() {
   const routeMap = Object.fromEntries(rawData.allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
   const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; })();
 
-  if (loading) return <div className="loader">Ładowanie historii…</div>;
-  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
+  if (loading) return <div className="loader">{t('history.loading')}</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>{t('schedule.errorPrefix')} {error}</div>;
 
   return (
     <div>
@@ -184,7 +181,7 @@ export default function HistoryView() {
           className="ap-input"
           value={filterClient}
           onChange={e => { setFilterClient(e.target.value); setPage(0); }}
-          placeholder="Szukaj klienta…"
+          placeholder={t('history.searchClient')}
           style={{ flex: '1 1 140px', marginBottom: 0 }}
         />
         <select
@@ -193,7 +190,7 @@ export default function HistoryView() {
           onChange={e => { setFilterRoute(e.target.value); setPage(0); }}
           style={{ flex: '1 1 140px', marginBottom: 0 }}
         >
-          <option value="">Wszystkie trasy</option>
+          <option value="">{t('history.allRoutes')}</option>
           {rawData.allRoutes.map((r, i) => (
             <option key={r.id} value={r.id}>T{i + 1} {r.name}</option>
           ))}
@@ -203,7 +200,7 @@ export default function HistoryView() {
             className="ap-input"
             value={filterDriver}
             onChange={e => { setFilterDriver(e.target.value); setPage(0); }}
-            placeholder="Szukaj kierowcy…"
+            placeholder={t('history.searchDriver')}
             style={{ flex: '1 1 140px', marginBottom: 0 }}
           />
         )}
@@ -213,28 +210,28 @@ export default function HistoryView() {
           onChange={e => { setFilterDone(e.target.value); setPage(0); }}
           style={{ flex: '1 1 120px', marginBottom: 0 }}
         >
-          <option value="">Wszystkie</option>
-          <option value="done">Odebrane</option>
-          <option value="pending">Oczekujące</option>
-          <option value="deleted">Usunięte</option>
+          <option value="">{t('history.all')}</option>
+          <option value="done">{t('history.pickedUp')}</option>
+          <option value="pending">{t('history.pending')}</option>
+          <option value="deleted">{t('history.deleted')}</option>
         </select>
         {(filterClient || filterRoute || filterDriver || filterDone) && (
           <button
             onClick={() => { setFilterClient(''); setFilterRoute(''); setFilterDriver(''); setFilterDone(''); setPage(0); }}
             style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}
           >
-            ✕ Wyczyść
+            {t('history.clear')}
           </button>
         )}
       </div>
 
       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '10px' }}>
-        {filtered.length} wpisów {filtered.length !== entries.length ? `(z ${entries.length})` : ''} · {dayGroups.length} dni
+        {t('history.entries', { count: filtered.length })} {filtered.length !== entries.length ? t('history.ofTotal', { total: entries.length }) : ''} · {t('history.days', { count: dayGroups.length })}
       </div>
 
       {pagedGroups.length === 0 && (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
-          Brak wpisów
+          {t('history.noEntries')}
         </div>
       )}
 
@@ -255,17 +252,17 @@ export default function HistoryView() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                   <span style={{ fontWeight: 700, fontSize: '14px' }}>
-                    {group.date ? fullDayName(group.date) : 'Bez daty'}
+                    {group.date ? fullDayName(group.date) : t('history.noDate')}
                   </span>
                   {group.date && (
                     <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{formatDayDate(group.date)}</span>
                   )}
                   {isToday && (
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#007AFF', background: 'rgba(0,122,255,0.12)', padding: '2px 7px', borderRadius: '6px' }}>Dziś</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#007AFF', background: 'rgba(0,122,255,0.12)', padding: '2px 7px', borderRadius: '6px' }}>{t('schedule.today')}</span>
                   )}
                 </div>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  {group.entries.length} {group.entries.length === 1 ? 'wpis' : 'wpisów'}{dayWeight > 0 ? ` · ${Number(dayWeight.toFixed(1))} kg` : ''}
+                  {t('history.entries', { count: group.entries.length })}{dayWeight > 0 ? ` · ${Number(dayWeight.toFixed(1))} kg` : ''}
                 </span>
               </div>
 
@@ -273,8 +270,9 @@ export default function HistoryView() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {group.entries.map(e => {
           const routeInfo = routeMap[e.route_id];
-          const arrDay = DAY_NAMES[e.arr_day - 1] || '?';
-          const pickDay = DAY_NAMES[e.pick_day - 1] || '?';
+          const shortDays = dayNamesShort();
+          const arrDay = shortDays[e.arr_day - 1] || '?';
+          const pickDay = shortDays[e.pick_day - 1] || '?';
           const isDeleted = !!e.deleted_at;
           return (
             <div key={e.id} style={{
@@ -297,13 +295,13 @@ export default function HistoryView() {
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
                       background: 'rgba(255,59,48,0.12)', color: '#FF3B30',
-                    }}>🗑️ Usunięte</span>
+                    }}>{t('history.deletedBadge')}</span>
                   ) : (
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
                       background: e.done ? STATUS_COLORS.pickup.background : 'rgba(0,0,0,0.06)',
                       color: e.done ? STATUS_COLORS.pickup.color : 'var(--text-tertiary)',
-                    }}>{e.done ? '✓ Odebrane' : 'Oczekuje'}</span>
+                    }}>{e.done ? t('history.pickedBadge') : t('history.waiting')}</span>
                   )}
                 </div>
               </div>
@@ -314,7 +312,7 @@ export default function HistoryView() {
                     {routeInfo.name}
                   </span>
                 )}
-                <span>📅 Dostawa: {arrDay} · Odbiór: {pickDay}</span>
+                <span>📅 {t('history.rowDelivery')}: {arrDay} · {t('history.rowPickup')}: {pickDay}</span>
                 {e.weight && <span>⚖️ {e.weight} kg</span>}
                 {e.added_by && <span>👤 {e.added_by}</span>}
                 {e.done && e.picked_by && <span>✅ {e.picked_by}</span>}
@@ -325,11 +323,11 @@ export default function HistoryView() {
                 </div>
               )}
               <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                {e.week_key} · dodano {formatDate(e.added_at)}
+                {e.week_key} · {t('history.addedAt')} {formatDate(e.added_at)}
               </div>
               {isDeleted && (
                 <div style={{ marginTop: '2px', fontSize: '11px', color: '#FF3B30', fontWeight: 600 }}>
-                  🗑️ usunięto {formatDate(e.deleted_at)}{e.deleted_by ? ` · ${e.deleted_by}` : ''}
+                  🗑️ {t('history.deletedAt')} {formatDate(e.deleted_at)}{e.deleted_by ? ` · ${e.deleted_by}` : ''}
                 </div>
               )}
               <EntryChangeLog entryId={e.id} />

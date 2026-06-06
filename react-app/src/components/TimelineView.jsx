@@ -1,24 +1,27 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { loadMonthRoster } from '../lib/roster';
 import { isHoliday } from '../utils/holidays';
+import { dayNamesSunSat } from '../lib/dateUtils';
 
+// Kolory stanowisk; nazwy wyświetlane przez t(`timeline.roles.<key>`).
 const ROLES = {
-  "T":  { bg: "#607D8B", fc: "#fff", name: "Tunnel" },
-  "S":  { bg: "#2E7D32", fc: "#fff", name: "Składarka" },
-  "M":  { bg: "#E65100", fc: "#fff", name: "Magiel" },
-  "R":  { bg: "#C62828", fc: "#fff", name: "Roztrzepywanie" },
-  "PR": { bg: "#00838F", fc: "#fff", name: "Pranie" },
-  "P":  { bg: "#6A1B9A", fc: "#fff", name: "Prasowanie" },
-  "SZ": { bg: "#4E342E", fc: "#fff", name: "Szycie" },
-  "PP": { bg: "#F9A825", fc: "#1a1a1a", name: "Punkt przyjęć" },
-  "SP": { bg: "#37474F", fc: "#fff", name: "Sprzątanie" },
-  "O":  { bg: "#AD1457", fc: "#fff", name: "Oznakowanie" },
-  "PK": { bg: "#558B2F", fc: "#fff", name: "Pakowanie" },
-  "SC": { bg: "#FF6F00", fc: "#fff", name: "Spedycja" },
-  "K":  { bg: "#1155cc", fc: "#fff", name: "Kierowca" },
+  "T":  { bg: "#607D8B", fc: "#fff" },
+  "S":  { bg: "#2E7D32", fc: "#fff" },
+  "M":  { bg: "#E65100", fc: "#fff" },
+  "R":  { bg: "#C62828", fc: "#fff" },
+  "PR": { bg: "#00838F", fc: "#fff" },
+  "P":  { bg: "#6A1B9A", fc: "#fff" },
+  "SZ": { bg: "#4E342E", fc: "#fff" },
+  "PP": { bg: "#F9A825", fc: "#1a1a1a" },
+  "SP": { bg: "#37474F", fc: "#fff" },
+  "O":  { bg: "#AD1457", fc: "#fff" },
+  "PK": { bg: "#558B2F", fc: "#fff" },
+  "SC": { bg: "#FF6F00", fc: "#fff" },
+  "K":  { bg: "#1155cc", fc: "#fff" },
 };
 
 const STATUS_STYLE = {
@@ -30,7 +33,6 @@ const STATUS_STYLE = {
   'I':   { bg: '#ede9fe', color: '#6d28d9' },
 };
 
-const DAY_NAMES = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'];
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 5);
 
 function getMondayOfWeek(date) {
@@ -124,6 +126,7 @@ const TimelineRow = React.memo(({
   emp, weekDays, scheduleMap, entries, isAdmin, rowBg,
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
+  const { t } = useTranslation();
   const cells = weekDays.map((d, di) => {
     const isWe = d.getDay() === 0 || d.getDay() === 6;
     const dateStr = toDateStr(d);
@@ -147,7 +150,7 @@ const TimelineRow = React.memo(({
       <React.Fragment key={di}>
         <td className="tl-sum-col"
           onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
-          title={canCopyHere ? (copySource ? 'Kliknij, aby wkleić tutaj' : 'Kliknij, aby skopiować ten dzień') : undefined}
+          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : undefined}
           style={{
             background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : working ? 'var(--accent-green-light)' : '#f5f5f7',
             color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : working ? 'var(--accent-green)' : '#ccc',
@@ -193,7 +196,7 @@ const TimelineRow = React.memo(({
               style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
               <div className="tl-cell-inner" style={cellStyle}>
-                {isBreakHour && <span className="tl-break-mark" title="Przerwa 15 min" />}
+                {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
                 {!dayStatus && (role || '')}
               </div>
             </td>
@@ -247,7 +250,9 @@ const sumCellStyle = (val, color, isLast, borderColor = 'var(--border)') => ({
 });
 
 export default function TimelineView() {
+  const { t } = useTranslation();
   const { user, isAdmin, sessionToken } = useAuth();
+  const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
   const [monday, setMonday] = useState(() => getMondayOfWeek(new Date()));
   const [employees, setEmployees] = useState([]);
@@ -387,9 +392,9 @@ export default function TimelineView() {
         if (current) next[key] = current; else delete next[key];
         return next;
       });
-      toastError('Nie udało się zapisać — spróbuj ponownie');
+      toastError(t('timeline.saveError'));
     }
-  }, [isAdmin, brushRole, entries, user, sessionToken]);
+  }, [isAdmin, brushRole, entries, user, sessionToken, t]);
 
   // Kopiowanie dnia jednej osoby na inny dzień (tryb "dołóż")
   const handleCopyClick = useCallback(async (empId, dateStr) => {
@@ -406,8 +411,8 @@ export default function TimelineView() {
     if (!tgtEmp) return;
 
     const tShift = getEmpDayShift(tgtEmp, scheduleMap, dateStr);
-    if (tShift.dayStatus || !tShift.working) { toastWarn('Dzień docelowy jest wolny lub to nieobecność'); return; }
-    if (!tShift.confirmed) { toastWarn('Dzień docelowy nie jest potwierdzony'); return; }
+    if (tShift.dayStatus || !tShift.working) { toastWarn(t('timeline.targetFreeOrAbsent')); return; }
+    if (!tShift.confirmed) { toastWarn(t('timeline.targetNotConfirmed')); return; }
 
     // godziny ze źródła, które mieszczą się w zmianie docelowej
     const toWrite = [];
@@ -417,7 +422,7 @@ export default function TimelineView() {
       if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
       toWrite.push({ h, role });
     }
-    if (!toWrite.length) { toastWarn('Brak godzin do skopiowania w grafiku docelowym'); return; }
+    if (!toWrite.length) { toastWarn(t('timeline.noHoursToCopy')); return; }
 
     const prevValues = toWrite.map(({ h }) => ({ h, role: entries[`${empId}_${dateStr}_${h}`] }));
     setEntries(prev => {
@@ -442,11 +447,11 @@ export default function TimelineView() {
         prevValues.forEach(({ h, role }) => { if (role) next[`${empId}_${dateStr}_${h}`] = role; else delete next[`${empId}_${dateStr}_${h}`]; });
         return next;
       });
-      toastError('Nie udało się skopiować — spróbuj ponownie');
+      toastError(t('timeline.copyError'));
     } else {
-      toastSuccess(`Skopiowano ${toWrite.length} godz. → ${tgtEmp.name}, ${fmtDate(new Date(dateStr + 'T00:00:00'))}`);
+      toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
-  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken]);
+  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = monday <= minMonday;
@@ -483,7 +488,7 @@ export default function TimelineView() {
     return result;
   }, [entries, groups]);
 
-  if (loading) return <div className="loader">Ładowanie osi czasu…</div>;
+  if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
   const NAME_W = 160;
   const HOUR_W = 24;
@@ -501,11 +506,11 @@ export default function TimelineView() {
         background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
         padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)'
       }}>
-        <button onClick={prevWeek} disabled={atMinWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: atMinWeek ? 'not-allowed' : 'pointer', opacity: atMinWeek ? 0.4 : 1, fontWeight: 700, color: 'var(--text-primary)' }}>‹ Poprzedni</button>
+        <button onClick={prevWeek} disabled={atMinWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: atMinWeek ? 'not-allowed' : 'pointer', opacity: atMinWeek ? 0.4 : 1, fontWeight: 700, color: 'var(--text-primary)' }}>{t('timeline.prev')}</button>
         <div style={{ fontWeight: 700, fontSize: '16px', flex: 1, textAlign: 'center', color: 'var(--text-primary)' }}>
-          Tydzień {weekNum} · {fmtDate(monday)} – {fmtDate(addDays(monday, 6))}
+          {t('timeline.week', { num: weekNum })} · {fmtDate(monday)} – {fmtDate(addDays(monday, 6))}
         </div>
-        <button onClick={nextWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-primary)' }}>Następny ›</button>
+        <button onClick={nextWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-primary)' }}>{t('timeline.next')}</button>
       </div>
 
       {/* Pasek pędzla */}
@@ -516,7 +521,7 @@ export default function TimelineView() {
           padding: '10px 14px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)'
         }}>
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-quaternary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px', whiteSpace: 'nowrap' }}>
-            Pędzel:
+            {t('timeline.brush')}
           </span>
           {Object.entries(ROLES).map(([key, r]) => {
             const isActive = brushRole === key;
@@ -544,7 +549,7 @@ export default function TimelineView() {
             boxShadow: brushRole === '__erase__' ? '0 0 0 3px rgba(239,68,68,0.25)' : 'none',
             transform: brushRole === '__erase__' ? 'scale(1.08)' : 'scale(1)',
           }}>
-            ✕ Gumka
+            {t('timeline.eraser')}
           </button>
           {brushRole && (
             <button onClick={() => setBrushRole(null)} style={{
@@ -552,12 +557,12 @@ export default function TimelineView() {
               border: '1px dashed var(--border-strong)', borderRadius: '10px', padding: '4px 10px',
               fontSize: '11px', cursor: 'pointer', marginLeft: '4px',
             }}>
-              Esc / wyłącz
+              {t('timeline.escDisable')}
             </button>
           )}
           {!brushRole && !copyMode && (
             <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', marginLeft: '4px' }}>
-              Wybierz stanowisko i maluj po komórkach
+              {t('timeline.brushHint')}
             </span>
           )}
 
@@ -571,13 +576,13 @@ export default function TimelineView() {
             boxShadow: copyMode ? '0 0 0 3px rgba(0,122,255,0.25)' : 'none',
             transform: copyMode ? 'scale(1.08)' : 'scale(1)',
           }}>
-            📋 Kopiuj dzień
+            {t('timeline.copyDay')}
           </button>
           {copyMode && (
             <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginLeft: '4px', fontWeight: 600 }}>
               {copySource
-                ? 'Kliknij dzień docelowy (kolumnę Σ), aby wkleić. Można wkleić na kilka dni.'
-                : 'Kliknij dzień źródłowy w kolumnie Σ przy osobie.'}
+                ? t('timeline.copyHintTarget')
+                : t('timeline.copyHintSource')}
             </span>
           )}
           {copyMode && (
@@ -586,7 +591,7 @@ export default function TimelineView() {
               border: '1px dashed var(--border-strong)', borderRadius: '10px', padding: '4px 10px',
               fontSize: '11px', cursor: 'pointer', marginLeft: '4px',
             }}>
-              Esc / wyłącz
+              {t('timeline.escDisable')}
             </button>
           )}
         </div>
@@ -601,7 +606,7 @@ export default function TimelineView() {
             <tr>
               <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '180px' }}>
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
-                  Pracownik / Stanowisko
+                  {t('timeline.empStation')}
                 </div>
               </th>
               {weekDays.map((d, di) => {
@@ -677,10 +682,10 @@ export default function TimelineView() {
               <th className="tl-sticky-col" style={{ background: '#1a2e40', padding: 0, minWidth: '180px' }}>
                 <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                   <div style={{ width: '100px', padding: '0 10px', display: 'flex', alignItems: 'center', color: '#94a3b8', fontSize: '10px', fontWeight: 600, borderRight: '1px solid #2d3f50' }}>
-                    Suma
+                    {t('timeline.sum')}
                   </div>
-                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#4ade80', fontSize: '9px', borderRight: '1px solid #2d3f50' }}>Σ Os.</div>
-                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#4ade80', fontSize: '9px', borderRight: '1px solid #2d3f50' }}>Σ Gdz.</div>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#4ade80', fontSize: '9px', borderRight: '1px solid #2d3f50' }}>{t('timeline.sumPersons')}</div>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#4ade80', fontSize: '9px', borderRight: '1px solid #2d3f50' }}>{t('timeline.sumHours')}</div>
                 </div>
               </th>
               {weekDays.map((d, di) => {
@@ -689,10 +694,10 @@ export default function TimelineView() {
                   <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? '#eff6ff' : '#f0f4f8' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #e2e8f0', minHeight: '32px' }}>
-                        <span style={{ fontSize: '9px', color: '#15803d', fontWeight: 700 }}>Σ Os.</span>
+                        <span style={{ fontSize: '9px', color: '#15803d', fontWeight: 700 }}>{t('timeline.sumPersons')}</span>
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #e2e8f0' }}>
-                        <span style={{ fontSize: '9px', color: '#15803d', fontWeight: 700 }}>Σ Gdz.</span>
+                        <span style={{ fontSize: '9px', color: '#15803d', fontWeight: 700 }}>{t('timeline.sumHours')}</span>
                       </div>
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
@@ -701,7 +706,7 @@ export default function TimelineView() {
                             <span style={{ fontSize: '9px', color: gc, fontWeight: 700 }}>{gn.slice(0,3)}</span>
                           </div>,
                           <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: idx === groupNames.length - 1 ? 'none' : '1px solid #e2e8f0' }}>
-                            <span style={{ fontSize: '9px', color: gc, fontWeight: 600 }}>Gdz</span>
+                            <span style={{ fontSize: '9px', color: gc, fontWeight: 600 }}>{t('timeline.hoursShort')}</span>
                           </div>
                         ];
                       })}
@@ -728,7 +733,7 @@ export default function TimelineView() {
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       <div style={{ width: '100px', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '5px', borderRight: '1px solid rgba(0,0,0,0.1)' }}>
                         <span style={{ color: r.fc, fontSize: '11px', fontWeight: 800, flexShrink: 0, opacity: 0.9 }}>{role}</span>
-                        <span style={{ fontSize: '9px', color: r.fc, fontWeight: 500, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden' }}>{r.name}</span>
+                        <span style={{ fontSize: '9px', color: r.fc, fontWeight: 500, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden' }}>{t(`timeline.roles.${role}`)}</span>
                       </div>
                       <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.15)', color: r.fc, fontWeight: weekOs.size ? 700 : 400, borderRight: '1px solid rgba(0,0,0,0.1)', fontSize: '10px' }}>
                         {weekOs.size || '—'}
@@ -779,7 +784,7 @@ export default function TimelineView() {
                   <td className="tl-sticky-col" style={{ background: '#0f172a', padding: 0, minWidth: '180px' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       <div style={{ width: '100px', padding: '0 10px', display: 'flex', alignItems: 'center', color: '#e2e8f0', fontWeight: 700, fontSize: '10px', letterSpacing: '0.5px', borderRight: '1px solid #1e293b' }}>
-                        RAZEM
+                        {t('timeline.total')}
                       </div>
                       <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: wOs.size ? '#4ade80' : 'var(--text-quaternary)', fontWeight: 700, fontSize: '10px', borderRight: '1px solid #1e293b' }}>
                         {wOs.size || '—'}
@@ -821,7 +826,7 @@ export default function TimelineView() {
       </div>
 
       <div className="print-hide" style={{ fontSize: '11px', color: 'var(--text-quaternary)', textAlign: 'right' }}>
-        Tydzień {weekNum} · {employees.length} pracowników
+        {t('timeline.week', { num: weekNum })} · {t('timeline.employees', { count: employees.length })}
       </div>
     </div>
   );

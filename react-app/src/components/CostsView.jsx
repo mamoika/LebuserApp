@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
+import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import * as XLSX from 'xlsx';
 
 function toDateStr(d) {
@@ -49,13 +51,10 @@ function scheduleDayHours(value) {
   return parseFloat(v.replace(',', '.')) || 0;
 }
 
-const MONTHS_PL = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
-const WEEKDAYS_PL = ["Nd","Pn","Wt","Śr","Cz","Pt","So"];
-
-const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
-const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString('pl-PL', { maximumFractionDigits: 0 }) : '---';
-const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString('pl-PL', { maximumFractionDigits: 1 }) : '---';
-const FMT3 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString('pl-PL', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '---';
+const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
+const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 0 }) : '---';
+const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 1 }) : '---';
+const FMT3 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '---';
 
 // iOS 18 Design Constants
 const IOS_THEME = {
@@ -140,10 +139,10 @@ const bandOf = (val, thr) => {
 };
 // Pasma wydajności: id, etykieta, kolor + granice przedziału od/do (klucze w progach; null = 0 / ∞)
 const PERF_BANDS = [
-  { id: 'slaba',   label: 'Słaba',        c: EFF_COLORS.slaba,   from: null,      to: 'slaba'   },
-  { id: 'srednia', label: 'Średnia',      c: EFF_COLORS.srednia, from: 'slaba',   to: 'srednia' },
-  { id: 'dobra',   label: 'Dobra',        c: EFF_COLORS.dobra,   from: 'srednia', to: 'dobra'   },
-  { id: 'bdb',     label: 'Bardzo dobra', c: EFF_COLORS.bdb,     from: 'dobra',   to: null      },
+  { id: 'slaba',   labelKey: 'costs.bandWeak',     c: EFF_COLORS.slaba,   from: null,      to: 'slaba'   },
+  { id: 'srednia', labelKey: 'costs.bandMedium',   c: EFF_COLORS.srednia, from: 'slaba',   to: 'srednia' },
+  { id: 'dobra',   labelKey: 'costs.bandGood',     c: EFF_COLORS.dobra,   from: 'srednia', to: 'dobra'   },
+  { id: 'bdb',     labelKey: 'costs.bandVeryGood', c: EFF_COLORS.bdb,     from: 'dobra',   to: null      },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -204,6 +203,7 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
 }
 
 export default function CostsView() {
+  const { t } = useTranslation();
   const { isAdmin, canViewAdminData, sessionToken } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(() => {
@@ -228,9 +228,9 @@ export default function CostsView() {
     try {
       await upsertAppSetting(sessionToken, progiDbKey(mk), next);
     } catch {
-      toastError('Nie udało się zapisać progów');
+      toastError(t('costs.errSaveThresholds'));
     }
-  }, [isAdmin, monthKey, sessionToken]);
+  }, [isAdmin, monthKey, sessionToken, t]);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -443,9 +443,9 @@ export default function CostsView() {
       days.forEach(d => dirtyDays.current.add(d));
       if (setDirty) { dirtySettings.current = true; dirtySettingsMonthKey.current = setKey; }
       setAutoSave('idle');
-      toastError('Nie udało się zapisać — zmiany niezapisane');
+      toastError(t('costs.errUnsavedChanges'));
     }
-  }, [isAdmin, sessionToken]);
+  }, [isAdmin, sessionToken, t]);
 
   const scheduleAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -494,18 +494,20 @@ export default function CostsView() {
       }
     } catch {
       setSaving(false);
-      toastError('Nie udało się zapisać');
+      toastError(t('costs.errSave'));
       return;
     }
     setSaving(false);
-    toastSuccess('Zapisano');
+    toastSuccess(t('admin.saved'));
     fetchData();
   };
 
-  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>Brak dostępu.</div>;
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
+  const months = monthNames();
+  const weekdays = dayNamesSunSat();
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => toDateStr(new Date(year, month - 1, i + 1)));
 
@@ -633,23 +635,23 @@ export default function CostsView() {
   // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
   const exportToExcel = () => {
     const r2 = (n) => Math.round((n || 0) * 100) / 100;
-    const dayLabel = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')}.${String(month).padStart(2, '0')} ${WEEKDAYS_PL[d.getDay()]}`; };
+    const dayLabel = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')}.${String(month).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
     // Arkusz 1: Koszty
-    const costsHead = ['Data', 'Fiat (km)', 'Isuzu (km)', 'Merc. (km)', 'Iveco (km)', 'Koszt auta (zł)', 'Prąd (kWh)', 'Koszt prąd (zł)', 'Gaz prod. (m³)', 'Koszt prod. (zł)', 'Gaz grz. (m³)', 'Koszt grz. (zł)', 'Woda (m³)', 'Koszt woda (zł)', 'Ludzie (zł)', 'Inne (zł)', 'SUMA (zł)', 'zł/kg'];
+    const costsHead = t('costs.exportCostsHead', { returnObjects: true });
     const costsRows = days.map((dStr, idx) => {
       const c = calcDay(dStr, idx);
       return [dayLabel(dStr), r2(c.fiat_km), r2(c.isuzu_km), r2(c.merc_km), r2(c.iveco_km), r2(c.transportCost),
         r2(c.elec_usage), r2(c.elec_cost), r2(c.gas_prod_usage), r2(c.gas_prod_cost), r2(c.gas_heat_usage), r2(c.gas_heat_cost),
         r2(c.water_usage), r2(c.water_cost), r2(c.worker_cost), r2(c.other_cost), r2(c.total_cost), c.pln_kg > 0 ? r2(c.pln_kg) : ''];
     });
-    const t = monthlyTotals;
-    const costsTotal = ['SUMA', r2(t.kmFiat), r2(t.kmIsuzu), r2(t.kmMerc), r2(t.kmIveco), r2(t.transport), r2(t.kWh), r2(t.elec),
-      r2(t.m3GasProd), r2(t.gasProd), r2(t.m3GasHeat), r2(t.gasHeat), r2(t.m3Water), r2(t.water), r2(t.workers), r2(t.other), r2(t.total), perfTotals.kg > 0 ? r2(t.total / perfTotals.kg) : ''];
-    const wsCosts = XLSX.utils.aoa_to_sheet([[`Koszty — ${MONTHS_PL[month - 1]} ${year}`], [], costsHead, ...costsRows, [], costsTotal]);
+    const totalsForExport = monthlyTotals;
+    const costsTotal = [t('costs.total'), r2(totalsForExport.kmFiat), r2(totalsForExport.kmIsuzu), r2(totalsForExport.kmMerc), r2(totalsForExport.kmIveco), r2(totalsForExport.transport), r2(totalsForExport.kWh), r2(totalsForExport.elec),
+      r2(totalsForExport.m3GasProd), r2(totalsForExport.gasProd), r2(totalsForExport.m3GasHeat), r2(totalsForExport.gasHeat), r2(totalsForExport.m3Water), r2(totalsForExport.water), r2(totalsForExport.workers), r2(totalsForExport.other), r2(totalsForExport.total), perfTotals.kg > 0 ? r2(totalsForExport.total / perfTotals.kg) : ''];
+    const wsCosts = XLSX.utils.aoa_to_sheet([[t('costs.exportCostsTitle', { month: months[month - 1], year })], [], costsHead, ...costsRows, [], costsTotal]);
 
     // Arkusz 2: Wydajność
-    const perfHead = ['Data', 'ZD1 (kg)', 'ZD2 (kg)', 'Pralki (kg)', 'Σ KG', 'ZD1 (h)', 'ZD2 (h)', 'Kier. (h)', 'Σ H', 'ZD1 kg/h', 'ZD2+Pr. kg/h', 'Ogółem kg/h'];
+    const perfHead = t('costs.exportPerformanceHead', { returnObjects: true });
     const perfRows = days.map((dStr) => {
       const dt = dailyData[dStr] || {};
       const ts = timelineStats[dStr]?.roles || {};
@@ -661,12 +663,12 @@ export default function CostsView() {
         hZd1 ? r2(hZd1) : '', hZd2 ? r2(hZd2) : '', hKier ? r2(hKier) : '', hSuma ? r2(hSuma) : '',
         hZd1 > 0 ? r2(kgZd1 / hZd1) : '', hZd2 > 0 ? r2(kgZd2pr / hZd2) : '', hSuma > 0 ? r2(tSuma / hSuma) : ''];
     });
-    const wsPerf = XLSX.utils.aoa_to_sheet([[`Wydajność — ${MONTHS_PL[month - 1]} ${year}`], [], perfHead, ...perfRows]);
+    const wsPerf = XLSX.utils.aoa_to_sheet([[t('costs.exportPerformanceTitle', { month: months[month - 1], year })], [], perfHead, ...perfRows]);
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsCosts, 'Koszty');
-    XLSX.utils.book_append_sheet(wb, wsPerf, 'Wydajność');
-    XLSX.writeFile(wb, `Koszty_${MONTHS_PL[month - 1]}_${year}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, wsCosts, t('costs.sheetCosts'));
+    XLSX.utils.book_append_sheet(wb, wsPerf, t('costs.sheetPerformance'));
+    XLSX.writeFile(wb, `${t('costs.filePrefix')}_${months[month - 1]}_${year}.xlsx`);
   };
 
   return (
@@ -684,13 +686,13 @@ export default function CostsView() {
             <button disabled={atMin} onClick={() => { if (!atMin) setCurrentDate(new Date(year, month - 2, 1)); }} style={{ ...navBtnStyle, opacity: atMin ? 0.4 : 1, cursor: atMin ? 'not-allowed' : 'pointer' }}>‹</button>
           ); })()}
           <div style={{ fontWeight: 700, fontSize: '17px', minWidth: '140px', textAlign: 'center' }}>
-            {MONTHS_PL[month - 1]} {year}
+            {months[month - 1]} {year}
           </div>
           <button onClick={() => setCurrentDate(new Date(year, month, 1))} style={navBtnStyle}>›</button>
         </div>
 
         <div style={{ display: 'flex', background: '#EEEEEE', padding: '2px', borderRadius: '10px', gap: '2px' }}>
-          {[['overview','Przegląd'],['entry','Wprowadzanie'],['performance','Wydajność']].map(([key, label]) => (
+          {[['overview', t('costs.tabOverview')], ['entry', t('costs.tabEntry')], ['performance', t('costs.tabPerformance')]].map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               style={{ ...segmentBtnStyle, color: activeTab === key ? IOS_THEME.textPrimary : IOS_THEME.textSecondary, background: activeTab === key ? '#FFFFFF' : 'transparent', boxShadow: activeTab === key ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}>
               {label}
@@ -699,20 +701,20 @@ export default function CostsView() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={exportToExcel} title="Eksportuj do Excela" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
+          <button onClick={exportToExcel} title={t('costs.exportExcel')} style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
             <Download size={16}/> Excel
           </button>
-          <button onClick={() => setShowRates(v => !v)} title="Stawki" style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
-            <Settings size={16}/> Stawki
+          <button onClick={() => setShowRates(v => !v)} title={t('costs.rates')} style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
+            <Settings size={16}/> {t('costs.rates')}
           </button>
-          {isAdmin && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title="Zapisz wszystko teraz" style={{
+          {isAdmin && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title={t('costs.saveAllNow')} style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: autoSave === 'saved' ? '#34C759' : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
             color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: 600, fontSize: '14px',
             letterSpacing: '0.2px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
             cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.2s'
           }}>
-            <Save size={18}/> {saving ? 'Zapisuję...' : autoSave === 'saving' ? 'Auto-zapis…' : autoSave === 'saved' ? 'Zapisano ✓' : 'Zapisz'}
+            <Save size={18}/> {saving ? t('costs.saving') : autoSave === 'saving' ? t('costs.autoSaving') : autoSave === 'saved' ? t('costs.savedCheck') : t('common.save')}
           </button>}
         </div>
       </div>
@@ -721,7 +723,7 @@ export default function CostsView() {
       {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!isAdmin} />}
 
       {loading ? (
-        <div style={{ ...cardStyle, padding: '60px', textAlign: 'center', color: IOS_THEME.textSecondary, fontSize: '15px' }}>Ładowanie danych finansowych...</div>
+        <div style={{ ...cardStyle, padding: '60px', textAlign: 'center', color: IOS_THEME.textSecondary, fontSize: '15px' }}>{t('costs.loadingFinancialData')}</div>
       ) : (
         <>
           {activeTab === 'overview' && (
@@ -729,11 +731,11 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} />
+            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} />
           )}
 
           {activeTab === 'performance' && (
-            <PerformanceGrid days={days} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} />
+            <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} />
           )}
         </>
       )}
@@ -743,13 +745,14 @@ export default function CostsView() {
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
 function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, carBreakdown = [], monthsHistory = [] }) {
+  const { t } = useTranslation();
   const cats = [
-    { name: 'Transport', color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
-    { name: 'Energia', color: CAT.elec, value: totals.elec, icon: <Zap size={16}/> },
-    { name: 'Gaz', color: CAT.gas, value: totals.gas, icon: <Flame size={16}/> },
-    { name: 'Woda', color: CAT.water, value: totals.water, icon: <Droplet size={16}/> },
-    { name: 'Pracownicy', color: CAT.workers, value: totals.workers, icon: <Users size={16}/> },
-    { name: 'Inne', color: CAT.other, value: totals.other, icon: <Sigma size={16}/> },
+    { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
+    { name: t('costs.energy'), color: CAT.elec, value: totals.elec, icon: <Zap size={16}/> },
+    { name: t('costs.gas'), color: CAT.gas, value: totals.gas, icon: <Flame size={16}/> },
+    { name: t('costs.water'), color: CAT.water, value: totals.water, icon: <Droplet size={16}/> },
+    { name: t('costs.employees'), color: CAT.workers, value: totals.workers, icon: <Users size={16}/> },
+    { name: t('costs.other'), color: CAT.other, value: totals.other, icon: <Sigma size={16}/> },
   ].sort((a, b) => b.value - a.value);
   const sum = totals.total || 1;
 
@@ -772,10 +775,10 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* KPI HERO — z porównaniem MoM i sparkline */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <KpiCard label="Koszty razem" value={FMT(totals.total)} unit="zł" icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
-        <KpiCard label="Koszt na kg" value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit="zł/kg" icon={<Scale size={22}/>} color={CAT.transport} delta={dPpk} goodWhenDown spark={sPpk} />
-        <KpiCard label="Tonaż" value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} delta={dKg} spark={sKg} />
-        <KpiCard label="Średnio / dzień" value={FMT(avgPerDay)} unit="zł" icon={<CalendarDays size={22}/>} color={CAT.water} delta={dAvg} goodWhenDown spark={sAvg} />
+        <KpiCard label={t('costs.kpiTotalCosts')} value={FMT(totals.total)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
+        <KpiCard label={t('costs.kpiCostPerKg')} value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit={t('costs.currencyPerKg')} icon={<Scale size={22}/>} color={CAT.transport} delta={dPpk} goodWhenDown spark={sPpk} />
+        <KpiCard label={t('costs.kpiTonnage')} value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} delta={dKg} spark={sKg} />
+        <KpiCard label={t('costs.kpiAvgPerDay')} value={FMT(avgPerDay)} unit={t('costs.currency')} icon={<CalendarDays size={22}/>} color={CAT.water} delta={dAvg} goodWhenDown spark={sAvg} />
       </div>
 
       {/* zł/kg ROZBITE NA DRIVERY + MOST MoM */}
@@ -786,19 +789,19 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
 
       {/* TREND WIELOMIESIĘCZNY zł/kg + cel */}
       <div style={cardStyle}>
-        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>zł/kg w czasie — od stycznia{cur ? ` ${cur.year}` : ''}</div>
-        <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>słupki = koszt na kg · linia = cel (średnia z miesięcy z danymi) · pod spodem tonaż</div>
+        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.plnPerKgOverTime', { year: cur?.year || '' })}</div>
+        <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>{t('costs.multiMonthHint')}</div>
         <MultiMonthTrend months={H} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {/* COST STRUCTURE */}
         <div style={cardStyle}>
-          <div style={cardTitleStyle}>Struktura kosztów</div>
+          <div style={cardTitleStyle}>{t('costs.costStructure')}</div>
           {/* stacked bar */}
           <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', margin: '4px 0 20px' }}>
             {cats.filter(c => c.value > 0).map(c => (
-              <div key={c.name} title={`${c.name}: ${FMT(c.value)} zł`} style={{ width: `${(c.value / sum) * 100}%`, background: c.color }} />
+              <div key={c.name} title={`${c.name}: ${FMT(c.value)} ${t('costs.currency')}`} style={{ width: `${(c.value / sum) * 100}%`, background: c.color }} />
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -810,7 +813,7 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
                       <span style={{ fontWeight: 600 }}>{c.name}</span>
-                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{FMT(c.value)} <span style={{ color: IOS_THEME.textSecondary, fontWeight: 500 }}>zł · {pct.toFixed(1)}%</span></span>
+                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{FMT(c.value)} <span style={{ color: IOS_THEME.textSecondary, fontWeight: 500 }}>{t('costs.currency')} · {pct.toFixed(1)}%</span></span>
                     </div>
                     <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(60,60,67,0.08)', overflow: 'hidden' }}>
                       <div style={{ width: `${pct}%`, height: '100%', background: c.color, borderRadius: '3px', transition: 'width 0.4s' }} />
@@ -824,10 +827,10 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
 
         {/* KOSZT AUT — km per auto → kwota */}
         <div style={cardStyle}>
-          <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Truck size={16}/> Koszt aut — km</div>
+          <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Truck size={16}/> {t('costs.carCostKm')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', fontSize: '11px', fontWeight: 700, color: IOS_THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', padding: '0 4px 8px' }}>
-              <span>Samochód</span><span style={{ textAlign: 'right' }}>Suma km</span><span style={{ textAlign: 'right', minWidth: '90px' }}>Kwota</span>
+              <span>{t('costs.car')}</span><span style={{ textAlign: 'right' }}>{t('costs.sumKm')}</span><span style={{ textAlign: 'right', minWidth: '90px' }}>{t('costs.amount')}</span>
             </div>
             {carBreakdown.map((car, i) => (
               <div key={car.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '10px 4px', borderTop: i === 0 ? 'none' : `1px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
@@ -836,21 +839,21 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
                   {car.name}
                 </span>
                 <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{car.km > 0 ? `${FMT0(car.km)} km` : '—'}</span>
-                <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '14px', fontWeight: 700, color: CAT.transport }}>{car.cost > 0 ? `${FMT(car.cost)} zł` : '—'}</span>
+                <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '14px', fontWeight: 700, color: CAT.transport }}>{car.cost > 0 ? `${FMT(car.cost)} ${t('costs.currency')}` : '—'}</span>
               </div>
             ))}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '12px 4px 2px', borderTop: `2px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
-              <span style={{ fontSize: '13px', fontWeight: 800 }}>Razem</span>
+              <span style={{ fontSize: '13px', fontWeight: 800 }}>{t('costs.total')}</span>
               <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 700, color: IOS_THEME.textSecondary }}>{FMT0(carBreakdown.reduce((s, c) => s + c.km, 0))} km</span>
-              <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '15px', fontWeight: 800, color: CAT.transport }}>{FMT(carBreakdown.reduce((s, c) => s + c.cost, 0))} zł</span>
+              <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '15px', fontWeight: 800, color: CAT.transport }}>{FMT(carBreakdown.reduce((s, c) => s + c.cost, 0))} {t('costs.currency')}</span>
             </div>
           </div>
         </div>
 
         {/* DAILY TREND */}
         <div style={cardStyle}>
-          <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>Koszt dzienny</div>
-          <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>koszty bieżące · bez jednorazowych „Inne"</div>
+          <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.dailyCost')}</div>
+          <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>{t('costs.dailyCostHint')}</div>
           <TrendChart data={dailyTotals} days={days} avg={trendAvg} />
         </div>
       </div>
@@ -859,6 +862,7 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
 }
 
 function KpiCard({ label, value, unit, icon, color, hero, delta, goodWhenDown, spark }) {
+  const { t } = useTranslation();
   const hasDelta = delta != null && isFinite(delta);
   const good = hasDelta && (goodWhenDown ? delta <= 0 : delta >= 0);
   const up = hasDelta && delta >= 0;
@@ -882,10 +886,10 @@ function KpiCard({ label, value, unit, icon, color, hero, delta, goodWhenDown, s
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontWeight: 800, fontVariantNumeric: 'tabular-nums',
             padding: '3px 8px', borderRadius: '7px', color: deltaColor,
             background: hero ? 'rgba(255,255,255,0.18)' : tint(good ? '#10B981' : '#EF4444', 0.14) }}>
-            {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.8 }}>m/m</span>
+            {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.8 }}>{t('costs.monthOverMonthShort')}</span>
           </span>
         ) : (
-          <span style={{ fontSize: '11px', fontWeight: 600, color: hero ? 'rgba(255,255,255,0.7)' : IOS_THEME.textSecondary }}>brak porównania</span>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: hero ? 'rgba(255,255,255,0.7)' : IOS_THEME.textSecondary }}>{t('costs.noComparison')}</span>
         )}
         {spark && spark.some(v => v > 0) && <Sparkline data={spark} color={color} hero={hero} />}
       </div>
@@ -914,32 +918,33 @@ function Sparkline({ data, color, hero }) {
 
 // zł/kg rozbite na drivery (bieżący miesiąc) — koszt na kilogram per kategoria
 function DriversCard({ cur }) {
+  const { t } = useTranslation();
   const kg = cur?.kg || 0;
   const totalPerKg = kg > 0 ? cur.total / kg : 0;
   const drivers = [
-    { name: 'Pracownicy', color: CAT.workers, v: cur?.workers || 0 },
-    { name: 'Energia', color: CAT.elec, v: cur?.elec || 0 },
-    { name: 'Gaz', color: CAT.gas, v: cur?.gas || 0 },
-    { name: 'Woda', color: CAT.water, v: cur?.water || 0 },
-    { name: 'Transport', color: CAT.transport, v: cur?.transport || 0 },
-    { name: 'Inne', color: CAT.other, v: cur?.other || 0 },
+    { name: t('costs.employees'), color: CAT.workers, v: cur?.workers || 0 },
+    { name: t('costs.energy'), color: CAT.elec, v: cur?.elec || 0 },
+    { name: t('costs.gas'), color: CAT.gas, v: cur?.gas || 0 },
+    { name: t('costs.water'), color: CAT.water, v: cur?.water || 0 },
+    { name: t('costs.transport'), color: CAT.transport, v: cur?.transport || 0 },
+    { name: t('costs.other'), color: CAT.other, v: cur?.other || 0 },
   ].map(d => ({ ...d, perKg: kg > 0 ? d.v / kg : 0 })).sort((a, b) => b.perKg - a.perKg);
 
   return (
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={cardTitleStyle}>Koszt na kg — z czego wynika</div>
+        <div style={cardTitleStyle}>{t('costs.costPerKgDrivers')}</div>
         <div style={{ fontSize: '20px', fontWeight: 800, color: CAT.transport, fontVariantNumeric: 'tabular-nums' }}>
-          {totalPerKg > 0 ? FMT3(totalPerKg) : '—'} <span style={{ fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary }}>zł/kg</span>
+          {totalPerKg > 0 ? FMT3(totalPerKg) : '—'} <span style={{ fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
         </div>
       </div>
       {kg <= 0 ? (
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Brak tonażu w tym miesiącu — nie można policzyć zł/kg.</div>
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noTonnageCostPerKg')}</div>
       ) : (
         <>
           <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', margin: '0 0 18px' }}>
             {drivers.filter(d => d.perKg > 0).map(d => (
-              <div key={d.name} title={`${d.name}: ${FMT3(d.perKg)} zł/kg`} style={{ width: `${(d.perKg / totalPerKg) * 100}%`, background: d.color }} />
+              <div key={d.name} title={`${d.name}: ${FMT3(d.perKg)} ${t('costs.currencyPerKg')}`} style={{ width: `${(d.perKg / totalPerKg) * 100}%`, background: d.color }} />
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -953,7 +958,7 @@ function DriversCard({ cur }) {
                     <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: '3px' }} />
                   </div>
                   <span style={{ width: '92px', textAlign: 'right', fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                    {FMT3(d.perKg)} <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textSecondary }}>zł/kg</span>
+                    {FMT3(d.perKg)} <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
                   </span>
                   <span style={{ width: '44px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(0)}%</span>
                 </div>
@@ -968,26 +973,28 @@ function DriversCard({ cur }) {
 
 // Most MoM (waterfall): koszt poprzedniego miesiąca → wkłady kategorii → koszt bieżącego
 function WaterfallCard({ cur, prev }) {
+  const { t } = useTranslation();
+  const months = monthNames();
   if (!prev || prev.total <= 0 || !cur) {
     return (
       <div style={cardStyle}>
-        <div style={cardTitleStyle}>Co zmieniło koszt (m/m)</div>
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Potrzebny poprzedni miesiąc z danymi do porównania.</div>
+        <div style={cardTitleStyle}>{t('costs.whatChangedMom')}</div>
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.needPreviousMonth')}</div>
       </div>
     );
   }
   const catDefs = [
-    { name: 'Transport', d: cur.transport - prev.transport },
-    { name: 'Energia', d: cur.elec - prev.elec },
-    { name: 'Gaz', d: cur.gas - prev.gas },
-    { name: 'Woda', d: cur.water - prev.water },
-    { name: 'Ludzie', d: cur.workers - prev.workers },
-    { name: 'Inne', d: cur.other - prev.other },
+    { name: t('costs.transport'), d: cur.transport - prev.transport },
+    { name: t('costs.energy'), d: cur.elec - prev.elec },
+    { name: t('costs.gas'), d: cur.gas - prev.gas },
+    { name: t('costs.water'), d: cur.water - prev.water },
+    { name: t('costs.people'), d: cur.workers - prev.workers },
+    { name: t('costs.other'), d: cur.other - prev.other },
   ];
-  const cols = [{ label: MONTHS_PL[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total }];
+  const cols = [{ label: months[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total }];
   let run = prev.total;
   catDefs.forEach(c => { cols.push({ label: c.name, type: 'delta', from: run, to: run + c.d, d: c.d }); run += c.d; });
-  cols.push({ label: MONTHS_PL[cur.month - 1].slice(0, 3), type: 'edge', val: cur.total });
+  cols.push({ label: months[cur.month - 1].slice(0, 3), type: 'edge', val: cur.total });
 
   const W = 580, Hh = 210, P = 28, axisB = 34;
   const maxV = Math.max(prev.total, cur.total, ...cols.map(c => c.type === 'delta' ? Math.max(c.from, c.to) : c.val)) * 1.06;
@@ -1000,9 +1007,9 @@ function WaterfallCard({ cur, prev }) {
   return (
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={cardTitleStyle}>Co zmieniło koszt (m/m)</div>
+        <div style={cardTitleStyle}>{t('costs.whatChangedMom')}</div>
         <div style={{ fontSize: '14px', fontWeight: 800, color: net <= 0 ? '#10B981' : '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
-          {net >= 0 ? '+' : '−'}{FMT(Math.abs(net))} zł
+          {net >= 0 ? '+' : '−'}{FMT(Math.abs(net))} {t('costs.currency')}
         </div>
       </div>
       <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
@@ -1029,12 +1036,14 @@ function WaterfallCard({ cur, prev }) {
 
 // Trend wielomiesięczny: słupki zł/kg + linia celu (śr. z miesięcy z danymi), tonaż pod spodem
 function MultiMonthTrend({ months }) {
+  const { t } = useTranslation();
+  const monthList = monthNames();
   const pts = months;
   const vals = pts.map(p => p.plnPerKg);
   const withData = vals.filter(v => v > 0);
   const target = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
   if (!withData.length) {
-    return <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>Brak miesięcy z tonażem — trend pojawi się, gdy uzbierają się dane.</div>;
+    return <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noMonthsWithTonnage')}</div>;
   }
   const W = 720, Hh = 200, P = 28, axisB = 40;
   const maxV = Math.max(...vals, target) * 1.18;
@@ -1047,7 +1056,7 @@ function MultiMonthTrend({ months }) {
     <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
       {/* linia celu */}
       <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke={IOS_THEME.warning} strokeWidth="1.5" strokeDasharray="5 4" />
-      <text x={W - P} y={y(target) - 5} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warning}>cel {FMT3(target)}</text>
+      <text x={W - P} y={y(target) - 5} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warning}>{t('costs.target')} {FMT3(target)}</text>
       {pts.map((p, i) => {
         const v = p.plnPerKg;
         const has = v > 0;
@@ -1058,7 +1067,7 @@ function MultiMonthTrend({ months }) {
           <g key={p.mk}>
             <rect x={cx(i) - bw / 2} y={top} width={bw} height={Math.max(h, 2)} rx="4" fill={fill} />
             {has && <text x={cx(i)} y={top - 6} textAnchor="middle" fontSize="10" fontWeight="800" fill={IOS_THEME.textPrimary}>{FMT3(v)}</text>}
-            <text x={cx(i)} y={Hh - axisB + 15} textAnchor="middle" fontSize="10" fontWeight="700" fill={IOS_THEME.textSecondary}>{MONTHS_PL[p.month - 1].slice(0, 3)}</text>
+            <text x={cx(i)} y={Hh - axisB + 15} textAnchor="middle" fontSize="10" fontWeight="700" fill={IOS_THEME.textSecondary}>{monthList[p.month - 1].slice(0, 3)}</text>
             <text x={cx(i)} y={Hh - axisB + 28} textAnchor="middle" fontSize="9" fontWeight="600" fill="rgba(0,0,0,0.35)">{p.kg > 0 ? `${FMT0(p.kg)} kg` : '—'}</text>
           </g>
         );
@@ -1069,6 +1078,7 @@ function MultiMonthTrend({ months }) {
 }
 
 function TrendChart({ data, days, avg }) {
+  const { t } = useTranslation();
   const W = 600, H = 170, P = 10;
   const n = data.length;
   const max = Math.max(...data, 1);
@@ -1089,8 +1099,8 @@ function TrendChart({ data, days, avg }) {
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
         <span>{days.length ? new Date(days[0]).getDate() + '.' + String(new Date(days[0]).getMonth() + 1).padStart(2, '0') : ''}</span>
-        <span style={{ color: IOS_THEME.warning, fontWeight: 600 }}>szczyt {FMT(data[maxIdx] || 0)} zł</span>
-        <span>śr. {FMT(avg)} zł</span>
+        <span style={{ color: IOS_THEME.warning, fontWeight: 600 }}>{t('costs.peak')} {FMT(data[maxIdx] || 0)} {t('costs.currency')}</span>
+        <span>{t('costs.avgShort')} {FMT(avg)} {t('costs.currency')}</span>
         <span>{days.length ? new Date(days[days.length - 1]).getDate() + '.' + String(new Date(days[days.length - 1]).getMonth() + 1).padStart(2, '0') : ''}</span>
       </div>
     </div>
@@ -1099,30 +1109,31 @@ function TrendChart({ data, days, avg }) {
 
 /* ───────────── RATES PANEL ───────────── */
 function RatesPanel({ settings, onChange, readOnly = false }) {
+  const { t } = useTranslation();
   const groups = [
-    { title: 'Transport', color: CAT.transport, fields: [
+    { title: t('costs.transport'), color: CAT.transport, fields: [
       ['fiat_l_100km', 'Fiat L/100km'], ['isuzu_l_100km', 'Isuzu L/100km'], ['merc_l_100km', 'Merc. L/100km'],
-      ['iveco_l_100km', 'Iveco L/100km'], ['fuel_price', 'Paliwo zł/l'],
+      ['iveco_l_100km', 'Iveco L/100km'], ['fuel_price', t('costs.fuelRate')],
     ]},
-    { title: 'Energia', color: CAT.elec, fields: [
-      ['elec_multiplier', 'Mnożnik licznika'], ['elec_price_kwh', 'Stawka zł/kWh'], ['elec_fixed_monthly', 'Stała zł/mies.'],
+    { title: t('costs.energy'), color: CAT.elec, fields: [
+      ['elec_multiplier', t('costs.meterMultiplier')], ['elec_price_kwh', t('costs.ratePerKwh')], ['elec_fixed_monthly', t('costs.fixedMonthly')],
     ]},
-    { title: 'Gaz produkcyjny', color: CAT.gas, fields: [
-      ['gas_prod_price_m3', 'Stawka zł/m³'], ['gas_prod_fixed_daily', 'Abonament zł/dzień'],
+    { title: t('costs.productionGas'), color: CAT.gas, fields: [
+      ['gas_prod_price_m3', t('costs.ratePerM3')], ['gas_prod_fixed_daily', t('costs.subscriptionDaily')],
     ]},
-    { title: 'Gaz grzewczy', color: '#4A148C', fields: [
-      ['gas_heat_price_m3', 'Stawka zł/m³'], ['gas_heat_fixed_monthly', 'Abonament zł/mies.'],
+    { title: t('costs.heatingGas'), color: '#4A148C', fields: [
+      ['gas_heat_price_m3', t('costs.ratePerM3')], ['gas_heat_fixed_monthly', t('costs.subscriptionMonthly')],
     ]},
-    { title: 'Woda', color: CAT.water, fields: [
-      ['water_price_m3', 'Stawka zł/m³'], ['water_fixed_monthly', 'Abonament zł/mies.'],
+    { title: t('costs.water'), color: CAT.water, fields: [
+      ['water_price_m3', t('costs.ratePerM3')], ['water_fixed_monthly', t('costs.subscriptionMonthly')],
     ]},
-    { title: 'Pracownicy', color: CAT.workers, fields: [
-      ['worker_hourly_rate', 'Stawka zł/rbh'],
+    { title: t('costs.employees'), color: CAT.workers, fields: [
+      ['worker_hourly_rate', t('costs.ratePerWorkHour')],
     ]},
   ];
   return (
     <div style={cardStyle}>
-      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={16}/> Stawki — {' '}<span style={{ fontWeight: 500, color: IOS_THEME.textSecondary, fontSize: '13px' }}>{readOnly ? 'podgląd' : 'edytuj i kliknij „Zapisz"'}</span></div>
+      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={16}/> {t('costs.rates')} — {' '}<span style={{ fontWeight: 500, color: IOS_THEME.textSecondary, fontSize: '13px' }}>{readOnly ? t('costs.preview') : t('costs.editAndSave')}</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px', marginTop: '4px' }}>
         {groups.map(g => (
           <div key={g.title} style={{ borderLeft: `3px solid ${g.color}`, paddingLeft: '12px' }}>
@@ -1143,13 +1154,14 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = false }) {
+function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false }) {
+  const { t } = useTranslation();
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label) => (
     <th className="sticky-head" style={newThStyle}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{icon} {label}</span>
-        <span style={{ fontSize: '9px', fontWeight: 500, color: IOS_THEME.textSecondary, opacity: 0.7 }}>licznik</span>
+        <span style={{ fontSize: '9px', fontWeight: 500, color: IOS_THEME.textSecondary, opacity: 0.7 }}>{t('costs.meter')}</span>
       </div>
     </th>
   );
@@ -1175,29 +1187,29 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = fals
   return (
     <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
       <div style={{ padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, fontSize: '12.5px', color: IOS_THEME.textSecondary, background: '#F9F9FB' }}>
-        💡 Wpisuj <b style={{ color: IOS_THEME.textPrimary }}>stan licznika</b> na koniec dnia (auta — przebieg, media — odczyt). Zużycie i koszt liczą się automatycznie z różnicy względem poprzedniego dnia.
+        💡 {t('costs.entryHintPrefix')} <b style={{ color: IOS_THEME.textPrimary }}>{t('costs.meterReading')}</b> {t('costs.entryHintSuffix')}
       </div>
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
-              <th className="sticky-col sticky-head" style={newThStyle}>Data</th>
+              <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
               {meterTh(<Truck size={13}/>, 'Fiat')}
               {meterTh(<Truck size={13}/>, 'Isuzu')}
               {meterTh(<Truck size={13}/>, 'Merc.')}
               {meterTh(<Truck size={13}/>, 'Iveco')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.13) }}><span>Koszt</span><br/><span>Auta</span></th>
-              {meterTh(<Zap size={13}/>, 'Prąd')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.13) }}><span>Koszt</span><br/><span>Prąd</span></th>
-              {meterTh(<Flame size={13}/>, 'Gaz prod.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.13) }}><span>Koszt</span><br/><span>Prod.</span></th>
-              {meterTh(<Flame size={13}/>, 'Gaz grz.')}
-              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>Koszt</span><br/><span>Grz.</span></th>
-              {meterTh(<Droplet size={13}/>, 'Woda')}
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>Koszt</span><br/><span>Woda</span></th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>Ludzie</th>
-              <th className="sticky-head" style={newThStyle}>Inne</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>SUMA</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>zł/kg</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.cars')}</span></th>
+              {meterTh(<Zap size={13}/>, t('costs.electricity'))}
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.electricity')}</span></th>
+              {meterTh(<Flame size={13}/>, t('costs.productionGasShort'))}
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.productionShort')}</span></th>
+              {meterTh(<Flame size={13}/>, t('costs.heatingGasShort'))}
+              <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.heatingShort')}</span></th>
+              {meterTh(<Droplet size={13}/>, t('costs.water'))}
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.water')}</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>{t('costs.people')}</th>
+              <th className="sticky-head" style={newThStyle}>{t('costs.other')}</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>{t('costs.total')}</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{t('costs.currencyPerKg')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -1217,7 +1229,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = fals
                   {valCell(
                     { ...newTdStyle, fontWeight: 700, background: dateCellBg, color: dateCellColor, minWidth: '52px' },
                     <span style={{ fontSize: '15px', fontWeight: 700 }}>{String(d.getDate()).padStart(2, '0')}</span>,
-                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{WEEKDAYS_PL[d.getDay()]}</span>,
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{weekdays[d.getDay()]}</span>,
                     dateCellColor,
                     { className: 'sticky-col', title: isHol ? isHol.name : '' }
                   )}
@@ -1244,7 +1256,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = fals
                   {valCell(
                     { ...newTdStyle, fontWeight: 800, background: 'rgba(37,99,235,0.10)', color: IOS_THEME.accent, borderLeft: '2px solid rgba(37,99,235,0.2)', whiteSpace: 'nowrap' },
                     <span style={{ fontSize: '14px' }}>{FMT(c.total_cost)}</span>,
-                    c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>zł/kg</span></> : '',
+                    c.pln_kg > 0 ? <>{FMT(c.pln_kg)} <span style={{ fontWeight: 500 }}>{t('costs.currencyPerKg')}</span></> : '',
                     IOS_THEME.accent)}
                 </tr>
               );
@@ -1252,7 +1264,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = fals
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>SUMA</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.total')}</td>
               {footMeter(totals.kmFiat, 'km')}
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
@@ -1274,7 +1286,7 @@ function EntryGrid({ days, dailyData, calcDay, totals, onChange, readOnly = fals
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
-                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} zł/kg` : ''; })()}
+                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
                 </div>
               </td>
             </tr>
@@ -1312,7 +1324,8 @@ function ProgInput({ value, onCommit, readOnly = false }) {
 
 // Edytor JEDNEGO pasma (kliknięty kolor) — przedział od–do dla każdej grupy (ZD1/ZD2/Ogółem)
 function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
-  const GROUPS = [['ZD1', 'ZD 1'], ['ZD2', 'ZD 2'], ['WSP', 'Ogółem']];
+  const { t } = useTranslation();
+  const GROUPS = [['ZD1', 'ZD 1'], ['ZD2', 'ZD 2'], ['WSP', t('costs.overall')]];
   const def = PERF_BANDS.find(b => b.id === band);
   const isDefault = JSON.stringify(progi) === JSON.stringify(PROGI_DEFAULT);
   if (!def) return null;
@@ -1321,24 +1334,24 @@ function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
   const staticBox = (txt) => (
     <span style={{ width: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#F1F1F4', color: IOS_THEME.textSecondary, fontWeight: 700, fontSize: '13px' }}>{txt}</span>
   );
-  const lbl = (t) => <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{t}</span>;
+  const lbl = (label) => <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{label}</span>;
 
   return (
     <div style={{ padding: '14px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>Próg wydajności:</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 11px', borderRadius: '8px', background: def.c.bg, color: def.c.fc, fontWeight: 700, fontSize: '12px' }}>{def.label}</span>
-        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>kg/rbh · format XX.X · osobne dla każdego miesiąca · kolory na żywo</span>
+        <span style={{ fontWeight: 800, fontSize: '13px', color: IOS_THEME.textPrimary }}>{t('costs.performanceThreshold')}:</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 11px', borderRadius: '8px', background: def.c.bg, color: def.c.fc, fontWeight: 700, fontSize: '12px' }}>{t(def.labelKey)}</span>
+        <span style={{ fontSize: '11px', color: IOS_THEME.textSecondary }}>{t('costs.thresholdHint')}</span>
         <button
           onClick={() => onChange(PROGI_DEFAULT)}
           disabled={isDefault || readOnly}
           style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF', color: isDefault ? IOS_THEME.textSecondary : IOS_THEME.accent, fontWeight: 700, fontSize: '11px', cursor: isDefault ? 'default' : 'pointer', opacity: isDefault ? 0.5 : 1 }}
         >
-          Przywróć domyślne
+          {t('costs.restoreDefaults')}
         </button>
         <button
           onClick={onClose}
-          title="Zamknij"
+          title={t('common.close')}
           style={{ width: '26px', height: '26px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: `1px solid ${IOS_THEME.border}`, background: '#FFFFFF', color: IOS_THEME.textSecondary, fontWeight: 700, fontSize: '15px', lineHeight: 1, cursor: 'pointer' }}
         >
           ×
@@ -1348,15 +1361,15 @@ function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
         {GROUPS.map(([gKey, gLabel]) => (
           <div key={gKey} style={{ border: `1px solid ${IOS_THEME.border}`, borderRadius: '12px', padding: '12px', background: '#FAFAFC', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 800, fontSize: '12px', minWidth: '50px', color: IOS_THEME.textPrimary }}>{gLabel}</span>
-            {lbl('od')}
+            {lbl(t('costs.from'))}
             {def.from === null
               ? staticBox('0')
               : <ProgInput key={`${gKey}-from-${progi[gKey][def.from]}`} value={progi[gKey][def.from]} onCommit={(v) => setVal(gKey, def.from, v)} readOnly={readOnly} />}
-            {lbl('do')}
+            {lbl(t('costs.to'))}
             {def.to === null
               ? staticBox('∞')
               : <ProgInput key={`${gKey}-to-${progi[gKey][def.to]}`} value={progi[gKey][def.to]} onCommit={(v) => setVal(gKey, def.to, v)} readOnly={readOnly} />}
-            {lbl('kg/rbh')}
+            {lbl(t('costs.performanceUnit'))}
           </div>
         ))}
       </div>
@@ -1365,14 +1378,15 @@ function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
 }
 
 /* ───────────── PERFORMANCE GRID ───────────── */
-function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, progi, onProgiChange, readOnly = false }) {
+function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onChange, progi, onProgiChange, readOnly = false }) {
+  const { t } = useTranslation();
   const [editBand, setEditBand] = useState(null); // id klikniętego pasma (kolor) lub null
   const effTd = (val, thr, perPerson) => {
     const c = effStyle(val, thr);
     return (
       <td style={{ ...newTdStyle, textAlign: 'center', background: c ? c.bg : undefined, color: c ? c.fc : IOS_THEME.textSecondary }}>
         <div style={{ fontWeight: 800 }}>{val > 0 ? val.toFixed(1) : '—'}</div>
-        <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75, minHeight: '12px' }}>{perPerson > 0 ? `${FMT0(perPerson)} kg/os` : ''}</div>
+        <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75, minHeight: '12px' }}>{perPerson > 0 ? `${FMT0(perPerson)} ${t('costs.kgPerPerson')}` : ''}</div>
       </td>
     );
   };
@@ -1380,7 +1394,7 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
   const hoursTd = (hrs, people, color) => (
     <td style={{ ...newTdStyle, textAlign: 'center', color }}>
       <div style={{ fontWeight: 700 }}>{hrs > 0 ? FMT1(hrs) : '—'}</div>
-      <div style={{ fontSize: '10px', fontWeight: 600, color: IOS_THEME.textSecondary, minHeight: '12px' }}>{people > 0 ? `${people} os.` : ''}</div>
+      <div style={{ fontSize: '10px', fontWeight: 600, color: IOS_THEME.textSecondary, minHeight: '12px' }}>{people > 0 ? `${people} ${t('costs.peopleShort')}` : ''}</div>
     </td>
   );
 
@@ -1414,40 +1428,40 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
     <div style={{ flex: '3 1 680px', minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
       {/* legend — klik w kolor otwiera edytor TEGO pasma (przedział od–do per grupa) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
-        <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>Wydajność kg/rbh:</span>
-        {PERF_BANDS.map(({ id, label, c }) => {
+        <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>{t('costs.performanceKgPerHour')}:</span>
+        {PERF_BANDS.map(({ id, labelKey, c }) => {
           const active = editBand === id;
           return (
             <button
               key={id}
               onClick={() => setEditBand(v => (v === id ? null : id))}
-              title={`Kliknij, aby ustawić przedział „${label}" (ZD1 / ZD2 / Ogółem)`}
+              title={t('costs.thresholdButtonTitle', { label: t(labelKey) })}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 11px', borderRadius: '8px', background: c.bg, color: c.fc, fontWeight: 700, fontSize: '12px', border: `1.5px solid ${active ? c.fc : 'transparent'}`, boxShadow: active ? `0 0 0 2px ${c.bg}` : 'none', cursor: 'pointer' }}
             >
-              {label}
+              {t(labelKey)}
             </button>
           );
         })}
         <Settings size={13} style={{ color: editBand ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
-        <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>kg/h kolorowane · kg/os pod spodem · godziny i obsada z osi czasu</span>
+        <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>{t('costs.performanceLegendHint')}</span>
       </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
-              <th className="sticky-col sticky-head" style={newThStyle}>Data</th>
+              <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
               <th className="sticky-head" style={newThStyle}>ZD1 (kg)</th>
               <th className="sticky-head" style={newThStyle}>ZD2 (kg)</th>
-              <th className="sticky-head" style={newThStyle}>Pralki (kg)</th>
+              <th className="sticky-head" style={newThStyle}>{t('costs.washersKg')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Σ KG</th>
               <th className="sticky-head" style={newThStyle}>ZD1 (h)</th>
               <th className="sticky-head" style={newThStyle}>ZD2 (h)</th>
-              <th className="sticky-head" style={newThStyle}>Kier. (h)</th>
+              <th className="sticky-head" style={newThStyle}>{t('costs.driversHours')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: '#1565C0', background: opaqueTint('#1565C0', 0.08) }}>Σ H</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>ZD1 kg/h</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.08) }}>ZD2+Pr. kg/h</th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>Ogółem kg/h</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>{t('costs.overallKgH')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1474,7 +1488,7 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
                   <td className="sticky-col" style={{ ...newTdStyle, fontWeight: 700, background: isToday ? IOS_THEME.accent : isOff ? '#D5D5D5' : '#FFFFFF', color: isToday ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary, textAlign: 'center', minWidth: '52px' }} title={isHol ? isHol.name : ''}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2 }}>{String(d.getDate()).padStart(2, '0')}</span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{WEEKDAYS_PL[d.getDay()]}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{weekdays[d.getDay()]}</span>
                     </div>
                   </td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
@@ -1494,7 +1508,7 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>SUMA / Ø</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.totalAvg')}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd1 || '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd2 || '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki || '—'}</td>
@@ -1505,11 +1519,11 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
               <td style={{ ...footTdStyle, color: '#1565C0', textAlign: 'center' }}>{totals.h ? FMT1(totals.h) : '—'}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>
                 <div>{effZd1Avg > 0 ? effZd1Avg.toFixed(1) : '—'}</div>
-                <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd1Avg > 0 ? `${FMT0(osZd1Avg)} kg/os` : ''}</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd1Avg > 0 ? `${FMT0(osZd1Avg)} ${t('costs.kgPerPerson')}` : ''}</div>
               </td>
               <td style={{ ...footTdStyle, color: CAT.gas, textAlign: 'center' }}>
                 <div>{effZd2Avg > 0 ? effZd2Avg.toFixed(1) : '—'}</div>
-                <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd2Avg > 0 ? `${FMT0(osZd2Avg)} kg/os` : ''}</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd2Avg > 0 ? `${FMT0(osZd2Avg)} ${t('costs.kgPerPerson')}` : ''}</div>
               </td>
               <td style={{ ...footTdStyle, color: CAT.transport, textAlign: 'center' }}>{effAllAvg > 0 ? effAllAvg.toFixed(1) : '—'}</td>
             </tr>
@@ -1522,13 +1536,15 @@ function PerformanceGrid({ days, dailyData, timelineStats, totals, onChange, pro
       dayStats={dayStats} progi={progi} totals={totals}
       effZd1Avg={effZd1Avg} effZd2Avg={effZd2Avg} effAllAvg={effAllAvg}
       osZd1Avg={osZd1Avg} osZd2Avg={osZd2Avg}
+      weekdays={weekdays}
     />
     </div>
   );
 }
 
 /* ───────────── PANEL WIZUALIZACJI (obok tabeli wydajności) ───────────── */
-function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, effAllAvg, osZd1Avg, osZd2Avg }) {
+function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, effAllAvg, osZd1Avg, osZd2Avg, weekdays }) {
+  const { t } = useTranslation();
   // Rozkład dni wg pasma — na bazie Ogółem kg/h (tylko dni z danymi)
   const dist = { slaba: 0, srednia: 0, dobra: 0, bdb: 0 };
   let activeDays = 0;
@@ -1537,33 +1553,33 @@ function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, eff
   const active = dayStats.filter(s => s.effAll > 0);
   const best = active.reduce((a, b) => (b.effAll > (a?.effAll ?? -1) ? b : a), null);
   const worst = active.reduce((a, b) => (b.effAll < (a?.effAll ?? Infinity) ? b : a), null);
-  const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${WEEKDAYS_PL[d.getDay()]}`; };
+  const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
   return (
     <div style={{ flex: '1 1 320px', minWidth: '300px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Kafelki podsumowania */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <MiniStat label="Tonaż razem" value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
-        <MiniStat label="Godziny razem" value={totals.h > 0 ? FMT1(totals.h) : '—'} unit="h" color="#1565C0" />
-        <MiniStat label="Najlepszy dzień" value={best ? best.effAll.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color={EFF_COLORS.bdb.fc} />
-        <MiniStat label="Najsłabszy dzień" value={worst ? worst.effAll.toFixed(1) : '—'} unit={worst ? `kg/h · ${dLab(worst.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
+        <MiniStat label={t('costs.totalTonnage')} value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
+        <MiniStat label={t('costs.totalHours')} value={totals.h > 0 ? FMT1(totals.h) : '—'} unit="h" color="#1565C0" />
+        <MiniStat label={t('costs.bestDay')} value={best ? best.effAll.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color={EFF_COLORS.bdb.fc} />
+        <MiniStat label={t('costs.weakestDay')} value={worst ? worst.effAll.toFixed(1) : '—'} unit={worst ? `kg/h · ${dLab(worst.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
       </div>
 
       {/* Średnia miesięczna vs progi */}
       <div style={cardStyle}>
-        <div style={cardTitleStyle}>Średnia miesiąca vs progi</div>
+        <div style={cardTitleStyle}>{t('costs.monthAvgVsThresholds')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <BandGauge label="ZD1" value={effZd1Avg} thr={progi.ZD1} sub={osZd1Avg > 0 ? `${FMT0(osZd1Avg)} kg/os` : ''} />
-          <BandGauge label="ZD2 + Pralki" value={effZd2Avg} thr={progi.ZD2} sub={osZd2Avg > 0 ? `${FMT0(osZd2Avg)} kg/os` : ''} />
-          <BandGauge label="Ogółem" value={effAllAvg} thr={progi.WSP} sub="" />
+          <BandGauge label="ZD1" value={effZd1Avg} thr={progi.ZD1} sub={osZd1Avg > 0 ? `${FMT0(osZd1Avg)} ${t('costs.kgPerPerson')}` : ''} />
+          <BandGauge label={t('costs.zd2PlusWashers')} value={effZd2Avg} thr={progi.ZD2} sub={osZd2Avg > 0 ? `${FMT0(osZd2Avg)} ${t('costs.kgPerPerson')}` : ''} />
+          <BandGauge label={t('costs.overall')} value={effAllAvg} thr={progi.WSP} sub="" />
         </div>
       </div>
 
       {/* Rozkład dni wg pasma (Ogółem) */}
       <div style={cardStyle}>
-        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>Dni wg pasma — Ogółem</div>
+        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.daysByBandOverall')}</div>
         <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>
-          {activeDays > 0 ? `${activeDays} dni z danymi` : 'brak danych w tym miesiącu'}
+          {activeDays > 0 ? t('costs.daysWithData', { count: activeDays }) : t('costs.noDataThisMonth')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {PERF_BANDS.map(b => {
@@ -1571,7 +1587,7 @@ function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, eff
             const pct = activeDays > 0 ? (cnt / activeDays) * 100 : 0;
             return (
               <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ width: '96px', fontSize: '12px', fontWeight: 700, color: b.c.fc }}>{b.label}</span>
+                <span style={{ width: '96px', fontSize: '12px', fontWeight: 700, color: b.c.fc }}>{t(b.labelKey)}</span>
                 <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: b.c.bg, transition: 'width 0.4s' }} />
                 </div>

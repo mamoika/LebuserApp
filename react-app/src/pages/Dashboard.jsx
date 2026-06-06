@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import { LogOut } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
@@ -15,21 +17,22 @@ import TimelineView from '../components/TimelineView';
 import CostsView from '../components/CostsView';
 import ToastContainer from '../components/ToastContainer';
 
-// Tytuł nagłówka zależny od aktywnej zakładki
-const PAGE_TITLES = {
-  '/':         { title: 'Harmonogram',    subtitle: 'Zarządzanie logistyką' },
-  '/route':    { title: 'Moja trasa',     subtitle: 'Dostawy, odbiory i licznik' },
-  '/routes':   { title: 'Trasy na żywo',  subtitle: 'Aktualny progres tras kierowców' },
-  '/clients':  { title: 'Klienci i Trasy', subtitle: 'Baza klientów i tras' },
-  '/map':      { title: 'Mapa',           subtitle: 'Klienci na mapie' },
-  '/history':  { title: 'Historia',       subtitle: 'Archiwum przyjazdów i zmian' },
-  '/grafik':   { title: 'Grafik pracy',   subtitle: 'Grafik pracowników' },
-  '/timeline': { title: 'Oś czasu',       subtitle: 'Przegląd w czasie' },
-  '/costs':    { title: 'Koszty',         subtitle: 'Koszty i rozliczenia' },
-  '/admin':    { title: 'Panel Admina',   subtitle: 'Użytkownicy i ustawienia' },
+// Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
+const PAGE_KEYS = {
+  '/': 'home',
+  '/route': 'route',
+  '/routes': 'routes',
+  '/clients': 'clients',
+  '/map': 'map',
+  '/history': 'history',
+  '/grafik': 'grafik',
+  '/timeline': 'timeline',
+  '/costs': 'costs',
+  '/admin': 'admin',
 };
 
 function PrivacyNoticeModal() {
+  const { t } = useTranslation();
   const { acknowledgePrivacyNotice, signOut } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -50,34 +53,26 @@ function PrivacyNoticeModal() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#0A84FF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, flexShrink: 0 }}>i</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Informacja RODO</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Wersja: {PRIVACY_NOTICE_VERSION}</div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>{t('privacy.title')}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('privacy.version', { version: PRIVACY_NOTICE_VERSION })}</div>
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: 1.45, color: 'var(--text-secondary)' }}>
-            <p style={{ margin: 0 }}>
-              Aplikacja LEBUSER przetwarza dane potrzebne do organizacji pracy, tras, dostaw, odbiorów, kosztów oraz bezpieczeństwa systemu.
-            </p>
-            <p style={{ margin: 0 }}>
-              Mogą to być m.in. dane konta, rola użytkownika, przypisane trasy, wpisy dostaw i odbiorów, historia działań, informacje o klientach/punktach oraz dane operacyjne widoczne w aplikacji.
-            </p>
-            <p style={{ margin: 0 }}>
-              Dane są używane do realizacji procesów logistycznych, rozliczeń wewnętrznych, kontroli dostępu, audytu działań i ochrony systemu. Szczegółowa klauzula i rejestr czynności są prowadzone w dokumentacji firmy.
-            </p>
-            <p style={{ margin: 0 }}>
-              Potwierdzenie oznacza, że zapoznałeś/zapoznałaś się z tą informacją. Nie jest to zgoda marketingowa ani zgoda na dowolne przetwarzanie danych.
-            </p>
+            <p style={{ margin: 0 }}>{t('privacy.p1')}</p>
+            <p style={{ margin: 0 }}>{t('privacy.p2')}</p>
+            <p style={{ margin: 0 }}>{t('privacy.p3')}</p>
+            <p style={{ margin: 0 }}>{t('privacy.p4')}</p>
           </div>
 
           {error && <div className="ap-error" style={{ marginTop: '14px' }}>{error}</div>}
 
           <div className="ap-btn-group" style={{ marginTop: '18px' }}>
             <button className="ap-btn ap-btn-primary" onClick={handleConfirm} disabled={saving}>
-              {saving ? 'Zapisywanie...' : 'Potwierdzam zapoznanie się'}
+              {saving ? t('common.saving') : t('privacy.confirm')}
             </button>
             <button className="ap-btn" onClick={signOut} disabled={saving} style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-              Wyloguj
+              {t('privacy.signOut')}
             </button>
           </div>
         </div>
@@ -87,11 +82,12 @@ function PrivacyNoticeModal() {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user, adminBackup, signOut, stopImpersonating, isAdmin, canViewAdminData } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
-  const pageInfo = PAGE_TITLES[location.pathname] || PAGE_TITLES['/'];
+  const pageKey = PAGE_KEYS[location.pathname] || 'home';
 
   const handleStopImpersonating = () => {
     const result = stopImpersonating();
@@ -116,10 +112,10 @@ export default function Dashboard() {
           gap: '12px',
         }}>
           <span>
-            👁 Przeglądasz jako: <strong>{user?.name}</strong> (@{user?.username})
+            👁 {t('header.impersonatingAs')} <strong>{user?.name}</strong> (@{user?.username})
             {user?.has_password === false && (
               <span style={{ marginLeft: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>
-                ⚠️ Brak hasła — user nie zalogował się jeszcze
+                {t('header.impersonateNoPassword')}
               </span>
             )}
           </span>
@@ -137,7 +133,7 @@ export default function Dashboard() {
               flexShrink: 0,
             }}
           >
-            ← Wróć do admina ({adminBackup?.name})
+            {t('header.backToAdmin', { name: adminBackup?.name })}
           </button>
         </div>
       )}
@@ -147,11 +143,12 @@ export default function Dashboard() {
         <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
           <img src={logoImg} alt="Logo LEBUSER" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div className="app-title" style={{ fontSize: '22px' }}>{pageInfo.title}</div>
-            <div className="app-subtitle">{pageInfo.subtitle}</div>
+            <div className="app-title" style={{ fontSize: '22px' }}>{t(`pages.${pageKey}.title`)}</div>
+            <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
           </div>
         </div>
         <div className="app-header-actions">
+          <LanguageSwitcher size="sm" />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: isImpersonating ? '#FF9500' : 'var(--text-secondary)' }}>
               {user?.name}
@@ -159,7 +156,7 @@ export default function Dashboard() {
             <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
           </div>
           <button onClick={signOut} className="driver-btn">
-            <LogOut size={14} /> Wyloguj
+            <LogOut size={14} /> {t('header.signOut')}
           </button>
         </div>
       </header>

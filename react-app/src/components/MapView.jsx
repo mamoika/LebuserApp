@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { useAppData } from '../hooks/useAppData';
 import { useAuth } from '../context/AuthContext';
 import { getRouteColorByIndex } from '../lib/visualSystem';
@@ -47,7 +49,7 @@ function makeBaseIcon() {
       transform:translate(-50%,-50%);
       box-shadow:0 3px 12px rgba(0,0,0,0.2);
       display:flex;align-items:center;gap:4px;
-    ">🏢 Baza</div>`,
+    ">🏢 ${i18n.t('map.base')}</div>`,
     iconSize: [0, 0],
   });
 }
@@ -80,6 +82,7 @@ function FitBounds({ positions }) {
 }
 
 export default function MapView() {
+  const { t } = useTranslation();
   const { clients, routes, loading } = useAppData();
   const { isDriver, user } = useAuth();
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
@@ -109,7 +112,7 @@ export default function MapView() {
     ...clients.filter(c => c.lat && c.lng).map(c => [c.lat, c.lng]),
   ];
 
-  if (loading) return <div className="loader">Ładowanie danych…</div>;
+  if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: '400px' }}>
@@ -128,7 +131,7 @@ export default function MapView() {
             cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 500,
           }}
         >
-          {darkMode ? '☀️ Jasna' : '🌙 Ciemna'}
+          {darkMode ? t('map.lightMode') : t('map.darkMode')}
         </button>
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
@@ -157,7 +160,7 @@ export default function MapView() {
             >
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: hidden ? 'var(--text-tertiary)' : color, flexShrink: 0 }} />
               {route.name}
-              {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>Twoja</span>}
+              {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>{t('map.yours')}</span>}
             </button>
           );
         })}
@@ -181,7 +184,7 @@ export default function MapView() {
           {/* Marker bazy */}
           <Marker position={[BASE_LAT, BASE_LNG]} icon={makeBaseIcon()}>
             <Popup>
-              <strong>🏢 LEBUSER – Baza</strong><br />
+              <strong>🏢 LEBUSER – {t('map.base')}</strong><br />
               {BASE_LAT.toFixed(6)}, {BASE_LNG.toFixed(6)}
             </Popup>
           </Marker>
@@ -217,7 +220,7 @@ export default function MapView() {
                   >
                     <Popup>
                       <strong>{client.name}</strong><br />
-                      {route.name}{isOwnRoute ? ' · Twoja trasa' : ''}<br />
+                      {route.name}{isOwnRoute ? ` · ${t('map.yourRoute')}` : ''}<br />
                       <span style={{ color: '#888', fontSize: '11px' }}>
                         {Number(client.lat).toFixed(5)}, {Number(client.lng).toFixed(5)}
                       </span>
@@ -231,7 +234,7 @@ export default function MapView() {
           {/* Marker użytkownika */}
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={makeUserIcon()}>
-              <Popup>📍 Twoja lokalizacja</Popup>
+              <Popup>📍 {t('map.yourLocation')}</Popup>
             </Marker>
           )}
 
@@ -249,7 +252,7 @@ export default function MapView() {
             color: 'var(--text-tertiary)', background: 'var(--bg-secondary)',
             borderTop: '1px solid var(--border)',
           }}>
-            ⚠️ {missing} {missing === 1 ? 'klient nie ma' : 'klientów nie ma'} współrzędnych GPS — edytuj w Klienci i Trasy
+            {t('map.missingGps', { count: missing })}
           </div>
         );
       })()}
@@ -259,6 +262,7 @@ export default function MapView() {
 
 // Przycisk geolokalizacji jako osobny komponent (musi być wewnątrz MapContainer)
 function UserLocationButton({ onLocate }) {
+  const { t } = useTranslation();
   const map = useMap();
   return (
     <div
@@ -273,7 +277,7 @@ function UserLocationButton({ onLocate }) {
             onLocate(e.latlng);
             map.setView(e.latlng, 14);
           });
-          map.once('locationerror', () => alert('Brak dostępu do lokalizacji'));
+          map.once('locationerror', () => alert(t('map.locationDenied')));
         }}
         style={{
           background: '#007AFF', color: '#fff',
@@ -283,7 +287,7 @@ function UserLocationButton({ onLocate }) {
           display: 'flex', alignItems: 'center', gap: '6px',
         }}
       >
-        📍 Moja lokalizacja
+        📍 {t('map.myLocation')}
       </button>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -6,19 +7,8 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 
-const SCHEDULE_OPTIONS = [
-  { value: 'daily', label: 'Codziennie (Pn–Pt)' },
-  { value: 'mwf',   label: 'Pn – Śr – Pt' },
-  { value: 'tth',   label: 'Wt – Czw' },
-  { value: 'other', label: 'Pozostałe' },
-];
-
-const SCHEDULE_GROUPS = [
-  { value: 'daily', title: 'Trasy codzienne (Pn–Pt)' },
-  { value: 'mwf',   title: 'Trasy Pn – Śr – Pt' },
-  { value: 'tth',   title: 'Trasy Wt – Czw' },
-  { value: 'other', title: 'Pozostałe trasy' },
-];
+// Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
+const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -39,6 +29,7 @@ function sortClientsByOrder(a, b) {
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
 function DriverRoutesModal({ routes, onClose }) {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const [drivers, setDrivers] = useState([]);
   const [edited, setEdited] = useState({}); // { driverId: Set of routeIds }
@@ -85,11 +76,11 @@ function DriverRoutesModal({ routes, onClose }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#5856D6,#3634A3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(88,86,214,0.3)' }}>👨‍✈️</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Trasy kierowców</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.driverRoutes')}</div>
           </div>
 
           {drivers.length === 0 && (
-            <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>Brak kierowców w bazie</div>
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>{t('clients.noDrivers')}</div>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '55vh', overflowY: 'auto', paddingRight: '4px' }}>
@@ -128,9 +119,9 @@ function DriverRoutesModal({ routes, onClose }) {
 
           <div className="ap-btn-group" style={{ marginTop: '16px' }}>
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+              {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -139,6 +130,7 @@ function DriverRoutesModal({ routes, onClose }) {
 }
 
 function AddRouteModal({ onClose, onSave }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [schedule, setSchedule] = useState('daily');
   const [saving, setSaving] = useState(false);
@@ -157,30 +149,30 @@ function AddRouteModal({ onClose, onSave }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>🗺</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowa trasa</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.newRoute')}</div>
           </div>
 
-          <div style={LABEL_STYLE}>Nazwa trasy</div>
+          <div style={LABEL_STYLE}>{t('clients.routeName')}</div>
           <input
             className="ap-input"
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-            placeholder="np. Trasa Północna"
+            placeholder={t('clients.routeNamePlaceholder')}
             style={{ marginBottom: '12px' }}
             autoFocus
           />
 
-          <div style={LABEL_STYLE}>Harmonogram</div>
+          <div style={LABEL_STYLE}>{t('clients.scheduleLabel')}</div>
           <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
-            {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
           </select>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? 'Zapisywanie…' : 'Dodaj trasę'}
+              {saving ? t('common.saving') : t('clients.addRoute')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -189,6 +181,7 @@ function AddRouteModal({ onClose, onSave }) {
 }
 
 function EditRouteModal({ route, onClose, onSave, onDelete }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(route.name);
   const [schedule, setSchedule] = useState(route.schedule || 'other');
   const [saving, setSaving] = useState(false);
@@ -215,10 +208,10 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Edytuj trasę</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.editRoute')}</div>
           </div>
 
-          <div style={LABEL_STYLE}>Nazwa trasy</div>
+          <div style={LABEL_STYLE}>{t('clients.routeName')}</div>
           <input
             className="ap-input"
             value={name}
@@ -228,19 +221,19 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
             autoFocus
           />
 
-          <div style={LABEL_STYLE}>Harmonogram</div>
+          <div style={LABEL_STYLE}>{t('clients.scheduleLabel')}</div>
           <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
-            {SCHEDULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
           </select>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+              {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
-              {confirmDelete ? 'Na pewno usunąć trasę?' : 'Usuń trasę'}
+              {confirmDelete ? t('clients.confirmDeleteRoute') : t('clients.deleteRoute')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -249,6 +242,7 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
 }
 
 function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [routeId, setRouteId] = useState(defaultRouteId);
   const [saving, setSaving] = useState(false);
@@ -267,30 +261,30 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>👤</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Nowy klient</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.newClient')}</div>
           </div>
 
-          <div style={LABEL_STYLE}>Nazwa klienta</div>
+          <div style={LABEL_STYLE}>{t('clients.clientName')}</div>
           <input
             className="ap-input"
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
-            placeholder="Nazwa klienta"
+            placeholder={t('clients.clientName')}
             style={{ marginBottom: '12px' }}
             autoFocus
           />
 
-          <div style={LABEL_STYLE}>Trasa</div>
+          <div style={LABEL_STYLE}>{t('clients.route')}</div>
           <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ marginBottom: '12px' }}>
             {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? 'Zapisywanie…' : 'Dodaj klienta'}
+              {saving ? t('common.saving') : t('clients.addClient')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -299,6 +293,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
 }
 
 function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(client.name);
   const [routeId, setRouteId] = useState(client.route_id);
   const [lat, setLat] = useState(client.lat != null ? String(client.lat) : '');
@@ -328,38 +323,38 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>Edytuj klienta</div>
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>{t('clients.editClient')}</div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>{client.name}</div>
             </div>
           </div>
 
-          <div style={LABEL_STYLE}>Nazwa klienta</div>
+          <div style={LABEL_STYLE}>{t('clients.clientName')}</div>
           <input className="ap-input" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: '12px' }} autoFocus />
 
-          <div style={LABEL_STYLE}>Trasa</div>
+          <div style={LABEL_STYLE}>{t('clients.route')}</div>
           <select className="ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ marginBottom: '12px' }}>
             {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={LABEL_STYLE}>Szerokość (lat)</div>
+              <div style={LABEL_STYLE}>{t('clients.lat')}</div>
               <input className="ap-input" value={lat} onChange={e => setLat(e.target.value)} placeholder="52.2297" inputMode="decimal" />
             </div>
             <div>
-              <div style={LABEL_STYLE}>Długość (lng)</div>
+              <div style={LABEL_STYLE}>{t('clients.lng')}</div>
               <input className="ap-input" value={lng} onChange={e => setLng(e.target.value)} placeholder="21.0122" inputMode="decimal" />
             </div>
           </div>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+              {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
-              {confirmDelete ? 'Na pewno usunąć?' : 'Usuń klienta'}
+              {confirmDelete ? t('clients.confirmDeleteClient') : t('clients.deleteClient')}
             </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -372,6 +367,7 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
 // ---- Main component ----
 
 export default function ClientsRoutesView() {
+  const { t } = useTranslation();
   const rawData = useAppData();
   const { isAdmin, isDriver, user, sessionToken } = useAuth();
   const { clients, routes, loading, error, refetch } = rawData;
@@ -391,8 +387,8 @@ export default function ClientsRoutesView() {
     setLocalClients(clients);
   }, [clients]);
 
-  if (loading) return <div className="loader">Ładowanie danych…</div>;
-  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>Błąd: {error}</div>;
+  if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
+  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>{t('schedule.errorPrefix')} {error}</div>;
 
   // ---- Route actions ----
 
@@ -410,7 +406,7 @@ export default function ClientsRoutesView() {
       setAddRouteOpen(false);
       refetch();
     } catch (err) {
-      toastError('Błąd dodawania trasy: ' + err.message);
+      toastError(t('clients.errAddRoute') + ' ' + err.message);
     }
   };
 
@@ -427,14 +423,14 @@ export default function ClientsRoutesView() {
       setEditRouteModal(null);
       refetch();
     } catch (err) {
-      toastError('Błąd zapisu trasy: ' + err.message);
+      toastError(t('clients.errSaveRoute') + ' ' + err.message);
     }
   };
 
   const handleDeleteRoute = async (route) => {
     const hasClients = localClients.some(c => c.route_id === route.id);
     if (hasClients) {
-      toastWarn('Nie można usunąć trasy — ma przypisanych klientów');
+      toastWarn(t('clients.routeHasClients'));
       return;
     }
     try {
@@ -447,7 +443,7 @@ export default function ClientsRoutesView() {
       setEditRouteModal(null);
       refetch();
     } catch (err) {
-      toastError('Błąd usuwania trasy: ' + err.message);
+      toastError(t('clients.errDeleteRoute') + ' ' + err.message);
     }
   };
 
@@ -455,7 +451,7 @@ export default function ClientsRoutesView() {
 
   const handleAddClient = async (name, routeId) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
-    if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
+    if (duplicate) { toastWarn(t('clients.clientExists')); return; }
     try {
       const { data, error } = await supabase.rpc('admin_insert_client', {
         p_session_token: sessionToken,
@@ -467,13 +463,13 @@ export default function ClientsRoutesView() {
       setAddClientForRoute(null);
       refetch();
     } catch (err) {
-      toastError('Błąd dodawania klienta: ' + err.message);
+      toastError(t('clients.errAddClient') + ' ' + err.message);
     }
   };
 
   const handleSaveClient = async ({ id, name, routeId, lat, lng }) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
-    if (duplicate) { toastWarn('Klient o tej nazwie już istnieje'); return; }
+    if (duplicate) { toastWarn(t('clients.clientExists')); return; }
 
     const parsedLat = lat !== '' ? parseFloat(String(lat).replace(',', '.')) : null;
     const parsedLng = lng !== '' ? parseFloat(String(lng).replace(',', '.')) : null;
@@ -494,7 +490,7 @@ export default function ClientsRoutesView() {
       setEditClient(null);
       refetch();
     } catch (err) {
-      toastError('Błąd zapisu klienta: ' + err.message);
+      toastError(t('clients.errSaveClient') + ' ' + err.message);
     }
   };
 
@@ -508,7 +504,7 @@ export default function ClientsRoutesView() {
         .maybeSingle();
       if (usedErr) throw usedErr;
       if (usedEntry) {
-        toastWarn('Nie można usunąć klienta — ma historię wpisów. Zmień nazwę albo przenieś go na inną trasę.');
+        toastWarn(t('clients.clientHasHistory'));
         return;
       }
       const { data, error } = await supabase.rpc('admin_delete_client', {
@@ -520,7 +516,7 @@ export default function ClientsRoutesView() {
       setEditClient(null);
       refetch();
     } catch (err) {
-      toastError('Błąd usuwania klienta: ' + err.message);
+      toastError(t('clients.errDeleteClient') + ' ' + err.message);
     }
   };
 
@@ -590,7 +586,7 @@ export default function ClientsRoutesView() {
       await refetch();
     } catch (err) {
       setLocalClients(previousClients);
-      toastError('Błąd zapisu kolejności: ' + err.message);
+      toastError(t('clients.errSaveOrder') + ' ' + err.message);
       await refetch();
     } finally {
       savingOrderRef.current = false;
@@ -601,9 +597,10 @@ export default function ClientsRoutesView() {
 
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  const groups = SCHEDULE_GROUPS.map(g => ({
-    ...g,
-    routes: sortedRoutes.filter(r => (r.schedule || 'other') === g.value),
+  const groups = SCHEDULE_VALUES.map(value => ({
+    value,
+    title: t(`clients.groups.${value}`),
+    routes: sortedRoutes.filter(r => (r.schedule || 'other') === value),
   }));
 
   const renderRouteCol = (route) => {
@@ -649,13 +646,13 @@ export default function ClientsRoutesView() {
                 whiteSpace: 'nowrap',
               }}
             >
-              Twoja trasa
+              {t('map.yourRoute')}
             </span>
           )}
 
           {isAdmin && (
             <div style={{ marginLeft: 'auto' }}>
-              <span className="edit-icon" onClick={() => setEditRouteModal(route)} title="Edytuj trasę">✏️</span>
+              <span className="edit-icon" onClick={() => setEditRouteModal(route)} title={t('clients.editRoute')}>✏️</span>
             </div>
           )}
         </div>
@@ -669,7 +666,7 @@ export default function ClientsRoutesView() {
               style={{ minHeight: '40px', background: snapshot.isDraggingOver ? 'rgba(0,0,0,0.02)' : 'transparent', borderRadius: '8px' }}
             >
               {routeClients.length === 0 ? (
-                <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', margin: '10px 0' }}>Brak klientów</div>
+                <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', margin: '10px 0' }}>{t('clients.noClients')}</div>
               ) : (
                 routeClients.map((client, index) => (
                   <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
@@ -690,10 +687,10 @@ export default function ClientsRoutesView() {
                         <span className="client-name">{client.name}</span>
                         <span
                           className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
-                          title={(client.lat && client.lng) ? 'ma GPS' : 'brak GPS'}
+                          title={(client.lat && client.lng) ? t('clients.hasGps') : t('clients.noGps')}
                         />
                         {isAdmin && (
-                          <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => setEditClient(client)}>Edytuj</span>
+                          <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => setEditClient(client)}>{t('clients.edit')}</span>
                         )}
                       </div>
                     )}
@@ -708,7 +705,7 @@ export default function ClientsRoutesView() {
         <div style={{ flex: 1 }} />
         <div className="divider" style={{ margin: '8px 0' }} />
         {isAdmin && (
-          <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>+ dodaj klienta</button>
+          <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>{t('clients.addClientBtn')}</button>
         )}
       </div>
     );
@@ -719,15 +716,15 @@ export default function ClientsRoutesView() {
       <div className="clients-routes-view">
         {isAdmin && (
           <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>＋ Nowa trasa</button>
-            <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>👨‍✈️ Trasy kierowców</button>
+            <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
+            <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
           </div>
         )}
 
         <div className="clients-hint" style={{ marginBottom: '16px' }}>
-          {isAdmin && <span>☰ Przeciągaj klientów między trasami &nbsp;·&nbsp;</span>}
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>ma GPS</span> &nbsp;·&nbsp;
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>brak GPS</span>
+          {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>{t('clients.hasGps')}</span> &nbsp;·&nbsp;
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
         </div>
 
         {groups.map((g, i) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
-import { getCurrentMonday, formatWeekKey, DAY_NAMES } from '../lib/dateUtils';
+import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
@@ -109,6 +110,7 @@ function groupPickupEntries(entries) {
 }
 
 export default function ScheduleView() {
+  const { t } = useTranslation();
   const rawData = useAppData();
   const { isAdmin, isDriver, user } = useAuth();
   const { entries, clients, routes, loading, error, refetch } = rawData;
@@ -126,8 +128,8 @@ export default function ScheduleView() {
   const [selectedRelatedEntries, setSelectedRelatedEntries] = useState([]);
   const [selectedEntryMode, setSelectedEntryMode] = useState('view');
   
-  if (loading) return <div className="loader">Ładowanie danych...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Błąd: {error}</div>;
+  if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
+  if (error) return <div style={{ padding: '20px', color: 'red' }}>{t('schedule.errorPrefix')} {error}</div>;
 
   const currentMonday = addDays(getCurrentMonday(), weekOffset * 7);
   const nextMonday = addDays(currentMonday, 7);
@@ -178,7 +180,7 @@ export default function ScheduleView() {
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         <span className="tag-name">{entry.client_name}</span>
         {!entry.isPickupGroup && entry.washed && (
-          <span className="kg-badge" title="Wyprane" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>🫧 uprane</span>
+          <span className="kg-badge" title={t('schedule.washed')} style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>{t('schedule.washedBadge')}</span>
         )}
         {entry.isPickupGroup && entryCount > 1 && <span className="kg-badge">{entryCount}x</span>}
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
@@ -192,7 +194,7 @@ export default function ScheduleView() {
   const renderGrid = (monday, weekKey) => {
     return (
       <div className="grid schedule-grid">
-        {DAY_NAMES.map((dayName, dayIndex) => {
+        {dayNamesFull().map((dayName, dayIndex) => {
           const dayDate = addDays(monday, dayIndex);
           const isToday = new Date().toDateString() === dayDate.toDateString();
           
@@ -210,25 +212,25 @@ export default function ScheduleView() {
               <div className="col-header">
                 <span className="col-date">{formatDate(dayDate)}</span>
                 <span className="col-day-name" style={{ flex: 1, textAlign: 'center' }}>{dayName}</span>
-                {isToday && <span className="today-pill">Dziś</span>}
+                {isToday && <span className="today-pill">{t('schedule.today')}</span>}
               </div>
-              
+
               <div className="metrics-row" style={{ marginBottom: '8px' }}>
                 <div className="metric-chip arr">
-                  <div className="metric-chip-label">Dostawa</div>
+                  <div className="metric-chip-label">{t('schedule.metricDelivery')}</div>
                   <div className="metric-chip-val">{sumArr > 0 ? sumArr.toFixed(1) : 0} kg</div>
                 </div>
                 <div className="metric-chip towash">
-                  <div className="metric-chip-label">Do prania</div>
+                  <div className="metric-chip-label">{t('schedule.metricToWash')}</div>
                   <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0} kg</div>
                 </div>
                 <div className="metric-chip wash">
-                  <div className="metric-chip-label">Odbiór</div>
+                  <div className="metric-chip-label">{t('schedule.metricPickup')}</div>
                   <div className="metric-chip-val">{sumPicked > 0 ? sumPicked.toFixed(1) : 0} kg</div>
                 </div>
               </div>
-              
-              <div className="sec-label">PRZYJAZD</div>
+
+              <div className="sec-label">{t('schedule.secArrival')}</div>
               <div className="sortable-arr schedule-list">
                 {arrived.map(entry => renderEntryTag(entry, 'arr'))}
               </div>
@@ -236,14 +238,14 @@ export default function ScheduleView() {
               {picked.length > 0 && (
                 <>
                   <div className="divider schedule-divider"></div>
-                  <div className="sec-label schedule-pick-label">ODBIÓR</div>
+                  <div className="sec-label schedule-pick-label">{t('schedule.secPickup')}</div>
                   <div className="sortable-pick schedule-list">
                     {pickupGroups.map(entry => renderEntryTag(entry, 'pick'))}
                   </div>
                 </>
               )}
               
-              {isAdmin && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>+ dodaj przyjazd</button>}
+              {isAdmin && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>{t('schedule.addArrival')}</button>}
             </div>
           )
         })}
@@ -255,7 +257,7 @@ export default function ScheduleView() {
     <div id="mainView">
       <div className="week-nav">
         <button className="week-nav-btn" onClick={() => setWeekOffset(weekOffset - 1)}>‹</button>
-        <div className="week-label" id="weekLabel">Widok 2 tygodni</div>
+        <div className="week-label" id="weekLabel">{t('schedule.twoWeekView')}</div>
         <button className="week-nav-btn" onClick={() => setWeekOffset(weekOffset + 1)}>›</button>
       </div>
 
@@ -265,7 +267,7 @@ export default function ScheduleView() {
       {renderGrid(currentMonday, week1Key)}
 
       <div className="section-heading" id="titleWk2" style={{ marginTop: '28px' }}>
-        📅 Następny tydzień: {formatDate(nextMonday)} – {formatDate(w2End)}
+        📅 {t('schedule.nextWeek')} {formatDate(nextMonday)} – {formatDate(w2End)}
       </div>
       {renderGrid(nextMonday, week2Key)}
 

@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
 import { loadMonthRoster } from '../lib/roster';
 import { toastError } from '../lib/toast';
+import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import * as XLSX from 'xlsx';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
-
-const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
-const DAY_NAMES = ['Nd','Pn','Wt','Śr','Cz','Pt','So'];
 
 const VALUE_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
@@ -86,6 +85,7 @@ function isPresent(value) {
 
 
 function ValuePicker({ selectedValue, onSelect, onCancel }) {
+  const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
   useEffect(() => { setCustomValue(''); }, [selectedValue]);
 
@@ -114,7 +114,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
           idx === 0 && [
             <input key="inna"
               value={customValue} onChange={e => setCustomValue(e.target.value)}
-              placeholder="Inna…"
+              placeholder={t('grafik.otherValue')}
               onKeyDown={e => { if (e.key === 'Enter' && customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }}
               style={{ width: '52px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
@@ -156,7 +156,10 @@ function formatDiff(diff) {
 }
 
 export default function GrafikView() {
+  const { t } = useTranslation();
   const { user, isAdmin, sessionToken } = useAuth();
+  const MONTH_NAMES = monthNames();
+  const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -248,7 +251,7 @@ export default function GrafikView() {
         if (previous !== undefined) next[key] = previous; else delete next[key];
         return next;
       });
-      toastError('Nie udało się zapisać grafiku');
+      toastError(t('grafik.saveError'));
     }
   };
 
@@ -287,8 +290,8 @@ export default function GrafikView() {
 
   const exportToExcel = () => {
     const wsData = [];
-    const headers = ['Pracownik', ...days.map(d => `${d}`), 'Σ godz', 'Norma', 'Różn.', 'L4', 'UW', 'NN'];
-    wsData.push([`${MONTH_NAMES[month - 1]} ${year}`, `Dni robocze: ${workingDays}`, `Norma: ${norm}h`]);
+    const headers = [t('grafik.employee'), ...days.map(d => `${d}`), t('grafik.excelSumHours'), t('grafik.excelNorm'), t('grafik.diffShort'), 'L4', 'UW', 'NN'];
+    wsData.push([`${MONTH_NAMES[month - 1]} ${year}`, `${t('grafik.workdays')} ${workingDays}`, `${t('grafik.norm')} ${norm}h`]);
     wsData.push([]);
     wsData.push(headers);
 
@@ -314,11 +317,11 @@ export default function GrafikView() {
     });
 
     wsData.push([]);
-    wsData.push(['Podsumowanie']);
-    const obecniRow = ['Obecni', ...days.map(d => employees.filter(e => isPresent(getValue(e, d))).length)];
+    wsData.push([t('grafik.excelSummary')]);
+    const obecniRow = [t('grafik.present'), ...days.map(d => employees.filter(e => isPresent(getValue(e, d))).length)];
     const l4Row = ['L4', ...days.map(d => countSymbol(employees, getValue, d, 'L4'))];
-    const uwRow = ['Urlopy (UW)', ...days.map(d => countSymbol(employees, getValue, d, 'UW'))];
-    const nnRow = ['Nieob. (NN)', ...days.map(d => countSymbol(employees, getValue, d, 'NN'))];
+    const uwRow = [t('grafik.excelVacations'), ...days.map(d => countSymbol(employees, getValue, d, 'UW'))];
+    const nnRow = [t('grafik.excelAbsences'), ...days.map(d => countSymbol(employees, getValue, d, 'NN'))];
     
     wsData.push(obecniRow);
     wsData.push(l4Row);
@@ -327,15 +330,15 @@ export default function GrafikView() {
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Grafik");
-    XLSX.writeFile(wb, `Grafik_${MONTH_NAMES[month-1]}_${year}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, t('grafik.sheetName'));
+    XLSX.writeFile(wb, `${t('grafik.fileName')}_${MONTH_NAMES[month-1]}_${year}.xlsx`);
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  if (loading) return <div className="loader">Ładowanie grafiku…</div>;
+  if (loading) return <div className="loader">{t('grafik.loading')}</div>;
 
   const btnStyle = { 
     background: 'var(--bg-card-solid)', 
@@ -378,7 +381,7 @@ export default function GrafikView() {
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button style={{ ...btnStyle, opacity: atMinMonth ? 0.4 : 1, cursor: atMinMonth ? 'not-allowed' : 'pointer' }} disabled={atMinMonth} onClick={prevMonth} onMouseOver={e=>{ if(!atMinMonth) e.currentTarget.style.background='var(--bg-secondary)'; }} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            <ChevronLeft size={16} /> Poprzedni
+            <ChevronLeft size={16} /> {t('grafik.prev')}
           </button>
           
           <div style={{ fontWeight: 800, fontSize: '18px', minWidth: '160px', textAlign: 'center', color: 'var(--text-primary)' }}>
@@ -386,27 +389,27 @@ export default function GrafikView() {
           </div>
           
           <button style={btnStyle} onClick={nextMonth} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            Następny <ChevronRight size={16} />
+            {t('grafik.next')} <ChevronRight size={16} />
           </button>
         </div>
 
         <div className="action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
             <Info size={14} />
-            <span>Dni robocze: <strong style={{color:'var(--text-primary)'}}>{workingDays}</strong> | Norma: <strong style={{color:'var(--text-primary)'}}>{norm} h</strong></span>
+            <span>{t('grafik.workdays')} <strong style={{color:'var(--text-primary)'}}>{workingDays}</strong> | {t('grafik.norm')} <strong style={{color:'var(--text-primary)'}}>{norm} h</strong></span>
           </div>
-          <button style={btnStyle} onClick={exportToExcel} title="Eksportuj do Excela" onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            <Download size={16} /> Excel
+          <button style={btnStyle} onClick={exportToExcel} title={t('grafik.exportExcelTitle')} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
+            <Download size={16} /> {t('grafik.excel')}
           </button>
-          <button style={btnStyle} onClick={handlePrint} title="Drukuj do PDF" onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            <Printer size={16} /> Drukuj
+          <button style={btnStyle} onClick={handlePrint} title={t('grafik.printTitle')} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
+            <Printer size={16} /> {t('grafik.print')}
           </button>
         </div>
       </div>
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['W','Wolne'],['UW','Urlop'],['L4','Choroba'],['NN','Nieob.'],['I','Planowany'],['END','Zakończono'],['8','Godz.'],['6-14','Od-Do (godz)']].map(([sym, label]) => {
+        {[['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['I',t('grafik.legend.I')],['END',t('grafik.legend.END')],['8',t('grafik.legend.hours')],['6-14',t('grafik.legend.range')]].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           const chipBg = st.pattern
             ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
@@ -436,7 +439,7 @@ export default function GrafikView() {
           <thead>
             <tr>
               <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '12px', color: '#555', borderRight: '1px solid #e8e8ec', fontSize: '11px' }}>
-                Pracownik
+                {t('grafik.employee')}
               </th>
               {days.map(d => {
                 const dateObj = new Date(year, month - 1, d);
@@ -457,9 +460,9 @@ export default function GrafikView() {
                   </th>
                 );
               })}
-              <th style={{ ...thBase, width: '44px', color: '#2e7d32', borderLeft: '2px solid #e8e8ec', fontSize: '10px' }}>Σ h</th>
-              <th style={{ ...thBase, width: '38px', color: '#888', fontSize: '10px' }}>Norm.</th>
-              <th style={{ ...thBase, width: '38px', color: '#c62828', fontSize: '10px' }}>Różn.</th>
+              <th style={{ ...thBase, width: '44px', color: '#2e7d32', borderLeft: '2px solid #e8e8ec', fontSize: '10px' }}>{t('grafik.sumH')}</th>
+              <th style={{ ...thBase, width: '38px', color: '#888', fontSize: '10px' }}>{t('grafik.normShort')}</th>
+              <th style={{ ...thBase, width: '38px', color: '#c62828', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
               <th style={{ ...thBase, width: '28px', color: '#f57f17', fontSize: '9px', borderLeft: '1px solid #e8e8ec' }}>L4</th>
               <th style={{ ...thBase, width: '28px', color: '#1565c0', fontSize: '9px' }}>UW</th>
               <th style={{ ...thBase, width: '28px', color: '#b71c1c', fontSize: '9px' }}>NN</th>
@@ -573,8 +576,8 @@ export default function GrafikView() {
 
             {/* Wiersze podsumowania */}
             {[
-              { label: 'Obecni', labelColor: '#fff', nameBg: '#1e3a5f', cellBgBase: '#243f6a', cellBgWe: '#1a3258', cellBgToday: '#2d5896', color: '#fff' },
-              { label: 'Godz. łącznie', labelColor: '#2e7d32', nameBg: '#f4fbf4', cellBgBase: '#f4fbf4', cellBgWe: '#edf6ed', cellBgToday: '#daf0da', color: '#2e7d32',
+              { label: t('grafik.present'), labelColor: '#fff', nameBg: '#1e3a5f', cellBgBase: '#243f6a', cellBgWe: '#1a3258', cellBgToday: '#2d5896', color: '#fff' },
+              { label: t('grafik.totalHours'), labelColor: '#2e7d32', nameBg: '#f4fbf4', cellBgBase: '#f4fbf4', cellBgWe: '#edf6ed', cellBgToday: '#daf0da', color: '#2e7d32',
                 fn: (d) => { const t = employees.reduce((s, e) => s + parseHours(getValue(e, d)), 0); return formatTotalHours(t); }
               }
             ].map(({ label, labelColor, nameBg, cellBgBase, cellBgWe, cellBgToday, color, fn }) => {
@@ -608,12 +611,12 @@ export default function GrafikView() {
       <div className="print-hide" style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap', background: '#f8f8f9', border: '1px solid #e8e8ec', borderRadius: '12px', padding: '10px 16px', fontSize: '10px', color: '#888' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#555', fontWeight: 500 }}>
           <span style={{ fontSize: '13px' }}>💡</span>
-          <span>Przedziały: <strong style={{ color: '#1565c0' }}>6-14</strong> &nbsp;|&nbsp; Ułamki: <strong style={{ color: '#2e7d32' }}>7.5</strong> lub <strong style={{ color: '#2e7d32' }}>7,5</strong></span>
+          <span>{t('grafik.tipRanges')} <strong style={{ color: '#1565c0' }}>6-14</strong> &nbsp;|&nbsp; {t('grafik.tipFractions')} <strong style={{ color: '#2e7d32' }}>7.5</strong> / <strong style={{ color: '#2e7d32' }}>7,5</strong></span>
         </div>
         <div style={{ width: '1px', background: '#ddd', alignSelf: 'stretch' }} />
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', color: '#999' }}>
           {[['10','0,17'],['15','0,25'],['20','0,33'],['30','0,50'],['40','0,67'],['45','0,75'],['50','0,83']].map(([min, val]) => (
-            <span key={min}>{min} min = <strong style={{ color: '#555' }}>{val}</strong></span>
+            <span key={min}>{min} {t('grafik.minUnit')} = <strong style={{ color: '#555' }}>{val}</strong></span>
           ))}
         </div>
       </div>
