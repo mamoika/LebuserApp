@@ -768,6 +768,7 @@ export default function TimelineView() {
                   </td>
                   {weekDays.map((d, di) => {
                     const dateStr = toDateStr(d);
+                    const isToday = dateStr === todayStr;
                     const roleData = summaries[dateStr]?.[role] || {};
                     const totalOs = new Set(Object.values(roleData).flatMap(x => [...x.os])).size;
                     const totalGodz = Object.values(roleData).reduce((s, x) => s + x.godz, 0);
