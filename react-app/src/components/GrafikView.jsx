@@ -121,10 +121,10 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               value={customValue} onChange={e => setCustomValue(e.target.value)}
               onFocus={e => e.target.select()}
               placeholder={t('grafik.otherValue')}
-              onKeyDown={e => { if (e.key === 'Enter' && customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }}
+              onKeyDown={e => { if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); } }}
               style={{ width: '64px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
-            <button key="ok" onClick={() => { if (customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }} style={{
+            <button key="ok" onClick={() => { onSelect(customValue.trim()); setCustomValue(''); }} style={{
               background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', padding: '4px 4px'
             }}>OK</button>,
             <div key="sep" style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />,
