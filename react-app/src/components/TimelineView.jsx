@@ -667,8 +667,13 @@ export default function TimelineView() {
           <tbody style={{ borderTop: '4px solid var(--border-strong)' }}>
             <tr className="tl-summary-header">
               <th className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', height: '100%', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800 }}>
-                  {t('timeline.sum')}
+                <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', color: 'var(--text-primary)', fontSize: '12px', fontWeight: 700 }}>
+                    {t('timeline.sum')}
+                  </div>
+                  <div style={{ width: '44px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-secondary)', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, borderLeft: '1px solid var(--border)' }}>
+                    {t('timeline.sumHours')}
+                  </div>
                 </div>
               </th>
               {weekDays.map((d, di) => {
@@ -693,11 +698,11 @@ export default function TimelineView() {
                 <tr key={role} style={{ background: rowBg, height: '32px' }}>
                   <td className="tl-sticky-col" style={{ background: r.bg, borderBottom: '1px solid rgba(0,0,0,0.1)', padding: 0, minWidth: '200px' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-                      <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>
-                        <span style={{ color: r.fc, fontSize: '12px', fontWeight: 800, flexShrink: 0 }}>{role}</span>
-                        <span style={{ fontSize: '10px', color: r.fc, fontWeight: 600, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden' }}>{t(`timeline.roles.${role}`)}</span>
+                      <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: r.fc, fontSize: '13px', fontWeight: 800, flexShrink: 0 }}>{role}</span>
+                        <span style={{ fontSize: '11px', color: r.fc, fontWeight: 600, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden' }}>{t(`timeline.roles.${role}`)}</span>
                       </div>
-                      <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.15)', color: r.fc, fontWeight: weekGodz ? 800 : 500, fontSize: '12px' }}>
+                      <div style={{ width: '44px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(255,255,255,0.15)', color: r.fc, fontWeight: weekGodz ? 800 : 500, fontSize: '12px' }}>
                         {weekGodz || '·'}
                       </div>
                     </div>
@@ -714,9 +719,38 @@ export default function TimelineView() {
                       </td>,
                       ...HOURS.map(h => {
                         const count = roleData[h];
+                        if (!count) {
+                          return (
+                            <td key={`h-${di}-${h}`} style={{ padding: 0, borderRight: '1px solid var(--border)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }} />
+                          );
+                        }
+
+                        const prevCount = roleData[h - 1];
+                        const nextCount = roleData[h + 1];
+                        const isFirst = prevCount !== count;
+                        const isLast = nextCount !== count;
+
                         return (
-                          <td key={`h-${di}-${h}`} style={{ textAlign: 'center', fontWeight: count ? 800 : 500, fontSize: '11px', color: count ? r.fc : 'var(--text-quaternary)', background: count ? r.bg : (isToday ? 'rgba(56,189,248,0.03)' : 'transparent'), borderRight: '1px solid var(--border)' }}>
-                            {count || ''}
+                          <td key={`h-${di}-${h}`} style={{ position: 'relative', padding: 0, borderRight: '1px solid var(--border)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
+                            <div style={{
+                              position: 'absolute',
+                              top: '3px',
+                              bottom: '3px',
+                              left: isFirst ? '3px' : '0px',
+                              right: isLast ? '3px' : '0px',
+                              background: r.bg,
+                              color: r.fc,
+                              borderRadius: `${isFirst ? '4px' : '0'} ${isLast ? '4px' : '0'} ${isLast ? '4px' : '0'} ${isFirst ? '4px' : '0'}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              zIndex: 1,
+                              boxShadow: isFirst && isLast ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                            }}>
+                              {count}
+                            </div>
                           </td>
                         );
                       })
