@@ -101,6 +101,56 @@ body{
   align-items:center;
   gap:8px;
 }
+.app-header-user {
+  min-width:0;
+}
+.app-header-user span {
+  max-width:150px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.lang-selector {
+  display:inline-flex;
+  align-items:center;
+  gap:2px;
+  padding:2px;
+  background:var(--bg-tertiary);
+  border:1px solid var(--border);
+  border-radius:10px;
+  box-shadow:var(--shadow-sm);
+  flex-shrink:0;
+}
+.lang-selector button {
+  min-width:38px;
+  min-height:30px;
+  padding:6px 11px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--text-secondary);
+  cursor:pointer;
+  font-family:var(--font);
+  font-size:13px;
+  font-weight:650;
+  line-height:1;
+  letter-spacing:0;
+  white-space:nowrap;
+  transition:background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.lang-selector button.is-active {
+  background:var(--accent);
+  color:#fff;
+  cursor:default;
+  font-weight:750;
+  box-shadow:0 2px 8px var(--accent-light);
+}
+.lang-selector-sm button {
+  min-width:32px;
+  min-height:26px;
+  padding:5px 8px;
+  font-size:12px;
+}
 .app-title {
   font-size:26px;
   font-weight:750;
@@ -331,6 +381,9 @@ body{
   font-weight:700;
   color:var(--text-primary);
   letter-spacing:0;
+}
+.schedule-mobile-range {
+  display:none;
 }
 
 /* ── SECTION HEADING ── */
@@ -1175,6 +1228,9 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   }
   .driver-trip-panel.is-finished {
     background: rgba(48,209,88,0.08);
+  }
+  .lang-selector {
+    background:rgba(255,255,255,0.06);
   }
 }
 @media (max-width: 600px), (max-device-width: 600px) {
@@ -2078,14 +2134,22 @@ html.phone-layout .app-header-top {
 }
 html.phone-layout .app-header-actions {
   display:grid;
-  grid-template-columns:minmax(0, 1fr) auto;
+  grid-template-columns:auto minmax(0, 1fr) auto;
   gap:8px;
   width:100%;
+  align-items:center;
 }
 html.phone-layout .app-header-actions .lang-selector {
-  grid-column:1 / -1;
-  justify-self:center;
+  grid-column:auto;
+  justify-self:start;
   margin-left:0;
+}
+html.phone-layout .app-header-user {
+  justify-self:end;
+  overflow:hidden;
+}
+html.phone-layout .app-header-user span {
+  max-width:170px;
 }
 html.phone-layout .app-header-actions .driver-btn,
 html.phone-layout .app-header-actions .admin-btn {
@@ -2132,6 +2196,7 @@ html.phone-layout .week-nav{
   z-index:10;
   margin-bottom:12px;
   padding:8px;
+  align-items:stretch;
 }
 html.phone-layout .week-nav-btn{
   width:36px;
@@ -2140,6 +2205,59 @@ html.phone-layout .week-nav-btn{
 }
 html.phone-layout .week-label{
   font-size:13px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+html.phone-layout .schedule-mobile-nav-center {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+html.phone-layout .schedule-mobile-date {
+  font-size:13px;
+  font-weight:800;
+  line-height:1;
+  color:var(--text-primary);
+}
+html.phone-layout .schedule-mobile-range {
+  display:flex;
+  justify-content:center;
+  gap:4px;
+  overflow-x:auto;
+  width:100%;
+  margin:0;
+  padding:0 1px 2px;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+html.phone-layout .schedule-mobile-range::-webkit-scrollbar {
+  display:none;
+}
+html.phone-layout .schedule-mobile-range button {
+  min-height:30px;
+  padding:6px 8px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--bg-card-solid);
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+  box-shadow:var(--shadow-sm);
+}
+html.phone-layout .schedule-mobile-range button.active {
+  border-color:transparent;
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 4px 12px var(--accent-light);
+}
+html.phone-layout .schedule-mobile-grid {
+  grid-template-columns:1fr;
 }
 html.phone-layout .section-heading{
   font-size:14px;
@@ -2256,14 +2374,36 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   }
   .app-header-actions {
     display:grid;
-    grid-template-columns:minmax(0, 1fr) auto;
+    grid-template-columns:auto minmax(0, 1fr) auto;
     gap:8px;
     width:100%;
+    align-items:center;
   }
   .app-header-actions .lang-selector {
-    grid-column:1 / -1;
-    justify-self:center;
+    grid-column:auto;
+    justify-self:start;
     margin-left:0;
+  }
+  .app-header-user {
+    justify-self:end;
+    overflow:hidden;
+  }
+  .app-header-user span {
+    max-width:170px;
+  }
+  .lang-selector {
+    border-radius:9px;
+    padding:2px;
+    box-shadow:none;
+  }
+  .lang-selector button,
+  .lang-selector-sm button {
+    min-width:31px;
+    min-height:28px;
+    padding:5px 7px;
+    border-radius:7px;
+    font-size:11px;
+    font-weight:750;
   }
   .app-header-actions .driver-btn,
   .app-header-actions .admin-btn {
@@ -2284,9 +2424,59 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   .tab-btn{min-width:0;width:100%;min-height:34px;padding:7px 8px;font-size:12px;gap:5px}
   .tab-btn .tab-icon{font-size:13px}
   #btnViewStaff{grid-column:1 / -1}
-  .week-nav{position:sticky;top:6px;z-index:10;margin-bottom:12px;padding:8px}
+  .week-nav{position:sticky;top:6px;z-index:10;margin-bottom:12px;padding:8px;align-items:stretch}
   .week-nav-btn{width:36px;height:36px;font-size:20px}
-  .week-label{font-size:13px}
+  .week-label{font-size:13px;display:flex;align-items:center;justify-content:center}
+  .schedule-mobile-nav-center {
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    min-width:0;
+  }
+  .schedule-mobile-date {
+    font-size:13px;
+    font-weight:800;
+    line-height:1;
+    color:var(--text-primary);
+  }
+  .schedule-mobile-range {
+    display:flex;
+    justify-content:center;
+    gap:4px;
+    overflow-x:auto;
+    width:100%;
+    margin:0;
+    padding:0 1px 2px;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .schedule-mobile-range::-webkit-scrollbar {
+    display:none;
+  }
+  .schedule-mobile-range button {
+    min-height:30px;
+    padding:6px 8px;
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:var(--bg-card-solid);
+    color:var(--text-secondary);
+    font-family:var(--font);
+    font-size:11px;
+    font-weight:750;
+    white-space:nowrap;
+    box-shadow:var(--shadow-sm);
+  }
+  .schedule-mobile-range button.active {
+    border-color:transparent;
+    background:var(--accent);
+    color:#fff;
+    box-shadow:0 4px 12px var(--accent-light);
+  }
+  .schedule-mobile-grid {
+    grid-template-columns:1fr;
+  }
   .section-heading{font-size:14px;margin:14px 0 8px 2px}
   .grid{grid-template-columns:1fr;gap:10px}
   .col{min-height:0;padding:10px 12px;gap:8px}

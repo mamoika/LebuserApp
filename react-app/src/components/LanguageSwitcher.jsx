@@ -11,21 +11,11 @@ export default function LanguageSwitcher({ size = 'md' }) {
     ? i18n.resolvedLanguage
     : i18n.language?.split('-')[0];
 
-  const pad = size === 'sm' ? '4px 8px' : '6px 12px';
-  const fontSize = size === 'sm' ? '12px' : '13px';
-
   return (
     <div
       role="group"
       aria-label={t('language.select')}
-      style={{
-        display: 'inline-flex',
-        gap: '2px',
-        padding: '2px',
-        background: 'var(--bg-muted, rgba(0,0,0,0.05))',
-        border: '1px solid var(--border)',
-        borderRadius: '10px',
-      }}
+      className={`lang-selector lang-selector-${size}`}
     >
       {SUPPORTED_LANGUAGES.map((lng) => {
         const active = current === lng;
@@ -35,19 +25,7 @@ export default function LanguageSwitcher({ size = 'md' }) {
             type="button"
             onClick={() => { if (!active) setLanguage(lng); }}
             aria-pressed={active}
-            style={{
-              padding: pad,
-              border: 'none',
-              borderRadius: '8px',
-              cursor: active ? 'default' : 'pointer',
-              background: active ? 'var(--accent)' : 'transparent',
-              color: active ? '#fff' : 'var(--text-secondary)',
-              fontFamily: 'var(--font)',
-              fontSize,
-              fontWeight: active ? 700 : 600,
-              letterSpacing: '0.3px',
-              transition: 'all 0.15s ease',
-            }}
+            className={active ? 'is-active' : ''}
           >
             {lng.toUpperCase()}
           </button>

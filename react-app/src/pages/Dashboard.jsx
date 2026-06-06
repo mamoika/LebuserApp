@@ -149,7 +149,7 @@ export default function Dashboard() {
         </div>
         <div className="app-header-actions">
           <LanguageSwitcher size="sm" />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+          <div className="app-header-user" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: isImpersonating ? '#FF9500' : 'var(--text-secondary)' }}>
               {user?.name}
             </span>
