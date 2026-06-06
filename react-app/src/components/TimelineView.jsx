@@ -238,12 +238,12 @@ const TimelineRow = React.memo(({
   return true;
 });
 
-const sumCellStyle = (val, color, isLast, borderColor = 'rgba(0,0,0,0.06)') => ({
+const sumCellStyle = (val, color, isLast, borderColor = 'rgba(0,0,0,0.06)', borderW = '1px') => ({
   flex: 1,
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  borderRight: isLast ? 'none' : `1px solid ${borderColor}`,
+  borderRight: isLast ? 'none' : `${borderW} solid ${borderColor}`,
   color: val ? color : 'rgba(0,0,0,0.12)',
   fontWeight: val ? 800 : 400,
   fontSize: val ? '12px' : '10px'
@@ -701,11 +701,12 @@ export default function TimelineView() {
                       </div>
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
+                        const displayName = gn.toUpperCase() === 'KIEROWCY' ? 'KIER' : gn;
                         return [
                           <div key={`${gn}-o`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(0,0,0,0.06)', background: `${gc}08` }}>
-                            <span style={{ fontSize: '10px', color: gc, fontWeight: 800, whiteSpace: 'nowrap' }}>{gn}</span>
+                            <span style={{ fontSize: '10px', color: gc, fontWeight: 800, whiteSpace: 'nowrap' }}>{displayName}</span>
                           </div>,
-                          <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: idx === groupNames.length - 1 ? 'none' : '1px solid rgba(0,0,0,0.06)', background: `${gc}08` }}>
+                          <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: idx === groupNames.length - 1 ? 'none' : '2px solid rgba(0,0,0,0.15)', background: `${gc}08` }}>
                             <span style={{ fontSize: '9px', color: gc, fontWeight: 700, opacity: 0.8 }}>{t('timeline.hoursShort')}</span>
                           </div>
                         ];
@@ -753,13 +754,13 @@ export default function TimelineView() {
                       <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border)' }}>
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                           <div style={sumCellStyle(totalOs, '#15803d', false)}>{totalOs || '·'}</div>
-                          <div style={sumCellStyle(totalGodz, '#15803d', false, 'rgba(0,0,0,0.15)')}>{totalGodz || '·'}</div>
+                          <div style={sumCellStyle(totalGodz, '#15803d', false, 'rgba(0,0,0,0.15)', '2px')}>{totalGodz || '·'}</div>
                           {groupNames.flatMap((gn, idx) => {
                             const gc = groups.find(g => g.g === gn)?.color || '#555';
                             const gd = roleData[gn];
                             return [
                               <div key={`${gn}-o`} style={sumCellStyle(gd?.os.size, gc, false)}>{gd?.os.size || '·'}</div>,
-                              <div key={`${gn}-g`} style={sumCellStyle(gd?.godz, gc, idx === groupNames.length - 1)}>{gd?.godz || '·'}</div>
+                              <div key={`${gn}-g`} style={sumCellStyle(gd?.godz, gc, idx === groupNames.length - 1, 'rgba(0,0,0,0.15)', '2px')}>{gd?.godz || '·'}</div>
                             ];
                           })}
                         </div>
@@ -805,7 +806,7 @@ export default function TimelineView() {
                   <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid rgba(255,255,255,0.1)', background: '#0f172a' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       <div style={sumCellStyle(allOs.size, '#4ade80', false, 'rgba(255,255,255,0.08)')}>{allOs.size || '·'}</div>
-                      <div style={sumCellStyle(allGodz, '#4ade80', false, 'rgba(255,255,255,0.2)')}>{allGodz || '·'}</div>
+                      <div style={sumCellStyle(allGodz, '#4ade80', false, 'rgba(255,255,255,0.2)', '2px')}>{allGodz || '·'}</div>
                       {groupNames.flatMap((gn, idx) => {
                         const gm = groups.find(g => g.g === gn)?.members || [];
                         const gOs = new Set(gm.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
@@ -813,7 +814,7 @@ export default function TimelineView() {
                         const isLast = idx === groupNames.length - 1;
                         return [
                           <div key={`${gn}-o`} style={sumCellStyle(gOs.size, '#4ade80', false, 'rgba(255,255,255,0.08)')}>{gOs.size || '·'}</div>,
-                          <div key={`${gn}-g`} style={sumCellStyle(gGodz, '#4ade80', isLast, 'rgba(255,255,255,0.08)')}>{gGodz || '·'}</div>
+                          <div key={`${gn}-g`} style={sumCellStyle(gGodz, '#4ade80', isLast, 'rgba(255,255,255,0.2)', '2px')}>{gGodz || '·'}</div>
                         ];
                       })}
                     </div>
