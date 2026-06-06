@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
-import { routeBadgeStyle } from '../lib/visualSystem';
+import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
 import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
@@ -1992,12 +1992,13 @@ export default function DriverRouteView({ manageMode = false }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {allRoutes.map((r, i) => {
               const active = selectedRoutes.has(r.id);
+              const rColor = getRouteColorByDisplay(i + 1);
               return (
                 <button key={r.id} onClick={() => toggleRoute(r.id)} style={{
                   padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
-                  border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                  background: active ? 'var(--accent-light)' : 'var(--bg-card)',
-                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                  border: `2px solid ${active ? rColor : 'var(--border)'}`,
+                  background: active ? `${rColor}14` : 'var(--bg-card)',
+                  color: active ? rColor : 'var(--text-secondary)',
                 }}>T{i + 1} {r.name}</button>
               );
             })}
