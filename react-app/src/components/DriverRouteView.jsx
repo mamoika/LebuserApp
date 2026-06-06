@@ -360,6 +360,7 @@ export default function DriverRouteView({ manageMode = false }) {
     kg: Number(sumWeight(v.entries).toFixed(1)),
     hasP: v.entries.some(e => (e.type || 'P') === 'P'),
     hasO: v.entries.some(e => e.type === 'O'),
+    hasR: v.entries.some(e => e.type === 'R'),
   }));
 
   const getTripStops = (sourceTrip) => {
@@ -1361,6 +1362,7 @@ export default function DriverRouteView({ manageMode = false }) {
       kg: Number(sumWeight(v.entries).toFixed(1)),
       hasP: v.entries.some(e => (e.type || 'P') === 'P'),
       hasO: v.entries.some(e => e.type === 'O'),
+      hasR: v.entries.some(e => e.type === 'R'),
     }));
     const canAddStop = isAdmin && t.status === 'active' && !t.isVirtual;
     return (
@@ -1411,9 +1413,9 @@ export default function DriverRouteView({ manageMode = false }) {
                   }}>
                     <RouteBadge id={c.route_id} />
                     <span style={{ flex: 1 }}>{c.client_name}</span>
-                    {(c.hasP || c.hasO) && (
-                      <span className={`laundry-type-badge ${c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
-                        {c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
+                    {(c.hasP || c.hasO || c.hasR) && (
+                      <span className={`laundry-type-badge ${c.hasR ? 'type-R' : c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
+                        {c.hasR ? 'R' : c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
                       </span>
                     )}
                     {c.kg > 0 && <span className="kg-badge">{c.kg} kg</span>}
@@ -1477,10 +1479,10 @@ export default function DriverRouteView({ manageMode = false }) {
                     <div className="driver-dirty-heading">Brudne pranie do pralni</div>
                     <div className="driver-dirty-list">
                       {arrivals.map(a => (
-                        <div key={a.id} className={`driver-arrival-chip ${a.type === 'O' ? 'type-O' : 'type-P'}`}>
+                        <div key={a.id} className={`driver-arrival-chip ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>
                           <span className="driver-arrival-label">
-                            <span className={`laundry-type-badge ${a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'O' ? 'O' : 'P'}</span>
-                            {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
+                            <span className={`laundry-type-badge ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'R' ? 'R' : a.type === 'O' ? 'O' : 'P'}</span>
+                            {a.type === 'R' ? 'Odzież robocza' : a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
                           </span>
                         </div>
                       ))}
@@ -1612,7 +1614,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
             <label style={pfLabel}>Trasa</label>
             <select className="ap-input" value={d.routeId || ''} onChange={e => setPlanField('routeId', e.target.value)} style={{ marginBottom: '12px' }}>
-              {sortedRoutes.map(r => <option key={r.id} value={r.id}>T{routeMap[r.id]?.num || r.sort_order || r.id} · {r.name}</option>)}
+              {sortedRoutes.map(r => <option key={r.id} value={r.id}>T{routeMap[r.id]?.num || r.sort_order || r.id} · ${r.name}</option>)}
             </select>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
@@ -1621,6 +1623,7 @@ export default function DriverRouteView({ manageMode = false }) {
                 <select className="ap-input" value={d.type || 'P'} onChange={e => setPlanField('type', e.target.value)}>
                   <option value="P">Pościel</option>
                   <option value="O">Obrusy</option>
+                  <option value="R">Odzież robocza</option>
                 </select>
               </div>
               <div>
@@ -2175,10 +2178,10 @@ export default function DriverRouteView({ manageMode = false }) {
                           return (
                             <div key={a.id}>
                               {/* wiersz: label + przyciski edycja/usuń */}
-                              <div className={`driver-arrival-chip ${a.type === 'O' ? 'type-O' : 'type-P'}`}>
+                              <div className={`driver-arrival-chip ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>
                                 <span className="driver-arrival-label">
-                                  <span className={`laundry-type-badge ${a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'O' ? 'O' : 'P'}</span>
-                                  {a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
+                                  <span className={`laundry-type-badge ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'R' ? 'R' : a.type === 'O' ? 'O' : 'P'}</span>
+                                  {a.type === 'R' ? 'Odzież robocza' : a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
                                 </span>
                                 {/* Edytuj */}
                                 <button
@@ -2189,7 +2192,7 @@ export default function DriverRouteView({ manageMode = false }) {
                                 {/* Usuń */}
                                 <button
                                   onClick={async () => {
-                                    if (!window.confirm(`Usunąć: ${a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
+                                    if (!window.confirm(`Usunąć: ${a.type === 'R' ? 'Odzież robocza' : a.type === 'O' ? 'Obrusy' : 'Pościel'}${a.weight ? ' ' + a.weight + ' kg' : ''}?`)) return;
                                     try {
                                       setBusy(true);
                                       const { data, error } = await supabase.rpc('driver_soft_delete_entry', {
@@ -2249,9 +2252,9 @@ export default function DriverRouteView({ manageMode = false }) {
                         }}>
                           <RouteBadge id={c.route_id} />
                           <span style={{ flex: 1 }}>{c.client_name}</span>
-                          {(c.hasP || c.hasO) && (
-                            <span className={`laundry-type-badge ${c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
-                              {c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
+                          {(c.hasP || c.hasO || c.hasR) && (
+                            <span className={`laundry-type-badge ${c.hasR ? 'type-R' : c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
+                              {c.hasR ? 'R' : c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
                             </span>
                           )}
                           {c.kg > 0 && <span className="kg-badge">{c.kg} kg</span>}

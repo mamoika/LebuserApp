@@ -726,9 +726,14 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   background: rgba(175,82,222,0.1);
   color: #AF52DE;
 }
+.laundry-type-badge.type-R {
+  background: rgba(255,149,0,0.1);
+  color: #FF9500;
+}
 @media(prefers-color-scheme:dark){
   .laundry-type-badge.type-P { background:rgba(10,132,255,0.2); color:#0A84FF; }
   .laundry-type-badge.type-O { background:rgba(191,90,242,0.2); color:#BF5AF2; }
+  .laundry-type-badge.type-R { background:rgba(255,159,10,0.2); color:#FF9F0A; }
 }
 
 .kg-badge, .kg-placeholder {
@@ -1095,6 +1100,10 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   background: rgba(175,82,222,0.10);
   border-color: rgba(175,82,222,0.16);
 }
+.driver-arrival-chip.type-R {
+  background: rgba(255,149,0,0.10);
+  border-color: rgba(255,149,0,0.16);
+}
 .driver-arrival-label {
   display: inline-flex;
   align-items: center;
@@ -1109,6 +1118,9 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 }
 .driver-arrival-chip.type-O .driver-arrival-label {
   color: #7B2CBF;
+}
+.driver-arrival-chip.type-R .driver-arrival-label {
+  color: #E68A00;
 }
 .driver-chip-icon-btn {
   width: 28px;
@@ -1274,11 +1286,18 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
     background: rgba(191,90,242,0.16);
     border-color: rgba(191,90,242,0.24);
   }
+  .driver-arrival-chip.type-R {
+    background: rgba(255,159,10,0.16);
+    border-color: rgba(255,159,10,0.24);
+  }
   .driver-arrival-chip.type-P .driver-arrival-label {
     color: #64B5FF;
   }
   .driver-arrival-chip.type-O .driver-arrival-label {
     color: #D7A0FF;
+  }
+  .driver-arrival-chip.type-R .driver-arrival-label {
+    color: #FFD426;
   }
   .driver-chip-icon-btn:hover {
     background: rgba(255,255,255,0.1);
@@ -1405,6 +1424,11 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   color: var(--accent-purple);
   box-shadow: 0 2px 6px rgba(175, 82, 222, 0.15);
 }
+.seg-btn.active.type-R {
+  background: rgba(255,149,0,0.1);
+  color: #FF9500;
+  box-shadow: 0 2px 6px rgba(255,149,0, 0.15);
+}
 @media(prefers-color-scheme:dark){
   .seg-btn.active.type-P {
     background: rgba(0, 122, 255, 0.2);
@@ -1414,6 +1438,11 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   .seg-btn.active.type-O {
     background: rgba(175, 82, 222, 0.2);
     color: #AF52DE;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  .seg-btn.active.type-R {
+    background: rgba(255, 159, 10, 0.2);
+    color: #FF9F0A;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   }
 }

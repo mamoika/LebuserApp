@@ -133,12 +133,13 @@ function AddRouteModal({ onClose, onSave }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [schedule, setSchedule] = useState('daily');
+  const [isWorkwear, setIsWorkwear] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave(name.trim(), schedule);
+    await onSave(name.trim(), schedule, isWorkwear);
     setSaving(false);
   };
 
@@ -168,6 +169,11 @@ function AddRouteModal({ onClose, onSave }) {
             {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
           </select>
 
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
+            <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+            Trasa dla Odzieży Roboczej
+          </label>
+
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
               {saving ? t('common.saving') : t('clients.addRoute')}
@@ -184,13 +190,14 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
   const { t } = useTranslation();
   const [name, setName] = useState(route.name);
   const [schedule, setSchedule] = useState(route.schedule || 'other');
+  const [isWorkwear, setIsWorkwear] = useState(!!route.is_workwear);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave(route.id, name.trim(), schedule);
+    await onSave(route.id, name.trim(), schedule, isWorkwear);
     setSaving(false);
   };
 
@@ -225,6 +232,11 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
           <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
             {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
           </select>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
+            <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+            Trasa dla Odzieży Roboczej
+          </label>
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
@@ -392,7 +404,7 @@ export default function ClientsRoutesView() {
 
   // ---- Route actions ----
 
-  const handleAddRoute = async (name, schedule) => {
+  const handleAddRoute = async (name, schedule, isWorkwear) => {
     try {
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
       const { data, error } = await supabase.rpc('admin_create_route', {
@@ -400,6 +412,7 @@ export default function ClientsRoutesView() {
         p_name: name,
         p_schedule: schedule,
         p_sort_order: maxSort + 1,
+        p_is_workwear: isWorkwear,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -410,13 +423,14 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveRoute = async (routeId, name, schedule) => {
+  const handleSaveRoute = async (routeId, name, schedule, isWorkwear) => {
     try {
       const { data, error } = await supabase.rpc('admin_update_route', {
         p_session_token: sessionToken,
         p_route_id: routeId,
         p_name: name,
         p_schedule: schedule,
+        p_is_workwear: isWorkwear,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -444,6 +458,31 @@ export default function ClientsRoutesView() {
       refetch();
     } catch (err) {
       toastError(t('clients.errDeleteRoute') + ' ' + err.message);
+    }
+  };
+
+  const moveRoute = async (route, direction) => {
+    const sorted = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const idx = sorted.findIndex(r => r.id === route.id);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= sorted.length) return;
+
+    const swapped = [...sorted];
+    [swapped[idx], swapped[newIdx]] = [swapped[newIdx], swapped[idx]];
+
+    const updates = swapped.map((r, i) => ({ id: r.id, sort_order: i + 1 }));
+
+    try {
+      const { data, error } = await supabase.rpc('admin_reorder_routes', {
+        p_session_token: sessionToken,
+        p_updates: updates,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      refetch();
+    } catch (err) {
+      toastError(t('clients.errSaveOrder') + ' ' + err.message);
     }
   };
 
@@ -651,7 +690,9 @@ export default function ClientsRoutesView() {
           )}
 
           {isAdmin && (
-            <div style={{ marginLeft: 'auto' }}>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+              <span className="edit-icon" onClick={() => moveRoute(route, -1)} title={t('clients.moveUp', 'W górę / W lewo')}>◀️</span>
+              <span className="edit-icon" onClick={() => moveRoute(route, 1)} title={t('clients.moveDown', 'W dół / W prawo')}>▶️</span>
               <span className="edit-icon" onClick={() => setEditRouteModal(route)} title={t('clients.editRoute')}>✏️</span>
             </div>
           )}

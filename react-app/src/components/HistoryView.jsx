@@ -288,8 +288,8 @@ export default function HistoryView() {
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.type === 'O' ? 'rgba(175,82,222,0.10)' : 'rgba(0,122,255,0.10)',
-                    color: e.type === 'O' ? '#AF52DE' : '#007AFF',
+                    background: e.type === 'R' ? 'rgba(255,149,0,0.10)' : e.type === 'O' ? 'rgba(175,82,222,0.10)' : 'rgba(0,122,255,0.10)',
+                    color: e.type === 'R' ? '#FF9500' : e.type === 'O' ? '#AF52DE' : '#007AFF',
                   }}>{e.type || 'P'}</span>
                   {isDeleted ? (
                     <span style={{

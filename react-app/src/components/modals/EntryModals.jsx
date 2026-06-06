@@ -94,7 +94,7 @@ function buildEditDiff(entry, updates, routes, t) {
   const dayLabel = v => days[v - 1] || '?';
   const fields = [
     { key: 'client_name',  label: t('entry.diffClient'),     fmt: v => (v ?? '') === '' ? '—' : String(v) },
-    { key: 'type',         label: t('entry.diffType'),       fmt: v => v === 'O' ? t('entry.tablecloths') : t('entry.sheets') },
+    { key: 'type',         label: t('entry.diffType'),       fmt: v => v === 'O' ? t('entry.tablecloths') : (v === 'R' ? t('entry.workwear') : t('entry.sheets')) },
     { key: 'weight',       label: t('entry.diffWeight'),     fmt: v => (v === null || v === undefined || v === '') ? '—' : `${v} kg` },
     { key: 'arr_day',      label: t('entry.diffArrival'),    fmt: dayLabel },
     { key: 'pick_day',     label: t('entry.diffPickup'),     fmt: dayLabel },
@@ -110,6 +110,11 @@ function buildEditDiff(entry, updates, routes, t) {
     }
   }
   return changes;
+}
+
+function isWorkwearRoute(routes, routeId) {
+  const route = (routes || []).find(r => r.id === routeId);
+  return route?.is_workwear === true;
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
@@ -149,13 +154,14 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       }
       if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
       const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day, clientRouteSchedule(clients, routes, initClient?.name));
+      const isWorkwear = isWorkwearRoute(routes, initClient?.route_id);
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
       setShowOtherRoutes(false);
       setClientName(initClient?.name || '');
       setWeight('');
-      setType(defaultType || 'P');
+      setType(isWorkwear ? 'R' : (defaultType || 'P'));
       setTrolleys(1);
       setUrgent(false);
       setExplicitRouteId('');
@@ -171,6 +177,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, nextClient?.name));
       setPickDay(pd);
       setPickWeek(pw);
+      setType(isWorkwearRoute(routes, nextClient?.route_id) ? 'R' : 'P');
     }
   }, [isOpen, showOtherRoutes, selectableClients, routes, clients, clientName, arrDay, defaultClientName]);
 
@@ -210,7 +217,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}` });
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'R' ? t('entry.workwear') : type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}` });
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
       onClose();
     } catch (err) {
@@ -246,9 +253,11 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                 value={clientName}
                 onChange={e => {
                   setClientName(e.target.value);
+                  const selectedClient = clients.find(c => c.name === e.target.value);
                   const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, e.target.value));
                   setPickDay(pd);
                   setPickWeek(pw);
+                  setType(isWorkwearRoute(routes, selectedClient?.route_id) ? 'R' : 'P');
                 }}
               >
                 {routes
@@ -300,10 +309,16 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
-          <div className="segmented-control" style={{ marginBottom: '12px' }}>
-            <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
-            <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
-          </div>
+          {isWorkwearRoute(routes, clients.find(c => c.name === clientName)?.route_id) ? (
+            <div className="segmented-control" style={{ marginBottom: '12px' }}>
+              <button type="button" className={`seg-btn type-R active`}>{t('entry.workwear')}</button>
+            </div>
+          ) : (
+            <div className="segmented-control" style={{ marginBottom: '12px' }}>
+              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
+              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
+            </div>
+          )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weightOptional')}</div>
           <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
@@ -403,11 +418,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const pickupArrivalDays = [...new Set(pickupEntries.map(e => daysFull[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
   const hasPickupSheets = pickupEntries.some(e => (e.type || 'P') === 'P');
   const hasPickupTablecloths = pickupEntries.some(e => e.type === 'O');
-  const pickupTypeLabel = hasPickupSheets && hasPickupTablecloths
-    ? t('entry.sheetsTablecloths')
-    : hasPickupTablecloths
-      ? t('entry.tablecloths')
-      : t('entry.sheets');
+  const hasPickupWorkwear = pickupEntries.some(e => e.type === 'R');
+  const pickupTypeLabel = hasPickupWorkwear ? t('entry.workwear') :
+    (hasPickupSheets && hasPickupTablecloths
+      ? t('entry.sheetsTablecloths')
+      : hasPickupTablecloths
+        ? t('entry.tablecloths')
+        : t('entry.sheets'));
   const directEditMode = contextMode === 'arr' && initiallyEditing;
   const showEditForm = canEdit && (editing || directEditMode);
 
@@ -419,6 +436,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, name));
       setPickDay(pd);
       setPickWeek(pw);
+      setType(isWorkwearRoute(routes, selected.route_id) ? 'R' : 'P');
     }
   };
 
@@ -470,7 +488,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: next ? 'washed' : 'unwashed',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: `${entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
+        details: `${entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
       });
       onUpdated();
       onClose();
@@ -570,7 +588,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         clientName: entry.client_name,
         entryId: entry.id,
         details: t('entry.logDeletedDetails', {
-          type: entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
+          type: entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
           arrival: daysFull[entry.arr_day - 1] || '?',
           pickup: daysFull[entry.pick_day - 1] || '?',
           weight: entry.weight ?? '—',
@@ -622,10 +640,16 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             )}
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
-            <div className="segmented-control" style={{ marginBottom: '14px' }}>
-              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
-              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
-            </div>
+            {isWorkwearRoute(routes, clients.find(c => c.name === clientName)?.route_id || routeId) ? (
+              <div className="segmented-control" style={{ marginBottom: '14px' }}>
+                <button type="button" className={`seg-btn type-R active`}>{t('entry.workwear')}</button>
+              </div>
+            ) : (
+              <div className="segmented-control" style={{ marginBottom: '14px' }}>
+                <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
+                <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
+              </div>
+            )}
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weight')}</div>
             <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
@@ -715,7 +739,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
           <ROW label={t('entry.status')} value={allPickupDone ? t('entry.pickedUpCheck') : t('entry.inProgress')} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
           <ROW label={t('entry.view')} value={isPickupContext ? t('entry.pickup') : contextMode === 'arr' ? t('entry.arrival') : t('entry.viewDetails')} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
-          <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')} />
+          <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')} />
           <ROW label={t('entry.weight')} value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
           {!isGroupedPickup && <ROW label={t('entry.trolleys')} value={entry.trolleys ?? 1} />}
           {isGroupedPickup && <ROW label={t('entry.entriesField')} value={t('entry.arrivalsCount', { count: pickupEntries.length })} />}
@@ -753,7 +777,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                       {daysFull[item.arr_day - 1]}
                       <span style={{ color: 'var(--text-tertiary)', fontWeight: 550 }}> · {item.added_by || '—'}</span>
                     </span>
-                    <span>{item.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}</span>
+                    <span>{item.type === 'R' ? t('entry.workwear') : item.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}</span>
                     <span>{item.weight ? `${item.weight} kg` : '—'}</span>
                   </div>
                 ))}

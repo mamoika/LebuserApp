@@ -217,7 +217,7 @@ export default function ScheduleView() {
     const routeId = entry.route_id || 1;
     const rIndex = routes.findIndex(r => r.id === routeId);
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
-    const typeBadgeClass = entry.type === 'O' ? 'type-O' : 'type-P';
+    const typeBadgeClass = entry.type === 'R' ? 'type-R' : entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
     const entryCount = relatedEntries.length;
