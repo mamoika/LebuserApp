@@ -129,7 +129,10 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               value={customValue} onChange={e => setCustomValue(e.target.value)}
               onFocus={e => e.target.select()}
               placeholder={t('grafik.otherValue')}
-              onKeyDown={e => { if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); } }}
+              onKeyDown={e => { 
+                if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); }
+                else if (e.key === 'Escape' && onCancel) { onCancel(); }
+              }}
               style={{ width: '64px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
             <button key="ok" onClick={() => { onSelect(customValue.trim()); setCustomValue(''); }} style={{
@@ -295,7 +298,6 @@ export default function GrafikView() {
     const emp = allEmps[empIdx];
     if (emp) saveCell(emp.id, day, val);
     setSelectedCell({ empIdx: Math.min(empIdx + 1, allEmps.length - 1), day });
-    containerRef.current?.focus();
   };
 
   const atMinMonth = year === 2026 && month === 1; // start: styczeń 2026
