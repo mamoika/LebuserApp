@@ -23,6 +23,9 @@ function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
   if (!v) return { bg: isWeekendOrHoliday ? '#f4f4f6' : '#fff', color: '#d1d5db', pattern: false };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
+  
+  if (parseHours(v) === 8) return VALUE_STYLE['8'];
+
   if (v.includes('-')) return { bg: '#dbeafe', color: '#1d4ed8', pattern: false };
   if (v.includes('+')) return { bg: '#fff7ed', color: '#c2410c', pattern: false };
   if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#fef3c7', color: '#b45309', pattern: false };
