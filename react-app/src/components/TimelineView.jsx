@@ -679,32 +679,33 @@ export default function TimelineView() {
           {/* Ciało tabeli: Podsumowanie */}
           <tbody style={{ borderTop: '4px solid var(--border-strong)' }}>
             <tr className="tl-summary-header">
-              <th className="tl-sticky-col" style={{ background: '#0f172a', padding: 0, minWidth: '200px', borderRight: '2px solid rgba(255,255,255,0.2)' }}>
+              <th className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: '1px solid rgba(0,0,0,0.08)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', color: '#cbd5e1', fontSize: '11px', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', color: 'var(--text-primary)', fontSize: '12px', fontWeight: 700, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                     {t('timeline.sum')}
                   </div>
-                  <div style={{ flex: 1, display: 'flex', background: '#1e293b' }}>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#38bdf8', fontSize: '10px', borderRight: '1px solid rgba(255,255,255,0.1)', fontWeight: 600 }}>{t('timeline.sumPersons')}</div>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#38bdf8', fontSize: '10px', fontWeight: 600 }}>{t('timeline.sumHours')}</div>
+                  <div style={{ flex: 1, display: 'flex', background: 'var(--bg-card-solid)' }}>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', borderRight: '1px solid rgba(0,0,0,0.05)', fontWeight: 600 }}>{t('timeline.sumPersons')}</div>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{t('timeline.sumHours')}</div>
                   </div>
                 </div>
               </th>
               {weekDays.map((d, di) => {
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: '#1e293b' }}>
+                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '1px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: '44px' }}>
                       
                       {/* TOP ROW: RAZEM, ZD 1, ZD 2, KIEROWCY */}
-                      <div style={{ display: 'flex', flex: 1, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ flex: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0f172a', color: '#fff', fontSize: '10px', fontWeight: 800, borderRight: '2px solid rgba(255,255,255,0.2)' }}>
-                          RAZEM / GESAMT
+                      <div style={{ display: 'flex', flex: 1, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ flex: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 700, borderRight: '1px solid rgba(0,0,0,0.08)' }}>
+                          RAZEM
                         </div>
                         {groupNames.map((gn, idx) => {
                           const gc = groups.find(g => g.g === gn)?.color || '#555';
                           return (
-                            <div key={gn} style={{ flex: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', background: gc, color: '#fff', fontSize: '10px', fontWeight: 800, borderRight: idx === groupNames.length - 1 ? 'none' : '2px solid rgba(255,255,255,0.2)' }}>
+                            <div key={gn} style={{ flex: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', color: gc, fontSize: '11px', fontWeight: 700, borderRight: idx === groupNames.length - 1 ? 'none' : '1px solid rgba(0,0,0,0.08)' }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: gc, marginRight: '6px' }} />
                               {gn.toUpperCase()}
                             </div>
                           );
@@ -713,20 +714,19 @@ export default function TimelineView() {
 
                       {/* BOTTOM ROW: Os. Godz. Os. Godz. */}
                       <div style={{ display: 'flex', flex: 1 }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(255,255,255,0.1)', color: '#38bdf8', fontSize: '10px', fontWeight: 700 }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(0,0,0,0.03)', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                           Os.
                         </div>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '2px solid rgba(255,255,255,0.2)', color: '#38bdf8', fontSize: '10px', fontWeight: 700 }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(0,0,0,0.08)', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                           Godz.
                         </div>
                         {groupNames.flatMap((gn, idx) => {
-                          const gc = groups.find(g => g.g === gn)?.color || '#555';
                           const isLast = idx === groupNames.length - 1;
                           return [
-                            <div key={`${gn}-o`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(255,255,255,0.1)', color: gc, fontSize: '10px', fontWeight: 700 }}>
+                            <div key={`${gn}-o`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid rgba(0,0,0,0.03)', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                               Os.
                             </div>,
-                            <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: isLast ? 'none' : '2px solid rgba(255,255,255,0.2)', color: gc, fontSize: '10px', fontWeight: 700 }}>
+                            <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: isLast ? 'none' : '1px solid rgba(0,0,0,0.08)', color: 'var(--text-tertiary)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                               Godz.
                             </div>
                           ];
@@ -773,16 +773,16 @@ export default function TimelineView() {
                     const totalGodz = Object.values(roleData).reduce((s, x) => s + x.godz, 0);
 
                     return (
-                      <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border)' }}>
+                      <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '1px solid var(--border)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                           <div style={sumCellStyle(totalOs, '#15803d', false)}>{totalOs || '·'}</div>
-                          <div style={sumCellStyle(totalGodz, '#15803d', false, 'rgba(0,0,0,0.15)', '2px')}>{totalGodz || '·'}</div>
+                          <div style={sumCellStyle(totalGodz, '#15803d', false, 'rgba(0,0,0,0.08)', '1px')}>{totalGodz || '·'}</div>
                           {groupNames.flatMap((gn, idx) => {
                             const gc = groups.find(g => g.g === gn)?.color || '#555';
                             const gd = roleData[gn];
                             return [
                               <div key={`${gn}-o`} style={sumCellStyle(gd?.os.size, gc, false)}>{gd?.os.size || '·'}</div>,
-                              <div key={`${gn}-g`} style={sumCellStyle(gd?.godz, gc, idx === groupNames.length - 1, 'rgba(0,0,0,0.15)', '2px')}>{gd?.godz || '·'}</div>
+                              <div key={`${gn}-g`} style={sumCellStyle(gd?.godz, gc, idx === groupNames.length - 1, 'rgba(0,0,0,0.08)', '1px')}>{gd?.godz || '·'}</div>
                             ];
                           })}
                         </div>
@@ -804,15 +804,15 @@ export default function TimelineView() {
                 }, 0);
 
                 return (
-                  <td className="tl-sticky-col" style={{ background: '#0f172a', padding: 0, minWidth: '200px' }}>
+                  <td className="tl-sticky-col" style={{ background: 'var(--bg-secondary)', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)', borderTop: '1px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-                      <div style={{ width: '120px', padding: '0 12px', display: 'flex', alignItems: 'center', color: '#f8fafc', fontWeight: 800, fontSize: '11px', letterSpacing: '0.5px', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ width: '120px', padding: '0 12px', display: 'flex', alignItems: 'center', color: 'var(--text-primary)', fontWeight: 800, fontSize: '12px', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
                         {t('timeline.total')}
                       </div>
-                      <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: wOs.size ? '#4ade80' : 'rgba(255,255,255,0.2)', fontWeight: 800, fontSize: '11px', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: wOs.size ? 'var(--text-primary)' : 'rgba(0,0,0,0.15)', fontWeight: 800, fontSize: '12px', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
                         {wOs.size || '·'}
                       </div>
-                      <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: wGodz ? '#4ade80' : 'rgba(255,255,255,0.2)', fontWeight: 800, fontSize: '11px', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: wGodz ? 'var(--text-primary)' : 'rgba(0,0,0,0.15)', fontWeight: 800, fontSize: '12px' }}>
                         {wGodz || '·'}
                       </div>
                     </div>
@@ -821,20 +821,21 @@ export default function TimelineView() {
               })()}
               {weekDays.map((d, di) => {
                 const dateStr = toDateStr(d);
+                const isToday = dateStr === todayStr;
                 const allOs = new Set(employees.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
                 const allGodz = employees.reduce((s, e) => s + HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                 
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid rgba(255,255,255,0.2)' }}>
+                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '1px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-secondary)', borderTop: '1px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       
                       {/* RAZEM */}
-                      <div style={{ flex: 2, display: 'flex', background: '#0f172a', borderRight: '2px solid rgba(255,255,255,0.2)' }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '12px', fontWeight: 800, borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                          {allOs.size || '—'}
+                      <div style={{ flex: 2, display: 'flex', borderRight: '1px solid rgba(0,0,0,0.08)' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800, borderRight: '1px solid rgba(0,0,0,0.04)' }}>
+                          {allOs.size || '·'}
                         </div>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '12px', fontWeight: 800 }}>
-                          {allGodz || '—'}
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800 }}>
+                          {allGodz || '·'}
                         </div>
                       </div>
 
@@ -847,12 +848,12 @@ export default function TimelineView() {
                         const isLast = idx === groupNames.length - 1;
                         
                         return (
-                          <div key={gn} style={{ flex: 2, display: 'flex', background: gc, borderRight: isLast ? 'none' : '2px solid rgba(255,255,255,0.2)' }}>
-                            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '12px', fontWeight: 800, borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-                              {gOs.size || '—'}
+                          <div key={gn} style={{ flex: 2, display: 'flex', borderRight: isLast ? 'none' : '1px solid rgba(0,0,0,0.08)' }}>
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: gc, fontSize: '13px', fontWeight: 800, borderRight: '1px solid rgba(0,0,0,0.04)' }}>
+                              {gOs.size || '·'}
                             </div>
-                            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '12px', fontWeight: 800 }}>
-                              {gGodz || '—'}
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: gc, fontSize: '13px', fontWeight: 800 }}>
+                              {gGodz || '·'}
                             </div>
                           </div>
                         );
