@@ -331,32 +331,36 @@ export default function ScheduleView() {
   return (
     <div id="mainView">
       <div className="week-nav">
-        <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v - 1) : setWeekOffset(weekOffset - 1)}>‹</button>
-        <div className="week-label" id="weekLabel">
-          {isPhone ? (
-            <div className="schedule-mobile-nav-center">
-              <span className="schedule-mobile-date">{isMobileCompact ? mobileWindowLabel : t('schedule.twoWeekView')}</span>
-              <div className="schedule-mobile-range" aria-label={t('schedule.mobileRange')}>
-                {[
-                  ['two', t('schedule.rangeTwoDays')],
-                  ['nearby', t('schedule.rangeNearby')],
-                  ['full', t('schedule.rangeFull')],
-                ].map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={mobileMode === mode ? 'active' : ''}
-                    onClick={() => setMobileMode(mode)}
-                    aria-pressed={mobileMode === mode}
-                  >
-                    {label}
-                  </button>
-                ))}
+        <div className="week-nav-row">
+          <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v - 1) : setWeekOffset(weekOffset - 1)}>‹</button>
+          <div className="week-label" id="weekLabel">
+            {isPhone ? (
+              <div className="schedule-mobile-nav-center">
+                <span className="schedule-mobile-date">{isMobileCompact ? mobileWindowLabel : t('schedule.twoWeekView')}</span>
               </div>
-            </div>
-          ) : t('schedule.twoWeekView')}
+            ) : t('schedule.twoWeekView')}
+          </div>
+          <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v + 1) : setWeekOffset(weekOffset + 1)}>›</button>
         </div>
-        <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v + 1) : setWeekOffset(weekOffset + 1)}>›</button>
+        {isPhone && (
+          <div className="schedule-mobile-range" aria-label={t('schedule.mobileRange')}>
+            {[
+              ['two', t('schedule.rangeTwoDays')],
+              ['nearby', t('schedule.rangeNearby')],
+              ['full', t('schedule.rangeFull')],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={mobileMode === mode ? 'active' : ''}
+                onClick={() => setMobileMode(mode)}
+                aria-pressed={mobileMode === mode}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {isMobileCompact ? (

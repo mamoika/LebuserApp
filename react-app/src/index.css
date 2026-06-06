@@ -96,6 +96,11 @@ body{
   align-items:center;
   gap:12px;
 }
+.app-brand-logo {
+  height:44px;
+  width:auto;
+  object-fit:contain;
+}
 .app-header-actions {
   display:flex;
   align-items:center;
@@ -351,29 +356,40 @@ body{
 .week-nav {
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:6px;
   margin-bottom:16px;
-  background:var(--bg-card-solid);
+  background:var(--bg-card);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
   border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);
-  padding:8px;
+  border-radius:var(--radius-xl);
+  padding:6px;
   box-shadow:var(--shadow-sm);
 }
 .week-nav-btn {
-  width:34px; height:34px;
+  width:38px; height:38px;
   display:flex;align-items:center;justify-content:center;
-  border-radius:var(--radius-sm);
-  border:0.5px solid var(--border-strong);
+  border-radius:12px;
+  border:none;
   background:var(--bg-tertiary);
-  color:var(--text-secondary);
+  color:var(--text-tertiary);
   font-size:18px;
+  font-weight:600;
   cursor:pointer;
-  transition:all 0.15s;
+  transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
   font-family:var(--font);
   line-height:1;
+  flex-shrink:0;
 }
-.week-nav-btn:hover{background:var(--accent);color:#fff;border-color:transparent}
-.week-nav-btn:active{transform:scale(0.92)}
+.week-nav-btn:hover{background:var(--accent);color:#fff;box-shadow:0 4px 12px var(--accent-light)}
+.week-nav-btn:active{transform:scale(0.9);opacity:0.85}
+.week-nav-row {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:1;
+  min-width:0;
+}
 .week-label {
   flex:1;
   text-align:center;
@@ -381,6 +397,7 @@ body{
   font-weight:700;
   color:var(--text-primary);
   letter-spacing:0;
+  min-width:0;
 }
 .schedule-mobile-range {
   display:none;
@@ -2129,6 +2146,9 @@ html.phone-layout .app-header{
   margin-bottom:12px;
   gap:10px;
 }
+html.phone-layout .app-brand-logo {
+  height:36px;
+}
 html.phone-layout .app-header-top {
   gap:10px;
 }
@@ -2191,46 +2211,81 @@ html.phone-layout #btnViewStaff, html.phone-layout #btnViewHelp{
   grid-column:1 / -1;
 }
 html.phone-layout .week-nav{
+  display:flex;
+  flex-direction:column;
+  gap:0;
   position:sticky;
   top:6px;
   z-index:10;
-  margin-bottom:12px;
-  padding:8px;
+  margin-bottom:14px;
+  padding:0;
   align-items:stretch;
+  background:var(--bg-card);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  border:0.5px solid var(--border);
+  border-radius:20px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03);
+  overflow:hidden;
+}
+html.phone-layout .week-nav-row {
+  display:flex;
+  align-items:center;
+  gap:0;
+  padding:8px 8px;
 }
 html.phone-layout .week-nav-btn{
-  width:36px;
-  height:36px;
+  width:40px;
+  height:40px;
+  min-height:40px;
+  flex-shrink:0;
+  border:0;
+  border-radius:12px;
+  background:transparent;
+  color:var(--text-tertiary);
   font-size:20px;
+  font-weight:500;
+  box-shadow:none;
+  transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+html.phone-layout .week-nav-btn:active{
+  background:rgba(118,118,128,0.12);
+  transform:scale(0.9);
 }
 html.phone-layout .week-label{
   font-size:13px;
   display:flex;
   align-items:center;
   justify-content:center;
+  min-width:0;
+  flex:1;
 }
 html.phone-layout .schedule-mobile-nav-center {
   width:100%;
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:6px;
+  gap:0;
   min-width:0;
 }
 html.phone-layout .schedule-mobile-date {
-  font-size:13px;
-  font-weight:800;
-  line-height:1;
+  font-size:16px;
+  font-weight:700;
+  line-height:1.2;
   color:var(--text-primary);
+  letter-spacing:-0.3px;
 }
 html.phone-layout .schedule-mobile-range {
   display:flex;
   justify-content:center;
-  gap:4px;
-  overflow-x:auto;
+  gap:0;
   width:100%;
   margin:0;
-  padding:0 1px 2px;
+  padding:0;
+  border:none;
+  border-top:0.5px solid var(--border);
+  border-radius:0;
+  background:transparent;
   scrollbar-width:none;
   -webkit-overflow-scrolling:touch;
 }
@@ -2238,23 +2293,41 @@ html.phone-layout .schedule-mobile-range::-webkit-scrollbar {
   display:none;
 }
 html.phone-layout .schedule-mobile-range button {
-  min-height:30px;
-  padding:6px 8px;
-  border:1px solid var(--border);
-  border-radius:9px;
-  background:var(--bg-card-solid);
-  color:var(--text-secondary);
+  flex:1;
+  min-height:36px;
+  padding:8px 4px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--text-tertiary);
   font-family:var(--font);
-  font-size:11px;
-  font-weight:750;
+  font-size:12px;
+  font-weight:600;
   white-space:nowrap;
-  box-shadow:var(--shadow-sm);
+  box-shadow:none;
+  transition:all 0.2s ease;
+  position:relative;
+}
+html.phone-layout .schedule-mobile-range button::after {
+  content:'';
+  position:absolute;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%) scaleX(0);
+  width:24px;
+  height:2.5px;
+  border-radius:2px;
+  background:var(--accent);
+  transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 html.phone-layout .schedule-mobile-range button.active {
-  border-color:transparent;
-  background:var(--accent);
-  color:#fff;
-  box-shadow:0 4px 12px var(--accent-light);
+  background:transparent;
+  color:var(--accent);
+  font-weight:700;
+  box-shadow:none;
+}
+html.phone-layout .schedule-mobile-range button.active::after {
+  transform:translateX(-50%) scaleX(1);
 }
 html.phone-layout .schedule-mobile-grid {
   grid-template-columns:1fr;
@@ -2372,6 +2445,9 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
     margin-bottom:12px;
     gap:10px;
   }
+  .app-brand-logo {
+    height:36px;
+  }
   .app-header-actions {
     display:grid;
     grid-template-columns:auto minmax(0, 1fr) auto;
@@ -2424,31 +2500,37 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   .tab-btn{min-width:0;width:100%;min-height:34px;padding:7px 8px;font-size:12px;gap:5px}
   .tab-btn .tab-icon{font-size:13px}
   #btnViewStaff{grid-column:1 / -1}
-  .week-nav{position:sticky;top:6px;z-index:10;margin-bottom:12px;padding:8px;align-items:stretch}
-  .week-nav-btn{width:36px;height:36px;font-size:20px}
-  .week-label{font-size:13px;display:flex;align-items:center;justify-content:center}
+  .week-nav{display:flex;flex-direction:column;gap:0;position:sticky;top:6px;z-index:10;margin-bottom:14px;padding:0;align-items:stretch;background:var(--bg-card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:0.5px solid var(--border);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,0.06),0 2px 8px rgba(0,0,0,0.03);overflow:hidden}
+  .week-nav-row{display:flex;align-items:center;gap:0;padding:8px 8px}
+  .week-nav-btn{width:40px;height:40px;min-height:40px;flex-shrink:0;border:0;border-radius:12px;background:transparent;color:var(--text-tertiary);font-size:20px;font-weight:500;box-shadow:none;transition:all 0.2s cubic-bezier(0.4,0,0.2,1)}
+  .week-nav-btn:active{background:rgba(118,118,128,0.12);transform:scale(0.9)}
+  .week-label{font-size:13px;display:flex;align-items:center;justify-content:center;min-width:0;flex:1}
   .schedule-mobile-nav-center {
     width:100%;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:6px;
+    gap:0;
     min-width:0;
   }
   .schedule-mobile-date {
-    font-size:13px;
-    font-weight:800;
-    line-height:1;
+    font-size:16px;
+    font-weight:700;
+    line-height:1.2;
     color:var(--text-primary);
+    letter-spacing:-0.3px;
   }
   .schedule-mobile-range {
     display:flex;
     justify-content:center;
-    gap:4px;
-    overflow-x:auto;
+    gap:0;
     width:100%;
     margin:0;
-    padding:0 1px 2px;
+    padding:0;
+    border:none;
+    border-top:0.5px solid var(--border);
+    border-radius:0;
+    background:transparent;
     scrollbar-width:none;
     -webkit-overflow-scrolling:touch;
   }
@@ -2456,23 +2538,41 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
     display:none;
   }
   .schedule-mobile-range button {
-    min-height:30px;
-    padding:6px 8px;
-    border:1px solid var(--border);
-    border-radius:9px;
-    background:var(--bg-card-solid);
-    color:var(--text-secondary);
+    flex:1;
+    min-height:36px;
+    padding:8px 4px;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    color:var(--text-tertiary);
     font-family:var(--font);
-    font-size:11px;
-    font-weight:750;
+    font-size:12px;
+    font-weight:600;
     white-space:nowrap;
-    box-shadow:var(--shadow-sm);
+    box-shadow:none;
+    transition:all 0.2s ease;
+    position:relative;
+  }
+  .schedule-mobile-range button::after {
+    content:'';
+    position:absolute;
+    bottom:0;
+    left:50%;
+    transform:translateX(-50%) scaleX(0);
+    width:24px;
+    height:2.5px;
+    border-radius:2px;
+    background:var(--accent);
+    transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
   }
   .schedule-mobile-range button.active {
-    border-color:transparent;
-    background:var(--accent);
-    color:#fff;
-    box-shadow:0 4px 12px var(--accent-light);
+    background:transparent;
+    color:var(--accent);
+    font-weight:700;
+    box-shadow:none;
+  }
+  .schedule-mobile-range button.active::after {
+    transform:translateX(-50%) scaleX(1);
   }
   .schedule-mobile-grid {
     grid-template-columns:1fr;

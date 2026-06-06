@@ -141,7 +141,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="app-header">
         <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
-          <img src={logoImg} alt="Logo LEBUSER" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
+          <img src={logoImg} alt="Logo LEBUSER" className="app-brand-logo" />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div className="app-title" style={{ fontSize: '22px' }}>{t(`pages.${pageKey}.title`)}</div>
             <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
