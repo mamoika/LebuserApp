@@ -607,6 +607,11 @@ export default function CostsView() {
     acc.h += (ts.ZD1?.hrs || 0) + (ts.ZD2?.hrs || 0) + (ts.Kierowcy?.hrs || 0);
     return acc;
   }, { zd1: 0, zd2: 0, pralki: 0, kg: 0, hZd1: 0, hZd2: 0, hKier: 0, h: 0 });
+  // Fix floating-point accumulation artifacts (e.g. 2384.6000000000004 → 2384.6)
+  perfTotals.zd1 = +perfTotals.zd1.toFixed(10);
+  perfTotals.zd2 = +perfTotals.zd2.toFixed(10);
+  perfTotals.pralki = +perfTotals.pralki.toFixed(10);
+  perfTotals.kg = +perfTotals.kg.toFixed(10);
 
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
   const avgPerDay = monthlyTotals.total / daysInMonth;
@@ -1447,7 +1452,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
       </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
-        <table className="costs-table" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="costs-table" style={{ width: '100%', minWidth: '820px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -1494,7 +1499,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={newTdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
-                  <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{t_suma > 0 ? t_suma : '—'}</td>
+                  <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{t_suma > 0 ? FMT1(t_suma) : '—'}</td>
                   {hoursTd(hZd1, ts.ZD1?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(hZd2, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(hKier, ts.Kierowcy?.emp?.size || 0, IOS_THEME.textPrimary)}
@@ -1509,10 +1514,10 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
           <tfoot>
             <tr className="costs-foot">
               <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.totalAvg')}</td>
-              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd1 || '—'}</td>
-              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd2 || '—'}</td>
-              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki || '—'}</td>
-              <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>{totals.kg || '—'}</td>
+              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd1 ? FMT1(totals.zd1) : '—'}</td>
+              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd2 ? FMT1(totals.zd2) : '—'}</td>
+              <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki ? FMT1(totals.pralki) : '—'}</td>
+              <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>{totals.kg ? FMT1(totals.kg) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd1 ? FMT1(totals.hZd1) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd2 ? FMT1(totals.hZd2) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hKier ? FMT1(totals.hKier) : '—'}</td>
