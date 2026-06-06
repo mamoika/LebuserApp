@@ -90,11 +90,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const PRESETS = ['8', 'W', 'UW', 'L4', 'NN', 'I', 'END'];
 
   useEffect(() => {
-    if (selectedValue && !PRESETS.includes(selectedValue)) {
-      setCustomValue(selectedValue);
-    } else {
-      setCustomValue('');
-    }
+    setCustomValue(selectedValue || '');
   }, [selectedValue]);
 
   return (
