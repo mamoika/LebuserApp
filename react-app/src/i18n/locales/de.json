@@ -302,6 +302,7 @@
       "I": "Geplant",
       "END": "Beendet",
       "hours": "Std.",
+      "plus": "Start (Std) + Arb.zeit (h)",
       "range": "Von-Bis (Std)"
     },
     "excelSumHours": "Σ Std",

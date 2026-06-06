@@ -34,7 +34,7 @@ function getCellStyle(value, isWeekendOrHoliday) {
 function cellFontSize(value) {
   const s = String(value || '');
   const longest = s.includes('+')
-    ? Math.max(...s.split('+').map((p, i) => (i === 0 ? p : '+' + p).length))
+    ? Math.max(...s.split('+').map((p, i) => (i === 0 ? p + '+' : p).length))
     : s.length;
   if (longest <= 3) return 11;
   if (longest <= 4) return 9.5;
@@ -47,7 +47,7 @@ function renderCellValue(value) {
   const s = String(value);
   if (s.includes('+')) {
     return s.split('+').map((p, i) => (
-      <div key={i} style={{ lineHeight: 1.05 }}>{i === 0 ? p : `+${p}`}</div>
+      <div key={i} style={{ lineHeight: 1.05 }}>{i === 0 ? `${p}+` : p}</div>
     ));
   }
   return s;
@@ -409,7 +409,7 @@ export default function GrafikView() {
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['I',t('grafik.legend.I')],['END',t('grafik.legend.END')],['8',t('grafik.legend.hours')],['6-14',t('grafik.legend.range')]].map(([sym, label]) => {
+        {[['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['I',t('grafik.legend.I')],['END',t('grafik.legend.END')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')]].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           const chipBg = st.pattern
             ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'

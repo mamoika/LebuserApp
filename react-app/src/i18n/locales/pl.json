@@ -306,6 +306,7 @@
       "I": "Planowany",
       "END": "Zakończono",
       "hours": "Godz.",
+      "plus": "Start (godz) + Praca (h)",
       "range": "Od-Do (godz)"
     },
     "excelSumHours": "Σ godz",
