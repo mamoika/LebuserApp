@@ -90,6 +90,7 @@ function isPresent(value) {
 function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
+  const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NN', 'END'];
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -112,7 +113,8 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
       boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
       display: 'flex', alignItems: 'center', gap: '5px',
     }}>
-      {[['8', getCellStyle('8', false)], ...['W','UW','L4','NN','I','END'].map(b => [b, getCellStyle(b, false)])].map(([b, st], idx) => {
+      {PRESETS.map((b, idx) => {
+        const st = getCellStyle(b, false);
         const isActive = selectedValue === b;
         const btnBg = st.pattern
           ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
@@ -430,7 +432,7 @@ export default function GrafikView() {
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['I',t('grafik.legend.I')],['END',t('grafik.legend.END')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')]].map(([sym, label]) => {
+        {[['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')],['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['I',t('grafik.legend.I')],['END',t('grafik.legend.END')]].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           const chipBg = st.pattern
             ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
