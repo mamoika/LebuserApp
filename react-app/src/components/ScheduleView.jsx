@@ -345,8 +345,8 @@ export default function ScheduleView() {
         {isPhone && (
           <div className="schedule-mobile-range" aria-label={t('schedule.mobileRange')}>
             {[
-              ['two', t('schedule.rangeTwoDays')],
               ['nearby', t('schedule.rangeNearby')],
+              ['two', t('schedule.rangeTwoDays')],
               ['full', t('schedule.rangeFull')],
             ].map(([mode, label]) => (
               <button
