@@ -372,6 +372,7 @@ export default function GrafikView() {
     <div className="grafik-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {isAdmin && selectedCell && (
         <ValuePicker
+          key={`${selectedCell.empIdx}-${selectedCell.day}`}
           selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
           onSelect={handlePickerSelect}
           onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
