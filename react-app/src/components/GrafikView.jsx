@@ -87,7 +87,15 @@ function isPresent(value) {
 function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
-  useEffect(() => { setCustomValue(''); }, [selectedValue]);
+  const PRESETS = ['8', 'W', 'UW', 'L4', 'NN', 'I', 'END'];
+
+  useEffect(() => {
+    if (selectedValue && !PRESETS.includes(selectedValue)) {
+      setCustomValue(selectedValue);
+    } else {
+      setCustomValue('');
+    }
+  }, [selectedValue]);
 
   return (
     <div className="print-hide" style={{
@@ -113,10 +121,12 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
           }}>{b}</button>,
           idx === 0 && [
             <input key="inna"
+              autoFocus
               value={customValue} onChange={e => setCustomValue(e.target.value)}
+              onFocus={e => e.target.select()}
               placeholder={t('grafik.otherValue')}
               onKeyDown={e => { if (e.key === 'Enter' && customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }}
-              style={{ width: '52px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
+              style={{ width: '64px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
             <button key="ok" onClick={() => { if (customValue.trim()) { onSelect(customValue.trim()); setCustomValue(''); } }} style={{
               background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', padding: '4px 4px'
