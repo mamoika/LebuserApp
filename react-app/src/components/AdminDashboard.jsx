@@ -8,6 +8,8 @@ import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import { currentLocale, monthNames } from '../lib/dateUtils';
+import { withRetry } from '../lib/fetchRetry';
+import DataError from './DataError';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
@@ -495,6 +497,7 @@ function EmployeesSection() {
   const [roster, setRoster] = useState([]);             // skład wybranego miesiąca (z nieaktywnymi)
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);             // null | 'new' | employee obj
   const [showAdd, setShowAdd] = useState(false);
   const now = new Date();
@@ -512,15 +515,21 @@ function EmployeesSection() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [{ data: empData }, { data: grpData }, rosterData] = await Promise.all([
-      supabase.from('employees').select('*').order('sort_order').order('name'),
-      supabase.from('groups').select('*').order('sort_order'),
-      loadMonthRoster(cur.year, cur.month, { includeInactive: true })
-    ]);
-    setAllEmployees(empData || []);
-    setGroups(grpData || []);
-    setRoster(rosterData || []);
-    setLoading(false);
+    try {
+      const [{ data: empData }, { data: grpData }, rosterData] = await withRetry(() => Promise.all([
+        supabase.from('employees').select('*').order('sort_order').order('name'),
+        supabase.from('groups').select('*').order('sort_order'),
+        loadMonthRoster(cur.year, cur.month, { includeInactive: true })
+      ]), { label: 'pracownicy' });
+      setAllEmployees(empData || []);
+      setGroups(grpData || []);
+      setRoster(rosterData || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [cur.year, cur.month]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -585,6 +594,7 @@ function EmployeesSection() {
   };
 
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('common.loading')}</div>;
+  if (error) return <DataError onRetry={fetchAll} />;
 
   const rosterIds = new Set(roster.map(r => r.id));
   const notInMonth = allEmployees.filter(e => !rosterIds.has(e.id));
@@ -772,18 +782,24 @@ export default function AdminDashboard() {
       return;
     }
     setLoading(true);
-    const [{ data, error }, { data: carsRow }] = await Promise.all([
-      supabase.rpc('get_all_users', { p_session_token: sessionToken }),
-      supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
-    ]);
-    if (error?.message === 'Invalid or expired session') {
-      signOut();
-      return;
+    try {
+      const [{ data, error }, { data: carsRow }] = await withRetry(() => Promise.all([
+        supabase.rpc('get_all_users', { p_session_token: sessionToken }),
+        supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
+      ]), { label: 'użytkownicy' });
+      if (error?.message === 'Invalid or expired session') {
+        signOut();
+        return;
+      }
+      if (error) throw new Error(error.message);
+      setUsers(data || []);
+      setDriverCars(carsRow?.value || {});
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    if (error) setError(error.message);
-    else setUsers(data || []);
-    setDriverCars(carsRow?.value || {});
-    setLoading(false);
   }, [isAdmin, sessionToken, signOut]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
@@ -851,7 +867,7 @@ export default function AdminDashboard() {
   };
 
   if (loading) return <div className="loader">{t('admin.loadingUsers')}</div>;
-  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>{t('common.error')}: {error}</div>;
+  if (error) return <DataError onRetry={fetchUsers} />;
 
   return (
     <div style={{ maxWidth: '600px' }}>
