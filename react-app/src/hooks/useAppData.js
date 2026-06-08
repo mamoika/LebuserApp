@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 
 // Ile czekamy na odpowiedź bazy, zanim uznamy zapytanie za zawieszone.
 const FETCH_TIMEOUT_MS = 15000;
@@ -31,6 +32,9 @@ export function useAppData() {
     let lastErr = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
+        const lastWeekDt = new Date(getCurrentMonday().getTime() - 7 * 86400000);
+        const lastWeekStr = formatWeekKey(lastWeekDt);
+
         const [
           { data: clients, error: clientsError },
           { data: routes, error: routesError },
@@ -39,7 +43,7 @@ export function useAppData() {
           Promise.all([
             supabase.from('clients').select('*').order('sort_order'),
             supabase.from('routes').select('*').order('sort_order'),
-            supabase.from('entries').select('*').is('deleted_at', null),
+            supabase.from('entries').select('*').is('deleted_at', null).or(`done.eq.false,week_key.gte.${lastWeekStr},pick_week_key.gte.${lastWeekStr}`),
           ]),
           FETCH_TIMEOUT_MS,
           'pobieranie danych'

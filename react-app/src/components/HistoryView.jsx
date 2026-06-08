@@ -117,7 +117,7 @@ export default function HistoryView() {
   useEffect(() => {
     const fetchEntries = async () => {
       setLoading(true);
-      let q = supabase.from('entries').select('*').order('added_at', { ascending: false });
+      let q = supabase.from('entries').select('*').order('added_at', { ascending: false }).limit(1500);
 
       // Kierowca widzi tylko swoje trasy
       if (isDriver && user?.routes) {
