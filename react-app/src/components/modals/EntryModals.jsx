@@ -411,6 +411,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const isPickupContext = contextMode === 'pick';
   const pickupEntries = isPickupContext && relatedEntries.length > 0 ? relatedEntries : [entry];
   const isGroupedPickup = isPickupContext && pickupEntries.length > 1;
+  // W widoku ODBIORÓW „entry" to syntetyczna grupa z id "pickup-..." (patrz
+  // groupPickupEntries w ScheduleView) — taki wiersz nie istnieje w bazie.
+  // Dla pojedynczego odbioru operujemy więc na PRAWDZIWYM wpisie, żeby edycja /
+  // usuwanie / „wyprane" trafiały w istniejący rekord (inaczej: „Nie znaleziono wpisu").
+  const targetEntry = isPickupContext && pickupEntries.length === 1 ? pickupEntries[0] : entry;
   const pickupTotalWeight = pickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const allPickupDone = pickupEntries.every(e => e.done);
   const pickedByNames = [...new Set(pickupEntries.map(e => e.picked_by).filter(Boolean))];
@@ -474,10 +479,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     const toggleWashed = async () => {
     try {
       setWashing(true);
-      const next = !entry.washed;
+      const next = !targetEntry.washed;
       const { data, error } = await supabase.rpc('admin_set_entry_washed', {
         p_session_token: sessionToken,
-        p_id: entry.id,
+        p_id: targetEntry.id,
         p_washed: next,
         p_by: user.name,
       });
@@ -486,9 +491,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       await logAction({
         sessionToken,
         action: next ? 'washed' : 'unwashed',
-        clientName: entry.client_name,
-        entryId: entry.id,
-        details: `${entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${entry.weight ? ', ' + entry.weight + ' kg' : ''}`,
+        clientName: targetEntry.client_name,
+        entryId: targetEntry.id,
+        details: `${targetEntry.type === 'R' ? t('entry.workwear') : targetEntry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${targetEntry.weight ? ', ' + targetEntry.weight + ' kg' : ''}`,
       });
       onUpdated();
       onClose();
@@ -502,10 +507,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     try {
       setLoading(true);
 
-      let pickWeekKey = entry.week_key;
-      if (pickWeek === 1) pickWeekKey = nextWeekKey(entry.week_key);
+      let pickWeekKey = targetEntry.week_key;
+      if (pickWeek === 1) pickWeekKey = nextWeekKey(targetEntry.week_key);
 
-      const nextRouteId = routeId || selectedClient?.route_id || entry.route_id || null;
+      const nextRouteId = routeId || selectedClient?.route_id || targetEntry.route_id || null;
 
       let updates = {
         client_name: clientName,
@@ -522,7 +527,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
       const { data: editData, error } = await supabase.rpc('admin_update_entry', {
         p_session_token: sessionToken,
-        p_id: entry.id,
+        p_id: targetEntry.id,
         p_client_name: clientName,
         p_type: type,
         p_arr_day: parseInt(arrDay),
@@ -546,7 +551,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         });
       }
       // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
-      const changes = buildEditDiff(entry, updates, routes, t);
+      const changes = buildEditDiff(targetEntry, updates, routes, t);
       // Śledź też zmianę komentarza klienta
       const currentClientNote2 = (clients || []).find(c => c.name === entry.client_name)?.note || '';
       if (comment !== (currentClientNote2 || '')) {
@@ -557,7 +562,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           sessionToken,
           action: 'edited',
           clientName: updates.client_name,
-          entryId: entry.id,
+          entryId: targetEntry.id,
           details: changes.join(', '),
         });
       }
@@ -577,7 +582,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       // dzięki czemu zostaje w historii i nic nie przepada.
       const { data, error } = await supabase.rpc('admin_soft_delete_entry', {
         p_session_token: sessionToken,
-        p_id: entry.id,
+        p_id: targetEntry.id,
         p_by: user.name,
       });
       if (error) throw error;
@@ -585,13 +590,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       await logAction({
         sessionToken,
         action: 'deleted',
-        clientName: entry.client_name,
-        entryId: entry.id,
+        clientName: targetEntry.client_name,
+        entryId: targetEntry.id,
         details: t('entry.logDeletedDetails', {
-          type: entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
-          arrival: daysFull[entry.arr_day - 1] || '?',
-          pickup: daysFull[entry.pick_day - 1] || '?',
-          weight: entry.weight ?? '—',
+          type: targetEntry.type === 'R' ? t('entry.workwear') : targetEntry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
+          arrival: daysFull[targetEntry.arr_day - 1] || '?',
+          pickup: daysFull[targetEntry.pick_day - 1] || '?',
+          weight: targetEntry.weight ?? '—',
         }),      });
       onDeleted();
       onClose();
