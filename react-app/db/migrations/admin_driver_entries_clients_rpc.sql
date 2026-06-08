@@ -71,7 +71,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   if nullif(trim(coalesce(p_id, '')), '') is null then
     return json_build_object('error', 'Brak id wpisu');
@@ -112,7 +112,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   update public.entries set
     client_name   = p_client_name,
@@ -147,7 +147,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   update public.entries set
     washed    = coalesce(p_washed, false),
@@ -178,7 +178,7 @@ as $$
 declare
   v_affected integer;
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   if p_ids is null or array_length(p_ids, 1) is null then
     return json_build_object('error', 'Brak wpisów');
@@ -209,7 +209,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   update public.entries set
     deleted_at = now(),
@@ -363,7 +363,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.require_admin(p_session_token);
+  perform * from public.require_driver(p_session_token);
 
   update public.clients set note = nullif(p_note, '') where name = p_name;
   return json_build_object('ok', true);

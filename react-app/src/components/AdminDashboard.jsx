@@ -594,7 +594,7 @@ function EmployeesSection() {
   };
 
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('common.loading')}</div>;
-  if (error) return <DataError onRetry={fetchAll} />;
+  if (error) return <DataError onRetry={fetchAll} error={error} />;
 
   const rosterIds = new Set(roster.map(r => r.id));
   const notInMonth = allEmployees.filter(e => !rosterIds.has(e.id));
@@ -867,7 +867,7 @@ export default function AdminDashboard() {
   };
 
   if (loading) return <div className="loader">{t('admin.loadingUsers')}</div>;
-  if (error) return <DataError onRetry={fetchUsers} />;
+  if (error) return <DataError onRetry={fetchUsers} error={error} />;
 
   return (
     <div style={{ maxWidth: '600px' }}>
