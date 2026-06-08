@@ -450,11 +450,13 @@ export default function TimelineView() {
   const nextWeek = () => setMonday(m => addDays(m, 7));
 
   const groups = useMemo(() => {
-    const grps = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
+    // Pracownicy w grupie sortowani alfabetycznie po nazwisku (locale PL).
+    const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+    const grps = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name).sort(byName) }))
       .filter(({ members }) => members.length > 0);
     const extraNames = [...new Set(employees.map(e => e.group_name))].filter(name => !groupData.find(g => g.name === name));
     extraNames.forEach(name => {
-      const m = employees.filter(e => e.group_name === name);
+      const m = employees.filter(e => e.group_name === name).sort(byName);
       if (m.length) grps.push({ g: name, color: '#455a64', members: m });
     });
     return grps;

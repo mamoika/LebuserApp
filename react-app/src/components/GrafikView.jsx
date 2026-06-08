@@ -228,12 +228,14 @@ export default function GrafikView() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const groups = useMemo(() => {
-    const res = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name) }))
+    // Pracownicy w grupie sortowani alfabetycznie po nazwisku (locale PL).
+    const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+    const res = groupData.map(g => ({ g: g.name, color: g.color, members: employees.filter(e => e.group_name === g.name).sort(byName) }))
       .filter(({ members }) => members.length > 0);
-    
+
     const extraNames = [...new Set(employees.map(e => e.group_name))].filter(name => !groupData.find(g => g.name === name));
     extraNames.forEach(name => {
-      const members = employees.filter(e => e.group_name === name);
+      const members = employees.filter(e => e.group_name === name).sort(byName);
       if (members.length) res.push({ g: name, color: '#455a64', members });
     });
     return res;
