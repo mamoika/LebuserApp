@@ -145,25 +145,48 @@ export default function MapView() {
           const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
           if (!hasGps) return null;
           return (
-            <button
-              key={route.id}
-              onClick={() => toggleRoute(route.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                background: hidden ? 'var(--bg-secondary)' : color + '18',
-                border: `${isOwnRoute ? '2.5px' : '1.5px'} solid ${hidden ? 'var(--border)' : color}`,
-                borderRadius: '20px', padding: '4px 10px',
-                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                color: hidden ? 'var(--text-tertiary)' : color,
-                opacity: hidden ? 0.6 : 1,
-                boxShadow: isOwnRoute && !hidden ? `0 0 0 2px ${color}22` : 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: hidden ? 'var(--text-tertiary)' : color, flexShrink: 0 }} />
-              {route.name}
-              {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>{t('map.yours')}</span>}
-            </button>
+              <div key={route.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button
+                  onClick={() => toggleRoute(route.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: hidden ? 'var(--bg-secondary)' : color + '18',
+                    border: `${isOwnRoute ? '2.5px' : '1.5px'} solid ${hidden ? 'var(--border)' : color}`,
+                    borderRadius: '20px', padding: '4px 10px',
+                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    color: hidden ? 'var(--text-tertiary)' : color,
+                    opacity: hidden ? 0.6 : 1,
+                    boxShadow: isOwnRoute && !hidden ? `0 0 0 2px ${color}22` : 'none',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: hidden ? 'var(--text-tertiary)' : color, flexShrink: 0 }} />
+                  {route.name}
+                  {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>{t('map.yours')}</span>}
+                </button>
+                {!hidden && (
+                  <button
+                    onClick={() => {
+                      const rc = clients.filter(c => c.route_id === route.id && c.lat && c.lng).sort((a, b) => a.sort_order - b.sort_order);
+                      if (rc.length === 0) return;
+                      const origin = `${BASE_LAT},${BASE_LNG}`;
+                      const dest = rc[rc.length - 1];
+                      const wps = rc.slice(0, -1).map(c => `${c.lat},${c.lng}`).join('|');
+                      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest.lat},${dest.lng}`;
+                      if (wps) url += `&waypoints=${wps}`;
+                      window.open(url, '_blank');
+                    }}
+                    title="Nawiguj całą trasę w Google Maps"
+                    style={{
+                      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                      borderRadius: '8px', padding: '4px 6px', fontSize: '13px',
+                      cursor: 'pointer', color: 'var(--text-primary)'
+                    }}
+                  >
+                    🗺️
+                  </button>
+                )}
+              </div>
           );
         })}
       </div>
@@ -205,8 +228,19 @@ export default function MapView() {
             const polyPoints = [
               [BASE_LAT, BASE_LNG],
               ...routeClients.map(c => [c.lat, c.lng]),
-              [BASE_LAT, BASE_LNG],
             ];
+
+            const openFullRouteInMaps = (e) => {
+              e.stopPropagation();
+              const origin = `${BASE_LAT},${BASE_LNG}`;
+              const dest = routeClients[routeClients.length - 1];
+              const destination = `${dest.lat},${dest.lng}`;
+              const wps = routeClients.slice(0, -1).map(c => `${c.lat},${c.lng}`).join('|');
+              
+              let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+              if (wps) url += `&waypoints=${wps}`;
+              window.open(url, '_blank');
+            };
 
             return (
               <span key={route.id}>
@@ -226,6 +260,16 @@ export default function MapView() {
                       <span style={{ color: '#888', fontSize: '11px' }}>
                         {Number(client.lat).toFixed(5)}, {Number(client.lng).toFixed(5)}
                       </span>
+                      <div style={{ marginTop: '10px' }}>
+                        <a 
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          style={{ display: 'inline-block', background: '#34C759', color: '#fff', padding: '6px 12px', borderRadius: '8px', textDecoration: 'none', fontSize: '12px', fontWeight: 600, boxShadow: '0 2px 8px rgba(52,199,89,0.3)' }}
+                        >
+                          📍 Nawiguj
+                        </a>
+                      </div>
                     </Popup>
                   </Marker>
                 ))}
