@@ -15,7 +15,9 @@
     "no": "Nie",
     "confirm": "Potwierdź",
     "error": "Błąd",
-    "saving": "Zapisywanie…"
+    "saving": "Zapisywanie…",
+    "loadFailed": "Nie udało się załadować danych.",
+    "retry": "Spróbuj ponownie"
   },
   "language": {
     "label": "Język",

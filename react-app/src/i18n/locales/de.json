@@ -15,7 +15,9 @@
     "no": "Nein",
     "confirm": "Bestätigen",
     "error": "Fehler",
-    "saving": "Wird gespeichert…"
+    "saving": "Wird gespeichert…",
+    "loadFailed": "Daten konnten nicht geladen werden.",
+    "retry": "Erneut versuchen"
   },
   "language": {
     "label": "Sprache",

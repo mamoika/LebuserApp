@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { useAppData } from '../hooks/useAppData';
+import DataError from './DataError';
 import { useAuth } from '../context/AuthContext';
 import { getRouteColorByIndex } from '../lib/visualSystem';
 
@@ -83,7 +84,7 @@ function FitBounds({ positions }) {
 
 export default function MapView() {
   const { t } = useTranslation();
-  const { clients, routes, loading } = useAppData();
+  const { clients, routes, loading, error, refetch } = useAppData();
   const { isDriver, user } = useAuth();
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [userPos, setUserPos] = useState(null);
@@ -113,6 +114,7 @@ export default function MapView() {
   ];
 
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
+  if (error) return <DataError onRetry={refetch} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: '400px' }}>

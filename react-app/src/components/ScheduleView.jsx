@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
+import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
@@ -168,7 +169,7 @@ export default function ScheduleView() {
   }, []);
   
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>{t('schedule.errorPrefix')} {error}</div>;
+  if (error) return <DataError onRetry={refetch} />;
 
   const currentMonday = addDays(getCurrentMonday(), weekOffset * 7);
   const nextMonday = addDays(currentMonday, 7);

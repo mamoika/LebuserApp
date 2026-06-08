@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
+import DataError from './DataError';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -400,7 +401,7 @@ export default function ClientsRoutesView() {
   }, [clients]);
 
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
-  if (error) return <div style={{ padding: '20px', color: 'var(--accent-red)' }}>{t('schedule.errorPrefix')} {error}</div>;
+  if (error) return <DataError onRetry={refetch} />;
 
   // ---- Route actions ----
 

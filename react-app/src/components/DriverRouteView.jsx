@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
+import DataError from './DataError';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
@@ -128,7 +129,7 @@ function workDateOptions(days = 14) {
 
 export default function DriverRouteView({ manageMode = false }) {
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
-  const { entries, allRoutes, clients, loading, refetch } = useAppData();
+  const { entries, allRoutes, clients, loading, error, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
   const [plannedTrip, setPlannedTrip] = useState(null); // zaplanowana przez admina trasa kierowcy (jeszcze nie ruszona)
@@ -1196,6 +1197,7 @@ export default function DriverRouteView({ manageMode = false }) {
     setTimeout(() => w.print(), 300);
   };
 
+  if (error) return <DataError onRetry={refetch} />;
   if (loading || tripLoading) return <div className="loader">Ładowanie trasy…</div>;
 
   const RouteBadge = ({ id }) => {
