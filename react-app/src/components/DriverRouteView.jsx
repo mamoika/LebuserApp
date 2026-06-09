@@ -225,8 +225,14 @@ export default function DriverRouteView({ manageMode = false }) {
       const carsSetting = (settings || []).find(s => s.key === DRIVER_CARS_KEY)?.value;
       const resolved = (settings || []).find(s => s.key === KM_RESOLVED_KEY)?.value;
       setKmResolvedIds(Array.isArray(resolved) ? resolved : []);
-      const ownToday = (trips || []).filter(t => t.driver_id === user?.id && t.trip_date === today);
-      const startedTrip = ownToday.find(t => t.status === 'active') || ownToday.find(t => t.status === 'finished') || null;
+      const ownTrips = trips || [];
+      const ownToday = ownTrips.filter(t => t.driver_id === user?.id && t.trip_date === today);
+      
+      // Znajdź dowolną aktywną trasę tego kierowcy, bez względu na to, którego dnia się zaczęła.
+      // Jeśli brak aktywnej, sprawdź czy jest już zakończona dzisiejsza trasa.
+      const activeTrip = ownTrips.find(t => t.driver_id === user?.id && t.status === 'active') || null;
+      const startedTrip = activeTrip || ownToday.find(t => t.status === 'finished') || null;
+      
       const plannedOwn = ownToday.find(t => t.status === 'planned') || null;
       setTrip(startedTrip);
       setPlannedTrip(plannedOwn);
