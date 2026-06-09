@@ -1216,7 +1216,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.heatingShort')}</span></th>
               {meterTh(<Droplet size={13}/>, t('costs.water'))}
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.water')}</span></th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}>{t('costs.people')}</th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}><span>Pracownicy</span><br/><span>{t('costs.cost')}</span></th>
               <th className="sticky-head" style={newThStyle}>{t('costs.other')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>{t('costs.total')}</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{t('costs.currencyPerKg')}</span></th>
             </tr>
@@ -1258,7 +1258,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
                   {valCell(costCellStyle('#4A148C'), FMT(c.gas_heat_cost), '')}
                   {reading(dStr, dt, 'water', c.water_usage, 'm³')}
                   {valCell(costCellStyle(CAT.water), FMT(c.water_cost), '')}
-                  {valCell(costCellStyle(CAT.workers), c.worker_cost > 0 ? FMT(c.worker_cost) : '—', '')}
+                  {valCell(costCellStyle(CAT.workers), c.worker_cost > 0 ? FMT(c.worker_cost) : '—', (laborHours[dStr] || 0) > 0 ? `${FMT1(laborHours[dStr])} h` : '')}
                   {valCell(newTdStyle,
                     <input type="text" inputMode="decimal" value={dt.other_costs ?? ''} onChange={(e) => onChange(dStr, 'other_costs', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
                     '')}
@@ -1290,7 +1290,10 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <td style={{ ...footTdStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.16), textAlign: 'center' }}>{FMT(totals.gasHeat)}</td>
               {footMeter(totals.m3Water, 'm³')}
               <td style={{ ...footTdStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.16), textAlign: 'center' }}>{FMT(totals.water)}</td>
-              <td style={{ ...footTdStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.16), textAlign: 'center' }}>{FMT(totals.workers)}</td>
+              <td style={{ ...footTdStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.16), textAlign: 'center' }}>
+                <div>{FMT(totals.workers)}</div>
+                <div style={{ fontSize: '10px', fontWeight: 700, opacity: 0.6, marginTop: '2px' }}>{(() => { const h = days.reduce((s, dStr) => s + (laborHours[dStr] || 0), 0); return h > 0 ? `${FMT1(h)} h` : ''; })()}</div>
+              </td>
               <td style={{ ...footTdStyle, color: IOS_THEME.textSecondary }}>{FMT(totals.other)}</td>
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
