@@ -297,6 +297,8 @@ export default function DriverRouteView({ manageMode = false }) {
     return true;
   };
 
+  const contextDate = trip ? trip.trip_date : today;
+
   const stopsMap = new Map();
   const ensureStop = (e) => {
     const key = e.client_name || '—';
@@ -309,11 +311,11 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   entries.filter(includeCleanEntryForCurrentTrip).forEach(e => {
-    if (pickupDateStr(e) !== today) return;
+    if (pickupDateStr(e) !== contextDate) return;
     ensureStop(e).entries.push(e);
   });
   entries.forEach(e => {
-    if (arrivalDateStr(e) !== today) return;
+    if (arrivalDateStr(e) !== contextDate) return;
     if (!includeEntry(e) && e.added_by !== user?.name) return;
     ensureStop(e).dirtyEntries.push(e);
   });
@@ -356,7 +358,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
-    if (pickupDateStr(e) === today && !e.done && !shownClients.has(e.client_name)) {
+    if (pickupDateStr(e) === contextDate && !e.done && !shownClients.has(e.client_name)) {
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
     }
@@ -2301,14 +2303,16 @@ export default function DriverRouteView({ manageMode = false }) {
           defaultType = (hasP && !hasO) ? 'O' : (hasO && !hasP) ? 'P' : (clientStop?.entries?.[0]?.type || 'P');
         }
 
+        const info = tripDateInfo(contextDate);
+
         return (
           <AddEntryModal
             isOpen={true}
             onClose={() => setAddEntryFor(null)}
-            defaultArrDay={todayArrDay}
+            defaultArrDay={info.arrDay}
             defaultClientName={addEntryFor || undefined}
             defaultType={defaultType}
-            weekKey={weekKey}
+            weekKey={info.weekKey}
             clients={clients.filter(c => c.route_id)}
             routes={allRoutes}
             onAdded={() => { setAddEntryFor(null); refetch(); }}
