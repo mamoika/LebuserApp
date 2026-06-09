@@ -260,19 +260,20 @@ export default function CostsView() {
     const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
     const dateTo = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
 
-    const [
-      { data: sets },
-      { data: costs },
-      { data: timeline },
-      { data: prevRows },
-      { data: emps }
-    ] = await Promise.all([
-      supabase.from('cost_settings').select('*').eq('month_key', monthKey).single(),
-      supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(150),
-      supabase.from('employees').select('id, group_name, default_start')
-    ]);
+    try {
+      const [
+        { data: sets },
+        { data: costs },
+        { data: timeline },
+        { data: prevRows },
+        { data: emps }
+      ] = await Promise.all([
+        supabase.from('cost_settings').select('*').eq('month_key', monthKey).maybeSingle(),
+        supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
+        supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
+        supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(150),
+        supabase.from('employees').select('id, group_name, default_start')
+      ]);
 
     // Grafik miesiąca — do ustalenia godziny startu każdej osoby w danym dniu (dla przerw)
     const { data: sched } = await supabase
@@ -356,8 +357,11 @@ export default function CostsView() {
       }
     });
     setTimelineStats(tStats);
-
-    setLoading(false);
+    } catch (err) {
+      console.error('Error fetching CostsView data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [currentDate, monthKey, canViewAdminData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
