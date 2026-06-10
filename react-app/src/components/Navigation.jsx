@@ -11,12 +11,11 @@ export default function Navigation() {
   // Dla kierowców: Moja trasa jest pierwsza
   if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
 
-  navItems.push({ to: '/', icon: '📅', label: t('nav.schedule') });
-
   navItems.push(
     { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
-    { to: '/history', icon: '📋', label: t('nav.history') },
+    { to: '/', icon: '📅', label: t('nav.schedule') },
+    { to: '/history', icon: '📋', label: t('nav.history') }
   );
 
   if (canViewAdminData) {

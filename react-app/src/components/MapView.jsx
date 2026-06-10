@@ -87,10 +87,28 @@ export default function MapView() {
   const { clients, routes, loading, error, refetch } = useAppData();
   const { isDriver, user } = useAuth();
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
+  const [initialized, setInitialized] = useState(false);
   const [userPos, setUserPos] = useState(null);
   const [darkMode, setDarkMode] = useState(
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
+
+  useEffect(() => {
+    if (routes.length > 0 && !initialized) {
+      const hidden = new Set();
+      const day = new Date().getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+      routes.forEach(r => {
+        const schedule = r.schedule || 'other';
+        let isActive = true;
+        if (schedule === 'mwf') isActive = [1, 3, 5].includes(day);
+        else if (schedule === 'tth') isActive = [2, 4].includes(day);
+        
+        if (!isActive) hidden.add(r.id);
+      });
+      setHiddenRoutes(hidden);
+      setInitialized(true);
+    }
+  }, [routes, initialized]);
 
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const assignedRouteIds = parseRouteIds(user?.routes);

@@ -1546,7 +1546,7 @@ export default function DriverRouteView({ manageMode = false }) {
                         rel="noopener noreferrer"
                         className={`stop-maps-btn ${(co?.lat != null && co?.lat !== '' && co?.lng != null && co?.lng !== '') ? '' : 'no-gps'}`}
                         title={(co?.lat != null && co?.lng != null && co?.lat !== '' && co?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
-                      >🗺️</a>
+                      >📍</a>
                     ); })()}
                     {kg > 0 && <span className="kg-badge driver-kg-badge">{kg} kg</span>}
                   </div>
@@ -2142,7 +2142,7 @@ export default function DriverRouteView({ manageMode = false }) {
                         className={`stop-maps-btn ${(clientObj?.lat != null && clientObj?.lat !== '' && clientObj?.lng != null && clientObj?.lng !== '') ? '' : 'no-gps'}`}
                         title={(clientObj?.lat != null && clientObj?.lng != null && clientObj?.lat !== '' && clientObj?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
                         onClick={e => e.stopPropagation()}
-                      >🗺️</a>
+                      >📍</a>
                     </div>
                     {pickupEntries.length > 0 && (
                       <div style={{ fontSize: '12px', color: 'var(--accent-green)', fontWeight: 700 }}>
@@ -2239,7 +2239,7 @@ export default function DriverRouteView({ manageMode = false }) {
                         rel="noopener noreferrer"
                         className={`stop-maps-btn ${(clientObj?.lat != null && clientObj?.lat !== '' && clientObj?.lng != null && clientObj?.lng !== '') ? '' : 'no-gps'}`}
                         title={(clientObj?.lat != null && clientObj?.lng != null && clientObj?.lat !== '' && clientObj?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
-                      >🗺️</a>
+                      >📍</a>
                       {/* Przycisk notatki */}
                       <button
                         onClick={() => toggleNoteEdit(stop.client_name, clientNote)}
