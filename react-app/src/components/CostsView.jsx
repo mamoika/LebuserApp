@@ -740,7 +740,7 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} />
+            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} />
           )}
 
           {activeTab === 'performance' && (
@@ -1163,7 +1163,7 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false }) {
+function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false, laborHours = {} }) {
   const { t } = useTranslation();
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label) => (
