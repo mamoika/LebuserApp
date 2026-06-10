@@ -52,6 +52,26 @@ function parseRouteIds(routesStr) {
   return new Set((routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean));
 }
 const sumWeight = arr => arr.reduce((s, e) => s + (parseFloat(e.weight) || 0), 0);
+
+// Kolejność klientów identyczna jak w „Klienci i Trasy": sort_order → nazwa → id.
+function sortClientsByOrder(a, b) {
+  const orderDiff = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+  if (orderDiff !== 0) return orderDiff;
+  const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+  if (nameDiff !== 0) return nameDiff;
+  return String(a.id).localeCompare(String(b.id));
+}
+
+// Link do nawigacji Google Maps. Z koordynatami klienta (lat/lng), a gdy ich
+// brak — wyszukanie po nazwie, żeby przycisk zawsze działał.
+function mapsUrlForClient(client, fallbackName) {
+  const lat = client?.lat;
+  const lng = client?.lng;
+  if (lat != null && lat !== '' && lng != null && lng !== '') {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackName || client?.name || '')}`;
+}
 // Domyślny dzień odbioru dla nowego przyjazdu (jak w harmonogramie, wariant 'other')
 function defaultPick(d) {
   if (d <= 3) return { pickDay: d + 2, pickWeek: 0 };
@@ -181,6 +201,45 @@ export default function DriverRouteView({ manageMode = false }) {
   const todayArrDay = Math.min(5, Math.max(1, (new Date().getDay() + 6) % 7 + 1)); // 1=Pn…5=Pt
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
 
+  // Kolejność i numeracja przystanków — taka sama jak w „Klienci i Trasy":
+  // trasy wg sort_order (allRoutes już posortowane), klienci wg sort_order
+  // w obrębie trasy. clientInfoByName: nazwa → { pos (1-based w trasie), client }.
+  const routeRankById = new Map(allRoutes.map((r, i) => [r.id, i]));
+  const clientInfoByName = new Map();
+  {
+    const byRoute = new Map();
+    clients.forEach(c => {
+      if (!byRoute.has(c.route_id)) byRoute.set(c.route_id, []);
+      byRoute.get(c.route_id).push(c);
+    });
+    byRoute.forEach(list => {
+      list.sort(sortClientsByOrder);
+      list.forEach((c, i) => clientInfoByName.set(c.name, { pos: i + 1, client: c }));
+    });
+  }
+  // Komparator przystanków: trasa wg rangi, klient wg pozycji w trasie.
+  const compareStops = (a, b) => {
+    const ra = routeRankById.has(a.route_id) ? routeRankById.get(a.route_id) : 9999;
+    const rb = routeRankById.has(b.route_id) ? routeRankById.get(b.route_id) : 9999;
+    if (ra !== rb) return ra - rb;
+    const pa = clientInfoByName.get(a.client_name)?.pos ?? 9999;
+    const pb = clientInfoByName.get(b.client_name)?.pos ?? 9999;
+    if (pa !== pb) return pa - pb;
+    return String(a.client_name || '').localeCompare(String(b.client_name || ''), 'pl');
+  };
+  // Numer klienta w kolejności trasy (jak w „Klienci i Trasy").
+  const stopOrderNum = (clientName) => clientInfoByName.get(clientName)?.pos ?? null;
+  const clientObjByName = (clientName) => clientInfoByName.get(clientName)?.client || clients.find(c => c.name === clientName) || null;
+
+  // Auta zajęte przez AKTYWNE trasy innych kierowców → key → imię kierowcy.
+  // Jedno auto nie może być na dwóch trasach naraz.
+  const carsInUse = new Map();
+  allTrips.forEach(t => {
+    if (t.status === 'active' && t.car && t.driver_id !== user?.id) {
+      carsInUse.set(t.car, t.driver_name || 'inny kierowca');
+    }
+  });
+
   const callTripRpc = async (fn, args = {}) => {
     const { data, error } = await supabase.rpc(fn, {
       p_session_token: sessionToken,
@@ -193,8 +252,10 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const loadTrips = useCallback(async () => {
     let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
-    // Nie-admin widzi własne trasy + pulę „do przejęcia" (handover) innych kierowców.
-    if (!canViewAdminData) q = q.or(`driver_id.eq.${user?.id},status.eq.handover`);
+    // Nie-admin widzi własne trasy + pulę „do przejęcia" (handover) + trasy
+    // aktywne (status.eq.active) — te ostatnie potrzebne, by wiedzieć, które
+    // auto jest już zajęte przez innego kierowcę i zablokować jego wybór.
+    if (!canViewAdminData) q = q.or(`driver_id.eq.${user?.id},status.eq.handover,status.eq.active`);
     const [{ data, error }, { data: costs }] = await Promise.all([
       q,
       supabase.from('daily_costs')
@@ -265,6 +326,19 @@ export default function DriverRouteView({ manageMode = false }) {
     setRouteView(manageMode ? 'history' : 'current');
   }, [manageMode]);
 
+  // Na ekranie startowym: jeśli wybrane auto jest już zajęte przez aktywną
+  // trasę innego kierowcy, przełącz wybór na pierwsze wolne.
+  useEffect(() => {
+    if (trip) return;
+    const occupied = new Set(
+      allTrips.filter(t => t.status === 'active' && t.driver_id !== user?.id && t.car).map(t => t.car)
+    );
+    if (occupied.has(selectedCar)) {
+      const free = VEHICLES.find(v => !occupied.has(v.key));
+      if (free) setSelectedCar(free.key);
+    }
+  }, [allTrips, trip, selectedCar, user?.id]);
+
   // Lista kierowców do przypisywania planowanych tras (tylko panel zarządzania).
   useEffect(() => {
     if (!manageMode || !sessionToken) return;
@@ -319,14 +393,9 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!includeEntry(e) && e.added_by !== user?.name) return;
     ensureStop(e).dirtyEntries.push(e);
   });
-  const driverRouteIds = parseRouteIds(user?.routes);
-  const stops = [...stopsMap.values()].sort((a, b) => {
-    // Trasy kierowcy zawsze pierwsze
-    const aOwn = driverRouteIds.has(a.route_id) ? 0 : 1;
-    const bOwn = driverRouteIds.has(b.route_id) ? 0 : 1;
-    if (aOwn !== bOwn) return aOwn - bOwn;
-    return (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl');
-  });
+  // Kolejność przystanków = jak w „Klienci i Trasy" (trasa wg sort_order,
+  // klient wg pozycji w trasie). Bez przesuwania własnych tras na początek.
+  const stops = [...stopsMap.values()].sort(compareStops);
   const pickedNotDeliveredStops = stops.filter(s =>
     (s.entries || []).some(e => e.done && e.picked_by === user?.name && !e.delivered)
   );
@@ -401,7 +470,7 @@ export default function DriverRouteView({ manageMode = false }) {
       if (routeIds.size > 0 && !routeIds.has(e.route_id) && !extrasSet.has(e.client_name) && e.added_by !== sourceTrip.driver_name) return;
       ensureTripStop(e).dirtyEntries.push(e);
     });
-    return [...map.values()].sort((a, b) => (a.route_id || 0) - (b.route_id || 0) || String(a.client_name).localeCompare(String(b.client_name), 'pl'));
+    return [...map.values()].sort(compareStops);
   };
 
   const getPickedBaskets = (stop) => {
@@ -543,6 +612,12 @@ export default function DriverRouteView({ manageMode = false }) {
 
   /* ── akcje ── */
   const startTrip = async () => {
+    // Blokada: auto już na aktywnej trasie innego kierowcy.
+    const occupiedBy = carsInUse.get(selectedCar);
+    if (occupiedBy) {
+      toastError(`Auto ${VEHICLE_LABELS[selectedCar] || selectedCar} jest już na trasie (${occupiedBy}). Wybierz inne auto.`);
+      return;
+    }
     try {
       setBusy(true);
       const data = await callTripRpc('driver_start_trip', {
@@ -1461,8 +1536,18 @@ export default function DriverRouteView({ manageMode = false }) {
               <div key={stop.key} className={`driver-stop-card ${deliveredDone ? 'is-delivered' : ''}`}>
                 <div className="driver-stop-header">
                   <div className="driver-stop-title-row">
+                    {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                     <RouteBadge id={stop.route_id} />
                     <span className="driver-client-name">{stop.client_name}</span>
+                    {(() => { const co = clientObjByName(stop.client_name); return (
+                      <a
+                        href={mapsUrlForClient(co, stop.client_name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`stop-maps-btn ${(co?.lat != null && co?.lat !== '' && co?.lng != null && co?.lng !== '') ? '' : 'no-gps'}`}
+                        title={(co?.lat != null && co?.lng != null && co?.lat !== '' && co?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
+                      >🗺️</a>
+                    ); })()}
                     {kg > 0 && <span className="kg-badge driver-kg-badge">{kg} kg</span>}
                   </div>
                 </div>
@@ -1987,13 +2072,19 @@ export default function DriverRouteView({ manageMode = false }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {VEHICLES.map(v => {
               const active = selectedCar === v.key;
+              const busyBy = carsInUse.get(v.key);
+              const locked = !!busyBy;
               return (
-                <button key={v.key} onClick={() => setSelectedCar(v.key)} style={{
-                  flex: '1 1 110px', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px',
-                  border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                  background: active ? 'var(--accent-light)' : 'var(--bg-card)',
-                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                }}>{v.label}{defaultCar === v.key ? ' ★' : ''}</button>
+                <button key={v.key} disabled={locked} onClick={() => { if (!locked) setSelectedCar(v.key); }} style={{
+                  flex: '1 1 110px', padding: '12px', borderRadius: '12px', cursor: locked ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '14px',
+                  border: `2px solid ${locked ? 'var(--border)' : active ? 'var(--accent)' : 'var(--border)'}`,
+                  background: locked ? 'var(--bg-tertiary)' : active ? 'var(--accent-light)' : 'var(--bg-card)',
+                  color: locked ? 'var(--text-quaternary)' : active ? 'var(--accent)' : 'var(--text-secondary)',
+                  opacity: locked ? 0.7 : 1,
+                }} title={locked ? `Zajęte: ${busyBy}` : undefined}>
+                  {v.label}{defaultCar === v.key ? ' ★' : ''}
+                  {locked && <div style={{ fontSize: '10px', fontWeight: 600, marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>🔒 {busyBy}</div>}
+                </button>
               );
             })}
           </div>
@@ -2025,6 +2116,8 @@ export default function DriverRouteView({ manageMode = false }) {
               {previewStops.map(stop => {
                 const pickupEntries = stop.pendingClean || [];
                 const kg = Number(sumWeight(pickupEntries).toFixed(1));
+                const orderNum = stopOrderNum(stop.client_name);
+                const clientObj = clientObjByName(stop.client_name);
                 return (
                   <div key={stop.key} style={{
                     border: '1px solid var(--border)',
@@ -2036,11 +2129,20 @@ export default function DriverRouteView({ manageMode = false }) {
                     gap: '7px',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      {orderNum != null && <span className="stop-order-badge">{orderNum}</span>}
                       <RouteBadge id={stop.route_id} />
                       <span style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', fontSize: '14px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {stop.client_name}
                       </span>
                       {kg > 0 && <span className="kg-badge">{kg} kg</span>}
+                      <a
+                        href={mapsUrlForClient(clientObj, stop.client_name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`stop-maps-btn ${(clientObj?.lat != null && clientObj?.lat !== '' && clientObj?.lng != null && clientObj?.lng !== '') ? '' : 'no-gps'}`}
+                        title={(clientObj?.lat != null && clientObj?.lng != null && clientObj?.lat !== '' && clientObj?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
+                        onClick={e => e.stopPropagation()}
+                      >🗺️</a>
                     </div>
                     {pickupEntries.length > 0 && (
                       <div style={{ fontSize: '12px', color: 'var(--accent-green)', fontWeight: 700 }}>
@@ -2127,8 +2229,17 @@ export default function DriverRouteView({ manageMode = false }) {
                   {/* Nagłówek klienta */}
                   <div className="driver-stop-header">
                     <div className="driver-stop-title-row">
+                      {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                       <RouteBadge id={stop.route_id} />
                       <span className="driver-client-name">{stop.client_name}</span>
+                      {/* Nawigacja Google Maps (współrzędne klienta) */}
+                      <a
+                        href={mapsUrlForClient(clientObj, stop.client_name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`stop-maps-btn ${(clientObj?.lat != null && clientObj?.lat !== '' && clientObj?.lng != null && clientObj?.lng !== '') ? '' : 'no-gps'}`}
+                        title={(clientObj?.lat != null && clientObj?.lng != null && clientObj?.lat !== '' && clientObj?.lng !== '') ? 'Nawiguj (współrzędne klienta)' : 'Brak współrzędnych — szukaj po nazwie'}
+                      >🗺️</a>
                       {/* Przycisk notatki */}
                       <button
                         onClick={() => toggleNoteEdit(stop.client_name, clientNote)}
