@@ -572,12 +572,12 @@ body{
 /* ── METRICS ── */
 .metrics-row {
   display:flex;
-  gap:6px;
+  gap:5px;
 }
 .metric-chip {
   flex:1;
   min-width:0;
-  padding:8px 9px;
+  padding:8px 5px;
   border-radius:8px;
   display:flex;
   flex-direction:column;
@@ -591,18 +591,28 @@ body{
   font-size:9px;
   font-weight:750;
   text-transform:uppercase;
-  letter-spacing:0.45px;
+  letter-spacing:0;
   opacity:0.65;
 }
 .metric-chip.arr .metric-chip-label { color:#0055CC; }
 .metric-chip.towash .metric-chip-label { color:#B26A00; }
 .metric-chip.wash .metric-chip-label { color:#1A7A37; }
 .metric-chip-val {
-  font-size:14px;
+  font-size:12px;
   font-weight:800;
   line-height:1;
-  letter-spacing:0;
+  letter-spacing:-0.4px;
   white-space:nowrap;
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:1px;
+  min-width:0;
+}
+.metric-unit {
+  font-size:9.5px;
+  font-weight:700;
+  opacity:0.7;
 }
 .metric-chip.arr .metric-chip-val { color:#0055CC; }
 .metric-chip.towash .metric-chip-val { color:#B26A00; }
@@ -630,9 +640,9 @@ body{
   align-items: center;
   background: #fff;
   border-radius: 10px;
-  padding: 9px 11px 9px 10px;
+  padding: 9px 9px 9px 10px;
   min-height: 40px;
-  gap: 7px;
+  gap: 5px;
   font-size: 13px;
   cursor: pointer;
   transition: opacity 0.12s ease, transform 0.12s ease;
@@ -745,12 +755,12 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   font-weight: 600;
   color: var(--text-secondary);
   background: rgba(0,0,0,0.05);
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 52px;
+  min-width: 0;
 }
 @media(prefers-color-scheme:dark){
   .kg-badge { background: rgba(255,255,255,0.1); }

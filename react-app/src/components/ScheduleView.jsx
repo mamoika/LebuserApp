@@ -221,7 +221,6 @@ export default function ScheduleView() {
     const typeBadgeClass = entry.type === 'R' ? 'type-R' : entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
-    const entryCount = relatedEntries.length;
     const totalWeight = entry.isPickupGroup
       ? relatedEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0)
       : parseFloat(entry.weight) || 0;
@@ -244,7 +243,6 @@ export default function ScheduleView() {
         {!entry.isPickupGroup && entry.washed && (
           <span className="kg-badge" title={t('schedule.washed')} style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>{t('schedule.washedBadge')}</span>
         )}
-        {entry.isPickupGroup && entryCount > 1 && <span className="kg-badge">{entryCount}x</span>}
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
         {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
         <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
@@ -276,15 +274,15 @@ export default function ScheduleView() {
         <div className="metrics-row" style={{ marginBottom: '8px' }}>
           <div className="metric-chip arr">
             <div className="metric-chip-label">{t('schedule.metricDelivery')}</div>
-            <div className="metric-chip-val">{sumArr > 0 ? sumArr.toFixed(1) : 0} kg</div>
+            <div className="metric-chip-val">{sumArr > 0 ? sumArr.toFixed(1) : 0}<span className="metric-unit">kg</span></div>
           </div>
           <div className="metric-chip towash">
             <div className="metric-chip-label">{t('schedule.metricToWash')}</div>
-            <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0} kg</div>
+            <div className="metric-chip-val">{sumWash > 0 ? sumWash.toFixed(1) : 0}<span className="metric-unit">kg</span></div>
           </div>
           <div className="metric-chip wash">
             <div className="metric-chip-label">{t('schedule.metricPickup')}</div>
-            <div className="metric-chip-val">{sumPicked > 0 ? sumPicked.toFixed(1) : 0} kg</div>
+            <div className="metric-chip-val">{sumPicked > 0 ? sumPicked.toFixed(1) : 0}<span className="metric-unit">kg</span></div>
           </div>
         </div>
 
