@@ -108,6 +108,11 @@ body{
 }
 .app-header-user {
   min-width:0;
+  color:var(--text-secondary);
+  transition:color .2s ease;
+}
+.app-header-user.is-impersonating {
+  color:var(--accent-orange);
 }
 .app-header-user span {
   max-width:150px;
@@ -319,6 +324,125 @@ body{
   padding:2px 7px;
   border-radius:20px;
   margin-left:2px;
+}
+
+/* ── IMPERSONATION MODE ── */
+.impersonation-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:12px;
+  padding:10px 12px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.86));
+  border:1px solid rgba(255,149,0,0.28);
+  border-left:5px solid var(--accent-orange);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+}
+.impersonation-info {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.impersonation-icon {
+  width:30px;
+  height:30px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  border-radius:9px;
+  background:var(--accent-orange-light);
+  color:#B45309;
+}
+.impersonation-copy {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  min-width:0;
+  color:var(--text-primary);
+  font-size:13px;
+  font-weight:700;
+  line-height:1.2;
+}
+.impersonation-label {
+  color:#B45309;
+  font-weight:800;
+  white-space:nowrap;
+}
+.impersonation-copy strong {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.impersonation-username {
+  color:var(--text-tertiary);
+  font-size:12px;
+  font-weight:650;
+  white-space:nowrap;
+}
+.impersonation-warning {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  flex-shrink:0;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(255,149,0,0.13);
+  color:#9A3412;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+}
+.impersonation-return-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:34px;
+  padding:7px 12px;
+  border:1px solid rgba(180,83,9,0.18);
+  border-radius:10px;
+  background:#B45309;
+  color:#fff;
+  cursor:pointer;
+  font-family:var(--font);
+  font-size:12px;
+  font-weight:800;
+  line-height:1;
+  box-shadow:0 8px 18px rgba(180,83,9,0.16);
+  white-space:nowrap;
+  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+.impersonation-return-btn:hover {
+  filter:brightness(0.96);
+  box-shadow:0 10px 22px rgba(180,83,9,0.2);
+}
+.impersonation-return-btn:active {
+  transform:scale(0.98);
+}
+@media(prefers-color-scheme:dark){
+  .impersonation-bar {
+    background:linear-gradient(180deg, rgba(44,44,46,0.95), rgba(28,28,30,0.9));
+    border-color:rgba(255,159,10,0.35);
+  }
+  .impersonation-icon {
+    color:#FFD60A;
+  }
+  .impersonation-label {
+    color:#FFD60A;
+  }
+  .impersonation-warning {
+    background:rgba(255,159,10,0.18);
+    color:#FFD60A;
+  }
+  .impersonation-return-btn {
+    background:#FF9F0A;
+    color:#1C1C1E;
+  }
 }
 
 /* ── ADMIN MODE BANNER ── */
@@ -2255,6 +2379,31 @@ html.phone-layout body{
   padding:12px 10px 28px;
   overflow-x: hidden;
 }
+html.phone-layout .impersonation-bar {
+  align-items:stretch;
+  flex-direction:column;
+  gap:9px;
+  padding:10px;
+  border-left-width:4px;
+}
+html.phone-layout .impersonation-info {
+  align-items:flex-start;
+}
+html.phone-layout .impersonation-copy {
+  align-items:flex-start;
+  flex-direction:column;
+  gap:2px;
+}
+html.phone-layout .impersonation-copy strong {
+  max-width:100%;
+}
+html.phone-layout .impersonation-warning {
+  align-self:flex-start;
+}
+html.phone-layout .impersonation-return-btn {
+  width:100%;
+  min-height:40px;
+}
 html.phone-layout .app-header{
   margin-bottom:12px;
   gap:10px;
@@ -2554,6 +2703,31 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
 @media(max-width:600px), (max-device-width:600px){
   html { overflow-x: hidden; }
   body{padding:12px 10px 28px; overflow-x: hidden;}
+  .impersonation-bar {
+    align-items:stretch;
+    flex-direction:column;
+    gap:9px;
+    padding:10px;
+    border-left-width:4px;
+  }
+  .impersonation-info {
+    align-items:flex-start;
+  }
+  .impersonation-copy {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:2px;
+  }
+  .impersonation-copy strong {
+    max-width:100%;
+  }
+  .impersonation-warning {
+    align-self:flex-start;
+  }
+  .impersonation-return-btn {
+    width:100%;
+    min-height:40px;
+  }
   .app-header{
     margin-bottom:12px;
     gap:10px;

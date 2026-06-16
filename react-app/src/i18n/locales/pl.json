@@ -82,8 +82,8 @@
   "header": {
     "signOut": "Wyloguj",
     "impersonatingAs": "Przeglądasz jako:",
-    "impersonateNoPassword": "⚠️ Brak hasła — user nie zalogował się jeszcze",
-    "backToAdmin": "← Wróć do admina ({{name}})"
+    "impersonateNoPassword": "Brak hasła — user nie zalogował się jeszcze",
+    "backToAdmin": "Wróć do admina ({{name}})"
   },
   "pages": {
     "home": { "title": "Harmonogram", "subtitle": "Zarządzanie logistyką" },

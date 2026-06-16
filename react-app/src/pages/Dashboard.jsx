@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { LogOut } from 'lucide-react';
+import { AlertTriangle, Eye, LogOut, Undo2 } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 import ScheduleView from '../components/ScheduleView';
@@ -99,40 +99,29 @@ export default function Dashboard() {
 
       {/* Baner impersonacji */}
       {isImpersonating && (
-        <div style={{
-          background: '#FF9500',
-          color: '#fff',
-          padding: '8px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '13px',
-          fontWeight: 600,
-          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-          gap: '12px',
-        }}>
-          <span>
-            👁 {t('header.impersonatingAs')} <strong>{user?.name}</strong> (@{user?.username})
+        <div className="impersonation-bar">
+          <div className="impersonation-info">
+            <span className="impersonation-icon" aria-hidden="true">
+              <Eye size={16} />
+            </span>
+            <span className="impersonation-copy">
+              <span className="impersonation-label">{t('header.impersonatingAs')}</span>
+              <strong>{user?.name}</strong>
+              <span className="impersonation-username">@{user?.username}</span>
+            </span>
             {user?.has_password === false && (
-              <span style={{ marginLeft: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>
+              <span className="impersonation-warning">
+                <AlertTriangle size={13} />
                 {t('header.impersonateNoPassword')}
               </span>
             )}
-          </span>
+          </div>
           <button
+            type="button"
             onClick={handleStopImpersonating}
-            style={{
-              background: 'rgba(0,0,0,0.2)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '5px 12px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
+            className="impersonation-return-btn"
           >
+            <Undo2 size={15} />
             {t('header.backToAdmin', { name: adminBackup?.name })}
           </button>
         </div>
@@ -148,8 +137,8 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="app-header-actions">
-          <div className="app-header-user" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: isImpersonating ? '#FF9500' : 'var(--text-secondary)' }}>
+          <div className={`app-header-user ${isImpersonating ? 'is-impersonating' : ''}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+            <span style={{ fontSize: '13px', fontWeight: 700 }}>
               {user?.name}
             </span>
             <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>

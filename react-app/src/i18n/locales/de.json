@@ -82,8 +82,8 @@
   "header": {
     "signOut": "Abmelden",
     "impersonatingAs": "Sie sehen als:",
-    "impersonateNoPassword": "⚠️ Kein Passwort — Benutzer hat sich noch nicht angemeldet",
-    "backToAdmin": "← Zurück zum Admin ({{name}})"
+    "impersonateNoPassword": "Kein Passwort — Benutzer hat sich noch nicht angemeldet",
+    "backToAdmin": "Zurück zum Admin ({{name}})"
   },
   "pages": {
     "home": { "title": "Wochenplan", "subtitle": "Logistikverwaltung" },
