@@ -83,7 +83,7 @@ function PrivacyNoticeModal() {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user, adminBackup, signOut, stopImpersonating, isAdmin, canViewAdminData } = useAuth();
+  const { user, adminBackup, signOut, stopImpersonating, isAdmin, isDriver, canViewAdminData } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
@@ -156,7 +156,7 @@ export default function Dashboard() {
       {/* Kontent główny */}
       <main>
         <Routes>
-          <Route path="/" element={<ScheduleView />} />
+          <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
           <Route path="/route" element={<DriverRouteView />} />
           <Route path="/routes" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
@@ -166,7 +166,7 @@ export default function Dashboard() {
           <Route path="/timeline" element={<TimelineView />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
       </main>
       {needsPrivacyNotice && <PrivacyNoticeModal />}
