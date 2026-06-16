@@ -5,7 +5,7 @@ import DataError from './DataError';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { toastError, toastWarn } from '../lib/toast';
+import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 
 // Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
@@ -305,7 +305,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   );
 }
 
-function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
+function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, onMerge }) {
   const { t } = useTranslation();
   const [name, setName] = useState(client.name);
   const [routeId, setRouteId] = useState(client.route_id);
@@ -313,6 +313,11 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
   const [lng, setLng] = useState(client.lng != null ? String(client.lng) : '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [confirmMerge, setConfirmMerge] = useState(false);
+  const mergeTargets = clients
+    .filter(c => c.id !== client.id)
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl'));
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -325,6 +330,14 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setSaving(true);
     await onDelete(client);
+    setSaving(false);
+  };
+
+  const handleMerge = async () => {
+    if (!mergeTargetId) return;
+    if (!confirmMerge) { setConfirmMerge(true); return; }
+    setSaving(true);
+    await onMerge(client, mergeTargetId);
     setSaving(false);
   };
 
@@ -368,6 +381,23 @@ function EditClientModal({ client, routes, onClose, onSave, onDelete }) {
               {confirmDelete ? t('clients.confirmDeleteClient') : t('clients.deleteClient')}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
+          </div>
+
+          <div style={{ marginTop: '14px', padding: '12px', borderRadius: '14px', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.22)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 800, color: '#B45309', marginBottom: '4px' }}>{t('clients.mergeDuplicateTitle')}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.35, marginBottom: '10px' }}>{t('clients.mergeDuplicateHint')}</div>
+            <select
+              className="ap-input"
+              value={mergeTargetId}
+              onChange={e => { setMergeTargetId(e.target.value); setConfirmMerge(false); }}
+              style={{ marginBottom: '10px' }}
+            >
+              <option value="">{t('clients.mergeSelectTarget')}</option>
+              {mergeTargets.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button className="ap-btn" onClick={handleMerge} disabled={saving || !mergeTargetId} style={{ color: '#B45309', background: '#fff' }}>
+              {confirmMerge ? t('clients.confirmMergeDuplicate') : t('clients.mergeDuplicate')}
+            </button>
           </div>
         </div>
       </div>
@@ -557,6 +587,24 @@ export default function ClientsRoutesView() {
       refetch();
     } catch (err) {
       toastError(t('clients.errDeleteClient') + ' ' + err.message);
+    }
+  };
+
+  const handleMergeClient = async (sourceClient, targetClientId) => {
+    try {
+      const { data, error } = await supabase.rpc('admin_merge_clients', {
+        p_session_token: sessionToken,
+        p_source_client_id: sourceClient.id,
+        p_target_client_id: targetClientId,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const target = clients.find(c => c.id === targetClientId);
+      toastSuccess(t('clients.mergeDone', { source: sourceClient.name, target: target?.name || '' }));
+      setEditClient(null);
+      refetch();
+    } catch (err) {
+      toastError(t('clients.errMergeClient') + ' ' + err.message);
     }
   };
 
@@ -807,10 +855,12 @@ export default function ClientsRoutesView() {
       {editClient && (
         <EditClientModal
           client={editClient}
+          clients={clients}
           routes={routes}
           onClose={() => setEditClient(null)}
           onSave={handleSaveClient}
           onDelete={handleDeleteClient}
+          onMerge={handleMergeClient}
         />
       )}
 

@@ -231,6 +231,13 @@
     "errSaveClient": "Fehler beim Speichern des Kunden:",
     "clientHasHistory": "Kunde kann nicht gelöscht werden — es gibt Eintragsverlauf. Benennen Sie ihn um oder verschieben Sie ihn auf eine andere Route.",
     "errDeleteClient": "Fehler beim Löschen des Kunden:",
+    "mergeDuplicateTitle": "Doppelter Kunde?",
+    "mergeDuplicateHint": "Verschiebt den gesamten Verlauf dieses Kunden zum richtigen Hotel und entfernt das Duplikat aus der Liste.",
+    "mergeSelectTarget": "Richtigen Kunden wählen…",
+    "mergeDuplicate": "Mit gewähltem Kunden zusammenführen",
+    "confirmMergeDuplicate": "Zusammenführung bestätigen",
+    "mergeDone": "{{source}} → {{target}} zusammengeführt",
+    "errMergeClient": "Fehler beim Zusammenführen der Kunden:",
     "errSaveOrder": "Fehler beim Speichern der Reihenfolge:"
   },
   "timeline": {

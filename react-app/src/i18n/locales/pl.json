@@ -233,6 +233,13 @@
     "errSaveClient": "Błąd zapisu klienta:",
     "clientHasHistory": "Nie można usunąć klienta — ma historię wpisów. Zmień nazwę albo przenieś go na inną trasę.",
     "errDeleteClient": "Błąd usuwania klienta:",
+    "mergeDuplicateTitle": "Duplikat klienta?",
+    "mergeDuplicateHint": "Przenieś całą historię tego klienta na właściwy hotel i usuń duplikat z listy.",
+    "mergeSelectTarget": "Wybierz właściwego klienta…",
+    "mergeDuplicate": "Scal z wybranym klientem",
+    "confirmMergeDuplicate": "Potwierdź scalenie",
+    "mergeDone": "Scalono {{source}} → {{target}}",
+    "errMergeClient": "Błąd scalania klientów:",
     "errSaveOrder": "Błąd zapisu kolejności:"
   },
   "timeline": {
