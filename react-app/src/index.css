@@ -344,6 +344,8 @@ body{
   display:flex;
   align-items:center;
   gap:10px;
+  flex:1 1 auto;
+  flex-wrap:wrap;
   min-width:0;
 }
 .impersonation-icon {
@@ -361,6 +363,7 @@ body{
   display:flex;
   align-items:baseline;
   gap:6px;
+  flex:1 1 auto;
   min-width:0;
   color:var(--text-primary);
   font-size:13px;
@@ -388,14 +391,16 @@ body{
   display:inline-flex;
   align-items:center;
   gap:5px;
-  flex-shrink:0;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:100%;
   padding:4px 8px;
   border-radius:999px;
   background:rgba(255,149,0,0.13);
   color:#9A3412;
   font-size:11px;
   font-weight:800;
-  line-height:1;
+  line-height:1.2;
 }
 .impersonation-return-btn {
   display:inline-flex;
@@ -2387,9 +2392,18 @@ html.phone-layout .impersonation-bar {
   border-left-width:4px;
 }
 html.phone-layout .impersonation-info {
+  display:grid;
+  grid-template-columns:30px minmax(0, 1fr);
+  column-gap:10px;
+  row-gap:5px;
   align-items:flex-start;
 }
+html.phone-layout .impersonation-icon {
+  grid-column:1;
+  grid-row:1 / span 2;
+}
 html.phone-layout .impersonation-copy {
+  grid-column:2;
   align-items:flex-start;
   flex-direction:column;
   gap:2px;
@@ -2398,7 +2412,9 @@ html.phone-layout .impersonation-copy strong {
   max-width:100%;
 }
 html.phone-layout .impersonation-warning {
+  grid-column:2;
   align-self:flex-start;
+  white-space:normal;
 }
 html.phone-layout .impersonation-return-btn {
   width:100%;
@@ -2711,9 +2727,18 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
     border-left-width:4px;
   }
   .impersonation-info {
+    display:grid;
+    grid-template-columns:30px minmax(0, 1fr);
+    column-gap:10px;
+    row-gap:5px;
     align-items:flex-start;
   }
+  .impersonation-icon {
+    grid-column:1;
+    grid-row:1 / span 2;
+  }
   .impersonation-copy {
+    grid-column:2;
     align-items:flex-start;
     flex-direction:column;
     gap:2px;
@@ -2722,7 +2747,9 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
     max-width:100%;
   }
   .impersonation-warning {
+    grid-column:2;
     align-self:flex-start;
+    white-space:normal;
   }
   .impersonation-return-btn {
     width:100%;
