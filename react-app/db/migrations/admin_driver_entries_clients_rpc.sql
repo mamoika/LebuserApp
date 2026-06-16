@@ -249,7 +249,7 @@ begin
 end;
 $$;
 
--- Edycja klienta + kaskada client_name w entries (gdy zmiana nazwy).
+-- Edycja klienta + kaskada client_name/route_id w otwartych entries.
 create or replace function public.admin_update_client(
   p_session_token text,
   p_id uuid,
@@ -284,6 +284,19 @@ begin
   -- Kaskada: client_name w entries, gdy nazwa się zmieniła.
   if trim(p_name) is distinct from v_old.name then
     update public.entries set client_name = trim(p_name) where client_name = v_old.name;
+  end if;
+
+  -- Otwarte wpisy muszą podążać za aktualną trasą klienta, inaczej kierowca
+  -- widzi klienta na starej trasie po przeniesieniu.
+  if p_route_id is distinct from v_old.route_id then
+    update public.entries
+    set route_id = p_route_id
+    where client_name = trim(p_name)
+      and deleted_at is null
+      and (
+        coalesce(done, false) = false
+        or coalesce(delivered, false) = false
+      );
   end if;
 
   return json_build_object('ok', true);
@@ -332,6 +345,7 @@ set search_path = public
 as $$
 declare
   v_row jsonb;
+  v_client_name text;
 begin
   perform public.require_admin(p_session_token);
 
@@ -341,10 +355,23 @@ begin
 
   for v_row in select * from jsonb_array_elements(p_updates)
   loop
+    select name into v_client_name
+    from public.clients
+    where id = (v_row->>'id')::uuid;
+
     update public.clients set
       route_id   = (v_row->>'route_id')::integer,
       sort_order = (v_row->>'sort_order')::integer
     where id = (v_row->>'id')::uuid;
+
+    update public.entries
+    set route_id = (v_row->>'route_id')::integer
+    where client_name = v_client_name
+      and deleted_at is null
+      and (
+        coalesce(done, false) = false
+        or coalesce(delivered, false) = false
+      );
   end loop;
 
   return json_build_object('ok', true);

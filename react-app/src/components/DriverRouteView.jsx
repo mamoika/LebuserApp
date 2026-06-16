@@ -6,7 +6,7 @@ import DataError from './DataError';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
-import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
+import { formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
@@ -149,7 +149,7 @@ function workDateOptions(days = 14) {
 
 export default function DriverRouteView({ manageMode = false }) {
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
-  const { entries, allRoutes, clients, loading, error, refetch } = useAppData();
+  const { entries: rawEntries, allRoutes, clients, loading, error, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
   const [plannedTrip, setPlannedTrip] = useState(null); // zaplanowana przez admina trasa kierowcy (jeszcze nie ruszona)
@@ -197,8 +197,6 @@ export default function DriverRouteView({ manageMode = false }) {
   const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
 
   const today = ymd(new Date());
-  const weekKey = formatWeekKey(getCurrentMonday());
-  const todayArrDay = Math.min(5, Math.max(1, (new Date().getDay() + 6) % 7 + 1)); // 1=Pn…5=Pt
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
 
   // Kolejność i numeracja przystanków — taka sama jak w „Klienci i Trasy":
@@ -230,6 +228,11 @@ export default function DriverRouteView({ manageMode = false }) {
   // Numer klienta w kolejności trasy (jak w „Klienci i Trasy").
   const stopOrderNum = (clientName) => clientInfoByName.get(clientName)?.pos ?? null;
   const clientObjByName = (clientName) => clientInfoByName.get(clientName)?.client || clients.find(c => c.name === clientName) || null;
+  const entries = rawEntries.map(e => {
+    const currentRouteId = clientInfoByName.get(e.client_name)?.client?.route_id;
+    if (!currentRouteId || currentRouteId === e.route_id) return e;
+    return { ...e, route_id: currentRouteId, original_route_id: e.route_id };
+  });
 
   // Auta zajęte przez AKTYWNE trasy innych kierowców → key → imię kierowcy.
   // Jedno auto nie może być na dwóch trasach naraz.
