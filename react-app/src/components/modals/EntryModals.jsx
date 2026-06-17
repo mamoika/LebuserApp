@@ -204,6 +204,10 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
   const first = sourceEntries[0] || entry;
   const arrival = receiptDate(first.week_key, first.arr_day || 1);
   const pickup = receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
+  // „Zamawiający / podpis przyjmującego" = kto przywiózł/dodał wpis (kierowca),
+  // czyli added_by/added_at z wpisu — niezależnie od tego, kto zapisał kartkę.
+  const addedBy = first?.added_by || '';
+  const addedAt = first?.added_at || null;
 
   // Kartka już zapisana w bazie — wczytujemy zapisane wartości, a nie budujemy od zera.
   if (existing) {
@@ -214,8 +218,8 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
       clientName: existing.client_name || client?.name || entry.client_name || '',
       address: existing.address || client?.address || '',
       docNo: existing.doc_no != null ? String(existing.doc_no) : '',
-      createdBy: existing.created_by || '',
-      createdAt: existing.created_at || null,
+      createdBy: addedBy || existing.created_by || '',
+      createdAt: addedAt || existing.created_at || null,
       arrival: existing.arrival || arrival,
       pickup: existing.pickup || pickup,
       modeLabel: existing.mode_label || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'),
@@ -233,8 +237,8 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
     clientName: client?.name || entry.client_name || '',
     address: client?.address || '',
     docNo: '',
-    createdBy: '',
-    createdAt: null,
+    createdBy: addedBy,
+    createdAt: addedAt,
     arrival,
     pickup,
     modeLabel: mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie',
@@ -863,8 +867,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           id: saved.id,
           savedDocNo: saved.doc_no,
           docNo: saved.doc_no != null ? String(saved.doc_no) : prev.docNo,
-          createdBy: saved.created_by || prev.createdBy,
-          createdAt: saved.created_at || prev.createdAt,
+          // createdBy/createdAt zostają z wpisu (kto przywiózł) — nie nadpisujemy ich
+          // osobą zapisującą kartkę.
           status: saved.status || status,
         }));
       }
