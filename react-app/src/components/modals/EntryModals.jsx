@@ -383,13 +383,13 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
     <div class="frame">
       <div class="top">
         <div class="cell brand">
-          <div class="logo">PROFIWASH SP. z o.o.</div>
+          <div class="logo">Lebuser Textilservice Sp. z o.o.</div>
           <div class="sub">
-            ul. Owcza 10, 66-400 Gorzów Wlkp.<br>
-            NIP: 5993278104 · REGON: 526167000<br>
-            KRS: 0001053946<br>
-            tel. 502 552 123 · kontakt@profiwash.pl<br>
-            www.profiwash.pl
+            ul. Owcza 10, 66-400 Gorzów Wielkopolski<br>
+            NIP: 9271945131 · REGON: 365910038<br>
+            KRS: 0000648492<br>
+            tel. 502 552 123 · kontakt@lebuser.pl<br>
+            www.lebuser.pl
           </div>
         </div>
         <div class="cell title">
@@ -1111,8 +1111,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div className="kp-doc">
               <div className="kp-top">
                 <div className="kp-cell">
-                  <div className="kp-logo">PROFIWASH SP. z o.o.</div>
-                  <div className="kp-sub">ul. Owcza 10, 66-400 Gorzów Wlkp.<br/>NIP: 5993278104 · REGON: 526167000<br/>tel. 502 552 123 · kontakt@profiwash.pl</div>
+                  <div className="kp-logo">Lebuser Textilservice Sp. z o.o.</div>
+                  <div className="kp-sub">ul. Owcza 10, 66-400 Gorzów Wielkopolski<br/>NIP: 9271945131 · REGON: 365910038<br/>tel. 502 552 123 · kontakt@lebuser.pl</div>
                 </div>
                 <div className="kp-cell kp-title">
                   <div className="kp-doclbl">DOWÓD</div>
