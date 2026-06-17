@@ -101,7 +101,7 @@ function washSlotOf(entry, scheduleByRoute) {
   return `${washWeek}|${washDay}`;
 }
 
-function groupPickupEntries(entries) {
+function groupPickupEntries(entries, compareEntries) {
   const groups = new Map();
   entries.forEach(entry => {
     const key = [
@@ -128,11 +128,7 @@ function groupPickupEntries(entries) {
       : current.entries[0]?.type || 'P';
     groups.set(key, current);
   });
-  return [...groups.values()].sort((a, b) => {
-    const routeDiff = (a.route_id || 0) - (b.route_id || 0);
-    if (routeDiff) return routeDiff;
-    return String(a.client_name || '').localeCompare(String(b.client_name || ''), 'pl');
-  });
+  return [...groups.values()].sort(compareEntries);
 }
 
 export default function ScheduleView() {
@@ -205,6 +201,44 @@ export default function ScheduleView() {
   // kg do prania per (tydzień|dzień) — liczone od dnia WYJAZDU (patrz washSlotOf),
   // z pominięciem wpisów już oznaczonych jako wyprane. Budujemy mapę raz, ze wszystkich wpisów.
   const scheduleByRoute = new Map(routes.map(r => [r.id, r.schedule || 'other']));
+  const routeOrderRank = new Map(
+    [...routes]
+      .sort((a, b) => {
+        const orderDiff = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+        if (orderDiff) return orderDiff;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+      })
+      .map((route, index) => [route.id, index])
+  );
+  const clientByName = new Map(clients.map(client => [client.name, client]));
+  const clientPointByName = new Map();
+  const clientsByRoute = new Map();
+  clients.forEach(client => {
+    const routeId = client.route_id;
+    if (!clientsByRoute.has(routeId)) clientsByRoute.set(routeId, []);
+    clientsByRoute.get(routeId).push(client);
+  });
+  clientsByRoute.forEach(routeClients => {
+    routeClients
+      .sort((a, b) => {
+        const orderDiff = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+        if (orderDiff) return orderDiff;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'pl');
+      })
+      .forEach((client, index) => clientPointByName.set(client.name, index + 1));
+  });
+  const routeIdForEntry = entry => clientByName.get(entry.client_name)?.route_id || entry.route_id || 0;
+  const compareEntriesByRouteOrder = (a, b) => {
+    const routeA = routeIdForEntry(a);
+    const routeB = routeIdForEntry(b);
+    const routeDiff = (routeOrderRank.get(routeA) ?? 9999) - (routeOrderRank.get(routeB) ?? 9999);
+    if (routeDiff) return routeDiff;
+    const pointDiff = (clientPointByName.get(a.client_name) ?? 9999) - (clientPointByName.get(b.client_name) ?? 9999);
+    if (pointDiff) return pointDiff;
+    const nameDiff = String(a.client_name || '').localeCompare(String(b.client_name || ''), 'pl');
+    if (nameDiff) return nameDiff;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  };
   const washKgBySlot = new Map();
   entries.forEach(e => {
     if (e.washed) return; // już wyprane → nie liczymy do prania
@@ -215,9 +249,10 @@ export default function ScheduleView() {
 
   const renderEntryTag = (entry, mode) => {
     const tagClass = entry.done ? 'tag-done' : mode === 'pick' ? 'tag-pick' : 'tag-arr';
-    const routeId = entry.route_id || 1;
+    const routeId = routeIdForEntry(entry) || 1;
     const rIndex = routes.findIndex(r => r.id === routeId);
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
+    const pointNum = clientPointByName.get(entry.client_name);
     const typeBadgeClass = entry.type === 'R' ? 'type-R' : entry.type === 'O' ? 'type-O' : 'type-P';
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
@@ -239,6 +274,7 @@ export default function ScheduleView() {
         style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
+        {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
         <span className="tag-name">{entry.client_name}</span>
         {!entry.isPickupGroup && entry.washed && (
           <span className="kg-badge" title={t('schedule.washed')} style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>{t('schedule.washedBadge')}</span>
@@ -254,10 +290,12 @@ export default function ScheduleView() {
   const renderDayColumn = (dayName, dayIndex, dayDate, weekKey) => {
     const isToday = new Date().toDateString() === dayDate.toDateString();
 
-    const arrived = entries.filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey);
+    const arrived = entries
+      .filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey)
+      .sort(compareEntriesByRouteOrder);
 
     const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey);
-    const pickupGroups = groupPickupEntries(picked);
+    const pickupGroups = groupPickupEntries(picked, compareEntriesByRouteOrder);
 
     const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
     const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
