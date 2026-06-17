@@ -113,6 +113,12 @@ function trolleyLabel(count) {
   return `${n} wózków`;
 }
 
+function formatKg(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '0';
+  return Number(n.toFixed(1)).toLocaleString('pl-PL');
+}
+
 function parseExtraClients(value) {
   try {
     const parsed = JSON.parse(value || '[]');
@@ -145,6 +151,17 @@ function workDateOptions(days = 14) {
     });
   }
   return opts;
+}
+
+function nextWorkDateAfter(dateStr) {
+  const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 10; i++) {
+    const wd = (d.getDay() + 6) % 7 + 1;
+    if (wd <= 5) return ymd(d);
+    d.setDate(d.getDate() + 1);
+  }
+  return ymd(d);
 }
 
 export default function DriverRouteView({ manageMode = false }) {
@@ -193,6 +210,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
   const [addDirtyTrip, setAddDirtyTrip] = useState(null); // trasa admina, do której dorzucamy odbiór brudnego
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
+  const [partialPickup, setPartialPickup] = useState(null); // { stop, kg, value, baskets }
   const [draft, setDraft] = useState({}); // { clientKey: { note } }
   const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
 
@@ -480,6 +498,13 @@ export default function DriverRouteView({ manageMode = false }) {
     const val = stop?.entries?.find(e => e.picked_baskets !== null && e.picked_baskets !== undefined)?.picked_baskets;
     const n = Number(val);
     return Number.isFinite(n) && n > 0 ? n : 1;
+  };
+
+  const openPartialPickup = (stop) => {
+    const kg = Number(sumWeight(stop?.entries || []).toFixed(1));
+    if (!kg || kg <= 0 || stop?.entries?.some(e => e.done)) return;
+    const baskets = draftVal(stop.key, 'pickedBaskets', 1);
+    setPartialPickup({ stop, kg, value: String(kg), baskets, remainingDate: nextWorkDateAfter(contextDate) });
   };
 
   const stopPickedByCurrentUser = (stop) =>
@@ -812,6 +837,52 @@ export default function DriverRouteView({ manageMode = false }) {
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
+  };
+
+  const markPartialPralnia = async () => {
+    if (!partialPickup?.stop) return;
+    const stop = partialPickup.stop;
+    const totalKg = Number(partialPickup.kg) || 0;
+    const pickupKg = parseFloat(String(partialPickup.value).replace(',', '.'));
+    const basketCount = Math.max(0, Number(partialPickup.baskets) || 1);
+    const remainingDate = partialPickup.remainingDate || nextWorkDateAfter(contextDate);
+    if (!Number.isFinite(pickupKg) || pickupKg <= 0) {
+      toastError('Podaj wagę większą od 0 kg');
+      return;
+    }
+    if (pickupKg > totalKg) {
+      toastError(`Ten punkt ma tylko ${formatKg(totalKg)} kg`);
+      return;
+    }
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { data, error } = await supabase.rpc('driver_pickup_entries_partial', {
+        p_session_token: sessionToken,
+        p_ids: ids,
+        p_pickup_kg: pickupKg,
+        p_baskets: basketCount,
+        p_remaining_pick_date: pickupKg < totalKg ? remainingDate : null,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({
+        sessionToken,
+        action: 'done',
+        clientName: stop.client_name,
+        entryId: ids[0],
+        details: pickupKg < totalKg
+          ? `odbiór częściowy z pralni, ${formatKg(pickupKg)} kg z ${formatKg(totalKg)} kg, reszta na ${fmtDate(remainingDate)}, ${trolleyLabel(basketCount)}`
+          : `odbiór z pralni, ${formatKg(totalKg)} kg, ${trolleyLabel(basketCount)}`,
+      });
+      setPartialPickup(null);
+      await refetch();
+      toastSuccess(pickupKg < totalKg ? `Odebrano ${formatKg(pickupKg)} kg · reszta na ${fmtDate(remainingDate)}` : `Odebrano ${formatKg(pickupKg)} kg`);
+    } catch (err) {
+      toastError('Błąd: ' + err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   // 2) Dostawa do klienta
@@ -2249,7 +2320,17 @@ export default function DriverRouteView({ manageMode = false }) {
                         title={clientNote ? 'Edytuj komentarz' : 'Dodaj komentarz'}
                         className={`driver-note-btn ${clientNote || isNoteEditing ? 'is-active' : ''}`}
                       >💬</button>
-                      {kg > 0 && <span className="kg-badge driver-kg-badge">{kg} kg</span>}
+                      {kg > 0 && (
+                        <button
+                          type="button"
+                          className={`kg-badge driver-kg-badge driver-kg-button ${(!pralniaDone && trip?.status === 'active') ? '' : 'is-static'}`}
+                          onClick={() => openPartialPickup(stop)}
+                          disabled={busy || pralniaDone || trip?.status !== 'active'}
+                          title={!pralniaDone && trip?.status === 'active' ? 'Kliknij, żeby odebrać tylko część kg' : undefined}
+                        >
+                          {formatKg(kg)} kg
+                        </button>
+                      )}
                     </div>
                     {/* Tekst notatki — zawsze widoczny jeśli istnieje */}
                     {clientNote && !isNoteEditing && (
@@ -2590,6 +2671,61 @@ export default function DriverRouteView({ manageMode = false }) {
               </div>
 
               <button onClick={() => setHandoffOpen(false)} disabled={busy} style={{ width: '100%', marginTop: '12px', padding: '11px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: odbiór części kg */}
+      {partialPickup && (
+        <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setPartialPickup(null)}>
+          <div className="ap-sheet" onClick={ev => ev.stopPropagation()}>
+            <div className="ap-handle"></div>
+            <div className="ap-content">
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Odbierz część kg</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {partialPickup.stop.client_name} · dostępne {formatKg(partialPickup.kg)} kg
+              </div>
+              <label style={pfLabel}>Ile kg kierowca zabiera teraz?</label>
+              <input
+                className="ap-input"
+                type="text"
+                inputMode="decimal"
+                autoFocus
+                value={partialPickup.value}
+                onChange={ev => setPartialPickup(prev => ({ ...prev, value: ev.target.value }))}
+                placeholder="np. 100"
+                style={{ margin: '6px 0 12px' }}
+              />
+              <label style={pfLabel}>Wózki</label>
+              <input
+                className="ap-input"
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={partialPickup.baskets}
+                onChange={ev => setPartialPickup(prev => ({ ...prev, baskets: ev.target.value }))}
+                style={{ margin: '6px 0 12px' }}
+              />
+              {parseFloat(String(partialPickup.value).replace(',', '.')) < Number(partialPickup.kg) && (
+                <>
+                  <label style={pfLabel}>Reszta kg do odbioru dnia</label>
+                  <select
+                    className="ap-input"
+                    value={partialPickup.remainingDate || nextWorkDateAfter(contextDate)}
+                    onChange={ev => setPartialPickup(prev => ({ ...prev, remainingDate: ev.target.value }))}
+                    style={{ margin: '6px 0 16px' }}
+                  >
+                    {workDateOptions(21).filter(opt => opt.value > contextDate).map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => setPartialPickup(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+                <button onClick={markPartialPralnia} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Odbierz tyle'}</button>
+              </div>
             </div>
           </div>
         </div>
