@@ -117,6 +117,166 @@ function isWorkwearRoute(routes, routeId) {
   return route?.is_workwear === true;
 }
 
+function receiptDate(weekKey, day) {
+  return shortDate(dateForDay(weekKey, day));
+}
+
+function receiptNo(entry) {
+  const raw = String(entry?.id || '').replace(/^ID_/, '').replace(/^pickup-/, '');
+  return raw ? raw.slice(-8).toUpperCase() : String(Date.now()).slice(-8);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function printLaundryReceipt({ entry, entries, client, mode }) {
+  const sourceEntries = entries?.length ? entries : [entry];
+  const clientName = client?.name || entry.client_name || '';
+  const address = client?.address || '';
+  const sheetsKg = sourceEntries
+    .filter(e => (e.type || 'P') === 'P')
+    .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+  const tableclothKg = sourceEntries
+    .filter(e => e.type === 'O')
+    .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+  const totalKg = sourceEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+  const first = sourceEntries[0] || entry;
+  const docNo = receiptNo(first);
+  const arrival = receiptDate(first.week_key, first.arr_day || 1);
+  const pickup = receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
+  const typeSummary = [
+    sheetsKg > 0 ? `Pościel ${Number(sheetsKg.toFixed(1))} kg` : '',
+    tableclothKg > 0 ? `Obrusy ${Number(tableclothKg.toFixed(1))} kg` : '',
+  ].filter(Boolean).join(' · ');
+  const serviceRows = [
+    'Powłoki',
+    'Powłoczki',
+    'Prześcieradła',
+    'Jaśki',
+    'Ścierki',
+    'Ręczniki frotte',
+    'Serwetki',
+    'Obrusy',
+    'Fartuchy',
+    'Podkoszulki',
+    'Bluzy',
+    'Spodnie',
+    'Firany',
+    'Inne',
+  ];
+  const rows = serviceRows.map((name, index) => `
+    <tr>
+      <td class="lp">${index + 1}</td>
+      <td>${escapeHtml(name)}</td>
+      <td></td>
+      <td></td>
+      <td>${name === 'Obrusy' && tableclothKg > 0 ? escapeHtml(`${Number(tableclothKg.toFixed(1))} kg`) : ''}</td>
+    </tr>
+  `).join('');
+
+  const w = window.open('', '_blank', 'width=900,height=1200');
+  if (!w) {
+    toastError('Przeglądarka zablokowała okno wydruku');
+    return;
+  }
+  w.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Kartka ${escapeHtml(clientName)}</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
+    body { font-family: "Times New Roman", serif; color: #111; margin: 0; }
+    .page { width: 190mm; margin: 0 auto; }
+    .top { display: grid; grid-template-columns: 1.15fr 1fr 1fr; border: 2px solid #111; border-bottom: 0; }
+    .cell { padding: 6px 8px; border-right: 2px solid #111; min-height: 31mm; }
+    .cell:last-child { border-right: 0; }
+    .brand { font-size: 12px; line-height: 1.25; }
+    .brand strong { font-size: 16px; }
+    .title { text-align: center; font-size: 22px; font-weight: 800; line-height: 1.15; }
+    .meta { font-size: 15px; line-height: 1.6; }
+    .line { border-bottom: 1px dotted #111; min-height: 18px; display: inline-block; min-width: 65%; }
+    .company { border-left: 2px solid #111; border-right: 2px solid #111; padding: 8px 10px; font-size: 15px; }
+    .company-row { display: flex; gap: 8px; margin: 5px 0; }
+    .company-row span:first-child { min-width: 44px; }
+    .company-row .fill { flex: 1; border-bottom: 1px dotted #111; font-size: 18px; font-weight: 700; text-align: center; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid #111; }
+    th, td { border: 2px solid #111; height: 10mm; padding: 2px 5px; font-size: 15px; }
+    th { text-align: center; font-weight: 700; }
+    tbody td { border-top: 1px dotted #111; border-bottom: 1px dotted #111; }
+    .lp { width: 9mm; text-align: center; }
+    .kind { width: 58mm; }
+    .qty { width: 34mm; }
+    .notes { width: 55mm; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; border-left: 2px solid #111; border-right: 2px solid #111; border-bottom: 2px solid #111; }
+    .summary div { min-height: 13mm; padding: 6px 8px; border-right: 2px solid #111; font-size: 16px; font-weight: 700; }
+    .summary div:last-child { border-right: 0; text-align: right; }
+    .sign { display: grid; grid-template-columns: 1fr 1fr; border-left: 2px solid #111; border-right: 2px solid #111; border-bottom: 2px solid #111; }
+    .sign > div { min-height: 34mm; border-right: 2px solid #111; display: flex; align-items: flex-end; justify-content: center; padding: 8px; font-size: 14px; }
+    .sign > div:last-child { border-right: 0; }
+    .hint { margin-top: 8px; font-size: 12px; color: #444; display: flex; justify-content: space-between; }
+    .print { margin: 12px 0; padding: 10px 16px; font: 700 14px system-ui; border: 0; border-radius: 8px; background: #007aff; color: white; cursor: pointer; }
+    @media print { .print, .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <button class="print" onclick="window.print()">Drukuj</button>
+    <div class="top">
+      <div class="cell brand">
+        <strong>PROFIWASH SP. z o.o.</strong><br>
+        ul. Owcza 10, 66-400 Gorzów Wlkp<br>
+        NIP: 5993278104 &nbsp; REGON: 526167000<br>
+        kontakt@profwash.pl
+      </div>
+      <div class="cell title">DOWÓD<br>NR <span class="line">${escapeHtml(docNo)}</span><br>PRZYJĘCIA I WYDANIA<br>BIELIZNY DO PRANIA</div>
+      <div class="cell meta">
+        data przyjęcia: <span class="line">${escapeHtml(arrival)}</span><br>
+        termin wykonania: <span class="line">${escapeHtml(pickup)}</span><br>
+        ${escapeHtml(mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie')}
+      </div>
+    </div>
+    <div class="company">
+      <div class="company-row"><span>Firma</span><div class="fill">${escapeHtml(clientName)}</div></div>
+      <div class="company-row"><span>Adres</span><div class="fill">${escapeHtml(address)}</div></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th class="lp">Lp.</th>
+          <th class="kind">Rodzaj usługi</th>
+          <th class="qty">Ilość przyjęta</th>
+          <th class="qty">Ilość wydana</th>
+          <th class="notes">Uwagi</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="summary">
+      <div>kg pościel: ${sheetsKg > 0 ? Number(sheetsKg.toFixed(1)) : ''}</div>
+      <div>kg obrusy: ${tableclothKg > 0 ? Number(tableclothKg.toFixed(1)) : ''}</div>
+      <div>razem: ${totalKg > 0 ? Number(totalKg.toFixed(1)) : ''} kg</div>
+    </div>
+    <div class="sign">
+      <div>Zamawiający / podpis przekazującego</div>
+      <div>Wykonujący / podpis przyjmującego</div>
+    </div>
+    <div class="hint">
+      <span>${escapeHtml(typeSummary || 'Kartka wygenerowana automatycznie z harmonogramu')}</span>
+      <span>${escapeHtml(clientName)} · ${escapeHtml(arrival)}</span>
+    </div>
+  </div>
+</body>
+</html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 250);
+}
+
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
@@ -367,9 +527,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false, source = null }) {
   const { t } = useTranslation();
-  const { isAdmin, canEdit, user, sessionToken } = useAuth();
+  const { isAdmin, canEdit, isViewer, user, sessionToken } = useAuth();
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
   const [type, setType] = useState('P');
@@ -432,6 +592,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         : t('entry.sheets'));
   const directEditMode = contextMode === 'arr' && initiallyEditing;
   const showEditForm = canEdit && (editing || directEditMode);
+  const selectedClientDetails = (clients || []).find(c => c.name === entry.client_name);
+  const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
 
   const handleClientChange = (name) => {
     setClientName(name);
@@ -794,6 +956,21 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             const canUndone = isPickupContext && (!allPickupDone || isAdmin || pickupEntries.some(e => e.picked_by === user?.name));
             return (
               <div className="ap-btn-group" style={{ marginTop: '16px' }}>
+                {canPrintLaundryReceipt && (
+                  <button
+                    className="ap-btn"
+                    style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}
+                    onClick={() => printLaundryReceipt({
+                      entry: targetEntry,
+                      entries: isPickupContext ? pickupEntries : [targetEntry],
+                      client: selectedClientDetails,
+                      mode: contextMode,
+                    })}
+                    disabled={loading}
+                  >
+                    Drukuj kartkę
+                  </button>
+                )}
                 {canUndone && (
                   <button className="ap-btn" style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }} onClick={toggleDone} disabled={loading}>
                     {allPickupDone ? t('entry.undoPickup') : t('entry.markPickedUp')}

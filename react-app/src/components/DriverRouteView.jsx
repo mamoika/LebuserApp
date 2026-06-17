@@ -113,6 +113,8 @@ function trolleyLabel(count) {
   return `${n} wózków`;
 }
 
+const UrgentBadge = () => <span className="driver-urgent-badge">Pilne</span>;
+
 function formatKg(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';
@@ -460,6 +462,7 @@ export default function DriverRouteView({ manageMode = false }) {
     hasP: v.entries.some(e => (e.type || 'P') === 'P'),
     hasO: v.entries.some(e => e.type === 'O'),
     hasR: v.entries.some(e => e.type === 'R'),
+    isUrgent: v.entries.some(e => e.urgent),
   }));
 
   const getTripStops = (sourceTrip) => {
@@ -1522,6 +1525,7 @@ export default function DriverRouteView({ manageMode = false }) {
       hasP: v.entries.some(e => (e.type || 'P') === 'P'),
       hasO: v.entries.some(e => e.type === 'O'),
       hasR: v.entries.some(e => e.type === 'R'),
+      isUrgent: v.entries.some(e => e.urgent),
     }));
     const canAddStop = isAdmin && t.status === 'active' && !t.isVirtual;
     return (
@@ -1572,6 +1576,7 @@ export default function DriverRouteView({ manageMode = false }) {
                   }}>
                     <RouteBadge id={c.route_id} />
                     <span style={{ flex: 1 }}>{c.client_name}</span>
+                    {c.isUrgent && <UrgentBadge />}
                     {(c.hasP || c.hasO || c.hasR) && (
                       <span className={`laundry-type-badge ${c.hasR ? 'type-R' : c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
                         {c.hasR ? 'R' : c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}
@@ -1606,6 +1611,7 @@ export default function DriverRouteView({ manageMode = false }) {
             const deliveredDone = hasPickup && pickupEntries.every(e => e.delivered);
             const kg = Number(sumWeight(pickupEntries).toFixed(1));
             const arrivals = stop.dirtyEntries || [];
+            const isUrgent = pickupEntries.some(e => e.urgent) || arrivals.some(e => e.urgent);
             return (
               <div key={stop.key} className={`driver-stop-card ${deliveredDone ? 'is-delivered' : ''}`}>
                 <div className="driver-stop-header">
@@ -1613,6 +1619,7 @@ export default function DriverRouteView({ manageMode = false }) {
                     {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                     <RouteBadge id={stop.route_id} />
                     <span className="driver-client-name">{stop.client_name}</span>
+                    {isUrgent && <UrgentBadge />}
                     {(() => { const co = clientObjByName(stop.client_name); return (
                       <a
                         href={mapsUrlForClient(co, stop.client_name)}
@@ -2192,6 +2199,7 @@ export default function DriverRouteView({ manageMode = false }) {
                 const kg = Number(sumWeight(pickupEntries).toFixed(1));
                 const orderNum = stopOrderNum(stop.client_name);
                 const clientObj = clientObjByName(stop.client_name);
+                const isUrgent = pickupEntries.some(e => e.urgent);
                 return (
                   <div key={stop.key} style={{
                     border: '1px solid var(--border)',
@@ -2208,6 +2216,7 @@ export default function DriverRouteView({ manageMode = false }) {
                       <span style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', fontSize: '14px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {stop.client_name}
                       </span>
+                      {isUrgent && <UrgentBadge />}
                       {kg > 0 && <span className="kg-badge">{kg} kg</span>}
                       <a
                         href={mapsUrlForClient(clientObj, stop.client_name)}
@@ -2293,6 +2302,7 @@ export default function DriverRouteView({ manageMode = false }) {
               const todayArrivals = dirtyEntries.length > 0
                 ? dirtyEntries
                 : entries.filter(e => e.client_name === stop.client_name && arrivalDateStr(e) === today);
+              const isUrgent = pickupEntries.some(e => e.urgent) || todayArrivals.some(e => e.urgent);
               const isDirtyOnlyStop = !hasPickupEntries && todayArrivals.length > 0;
               // Notatka klienta (wspólna)
               const clientObj = clients.find(c => c.name === stop.client_name);
@@ -2306,6 +2316,7 @@ export default function DriverRouteView({ manageMode = false }) {
                       {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                       <RouteBadge id={stop.route_id} />
                       <span className="driver-client-name">{stop.client_name}</span>
+                      {isUrgent && <UrgentBadge />}
                       {/* Nawigacja Google Maps (współrzędne klienta) */}
                       <a
                         href={mapsUrlForClient(clientObj, stop.client_name)}
@@ -2387,6 +2398,7 @@ export default function DriverRouteView({ manageMode = false }) {
                               <div className={`driver-arrival-chip ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>
                                 <span className="driver-arrival-label">
                                   <span className={`laundry-type-badge ${a.type === 'R' ? 'type-R' : a.type === 'O' ? 'type-O' : 'type-P'}`}>{a.type === 'R' ? 'R' : a.type === 'O' ? 'O' : 'P'}</span>
+                                  {a.urgent && <UrgentBadge />}
                                   {a.type === 'R' ? 'Odzież robocza' : a.type === 'O' ? 'Obrusy' : 'Pościel'}{a.weight ? ` · ${a.weight} kg` : ''} · {trolleyLabel(a.trolleys ?? 1)}
                                 </span>
                                 {/* Edytuj */}
@@ -2458,6 +2470,7 @@ export default function DriverRouteView({ manageMode = false }) {
                         }}>
                           <RouteBadge id={c.route_id} />
                           <span style={{ flex: 1 }}>{c.client_name}</span>
+                          {c.isUrgent && <UrgentBadge />}
                           {(c.hasP || c.hasO || c.hasR) && (
                             <span className={`laundry-type-badge ${c.hasR ? 'type-R' : c.hasO && !c.hasP ? 'type-O' : 'type-P'}`}>
                               {c.hasR ? 'R' : c.hasP && c.hasO ? 'P/O' : c.hasO ? 'O' : 'P'}

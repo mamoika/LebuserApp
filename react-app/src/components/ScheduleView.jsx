@@ -453,6 +453,7 @@ export default function ScheduleView() {
           }}
           clients={clients}
           routes={routes}
+          source="schedule"
         />
       )}
     </div>
