@@ -222,7 +222,7 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
       createdAt: addedAt || existing.created_at || null,
       arrival: existing.arrival || arrival,
       pickup: existing.pickup || pickup,
-      modeLabel: existing.mode_label || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'),
+      modeLabel: existing.mode_label || (mode === 'pick' ? 'wydanie' : 'przyjęcie'),
       sheetsKg: existing.sheets_kg != null ? String(existing.sheets_kg) : '',
       tableclothKg: existing.tablecloth_kg != null ? String(existing.tablecloth_kg) : '',
       totalKg: existing.total_kg != null ? String(existing.total_kg) : '',
@@ -241,7 +241,7 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
     createdAt: addedAt,
     arrival,
     pickup,
-    modeLabel: mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie',
+    modeLabel: mode === 'pick' ? 'wydanie' : 'przyjęcie',
     sheetsKg: sheetsKg > 0 ? String(Number(sheetsKg.toFixed(1))) : '',
     tableclothKg: tableclothKg > 0 ? String(Number(tableclothKg.toFixed(1))) : '',
     totalKg: totalKg > 0 ? String(Number(totalKg.toFixed(1))) : '',
@@ -401,7 +401,7 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
           <div class="r"><span class="k">Data przyjęcia</span><span class="v">${escapeHtml(arrival)}</span></div>
           <div class="r"><span class="k">Termin wykonania</span><span class="v">${escapeHtml(pickup)}</span></div>
           <div class="badges">
-            <span class="badge mode">${escapeHtml(draft.modeLabel || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'))}</span>
+            <span class="badge mode">${escapeHtml(draft.modeLabel || (mode === 'pick' ? 'wydanie' : 'przyjęcie'))}</span>
             ${draft.id ? `<span class="badge ${draft.status === 'closed' ? 'closed' : 'open'}">${escapeHtml(statusLabel)}</span>` : ''}
           </div>
         </div>
@@ -1125,7 +1125,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   <div className="kp-mrow"><span className="kp-mk">Data przyjęcia</span><input className="kp-in" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} /></div>
                   <div className="kp-mrow"><span className="kp-mk">Termin wykonania</span><input className="kp-in" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} /></div>
                   <div className="kp-badges">
-                    <span className="kp-badge mode">{receiptDraft.modeLabel || (contextMode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie')}</span>
+                    <span className="kp-badge mode">{receiptDraft.modeLabel || (contextMode === 'pick' ? 'wydanie' : 'przyjęcie')}</span>
                     {receiptDraft.id && <span className={`kp-badge ${receiptDraft.status === 'closed' ? 'closed' : 'open'}`}>{receiptDraft.status === 'closed' ? 'Zamknięta' : 'Otwarta'}</span>}
                   </div>
                 </div>
