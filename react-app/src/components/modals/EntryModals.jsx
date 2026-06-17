@@ -134,10 +134,25 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function printLaundryReceipt({ entry, entries, client, mode }) {
+const RECEIPT_SERVICE_ROWS = [
+  'Powłoki',
+  'Powłoczki',
+  'Prześcieradła',
+  'Jaśki',
+  'Ścierki',
+  'Ręczniki frotte',
+  'Serwetki',
+  'Obrusy',
+  'Fartuchy',
+  'Podkoszulki',
+  'Bluzy',
+  'Spodnie',
+  'Firany',
+  'Inne',
+];
+
+function buildLaundryReceiptDraft({ entry, entries, client, mode }) {
   const sourceEntries = entries?.length ? entries : [entry];
-  const clientName = client?.name || entry.client_name || '';
-  const address = client?.address || '';
   const sheetsKg = sourceEntries
     .filter(e => (e.type || 'P') === 'P')
     .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
@@ -146,36 +161,49 @@ function printLaundryReceipt({ entry, entries, client, mode }) {
     .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const totalKg = sourceEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const first = sourceEntries[0] || entry;
-  const docNo = receiptNo(first);
   const arrival = receiptDate(first.week_key, first.arr_day || 1);
   const pickup = receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
+  return {
+    clientName: client?.name || entry.client_name || '',
+    address: client?.address || '',
+    docNo: receiptNo(first),
+    arrival,
+    pickup,
+    modeLabel: mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie',
+    sheetsKg: sheetsKg > 0 ? String(Number(sheetsKg.toFixed(1))) : '',
+    tableclothKg: tableclothKg > 0 ? String(Number(tableclothKg.toFixed(1))) : '',
+    totalKg: totalKg > 0 ? String(Number(totalKg.toFixed(1))) : '',
+    rows: RECEIPT_SERVICE_ROWS.map(name => ({
+      name,
+      accepted: '',
+      issued: '',
+      notes: '',
+    })),
+  };
+}
+
+function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
+  const draft = receipt || buildLaundryReceiptDraft({ entry, entries, client, mode });
+  const clientName = draft.clientName || '';
+  const address = draft.address || '';
+  const sheetsKg = parseFloat(String(draft.sheetsKg).replace(',', '.')) || 0;
+  const tableclothKg = parseFloat(String(draft.tableclothKg).replace(',', '.')) || 0;
+  const sourceEntries = entries?.length ? entries : [entry];
+  const first = sourceEntries[0] || entry;
+  const docNo = draft.docNo || receiptNo(first);
+  const arrival = draft.arrival || receiptDate(first.week_key, first.arr_day || 1);
+  const pickup = draft.pickup || receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
   const typeSummary = [
     sheetsKg > 0 ? `Pościel ${Number(sheetsKg.toFixed(1))} kg` : '',
     tableclothKg > 0 ? `Obrusy ${Number(tableclothKg.toFixed(1))} kg` : '',
   ].filter(Boolean).join(' · ');
-  const serviceRows = [
-    'Powłoki',
-    'Powłoczki',
-    'Prześcieradła',
-    'Jaśki',
-    'Ścierki',
-    'Ręczniki frotte',
-    'Serwetki',
-    'Obrusy',
-    'Fartuchy',
-    'Podkoszulki',
-    'Bluzy',
-    'Spodnie',
-    'Firany',
-    'Inne',
-  ];
-  const rows = serviceRows.map((name, index) => `
+  const rows = (draft.rows || RECEIPT_SERVICE_ROWS.map(name => ({ name }))).map((row, index) => `
     <tr>
       <td class="lp">${index + 1}</td>
-      <td>${escapeHtml(name)}</td>
-      <td></td>
-      <td></td>
-      <td>${name === 'Obrusy' && tableclothKg > 0 ? escapeHtml(`${Number(tableclothKg.toFixed(1))} kg`) : ''}</td>
+      <td>${escapeHtml(row.name)}</td>
+      <td>${escapeHtml(row.accepted || '')}</td>
+      <td>${escapeHtml(row.issued || '')}</td>
+      <td>${escapeHtml(row.notes || '')}</td>
     </tr>
   `).join('');
 
@@ -238,7 +266,7 @@ function printLaundryReceipt({ entry, entries, client, mode }) {
       <div class="cell meta">
         data przyjęcia: <span class="line">${escapeHtml(arrival)}</span><br>
         termin wykonania: <span class="line">${escapeHtml(pickup)}</span><br>
-        ${escapeHtml(mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie')}
+        ${escapeHtml(draft.modeLabel || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'))}
       </div>
     </div>
     <div class="company">
@@ -258,9 +286,9 @@ function printLaundryReceipt({ entry, entries, client, mode }) {
       <tbody>${rows}</tbody>
     </table>
     <div class="summary">
-      <div>kg pościel: ${sheetsKg > 0 ? Number(sheetsKg.toFixed(1)) : ''}</div>
-      <div>kg obrusy: ${tableclothKg > 0 ? Number(tableclothKg.toFixed(1)) : ''}</div>
-      <div>razem: ${totalKg > 0 ? Number(totalKg.toFixed(1)) : ''} kg</div>
+      <div>kg pościel: ${escapeHtml(draft.sheetsKg || '')}</div>
+      <div>kg obrusy: ${escapeHtml(draft.tableclothKg || '')}</div>
+      <div>razem: ${escapeHtml(draft.totalKg || '')} kg</div>
     </div>
     <div class="sign">
       <div>Zamawiający / podpis przekazującego</div>
@@ -544,6 +572,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [routeId, setRouteId] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [washing, setWashing] = useState(false);
+  const [receiptDraft, setReceiptDraft] = useState(null);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -560,6 +589,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const clientNote = (clients || []).find(c => c.name === entry.client_name)?.note;
       setComment(clientNote !== undefined ? (clientNote || '') : (entry.comment || ''));
       setRouteId(entry.route_id || 1);
+      setReceiptDraft(null);
     }
   }, [isOpen, entry, clients, initiallyEditing]);
 
@@ -594,6 +624,27 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const showEditForm = canEdit && (editing || directEditMode);
   const selectedClientDetails = (clients || []).find(c => c.name === entry.client_name);
   const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
+  const receiptEntries = isPickupContext ? pickupEntries : [targetEntry];
+
+  const openReceiptEditor = () => {
+    setReceiptDraft(buildLaundryReceiptDraft({
+      entry: targetEntry,
+      entries: receiptEntries,
+      client: selectedClientDetails,
+      mode: contextMode,
+    }));
+  };
+
+  const setReceiptField = (field, value) => {
+    setReceiptDraft(prev => ({ ...prev, [field]: value }));
+  };
+
+  const setReceiptRow = (index, field, value) => {
+    setReceiptDraft(prev => ({
+      ...prev,
+      rows: prev.rows.map((row, i) => i === index ? { ...row, [field]: value } : row),
+    }));
+  };
 
   const handleClientChange = (name) => {
     setClientName(name);
@@ -767,6 +818,79 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setLoading(false);
     }
     };
+
+    if (receiptDraft) {
+    return (
+      <div className="ap-overlay" style={{ display: 'flex' }}>
+        <div className="ap-sheet" style={{ maxWidth: '760px' }}>
+          <div className="ap-handle"></div>
+          <div className="ap-content">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>🧾</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Kartka prania</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receiptDraft.clientName}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+              <label style={pfLabelLike}>Nr dowodu<input className="ap-input" value={receiptDraft.docNo} onChange={e => setReceiptField('docNo', e.target.value)} style={{ marginTop: '5px' }} /></label>
+              <label style={pfLabelLike}>Data przyjęcia<input className="ap-input" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} style={{ marginTop: '5px' }} /></label>
+              <label style={pfLabelLike}>Termin wykonania<input className="ap-input" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} style={{ marginTop: '5px' }} /></label>
+            </div>
+
+            <label style={pfLabelLike}>Firma / hotel<input className="ap-input" value={receiptDraft.clientName} onChange={e => setReceiptField('clientName', e.target.value)} style={{ marginTop: '5px', marginBottom: '8px' }} /></label>
+            <label style={pfLabelLike}>Adres<input className="ap-input" value={receiptDraft.address} onChange={e => setReceiptField('address', e.target.value)} style={{ marginTop: '5px', marginBottom: '12px' }} /></label>
+
+            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', marginBottom: '12px' }}>
+              <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)', textAlign: 'left' }}>
+                    <th style={receiptTh}>Lp.</th>
+                    <th style={receiptTh}>Rodzaj usługi</th>
+                    <th style={receiptTh}>Ilość przyjęta</th>
+                    <th style={receiptTh}>Ilość wydana</th>
+                    <th style={receiptTh}>Uwagi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receiptDraft.rows.map((row, index) => (
+                    <tr key={`${row.name}-${index}`}>
+                      <td style={receiptTd}>{index + 1}</td>
+                      <td style={receiptTd}>
+                        <input className="ap-input" value={row.name} onChange={e => setReceiptRow(index, 'name', e.target.value)} style={receiptCellInput} />
+                      </td>
+                      <td style={receiptTd}>
+                        <input className="ap-input" value={row.accepted} onChange={e => setReceiptRow(index, 'accepted', e.target.value)} style={receiptCellInput} />
+                      </td>
+                      <td style={receiptTd}>
+                        <input className="ap-input" value={row.issued} onChange={e => setReceiptRow(index, 'issued', e.target.value)} style={receiptCellInput} />
+                      </td>
+                      <td style={receiptTd}>
+                        <input className="ap-input" value={row.notes} onChange={e => setReceiptRow(index, 'notes', e.target.value)} style={receiptCellInput} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+              <label style={pfLabelLike}>kg pościel<input className="ap-input" value={receiptDraft.sheetsKg} onChange={e => setReceiptField('sheetsKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
+              <label style={pfLabelLike}>kg obrusy<input className="ap-input" value={receiptDraft.tableclothKg} onChange={e => setReceiptField('tableclothKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
+              <label style={pfLabelLike}>razem kg<input className="ap-input" value={receiptDraft.totalKg} onChange={e => setReceiptField('totalKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
+            </div>
+
+            <div className="ap-btn-group">
+              <button className="ap-btn ap-btn-primary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft })}>Drukuj</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => setReceiptDraft(null)}>Wróć</button>
+              <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+    }
 
     // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
     if (showEditForm) {
@@ -960,15 +1084,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   <button
                     className="ap-btn"
                     style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}
-                    onClick={() => printLaundryReceipt({
-                      entry: targetEntry,
-                      entries: isPickupContext ? pickupEntries : [targetEntry],
-                      client: selectedClientDetails,
-                      mode: contextMode,
-                    })}
+                    onClick={openReceiptEditor}
                     disabled={loading}
                   >
-                    Drukuj kartkę
+                    Kartka
                   </button>
                 )}
                 {canUndone && (
@@ -1020,6 +1139,39 @@ const fmtDateTime = (iso) => {
   const hh = String(d.getHours()).padStart(2,'0');
   const min = String(d.getMinutes()).padStart(2,'0');
   return `${dd}.${mm} ${hh}:${min}`;
+};
+
+const pfLabelLike = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+  fontSize: '11px',
+  fontWeight: 700,
+  color: 'var(--text-tertiary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.3px',
+};
+
+const receiptTh = {
+  padding: '8px 7px',
+  borderBottom: '1px solid var(--border)',
+  fontSize: '11px',
+  fontWeight: 800,
+  whiteSpace: 'nowrap',
+};
+
+const receiptTd = {
+  padding: '5px',
+  borderBottom: '1px solid var(--border)',
+  verticalAlign: 'middle',
+};
+
+const receiptCellInput = {
+  width: '100%',
+  minHeight: '32px',
+  padding: '6px 8px',
+  fontSize: '12px',
+  boxSizing: 'border-box',
 };
 
 const ROW = ({ label, value, valueColor }) => (
