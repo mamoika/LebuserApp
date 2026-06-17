@@ -6,6 +6,7 @@ import { useAppData } from '../hooks/useAppData';
 import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 import { getEntryLogs } from '../lib/logsRpc';
 import { dayNamesShort, weekdayFull, currentLocale } from '../lib/dateUtils';
+import { printSavedLaundryReceipt } from './modals/EntryModals';
 
 // Data dostawy = poniedziałek tygodnia (week_key) + (arr_day - 1)
 function parseMonday(weekKey) {
@@ -111,6 +112,7 @@ export default function HistoryView() {
   const [filterRoute, setFilterRoute] = useState('');
   const [filterDriver, setFilterDriver] = useState('');
   const [filterDone, setFilterDone] = useState(''); // '' | 'done' | 'pending'
+  const [showReceipts, setShowReceipts] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 7; // dni na stronę
 
@@ -224,6 +226,57 @@ export default function HistoryView() {
           </button>
         )}
       </div>
+
+      {/* Kartki prania (zapisane dowody przyjęcia/wydania) */}
+      {(() => {
+        const allReceipts = rawData.receipts || [];
+        const receipts = allReceipts.filter(r =>
+          !filterClient || r.client_name?.toLowerCase().includes(filterClient.toLowerCase())
+        );
+        if (allReceipts.length === 0) return null;
+        const itemCount = (items) => (Array.isArray(items) ? items : []).filter(i => i.accepted || i.issued).length;
+        return (
+          <div style={{ marginBottom: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+            <button
+              onClick={() => setShowReceipts(v => !v)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'none', border: 0, cursor: 'pointer', font: 'inherit' }}
+            >
+              <span style={{ fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🧾 Kartki prania
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>({receipts.length})</span>
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{showReceipts ? '▲' : '▼'}</span>
+            </button>
+            {showReceipts && (
+              <div style={{ borderTop: '1px solid var(--border)' }}>
+                {receipts.length === 0 && (
+                  <div style={{ padding: '14px', fontSize: '12px', color: 'var(--text-tertiary)' }}>Brak kartek dla tego filtra.</div>
+                )}
+                {receipts.map(r => (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', minWidth: '54px' }}>NR {r.doc_no}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.client_name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                        {r.arrival || '—'} → {r.pickup || '—'} · {itemCount(r.items)} poz.{r.total_kg != null ? ` · ${r.total_kg} kg` : ''}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', color: r.status === 'closed' ? '#1b7a3d' : '#9a6b00', background: r.status === 'closed' ? 'rgba(52,199,89,0.15)' : 'rgba(255,179,0,0.18)' }}>
+                      {r.status === 'closed' ? 'Zamknięta' : 'Otwarta'}
+                    </span>
+                    <button
+                      onClick={() => printSavedLaundryReceipt(r)}
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                    >
+                      Drukuj
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '10px' }}>
         {t('history.entries', { count: filtered.length })} {filtered.length !== entries.length ? t('history.ofTotal', { total: entries.length }) : ''} · {t('history.days', { count: dayGroups.length })}

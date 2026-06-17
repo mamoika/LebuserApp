@@ -20,7 +20,7 @@ function withTimeout(promise, ms, label) {
 }
 
 export function useAppData() {
-  const [data, setData] = useState({ clients: [], routes: [], entries: [], allRoutes: [] });
+  const [data, setData] = useState({ clients: [], routes: [], entries: [], receipts: [], allRoutes: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const hasLoadedRef = useRef(false);
@@ -39,15 +39,21 @@ export function useAppData() {
           { data: clients, error: clientsError },
           { data: routes, error: routesError },
           { data: entries, error: entriesError },
+          { data: receipts, error: receiptsError },
         ] = await withTimeout(
           Promise.all([
             supabase.from('clients').select('*').order('sort_order'),
             supabase.from('routes').select('*').order('sort_order'),
             supabase.from('entries').select('*').is('deleted_at', null).or(`done.eq.false,week_key.gte.${lastWeekStr},pick_week_key.gte.${lastWeekStr}`),
+            supabase.from('laundry_receipts').select('*').is('deleted_at', null).order('doc_no', { ascending: false }),
           ]),
           FETCH_TIMEOUT_MS,
           'pobieranie danych'
         );
+
+        // Kartki prania są opcjonalne — jeśli migracja `laundry_receipts` nie jest
+        // jeszcze wgrana na bazę, nie wywalamy całej aplikacji, tylko pomijamy listę.
+        if (receiptsError) console.warn('Pominięto kartki prania:', receiptsError.message);
 
         const fetchError = clientsError || routesError || entriesError;
         if (fetchError) throw fetchError;
@@ -58,6 +64,7 @@ export function useAppData() {
           clients: clients || [],
           routes: allRoutes,
           entries: entries || [],
+          receipts: receiptsError ? [] : (receipts || []),
           allRoutes,
         });
         hasLoadedRef.current = true;
@@ -110,6 +117,7 @@ export function useAppData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, scheduleRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'laundry_receipts' }, scheduleRefetch)
       .subscribe();
     return () => {
       mountedRef.current = false;

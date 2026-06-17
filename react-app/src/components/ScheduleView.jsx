@@ -135,7 +135,7 @@ export default function ScheduleView() {
   const { t } = useTranslation();
   const rawData = useAppData();
   const { isAdmin, isDriver, user } = useAuth();
-  const { entries, clients, routes, loading, error, refetch } = rawData;
+  const { entries, clients, routes, receipts, loading, error, refetch } = rawData;
   const assignedRouteIds = parseRouteIds(user?.routes);
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
@@ -453,6 +453,7 @@ export default function ScheduleView() {
           }}
           clients={clients}
           routes={routes}
+          receipts={receipts}
           source="schedule"
         />
       )}

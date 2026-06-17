@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils';
-import { toastError } from '../../lib/toast';
+import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
@@ -151,7 +151,33 @@ const RECEIPT_SERVICE_ROWS = [
   'Inne',
 ];
 
-function buildLaundryReceiptDraft({ entry, entries, client, mode }) {
+// Nakłada zapisane pozycje (po nazwie usługi) na stałą listę RECEIPT_SERVICE_ROWS,
+// zachowując kolejność druku. Dodatkowe pozycje (np. dopisane ręcznie) trafiają na koniec.
+function mergeReceiptRows(savedItems) {
+  const saved = Array.isArray(savedItems) ? savedItems : [];
+  const byName = new Map(saved.map(item => [item.name, item]));
+  const rows = RECEIPT_SERVICE_ROWS.map(name => {
+    const hit = byName.get(name);
+    return {
+      name,
+      accepted: hit?.accepted ?? '',
+      issued: hit?.issued ?? '',
+      notes: hit?.notes ?? '',
+    };
+  });
+  const known = new Set(RECEIPT_SERVICE_ROWS);
+  saved
+    .filter(item => item.name && !known.has(item.name))
+    .forEach(item => rows.push({
+      name: item.name,
+      accepted: item.accepted ?? '',
+      issued: item.issued ?? '',
+      notes: item.notes ?? '',
+    }));
+  return rows;
+}
+
+function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = null }) {
   const sourceEntries = entries?.length ? entries : [entry];
   const sheetsKg = sourceEntries
     .filter(e => (e.type || 'P') === 'P')
@@ -163,22 +189,40 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode }) {
   const first = sourceEntries[0] || entry;
   const arrival = receiptDate(first.week_key, first.arr_day || 1);
   const pickup = receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
+
+  // Kartka już zapisana w bazie — wczytujemy zapisane wartości, a nie budujemy od zera.
+  if (existing) {
+    return {
+      id: existing.id,
+      savedDocNo: existing.doc_no,
+      status: existing.status || 'open',
+      clientName: existing.client_name || client?.name || entry.client_name || '',
+      address: existing.address || client?.address || '',
+      docNo: String(existing.doc_no ?? ''),
+      arrival: existing.arrival || arrival,
+      pickup: existing.pickup || pickup,
+      modeLabel: existing.mode_label || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'),
+      sheetsKg: existing.sheets_kg != null ? String(existing.sheets_kg) : '',
+      tableclothKg: existing.tablecloth_kg != null ? String(existing.tablecloth_kg) : '',
+      totalKg: existing.total_kg != null ? String(existing.total_kg) : '',
+      rows: mergeReceiptRows(existing.items),
+    };
+  }
+
   return {
+    id: null,
+    savedDocNo: null,
+    status: 'open',
     clientName: client?.name || entry.client_name || '',
     address: client?.address || '',
-    docNo: receiptNo(first),
+    docNo: '',
     arrival,
     pickup,
     modeLabel: mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie',
     sheetsKg: sheetsKg > 0 ? String(Number(sheetsKg.toFixed(1))) : '',
     tableclothKg: tableclothKg > 0 ? String(Number(tableclothKg.toFixed(1))) : '',
     totalKg: totalKg > 0 ? String(Number(totalKg.toFixed(1))) : '',
-    rows: RECEIPT_SERVICE_ROWS.map(name => ({
-      name,
-      accepted: '',
-      issued: '',
-      notes: '',
-    })),
+    rows: mergeReceiptRows(null),
   };
 }
 
@@ -303,6 +347,25 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
 </html>`);
   w.document.close();
   setTimeout(() => w.print(), 250);
+}
+
+// Ponowny wydruk zapisanej kartki (z listy/historii) — mapuje wiersz z bazy na
+// kształt draftu i korzysta z tej samej funkcji druku co edytor.
+export function printSavedLaundryReceipt(row) {
+  if (!row) return;
+  const draft = {
+    clientName: row.client_name || '',
+    address: row.address || '',
+    docNo: String(row.doc_no ?? ''),
+    arrival: row.arrival || '',
+    pickup: row.pickup || '',
+    modeLabel: row.mode_label || '',
+    sheetsKg: row.sheets_kg != null ? String(row.sheets_kg) : '',
+    tableclothKg: row.tablecloth_kg != null ? String(row.tablecloth_kg) : '',
+    totalKg: row.total_kg != null ? String(row.total_kg) : '',
+    rows: mergeReceiptRows(row.items),
+  };
+  printLaundryReceipt({ receipt: draft });
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
@@ -555,7 +618,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], contextMode = 'view', initiallyEditing = false, source = null }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null }) {
   const { t } = useTranslation();
   const { isAdmin, canEdit, isViewer, user, sessionToken } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -573,6 +636,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [washing, setWashing] = useState(false);
   const [receiptDraft, setReceiptDraft] = useState(null);
+  const [savingReceipt, setSavingReceipt] = useState(false);
 
   useEffect(() => {
     if (isOpen && entry) {
@@ -624,7 +688,18 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const showEditForm = canEdit && (editing || directEditMode);
   const selectedClientDetails = (clients || []).find(c => c.name === entry.client_name);
   const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
+  const canSaveLaundryReceipt = source === 'schedule' && canEdit;
   const receiptEntries = isPickupContext ? pickupEntries : [targetEntry];
+
+  // Znajdź już zapisaną kartkę dla tego przyjęcia — najpierw po powiązanym wpisie,
+  // a w razie braku po kliencie + tygodniu (gdy P i O były na osobnych wpisach).
+  const findExistingReceipt = () => {
+    const entryIds = new Set(receiptEntries.map(e => String(e.id)));
+    const clientName = selectedClientDetails?.name || targetEntry.client_name;
+    const weekKey = targetEntry.week_key;
+    return (receipts || []).find(r => r.entry_id && entryIds.has(String(r.entry_id)))
+      || (receipts || []).find(r => r.client_name === clientName && r.week_key === weekKey);
+  };
 
   const openReceiptEditor = () => {
     setReceiptDraft(buildLaundryReceiptDraft({
@@ -632,7 +707,71 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       entries: receiptEntries,
       client: selectedClientDetails,
       mode: contextMode,
+      existing: findExistingReceipt() || null,
     }));
+  };
+
+  const saveReceipt = async () => {
+    if (!receiptDraft) return;
+    try {
+      setSavingReceipt(true);
+      const toNum = (v) => {
+        const n = parseFloat(String(v ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : null;
+      };
+      // Status: w kontekście odbioru zapis domyka kartkę (wydanie), inaczej zostaje otwarta.
+      const status = contextMode === 'pick' ? 'closed' : (receiptDraft.status || 'open');
+      const items = (receiptDraft.rows || [])
+        .filter(row => row.accepted || row.issued || row.notes)
+        .map(row => ({
+          name: row.name,
+          accepted: row.accepted || '',
+          issued: row.issued || '',
+          notes: row.notes || '',
+        }));
+      const { data, error } = await supabase.rpc('admin_save_laundry_receipt', {
+        p_session_token: sessionToken,
+        p_id: receiptDraft.id || null,
+        p_entry_id: String(targetEntry.id),
+        p_client_name: receiptDraft.clientName || '',
+        p_address: receiptDraft.address || '',
+        p_week_key: targetEntry.week_key || null,
+        p_arrival: receiptDraft.arrival || '',
+        p_pickup: receiptDraft.pickup || '',
+        p_mode_label: receiptDraft.modeLabel || '',
+        p_sheets_kg: toNum(receiptDraft.sheetsKg),
+        p_tablecloth_kg: toNum(receiptDraft.tableclothKg),
+        p_total_kg: toNum(receiptDraft.totalKg),
+        p_items: items,
+        p_status: status,
+        p_by: user.name,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const saved = data?.receipt;
+      if (saved) {
+        setReceiptDraft(prev => ({
+          ...prev,
+          id: saved.id,
+          savedDocNo: saved.doc_no,
+          docNo: String(saved.doc_no ?? prev.docNo),
+          status: saved.status || status,
+        }));
+      }
+      await logAction({
+        sessionToken,
+        action: receiptDraft.id ? 'edited' : 'added',
+        clientName: receiptDraft.clientName,
+        entryId: targetEntry.id,
+        details: `Kartka prania NR ${saved?.doc_no ?? receiptDraft.docNo}`,
+      });
+      toastSuccess(`Kartka zapisana (NR ${saved?.doc_no ?? receiptDraft.docNo})`);
+      // Nie wołamy onUpdated() — zamknęłoby okno. Lista kartek odświeży się przez realtime.
+    } catch (err) {
+      toastError(t('entry.errGeneric') + ' ' + err.message);
+    } finally {
+      setSavingReceipt(false);
+    }
   };
 
   const setReceiptField = (field, value) => {
@@ -828,13 +967,24 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>🧾</div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Kartka prania</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Kartka prania</div>
+                  {receiptDraft.id && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', color: receiptDraft.status === 'closed' ? '#1b7a3d' : '#9a6b00', background: receiptDraft.status === 'closed' ? 'rgba(52,199,89,0.15)' : 'rgba(255,179,0,0.18)' }}>
+                      {receiptDraft.status === 'closed' ? 'Zamknięta' : 'Otwarta'}
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receiptDraft.clientName}</div>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-              <label style={pfLabelLike}>Nr dowodu<input className="ap-input" value={receiptDraft.docNo} onChange={e => setReceiptField('docNo', e.target.value)} style={{ marginTop: '5px' }} /></label>
+              <label style={pfLabelLike}>Nr dowodu
+                {receiptDraft.id
+                  ? <input className="ap-input" value={receiptDraft.docNo} readOnly style={{ marginTop: '5px', background: 'var(--bg-secondary)' }} />
+                  : <input className="ap-input" value="" readOnly placeholder="nadany przy zapisie" style={{ marginTop: '5px', background: 'var(--bg-secondary)' }} />}
+              </label>
               <label style={pfLabelLike}>Data przyjęcia<input className="ap-input" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} style={{ marginTop: '5px' }} /></label>
               <label style={pfLabelLike}>Termin wykonania<input className="ap-input" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} style={{ marginTop: '5px' }} /></label>
             </div>
@@ -854,8 +1004,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   </tr>
                 </thead>
                 <tbody>
-                  {receiptDraft.rows.map((row, index) => (
-                    <tr key={`${row.name}-${index}`}>
+                  {receiptDraft.rows.map((row, index) => {
+                    const acc = String(row.accepted ?? '').trim();
+                    const iss = String(row.issued ?? '').trim();
+                    const mismatch = acc !== '' && iss !== '' && acc !== iss;
+                    return (
+                    <tr key={`${row.name}-${index}`} style={mismatch ? { background: 'rgba(255,59,48,0.08)' } : undefined}>
                       <td style={receiptTd}>{index + 1}</td>
                       <td style={receiptTd}>
                         <input className="ap-input" value={row.name} onChange={e => setReceiptRow(index, 'name', e.target.value)} style={receiptCellInput} />
@@ -864,13 +1018,14 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                         <input className="ap-input" value={row.accepted} onChange={e => setReceiptRow(index, 'accepted', e.target.value)} style={receiptCellInput} />
                       </td>
                       <td style={receiptTd}>
-                        <input className="ap-input" value={row.issued} onChange={e => setReceiptRow(index, 'issued', e.target.value)} style={receiptCellInput} />
+                        <input className="ap-input" value={row.issued} onChange={e => setReceiptRow(index, 'issued', e.target.value)} style={{ ...receiptCellInput, ...(mismatch ? { color: '#d70015', fontWeight: 700 } : {}) }} />
                       </td>
                       <td style={receiptTd}>
                         <input className="ap-input" value={row.notes} onChange={e => setReceiptRow(index, 'notes', e.target.value)} style={receiptCellInput} />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -881,8 +1036,26 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               <label style={pfLabelLike}>razem kg<input className="ap-input" value={receiptDraft.totalKg} onChange={e => setReceiptField('totalKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
             </div>
 
+            {(() => {
+              const mismatches = (receiptDraft.rows || []).filter(r => {
+                const a = String(r.accepted ?? '').trim();
+                const i = String(r.issued ?? '').trim();
+                return a !== '' && i !== '' && a !== i;
+              }).length;
+              return mismatches > 0 ? (
+                <div style={{ fontSize: '12px', color: '#d70015', fontWeight: 600, marginBottom: '10px' }}>
+                  ⚠ Różnica przyjęte/wydane w {mismatches} {mismatches === 1 ? 'pozycji' : 'pozycjach'}
+                </div>
+              ) : null;
+            })()}
+
             <div className="ap-btn-group">
-              <button className="ap-btn ap-btn-primary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft })}>Drukuj</button>
+              {canSaveLaundryReceipt && (
+                <button className="ap-btn ap-btn-primary" onClick={saveReceipt} disabled={savingReceipt}>
+                  {savingReceipt ? 'Zapisywanie…' : (receiptDraft.id ? 'Zapisz zmiany' : 'Zapisz')}
+                </button>
+              )}
+              <button className="ap-btn ap-btn-secondary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft })}>Drukuj</button>
               <button className="ap-btn ap-btn-secondary" onClick={() => setReceiptDraft(null)}>Wróć</button>
               <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
             </div>
