@@ -121,9 +121,20 @@ function receiptDate(weekKey, day) {
   return shortDate(dateForDay(weekKey, day));
 }
 
-function receiptNo(entry) {
-  const raw = String(entry?.id || '').replace(/^ID_/, '').replace(/^pickup-/, '');
-  return raw ? raw.slice(-8).toUpperCase() : String(Date.now()).slice(-8);
+// „Nazwisko I." — nazwisko + pierwsza litera imienia (Imię Nazwisko -> Nazwisko I.).
+function shortSignatory(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  return `${last} ${first[0].toUpperCase()}.`;
+}
+
+function formatStamp(value) {
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function escapeHtml(value) {
@@ -202,7 +213,9 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
       status: existing.status || 'open',
       clientName: existing.client_name || client?.name || entry.client_name || '',
       address: existing.address || client?.address || '',
-      docNo: String(existing.doc_no ?? ''),
+      docNo: existing.doc_no != null ? String(existing.doc_no) : '',
+      createdBy: existing.created_by || '',
+      createdAt: existing.created_at || null,
       arrival: existing.arrival || arrival,
       pickup: existing.pickup || pickup,
       modeLabel: existing.mode_label || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'),
@@ -220,6 +233,8 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
     clientName: client?.name || entry.client_name || '',
     address: client?.address || '',
     docNo: '',
+    createdBy: '',
+    createdAt: null,
     arrival,
     pickup,
     modeLabel: mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie',
@@ -230,7 +245,7 @@ function buildLaundryReceiptDraft({ entry, entries, client, mode, existing = nul
   };
 }
 
-function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
+function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy }) {
   const draft = receipt || buildLaundryReceiptDraft({ entry, entries, client, mode });
   const clientName = draft.clientName || '';
   const address = draft.address || '';
@@ -238,9 +253,15 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
   const tableclothKg = parseFloat(String(draft.tableclothKg).replace(',', '.')) || 0;
   const sourceEntries = entries?.length ? entries : [entry];
   const first = sourceEntries[0] || entry;
-  const docNo = draft.docNo || receiptNo(first);
-  const arrival = draft.arrival || receiptDate(first.week_key, first.arr_day || 1);
-  const pickup = draft.pickup || receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1);
+  const docNo = draft.docNo || '';
+  const arrival = draft.arrival || (first ? receiptDate(first.week_key, first.arr_day || 1) : '');
+  const pickup = draft.pickup || (first ? receiptDate(first.pick_week_key || first.week_key, first.pick_day || first.arr_day || 1) : '');
+  // Zamawiający / podpis przyjmującego = kto dodał pozycje + czas dodania.
+  const addedSign = shortSignatory(draft.createdBy);
+  const addedStamp = draft.createdAt ? formatStamp(draft.createdAt) : '';
+  // Wykonujący / podpis przekazującego = kto drukuje dowód + czas wydruku.
+  const printSign = shortSignatory(printedBy);
+  const printStamp = formatStamp();
   const typeSummary = [
     sheetsKg > 0 ? `Pościel ${Number(sheetsKg.toFixed(1))} kg` : '',
     tableclothKg > 0 ? `Obrusy ${Number(tableclothKg.toFixed(1))} kg` : '',
@@ -340,6 +361,9 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
     .sign-grid .box { border-right: 1px solid #bdbdbd; padding: 5px 8px 7px; min-height: 23mm; display: flex; flex-direction: column; justify-content: flex-end; }
     .sign-grid .box:nth-child(2) { border-right: 1.4px solid #1a1a1a; }
     .sign-grid .box:last-child { border-right: 0; }
+    .sign-grid .filled { text-align: center; margin-bottom: 4px; }
+    .sign-grid .filled .who { font-weight: 700; font-size: 12.5px; }
+    .sign-grid .filled .when { font-size: 9.5px; color: #555; }
     .sign-grid .cap { border-top: 1px dotted #888; padding-top: 3px; font-size: 9px; color: #666; text-align: center; }
 
     .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 9.5px; color: #888; }
@@ -405,8 +429,14 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
       </div>
       <div class="sign-grid">
         <div class="box"><div class="cap">podpis przekazującego</div></div>
-        <div class="box"><div class="cap">podpis przyjmującego</div></div>
-        <div class="box"><div class="cap">podpis przekazującego</div></div>
+        <div class="box">
+          ${addedSign ? `<div class="filled"><div class="who">${escapeHtml(addedSign)}</div>${addedStamp ? `<div class="when">${escapeHtml(addedStamp)}</div>` : ''}</div>` : ''}
+          <div class="cap">podpis przyjmującego</div>
+        </div>
+        <div class="box">
+          ${printSign ? `<div class="filled"><div class="who">${escapeHtml(printSign)}</div><div class="when">${escapeHtml(printStamp)}</div></div>` : ''}
+          <div class="cap">podpis przekazującego</div>
+        </div>
         <div class="box"><div class="cap">podpis przyjmującego</div></div>
       </div>
     </div>
@@ -423,12 +453,14 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
 
 // Ponowny wydruk zapisanej kartki (z listy/historii) — mapuje wiersz z bazy na
 // kształt draftu i korzysta z tej samej funkcji druku co edytor.
-export function printSavedLaundryReceipt(row) {
+export function printSavedLaundryReceipt(row, printedBy) {
   if (!row) return;
   const draft = {
     clientName: row.client_name || '',
     address: row.address || '',
-    docNo: String(row.doc_no ?? ''),
+    docNo: row.doc_no != null ? String(row.doc_no) : '',
+    createdBy: row.created_by || '',
+    createdAt: row.created_at || null,
     arrival: row.arrival || '',
     pickup: row.pickup || '',
     modeLabel: row.mode_label || '',
@@ -437,7 +469,7 @@ export function printSavedLaundryReceipt(row) {
     totalKg: row.total_kg != null ? String(row.total_kg) : '',
     rows: mergeReceiptRows(row.items),
   };
-  printLaundryReceipt({ receipt: draft });
+  printLaundryReceipt({ receipt: draft, printedBy });
 }
 
 export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
@@ -807,6 +839,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const { data, error } = await supabase.rpc('admin_save_laundry_receipt', {
         p_session_token: sessionToken,
         p_id: receiptDraft.id || null,
+        p_doc_no: (receiptDraft.docNo || '').trim() || null,
         p_entry_id: String(targetEntry.id),
         p_client_name: receiptDraft.clientName || '',
         p_address: receiptDraft.address || '',
@@ -829,7 +862,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           ...prev,
           id: saved.id,
           savedDocNo: saved.doc_no,
-          docNo: String(saved.doc_no ?? prev.docNo),
+          docNo: saved.doc_no != null ? String(saved.doc_no) : prev.docNo,
+          createdBy: saved.created_by || prev.createdBy,
+          createdAt: saved.created_at || prev.createdAt,
           status: saved.status || status,
         }));
       }
@@ -1078,7 +1113,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                 <div className="kp-cell kp-title">
                   <div className="kp-doclbl">DOWÓD</div>
                   <div className="kp-nr">
-                    NR <input className="kp-in" value={receiptDraft.docNo} readOnly placeholder={receiptDraft.id ? '' : 'przy zapisie'} title="Numer nadawany przy zapisie" />
+                    NR <input className="kp-in" value={receiptDraft.docNo} onChange={e => setReceiptField('docNo', e.target.value)} placeholder="wpisz nr" title="Numer dowodu — wpisywany ręcznie" />
                   </div>
                   <div className="kp-what">PRZYJĘCIA I WYDANIA<br/>BIELIZNY DO PRANIA</div>
                 </div>
@@ -1166,7 +1201,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   {savingReceipt ? 'Zapisywanie…' : (receiptDraft.id ? 'Zapisz zmiany' : 'Zapisz')}
                 </button>
               )}
-              <button className="ap-btn ap-btn-secondary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft })}>Drukuj</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft, printedBy: user.name })}>Drukuj</button>
               <button className="ap-btn ap-btn-secondary" onClick={() => setReceiptDraft(null)}>Wróć</button>
               <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
             </div>

@@ -265,7 +265,7 @@ export default function HistoryView() {
                       {r.status === 'closed' ? 'Zamknięta' : 'Otwarta'}
                     </span>
                     <button
-                      onClick={() => printSavedLaundryReceipt(r)}
+                      onClick={() => printSavedLaundryReceipt(r, user?.name)}
                       style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}
                     >
                       Drukuj
