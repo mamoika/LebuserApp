@@ -134,6 +134,8 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+// Stałe pozycje druku (zawsze obecne, nazwy nieedytowalne). „Inne" celowo
+// usunięte — dodatkowe pozycje dodaje się ręcznie przyciskiem w edytorze.
 const RECEIPT_SERVICE_ROWS = [
   'Powłoki',
   'Powłoczki',
@@ -148,11 +150,11 @@ const RECEIPT_SERVICE_ROWS = [
   'Bluzy',
   'Spodnie',
   'Firany',
-  'Inne',
 ];
 
 // Nakłada zapisane pozycje (po nazwie usługi) na stałą listę RECEIPT_SERVICE_ROWS,
-// zachowując kolejność druku. Dodatkowe pozycje (np. dopisane ręcznie) trafiają na koniec.
+// zachowując kolejność druku. Pozycje dopisane ręcznie (spoza listy) trafiają na koniec
+// i są oznaczone custom:true (edytowalna nazwa + możliwość usunięcia).
 function mergeReceiptRows(savedItems) {
   const saved = Array.isArray(savedItems) ? savedItems : [];
   const byName = new Map(saved.map(item => [item.name, item]));
@@ -160,6 +162,7 @@ function mergeReceiptRows(savedItems) {
     const hit = byName.get(name);
     return {
       name,
+      custom: false,
       accepted: hit?.accepted ?? '',
       issued: hit?.issued ?? '',
       notes: hit?.notes ?? '',
@@ -170,6 +173,7 @@ function mergeReceiptRows(savedItems) {
     .filter(item => item.name && !known.has(item.name))
     .forEach(item => rows.push({
       name: item.name,
+      custom: true,
       accepted: item.accepted ?? '',
       issued: item.issued ?? '',
       notes: item.notes ?? '',
@@ -790,13 +794,16 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       // Status: w kontekście odbioru zapis domyka kartkę (wydanie), inaczej zostaje otwarta.
       const status = contextMode === 'pick' ? 'closed' : (receiptDraft.status || 'open');
       const items = (receiptDraft.rows || [])
-        .filter(row => row.accepted || row.issued || row.notes)
+        // Zapisujemy pozycje z jakąkolwiek wartością, a pozycje dopisane ręcznie
+        // także gdy mają samą nazwę (żeby przetrwały po ponownym otwarciu kartki).
+        .filter(row => row.accepted || row.issued || row.notes || (row.custom && row.name && row.name.trim()))
         .map(row => ({
-          name: row.name,
+          name: (row.name || '').trim(),
           accepted: row.accepted || '',
           issued: row.issued || '',
           notes: row.notes || '',
-        }));
+        }))
+        .filter(row => row.name);
       const { data, error } = await supabase.rpc('admin_save_laundry_receipt', {
         p_session_token: sessionToken,
         p_id: receiptDraft.id || null,
@@ -850,6 +857,20 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     setReceiptDraft(prev => ({
       ...prev,
       rows: prev.rows.map((row, i) => i === index ? { ...row, [field]: value } : row),
+    }));
+  };
+
+  const addReceiptRow = () => {
+    setReceiptDraft(prev => ({
+      ...prev,
+      rows: [...prev.rows, { name: '', custom: true, accepted: '', issued: '', notes: '' }],
+    }));
+  };
+
+  const removeReceiptRow = (index) => {
+    setReceiptDraft(prev => ({
+      ...prev,
+      rows: prev.rows.filter((_, i) => i !== index),
     }));
   };
 
@@ -1077,10 +1098,22 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     const iss = String(row.issued ?? '').trim();
                     const mismatch = acc !== '' && iss !== '' && acc !== iss;
                     return (
-                    <tr key={`${row.name}-${index}`} style={mismatch ? { background: 'rgba(255,59,48,0.08)' } : undefined}>
+                    <tr key={index} style={mismatch ? { background: 'rgba(255,59,48,0.08)' } : undefined}>
                       <td style={receiptTd}>{index + 1}</td>
                       <td style={receiptTd}>
-                        <input className="ap-input" value={row.name} onChange={e => setReceiptRow(index, 'name', e.target.value)} style={receiptCellInput} />
+                        {row.custom ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input className="ap-input" value={row.name} placeholder="Nazwa pozycji" onChange={e => setReceiptRow(index, 'name', e.target.value)} style={receiptCellInput} />
+                            <button
+                              type="button"
+                              onClick={() => removeReceiptRow(index)}
+                              title="Usuń pozycję"
+                              style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: '#d70015', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}
+                            >×</button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', fontWeight: 600 }}>{row.name}</span>
+                        )}
                       </td>
                       <td style={receiptTd}>
                         <input className="ap-input" value={row.accepted} onChange={e => setReceiptRow(index, 'accepted', e.target.value)} style={receiptCellInput} />
@@ -1097,6 +1130,14 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                 </tbody>
               </table>
             </div>
+
+            <button
+              type="button"
+              onClick={addReceiptRow}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '12px', padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--accent)', background: 'rgba(0,122,255,0.06)', color: 'var(--accent)', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
+            >
+              + Dodaj pozycję
+            </button>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
               <label style={pfLabelLike}>kg pościel<input className="ap-input" value={receiptDraft.sheetsKg} onChange={e => setReceiptField('sheetsKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
