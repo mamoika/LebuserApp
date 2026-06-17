@@ -241,15 +241,21 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
     sheetsKg > 0 ? `Pościel ${Number(sheetsKg.toFixed(1))} kg` : '',
     tableclothKg > 0 ? `Obrusy ${Number(tableclothKg.toFixed(1))} kg` : '',
   ].filter(Boolean).join(' · ');
-  const rows = (draft.rows || RECEIPT_SERVICE_ROWS.map(name => ({ name }))).map((row, index) => `
-    <tr>
+  const rows = (draft.rows || RECEIPT_SERVICE_ROWS.map(name => ({ name }))).map((row, index) => {
+    const acc = String(row.accepted ?? '').trim();
+    const iss = String(row.issued ?? '').trim();
+    const diff = acc !== '' && iss !== '' && acc !== iss;
+    return `
+    <tr class="${diff ? 'diff' : ''}">
       <td class="lp">${index + 1}</td>
-      <td>${escapeHtml(row.name)}</td>
-      <td>${escapeHtml(row.accepted || '')}</td>
-      <td>${escapeHtml(row.issued || '')}</td>
-      <td>${escapeHtml(row.notes || '')}</td>
-    </tr>
-  `).join('');
+      <td class="kind">${escapeHtml(row.name)}</td>
+      <td class="qty">${escapeHtml(acc)}</td>
+      <td class="qty issued">${escapeHtml(iss)}</td>
+      <td class="notes">${escapeHtml(row.notes || '')}</td>
+    </tr>`;
+  }).join('');
+  const generatedAt = new Date().toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+  const statusLabel = draft.status === 'closed' ? 'Zamknięta' : 'Otwarta';
 
   const w = window.open('', '_blank', 'width=900,height=1200');
   if (!w) {
@@ -257,90 +263,152 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt }) {
     return;
   }
   w.document.write(`<!doctype html>
-<html>
+<html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <title>Kartka ${escapeHtml(clientName)}</title>
+  <title>Kartka prania ${escapeHtml(clientName)} · NR ${escapeHtml(docNo)}</title>
   <style>
-    @page { size: A4; margin: 10mm; }
-    body { font-family: "Times New Roman", serif; color: #111; margin: 0; }
-    .page { width: 190mm; margin: 0 auto; }
-    .top { display: grid; grid-template-columns: 1.15fr 1fr 1fr; border: 2px solid #111; border-bottom: 0; }
-    .cell { padding: 6px 8px; border-right: 2px solid #111; min-height: 31mm; }
+    * { box-sizing: border-box; }
+    @page { size: A4; margin: 12mm; }
+    html, body { margin: 0; }
+    body {
+      font-family: "Times New Roman", Georgia, serif; color: #1a1a1a;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      background: #f4f5f7;
+    }
+    .page { width: 186mm; margin: 0 auto; background: #fff; }
+    .frame { border: 1.6px solid #1a1a1a; }
+
+    .top { display: grid; grid-template-columns: 1.25fr 1.1fr 1fr; }
+    .cell { padding: 9px 11px; border-right: 1px solid #1a1a1a; }
     .cell:last-child { border-right: 0; }
-    .brand { font-size: 12px; line-height: 1.25; }
-    .brand strong { font-size: 16px; }
-    .title { text-align: center; font-size: 22px; font-weight: 800; line-height: 1.15; }
-    .meta { font-size: 15px; line-height: 1.6; }
-    .line { border-bottom: 1px dotted #111; min-height: 18px; display: inline-block; min-width: 65%; }
-    .company { border-left: 2px solid #111; border-right: 2px solid #111; padding: 8px 10px; font-size: 15px; }
-    .company-row { display: flex; gap: 8px; margin: 5px 0; }
-    .company-row span:first-child { min-width: 44px; }
-    .company-row .fill { flex: 1; border-bottom: 1px dotted #111; font-size: 18px; font-weight: 700; text-align: center; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid #111; }
-    th, td { border: 2px solid #111; height: 10mm; padding: 2px 5px; font-size: 15px; }
-    th { text-align: center; font-weight: 700; }
-    tbody td { border-top: 1px dotted #111; border-bottom: 1px dotted #111; }
-    .lp { width: 9mm; text-align: center; }
-    .kind { width: 58mm; }
-    .qty { width: 34mm; }
-    .notes { width: 55mm; }
-    .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; border-left: 2px solid #111; border-right: 2px solid #111; border-bottom: 2px solid #111; }
-    .summary div { min-height: 13mm; padding: 6px 8px; border-right: 2px solid #111; font-size: 16px; font-weight: 700; }
-    .summary div:last-child { border-right: 0; text-align: right; }
-    .sign { display: grid; grid-template-columns: 1fr 1fr; border-left: 2px solid #111; border-right: 2px solid #111; border-bottom: 2px solid #111; }
-    .sign > div { min-height: 34mm; border-right: 2px solid #111; display: flex; align-items: flex-end; justify-content: center; padding: 8px; font-size: 14px; }
-    .sign > div:last-child { border-right: 0; }
-    .hint { margin-top: 8px; font-size: 12px; color: #444; display: flex; justify-content: space-between; }
-    .print { margin: 12px 0; padding: 10px 16px; font: 700 14px system-ui; border: 0; border-radius: 8px; background: #007aff; color: white; cursor: pointer; }
-    @media print { .print, .hint { display: none; } }
+    .brand .logo { font-weight: 800; font-size: 15px; letter-spacing: .4px; }
+    .brand .sub { font-size: 10.5px; line-height: 1.5; color: #333; margin-top: 4px; }
+    .title { text-align: center; display: flex; flex-direction: column; justify-content: center; }
+    .title .doc { font-size: 12px; letter-spacing: 3px; font-weight: 700; color: #444; }
+    .title .nr { font-size: 25px; font-weight: 800; margin: 1px 0 3px; }
+    .title .nr small { font-size: 12px; font-weight: 700; color: #888; letter-spacing: 1px; }
+    .title .what { font-size: 12.5px; font-weight: 700; line-height: 1.25; letter-spacing: .6px; }
+    .meta { font-size: 12px; display: flex; flex-direction: column; justify-content: center; }
+    .meta .r { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+    .meta .k { color: #555; white-space: nowrap; }
+    .meta .v { font-weight: 700; flex: 1; text-align: right; border-bottom: 1px solid #aaa; padding: 0 0 1px 8px; }
+    .badges { display: flex; gap: 6px; margin-top: 2px; }
+    .badge { font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; border: 1px solid #1a1a1a; }
+    .badge.mode { background: #eef3ff; border-color: #2b5fd0; color: #1b3f96; }
+    .badge.open { background: #fff6e0; border-color: #b9860b; color: #8a6200; }
+    .badge.closed { background: #e7f7ec; border-color: #1f8a45; color: #166534; }
+
+    .company { border-top: 1px solid #1a1a1a; padding: 9px 11px; display: flex; gap: 26px; }
+    .company .field { display: flex; align-items: baseline; gap: 9px; }
+    .company .field.firm { flex: 1.4; }
+    .company .field.addr { flex: 1; }
+    .company .label { font-size: 10.5px; color: #555; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+    .company .value { flex: 1; font-size: 16px; font-weight: 700; border-bottom: 1px solid #aaa; padding-bottom: 2px; min-height: 20px; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead th {
+      background: #ececec; border: 1px solid #1a1a1a; border-top: 1.4px solid #1a1a1a;
+      text-transform: uppercase; font-size: 10px; letter-spacing: .4px; font-weight: 700;
+      padding: 5px 6px; height: 9mm;
+    }
+    tbody td { border: 1px solid #bdbdbd; height: 8.2mm; padding: 1px 7px; font-size: 12.5px; }
+    tbody tr:nth-child(even) td { background: #fafafa; }
+    .lp { width: 8mm; text-align: center; color: #777; }
+    .kind { width: 52mm; }
+    .qty { width: 28mm; text-align: center; font-weight: 700; }
+    .notes { width: auto; color: #333; }
+    tbody tr.diff td { background: #fdebe9; }
+    tbody tr.diff td.issued { color: #c0392b; font-weight: 800; }
+
+    .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid #1a1a1a; border-top: 1.4px solid #1a1a1a; }
+    .summary .box { padding: 7px 11px; border-right: 1px solid #bdbdbd; }
+    .summary .box:last-child { border-right: 0; }
+    .summary .box.total { background: #ececec; }
+    .summary .lbl { font-size: 9.5px; text-transform: uppercase; color: #555; letter-spacing: .4px; }
+    .summary .val { font-size: 17px; font-weight: 800; }
+    .summary .val small { font-size: 11px; font-weight: 700; color: #777; }
+
+    .sign-head { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #1a1a1a; border-top: 0; }
+    .sign-head div { text-align: center; font-weight: 700; font-size: 11.5px; padding: 5px; border-right: 1px solid #1a1a1a; text-transform: uppercase; letter-spacing: .5px; }
+    .sign-head div:last-child { border-right: 0; }
+    .sign-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #1a1a1a; border-top: 0; }
+    .sign-grid .box { border-right: 1px solid #bdbdbd; padding: 5px 8px 7px; min-height: 23mm; display: flex; flex-direction: column; justify-content: flex-end; }
+    .sign-grid .box:nth-child(2) { border-right: 1.4px solid #1a1a1a; }
+    .sign-grid .box:last-child { border-right: 0; }
+    .sign-grid .cap { border-top: 1px dotted #888; padding-top: 3px; font-size: 9px; color: #666; text-align: center; }
+
+    .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 9.5px; color: #888; }
+
+    .toolbar { padding: 14px 0; text-align: center; }
+    .print-btn { padding: 9px 20px; font: 700 13px system-ui; border: 0; border-radius: 8px; background: #007aff; color: #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(0,122,255,.3); }
+    @media print { .toolbar { display: none; } body { background: #fff; } .page { width: auto; } }
   </style>
 </head>
 <body>
+  <div class="toolbar"><button class="print-btn" onclick="window.print()">🖨 Drukuj kartkę</button></div>
   <div class="page">
-    <button class="print" onclick="window.print()">Drukuj</button>
-    <div class="top">
-      <div class="cell brand">
-        <strong>PROFIWASH SP. z o.o.</strong><br>
-        ul. Owcza 10, 66-400 Gorzów Wlkp<br>
-        NIP: 5993278104 &nbsp; REGON: 526167000<br>
-        kontakt@profwash.pl
+    <div class="frame">
+      <div class="top">
+        <div class="cell brand">
+          <div class="logo">PROFIWASH SP. z o.o.</div>
+          <div class="sub">
+            ul. Owcza 10, 66-400 Gorzów Wlkp.<br>
+            NIP: 5993278104 · REGON: 526167000<br>
+            KRS: 0001053946<br>
+            tel. 502 552 123 · kontakt@profiwash.pl<br>
+            www.profiwash.pl
+          </div>
+        </div>
+        <div class="cell title">
+          <div class="doc">DOWÓD</div>
+          <div class="nr"><small>NR</small> ${escapeHtml(docNo)}</div>
+          <div class="what">PRZYJĘCIA I WYDANIA<br>BIELIZNY DO PRANIA</div>
+        </div>
+        <div class="cell meta">
+          <div class="r"><span class="k">Data przyjęcia</span><span class="v">${escapeHtml(arrival)}</span></div>
+          <div class="r"><span class="k">Termin wykonania</span><span class="v">${escapeHtml(pickup)}</span></div>
+          <div class="badges">
+            <span class="badge mode">${escapeHtml(draft.modeLabel || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'))}</span>
+            ${draft.id ? `<span class="badge ${draft.status === 'closed' ? 'closed' : 'open'}">${escapeHtml(statusLabel)}</span>` : ''}
+          </div>
+        </div>
       </div>
-      <div class="cell title">DOWÓD<br>NR <span class="line">${escapeHtml(docNo)}</span><br>PRZYJĘCIA I WYDANIA<br>BIELIZNY DO PRANIA</div>
-      <div class="cell meta">
-        data przyjęcia: <span class="line">${escapeHtml(arrival)}</span><br>
-        termin wykonania: <span class="line">${escapeHtml(pickup)}</span><br>
-        ${escapeHtml(draft.modeLabel || (mode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie'))}
+      <div class="company">
+        <div class="field firm"><span class="label">Firma / hotel</span><span class="value">${escapeHtml(clientName)}</span></div>
+        <div class="field addr"><span class="label">Adres</span><span class="value">${escapeHtml(address)}</span></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="lp">Lp.</th>
+            <th class="kind">Rodzaj usługi</th>
+            <th class="qty">Ilość przyjęta</th>
+            <th class="qty">Ilość wydana</th>
+            <th class="notes">Uwagi</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="summary">
+        <div class="box"><div class="lbl">Pościel</div><div class="val">${escapeHtml(draft.sheetsKg || '—')} <small>kg</small></div></div>
+        <div class="box"><div class="lbl">Obrusy</div><div class="val">${escapeHtml(draft.tableclothKg || '—')} <small>kg</small></div></div>
+        <div class="box total"><div class="lbl">Razem</div><div class="val">${escapeHtml(draft.totalKg || '—')} <small>kg</small></div></div>
+      </div>
+      <div class="sign-head">
+        <div>Zamawiający</div>
+        <div>Wykonujący</div>
+      </div>
+      <div class="sign-grid">
+        <div class="box"><div class="cap">podpis przekazującego</div></div>
+        <div class="box"><div class="cap">podpis przyjmującego</div></div>
+        <div class="box"><div class="cap">podpis przekazującego</div></div>
+        <div class="box"><div class="cap">podpis przyjmującego</div></div>
       </div>
     </div>
-    <div class="company">
-      <div class="company-row"><span>Firma</span><div class="fill">${escapeHtml(clientName)}</div></div>
-      <div class="company-row"><span>Adres</span><div class="fill">${escapeHtml(address)}</div></div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th class="lp">Lp.</th>
-          <th class="kind">Rodzaj usługi</th>
-          <th class="qty">Ilość przyjęta</th>
-          <th class="qty">Ilość wydana</th>
-          <th class="notes">Uwagi</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="summary">
-      <div>kg pościel: ${escapeHtml(draft.sheetsKg || '')}</div>
-      <div>kg obrusy: ${escapeHtml(draft.tableclothKg || '')}</div>
-      <div>razem: ${escapeHtml(draft.totalKg || '')} kg</div>
-    </div>
-    <div class="sign">
-      <div>Zamawiający / podpis przekazującego</div>
-      <div>Wykonujący / podpis przyjmującego</div>
-    </div>
-    <div class="hint">
-      <span>${escapeHtml(typeSummary || 'Kartka wygenerowana automatycznie z harmonogramu')}</span>
-      <span>${escapeHtml(clientName)} · ${escapeHtml(arrival)}</span>
+    <div class="foot">
+      <span>${escapeHtml(typeSummary || 'Kartka wygenerowana z systemu harmonogramu')}</span>
+      <span>Wygenerowano: ${escapeHtml(generatedAt)}</span>
     </div>
   </div>
 </body>
