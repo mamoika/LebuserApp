@@ -1048,117 +1048,119 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     };
 
     if (receiptDraft) {
+    const kpMismatches = (receiptDraft.rows || []).filter(r => {
+      const a = String(r.accepted ?? '').trim();
+      const i = String(r.issued ?? '').trim();
+      return a !== '' && i !== '' && a !== i;
+    }).length;
     return (
       <div className="ap-overlay" style={{ display: 'flex' }}>
-        <div className="ap-sheet" style={{ maxWidth: '760px' }}>
+        <div className="ap-sheet" style={{ maxWidth: '780px' }}>
           <div className="ap-handle"></div>
           <div className="ap-content">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(0,122,255,0.3)' }}>🧾</div>
+            <style>{KP_STYLE}</style>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '19px', flexShrink: 0 }}>🧾</div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '2px' }}>Kartka prania</div>
-                  {receiptDraft.id && (
-                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', color: receiptDraft.status === 'closed' ? '#1b7a3d' : '#9a6b00', background: receiptDraft.status === 'closed' ? 'rgba(52,199,89,0.15)' : 'rgba(255,179,0,0.18)' }}>
-                      {receiptDraft.status === 'closed' ? 'Zamknięta' : 'Otwarta'}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receiptDraft.clientName}</div>
+                <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px' }}>Kartka prania</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receiptDraft.clientName || '—'}</div>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-              <label style={pfLabelLike}>Nr dowodu
-                {receiptDraft.id
-                  ? <input className="ap-input" value={receiptDraft.docNo} readOnly style={{ marginTop: '5px', background: 'var(--bg-secondary)' }} />
-                  : <input className="ap-input" value="" readOnly placeholder="nadany przy zapisie" style={{ marginTop: '5px', background: 'var(--bg-secondary)' }} />}
-              </label>
-              <label style={pfLabelLike}>Data przyjęcia<input className="ap-input" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} style={{ marginTop: '5px' }} /></label>
-              <label style={pfLabelLike}>Termin wykonania<input className="ap-input" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} style={{ marginTop: '5px' }} /></label>
-            </div>
-
-            <label style={pfLabelLike}>Firma / hotel<input className="ap-input" value={receiptDraft.clientName} onChange={e => setReceiptField('clientName', e.target.value)} style={{ marginTop: '5px', marginBottom: '8px' }} /></label>
-            <label style={pfLabelLike}>Adres<input className="ap-input" value={receiptDraft.address} onChange={e => setReceiptField('address', e.target.value)} style={{ marginTop: '5px', marginBottom: '12px' }} /></label>
-
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', marginBottom: '12px' }}>
-              <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)', textAlign: 'left' }}>
-                    <th style={receiptTh}>Lp.</th>
-                    <th style={receiptTh}>Rodzaj usługi</th>
-                    <th style={receiptTh}>Ilość przyjęta</th>
-                    <th style={receiptTh}>Ilość wydana</th>
-                    <th style={receiptTh}>Uwagi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {receiptDraft.rows.map((row, index) => {
-                    const acc = String(row.accepted ?? '').trim();
-                    const iss = String(row.issued ?? '').trim();
-                    const mismatch = acc !== '' && iss !== '' && acc !== iss;
-                    return (
-                    <tr key={index} style={mismatch ? { background: 'rgba(255,59,48,0.08)' } : undefined}>
-                      <td style={receiptTd}>{index + 1}</td>
-                      <td style={receiptTd}>
-                        {row.custom ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <input className="ap-input" value={row.name} placeholder="Nazwa pozycji" onChange={e => setReceiptRow(index, 'name', e.target.value)} style={receiptCellInput} />
-                            <button
-                              type="button"
-                              onClick={() => removeReceiptRow(index)}
-                              title="Usuń pozycję"
-                              style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: '#d70015', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}
-                            >×</button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '12px', fontWeight: 600 }}>{row.name}</span>
-                        )}
-                      </td>
-                      <td style={receiptTd}>
-                        <input className="ap-input" value={row.accepted} onChange={e => setReceiptRow(index, 'accepted', e.target.value)} style={receiptCellInput} />
-                      </td>
-                      <td style={receiptTd}>
-                        <input className="ap-input" value={row.issued} onChange={e => setReceiptRow(index, 'issued', e.target.value)} style={{ ...receiptCellInput, ...(mismatch ? { color: '#d70015', fontWeight: 700 } : {}) }} />
-                      </td>
-                      <td style={receiptTd}>
-                        <input className="ap-input" value={row.notes} onChange={e => setReceiptRow(index, 'notes', e.target.value)} style={receiptCellInput} />
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <button
-              type="button"
-              onClick={addReceiptRow}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '12px', padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--accent)', background: 'rgba(0,122,255,0.06)', color: 'var(--accent)', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-            >
-              + Dodaj pozycję
-            </button>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-              <label style={pfLabelLike}>kg pościel<input className="ap-input" value={receiptDraft.sheetsKg} onChange={e => setReceiptField('sheetsKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
-              <label style={pfLabelLike}>kg obrusy<input className="ap-input" value={receiptDraft.tableclothKg} onChange={e => setReceiptField('tableclothKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
-              <label style={pfLabelLike}>razem kg<input className="ap-input" value={receiptDraft.totalKg} onChange={e => setReceiptField('totalKg', e.target.value)} inputMode="decimal" style={{ marginTop: '5px' }} /></label>
-            </div>
-
-            {(() => {
-              const mismatches = (receiptDraft.rows || []).filter(r => {
-                const a = String(r.accepted ?? '').trim();
-                const i = String(r.issued ?? '').trim();
-                return a !== '' && i !== '' && a !== i;
-              }).length;
-              return mismatches > 0 ? (
-                <div style={{ fontSize: '12px', color: '#d70015', fontWeight: 600, marginBottom: '10px' }}>
-                  ⚠ Różnica przyjęte/wydane w {mismatches} {mismatches === 1 ? 'pozycji' : 'pozycjach'}
+            {/* Edytor stylizowany na papierowy DOWÓD — żeby nie mylił się z innym formularzem */}
+            <div className="kp-doc">
+              <div className="kp-top">
+                <div className="kp-cell">
+                  <div className="kp-logo">PROFIWASH SP. z o.o.</div>
+                  <div className="kp-sub">ul. Owcza 10, 66-400 Gorzów Wlkp.<br/>NIP: 5993278104 · REGON: 526167000<br/>tel. 502 552 123 · kontakt@profiwash.pl</div>
                 </div>
-              ) : null;
-            })()}
+                <div className="kp-cell kp-title">
+                  <div className="kp-doclbl">DOWÓD</div>
+                  <div className="kp-nr">
+                    NR <input className="kp-in" value={receiptDraft.docNo} readOnly placeholder={receiptDraft.id ? '' : 'przy zapisie'} title="Numer nadawany przy zapisie" />
+                  </div>
+                  <div className="kp-what">PRZYJĘCIA I WYDANIA<br/>BIELIZNY DO PRANIA</div>
+                </div>
+                <div className="kp-cell kp-meta">
+                  <div className="kp-mrow"><span className="kp-mk">Data przyjęcia</span><input className="kp-in" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} /></div>
+                  <div className="kp-mrow"><span className="kp-mk">Termin wykonania</span><input className="kp-in" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} /></div>
+                  <div className="kp-badges">
+                    <span className="kp-badge mode">{receiptDraft.modeLabel || (contextMode === 'pick' ? 'wydanie/odbiór' : 'przyjęcie')}</span>
+                    {receiptDraft.id && <span className={`kp-badge ${receiptDraft.status === 'closed' ? 'closed' : 'open'}`}>{receiptDraft.status === 'closed' ? 'Zamknięta' : 'Otwarta'}</span>}
+                  </div>
+                </div>
+              </div>
 
-            <div className="ap-btn-group">
+              <div className="kp-company">
+                <div className="kp-field firm"><span className="kp-lbl">Firma / hotel</span><input className="kp-in" value={receiptDraft.clientName} onChange={e => setReceiptField('clientName', e.target.value)} /></div>
+                <div className="kp-field"><span className="kp-lbl">Adres</span><input className="kp-in" value={receiptDraft.address} onChange={e => setReceiptField('address', e.target.value)} /></div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table className="kp-table">
+                  <thead>
+                    <tr>
+                      <th className="kp-lp">Lp.</th>
+                      <th className="kp-kind">Rodzaj usługi</th>
+                      <th className="kp-qty">Ilość przyjęta</th>
+                      <th className="kp-qty">Ilość wydana</th>
+                      <th>Uwagi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptDraft.rows.map((row, index) => {
+                      const acc = String(row.accepted ?? '').trim();
+                      const iss = String(row.issued ?? '').trim();
+                      const mismatch = acc !== '' && iss !== '' && acc !== iss;
+                      return (
+                      <tr key={index} className={mismatch ? 'diff' : ''}>
+                        <td className="kp-lp">{index + 1}</td>
+                        <td className="kp-kind">
+                          {row.custom ? (
+                            <div className="kp-namewrap">
+                              <input className="kp-cellin" value={row.name} placeholder="Nazwa pozycji" onChange={e => setReceiptRow(index, 'name', e.target.value)} />
+                              <button type="button" className="kp-rm" onClick={() => removeReceiptRow(index)} title="Usuń pozycję">×</button>
+                            </div>
+                          ) : (
+                            <span className="kp-kindname">{row.name}</span>
+                          )}
+                        </td>
+                        <td className="kp-qty"><input className="kp-cellin" value={row.accepted} inputMode="numeric" onChange={e => setReceiptRow(index, 'accepted', e.target.value)} /></td>
+                        <td className={`kp-qty kp-issued ${mismatch ? 'diff' : ''}`}><input className="kp-cellin" value={row.issued} inputMode="numeric" onChange={e => setReceiptRow(index, 'issued', e.target.value)} /></td>
+                        <td><input className="kp-cellin" value={row.notes} onChange={e => setReceiptRow(index, 'notes', e.target.value)} /></td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <button type="button" className="kp-add" onClick={addReceiptRow}>+ Dodaj pozycję</button>
+
+              <div className="kp-summary">
+                <div className="kp-box">
+                  <div className="kp-boxlbl">Pościel</div>
+                  <div className="kp-boxval"><input className="kp-in" value={receiptDraft.sheetsKg} inputMode="decimal" onChange={e => setReceiptField('sheetsKg', e.target.value)} /><span className="kp-unit">kg</span></div>
+                </div>
+                <div className="kp-box">
+                  <div className="kp-boxlbl">Obrusy</div>
+                  <div className="kp-boxval"><input className="kp-in" value={receiptDraft.tableclothKg} inputMode="decimal" onChange={e => setReceiptField('tableclothKg', e.target.value)} /><span className="kp-unit">kg</span></div>
+                </div>
+                <div className="kp-box total">
+                  <div className="kp-boxlbl">Razem</div>
+                  <div className="kp-boxval"><input className="kp-in" value={receiptDraft.totalKg} inputMode="decimal" onChange={e => setReceiptField('totalKg', e.target.value)} /><span className="kp-unit">kg</span></div>
+                </div>
+              </div>
+            </div>
+
+            {kpMismatches > 0 && (
+              <div style={{ fontSize: '12px', color: '#d70015', fontWeight: 600, margin: '10px 0 0' }}>
+                ⚠ Różnica przyjęte/wydane w {kpMismatches} {kpMismatches === 1 ? 'pozycji' : 'pozycjach'}
+              </div>
+            )}
+
+            <div className="ap-btn-group" style={{ marginTop: '14px' }}>
               {canSaveLaundryReceipt && (
                 <button className="ap-btn ap-btn-primary" onClick={saveReceipt} disabled={savingReceipt}>
                   {savingReceipt ? 'Zapisywanie…' : (receiptDraft.id ? 'Zapisz zmiany' : 'Zapisz')}
@@ -1423,38 +1425,62 @@ const fmtDateTime = (iso) => {
   return `${dd}.${mm} ${hh}:${min}`;
 };
 
-const pfLabelLike = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-  fontSize: '11px',
-  fontWeight: 700,
-  color: 'var(--text-tertiary)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.3px',
-};
-
-const receiptTh = {
-  padding: '8px 7px',
-  borderBottom: '1px solid var(--border)',
-  fontSize: '11px',
-  fontWeight: 800,
-  whiteSpace: 'nowrap',
-};
-
-const receiptTd = {
-  padding: '5px',
-  borderBottom: '1px solid var(--border)',
-  verticalAlign: 'middle',
-};
-
-const receiptCellInput = {
-  width: '100%',
-  minHeight: '32px',
-  padding: '6px 8px',
-  fontSize: '12px',
-  boxSizing: 'border-box',
-};
+// Style edytora kartki prania — wygląd papierowego DOWODU (białe „pole",
+// czarne ramki, szare nagłówki), żeby formularz wpisywania nie mylił się
+// z innymi ekranami i odpowiadał wydrukowi.
+const KP_STYLE = `
+.kp-doc { background:#fff; color:#1a1a1a; font-family:"Times New Roman",Georgia,serif; border:1.6px solid #1a1a1a; border-radius:4px; overflow:hidden; }
+.kp-doc input { font-family:inherit; color:#1a1a1a; }
+.kp-doc input::placeholder { color:#aaa; font-style:italic; }
+.kp-top { display:grid; grid-template-columns:1.2fr 1.1fr 1fr; }
+.kp-cell { padding:8px 10px; border-right:1px solid #1a1a1a; }
+.kp-cell:last-child { border-right:0; }
+.kp-logo { font-weight:800; font-size:13.5px; letter-spacing:.3px; }
+.kp-sub { font-size:9.5px; line-height:1.45; color:#333; margin-top:3px; }
+.kp-title { text-align:center; display:flex; flex-direction:column; justify-content:center; gap:2px; }
+.kp-doclbl { font-size:11px; letter-spacing:3px; font-weight:700; color:#444; }
+.kp-nr { font-size:13px; font-weight:700; color:#444; }
+.kp-nr .kp-in { font-size:18px; font-weight:800; text-align:center; width:96px; border:0; border-bottom:1px dotted #888; background:transparent; outline:none; }
+.kp-what { font-size:10.5px; font-weight:700; line-height:1.2; letter-spacing:.5px; }
+.kp-meta { font-size:11px; display:flex; flex-direction:column; justify-content:center; gap:5px; }
+.kp-mrow { display:flex; align-items:baseline; gap:6px; }
+.kp-mk { color:#555; white-space:nowrap; font-size:9px; text-transform:uppercase; letter-spacing:.3px; }
+.kp-mrow .kp-in { flex:1; font-weight:700; border:0; border-bottom:1px solid #aaa; text-align:right; font-size:13px; background:transparent; outline:none; padding:0 0 1px; min-width:0; }
+.kp-badges { display:flex; gap:6px; margin-top:2px; flex-wrap:wrap; }
+.kp-badge { font-size:9px; font-weight:700; padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; border:1px solid #1a1a1a; }
+.kp-badge.mode { background:#eef3ff; border-color:#2b5fd0; color:#1b3f96; }
+.kp-badge.open { background:#fff6e0; border-color:#b9860b; color:#8a6200; }
+.kp-badge.closed { background:#e7f7ec; border-color:#1f8a45; color:#166534; }
+.kp-company { border-top:1px solid #1a1a1a; padding:8px 10px; display:flex; gap:20px; }
+.kp-field { display:flex; align-items:baseline; gap:8px; flex:1; min-width:0; }
+.kp-field.firm { flex:1.5; }
+.kp-lbl { font-size:9.5px; color:#555; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.kp-company .kp-in { flex:1; font-size:15px; font-weight:700; border:0; border-bottom:1px solid #aaa; background:transparent; outline:none; padding-bottom:2px; min-width:0; }
+.kp-table { width:100%; min-width:600px; border-collapse:collapse; table-layout:fixed; border-top:1.4px solid #1a1a1a; }
+.kp-table th { background:#ececec; border:1px solid #1a1a1a; font-size:9px; text-transform:uppercase; letter-spacing:.3px; font-weight:700; padding:5px 6px; text-align:left; }
+.kp-table td { border:1px solid #bdbdbd; padding:0; height:8.6mm; vertical-align:middle; }
+.kp-table tbody tr:nth-child(even) td { background:#fafafa; }
+.kp-table tr.diff td { background:#fdebe9; }
+.kp-lp { width:9mm; text-align:center; color:#777; font-size:11px; padding:0 4px; }
+.kp-kind { width:46mm; }
+.kp-kindname { font-size:12.5px; font-weight:700; padding:0 8px; display:block; }
+.kp-qty { width:26mm; }
+.kp-cellin { border:0; background:transparent; width:100%; height:100%; box-sizing:border-box; padding:4px 8px; font-size:12.5px; outline:none; }
+.kp-qty .kp-cellin { text-align:center; font-weight:700; }
+.kp-qty.kp-issued.diff .kp-cellin { color:#c0392b; font-weight:800; }
+.kp-cellin:focus { background:#eef3ff; }
+.kp-namewrap { display:flex; align-items:center; gap:4px; padding:0 6px; }
+.kp-rm { flex-shrink:0; width:22px; height:22px; border-radius:5px; border:1px solid #ccc; background:#f4f4f4; color:#c0392b; cursor:pointer; font-size:13px; line-height:1; padding:0; }
+.kp-add { width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px dashed #2b5fd0; border-top:0; background:#f3f7ff; color:#1b3f96; font-weight:700; font-size:12px; cursor:pointer; font-family:inherit; }
+.kp-summary { display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1.4px solid #1a1a1a; }
+.kp-box { padding:6px 10px; border-right:1px solid #bdbdbd; }
+.kp-box:last-child { border-right:0; }
+.kp-box.total { background:#ececec; }
+.kp-boxlbl { font-size:9px; text-transform:uppercase; color:#555; letter-spacing:.3px; }
+.kp-boxval { display:flex; align-items:baseline; gap:3px; }
+.kp-box .kp-in { font-size:16px; font-weight:800; width:64px; border:0; border-bottom:1px solid #aaa; background:transparent; outline:none; }
+.kp-unit { font-size:11px; font-weight:700; color:#777; }
+`;
 
 const ROW = ({ label, value, valueColor }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 0' }}>
