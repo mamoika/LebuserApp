@@ -1458,6 +1458,170 @@ export default function DriverRouteView({ manageMode = false }) {
     setTimeout(() => w.print(), 300);
   };
 
+  const printDayCard = (baseTrip) => {
+    const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    if (!baseTrip?.trip_date || baseTrip.status !== 'finished') {
+      toastError('Karta dnia jest dostępna po zakończeniu przynajmniej jednego odcinka');
+      return;
+    }
+
+    const sameDriver = t => baseTrip.driver_id
+      ? String(t.driver_id) === String(baseTrip.driver_id)
+      : (t.driver_name || '') === (baseTrip.driver_name || '');
+    const dayTrips = allTrips
+      .filter(t => t.status === 'finished' && t.trip_date === baseTrip.trip_date && sameDriver(t))
+      .sort((a, b) => new Date(a.started_at || `${a.trip_date}T00:00:00`) - new Date(b.started_at || `${b.trip_date}T00:00:00`));
+    if (dayTrips.length === 0) {
+      toastError('Brak skończonych odcinków dla tego dnia');
+      return;
+    }
+
+    const mergedStops = new Map();
+    dayTrips.forEach(t => {
+      getTripStops(t).forEach(stop => {
+        const key = stop.client_name || '—';
+        if (!mergedStops.has(key)) mergedStops.set(key, { ...stop, entries: [], dirtyEntries: [] });
+        const target = mergedStops.get(key);
+        [...(stop.entries || [])].forEach(e => {
+          if (!target.entries.some(x => x.id === e.id)) target.entries.push(e);
+        });
+        [...(stop.dirtyEntries || [])].forEach(e => {
+          if (!target.dirtyEntries.some(x => x.id === e.id)) target.dirtyEntries.push(e);
+        });
+        if (!target.route_id && stop.route_id) target.route_id = stop.route_id;
+      });
+    });
+
+    const dayStops = [...mergedStops.values()].sort(compareStops);
+    const cleanStops = dayStops.filter(s => (s.entries || []).length > 0);
+    const dirtyStops = dayStops.filter(s => (s.dirtyEntries || []).length > 0);
+    const cleanEntries = [];
+    cleanStops.forEach(s => (s.entries || []).forEach(e => {
+      if (!cleanEntries.some(x => x.id === e.id)) cleanEntries.push(e);
+    }));
+    const dirtyEntries = [];
+    dirtyStops.forEach(s => (s.dirtyEntries || []).forEach(e => {
+      if (!dirtyEntries.some(x => x.id === e.id)) dirtyEntries.push(e);
+    }));
+    const cleanTrolleys = cleanStops.reduce((sum, s) => {
+      const val = s.entries?.find(e => e.picked_baskets !== null && e.picked_baskets !== undefined)?.picked_baskets;
+      const n = Number(val);
+      return sum + (Number.isFinite(n) && n > 0 ? n : ((s.entries || []).length > 0 ? 1 : 0));
+    }, 0);
+    const dirtyTrolleys = dirtyEntries.reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0);
+    const totalKg = Number(sumWeight(cleanEntries).toFixed(1));
+    const firstTrip = dayTrips[0];
+    const lastTrip = dayTrips[dayTrips.length - 1];
+
+    const tripRows = dayTrips.map((t, i) => {
+      const distance = distanceForTrip(t);
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(VEHICLE_LABELS[t.car] || t.car || '')}</td>
+        <td>${esc(routeNamesForTrip(t))}</td>
+        <td>${esc(fmtTime(t.started_at) || '—')}</td>
+        <td>${esc(fmtTime(t.ended_at) || '—')}</td>
+        <td>${esc(fmtDuration(t.started_at, t.ended_at))}</td>
+        <td>${t.end_km ?? ''}</td>
+        <td>${distance !== null ? distance : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const stopRows = dayStops.map((s, i) => {
+      const hasClean = (s.entries || []).length > 0;
+      const pralnia = hasClean && s.entries.every(e => e.done);
+      const delivered = hasClean && s.entries.every(e => e.delivered);
+      const pickedTime = fmtTime(s.entries.find(e => e.picked_at)?.picked_at);
+      const deliveredTime = fmtTime(s.entries.find(e => e.delivered_at)?.delivered_at);
+      const kg = Number(sumWeight(s.entries || []).toFixed(1)) || '';
+      const cleanBaskets = hasClean
+        ? (() => {
+            const val = s.entries.find(e => e.picked_baskets !== null && e.picked_baskets !== undefined)?.picked_baskets;
+            const n = Number(val);
+            return Number.isFinite(n) && n > 0 ? n : 1;
+          })()
+        : '';
+      const dirtyBaskets = (s.dirtyEntries || []).reduce((sum, e) => sum + (Number(e.trolleys) || 1), 0) || '';
+      const dirtyTimes = [...new Set((s.dirtyEntries || []).map(e => fmtTime(e.added_at)).filter(Boolean))].join(', ');
+      const note = s.entries?.[0]?.driver_note || '';
+      return `<tr>
+        <td>${i + 2}</td>
+        <td class="l">${esc(s.client_name)}</td>
+        <td>${pralnia ? pickedTime || '✓' : '—'}</td>
+        <td>${delivered ? deliveredTime || '✓' : '—'}</td>
+        <td>${kg}</td>
+        <td>${cleanBaskets}</td>
+        <td>${dirtyBaskets}</td>
+        <td>${dirtyTimes || '—'}</td>
+        <td class="l">${esc(note)}</td>
+      </tr>`;
+    }).join('');
+
+    const startRow = `<tr class="route-marker">
+        <td>1</td>
+        <td class="l"><b>Pralnia</b></td>
+        <td>${esc(fmtTime(firstTrip.started_at) || '—')}</td>
+        <td>Start dnia</td>
+        <td></td><td></td><td></td><td></td>
+        <td class="l">Pierwszy wyjazd z pralni</td>
+      </tr>`;
+    const endRow = `<tr class="route-marker">
+        <td>${dayStops.length + 2}</td>
+        <td class="l"><b>Pralnia</b></td>
+        <td></td>
+        <td>${esc(fmtTime(lastTrip.ended_at) || '—')}</td>
+        <td></td><td></td><td></td><td></td>
+        <td class="l">Koniec dnia / ostatni powrót</td>
+      </tr>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Karta dnia kierowcy</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:24px;color:#000}
+        h1{font-size:18px;text-align:center;margin:0 0 14px}
+        h2{font-size:14px;margin:18px 0 8px}
+        .head,.summary{display:flex;flex-wrap:wrap;gap:6px 24px;font-size:13px;margin-bottom:14px}
+        .head div,.summary div{min-width:150px}
+        table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+        th,td{border:1px solid #000;padding:5px 6px;text-align:center}
+        td.l,th.l{text-align:left}
+        thead{background:#eee}
+        .route-marker{background:#f3f3f3}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h1>KARTA DNIA KIEROWCY</h1>
+      <div class="head">
+        <div><b>Kierowca:</b> ${esc(baseTrip.driver_name || user?.name)}</div>
+        <div><b>Data:</b> ${esc(baseTrip.trip_date)}</div>
+        <div><b>Start dnia:</b> ${esc(fmtTime(firstTrip.started_at) || '')}</div>
+        <div><b>Koniec dnia:</b> ${esc(fmtTime(lastTrip.ended_at) || '')}</div>
+        <div><b>Odcinki/aut:</b> ${dayTrips.length}</div>
+      </div>
+      <div class="summary">
+        <div><b>Punkty razem:</b> ${dayStops.length}</div>
+        <div><b>Z czystym:</b> ${cleanStops.length}</div>
+        <div><b>Z brudnym:</b> ${dirtyStops.length}</div>
+        <div><b>Kg:</b> ${totalKg}</div>
+        <div><b>Wózki z pralni:</b> ${cleanTrolleys}</div>
+        <div><b>Brudne wózki:</b> ${dirtyTrolleys}</div>
+      </div>
+      <h2>Odcinki / auta</h2>
+      <table>
+        <thead><tr><th>Odc.</th><th>Samochód</th><th>Trasy</th><th>Start</th><th>Koniec</th><th>Czas</th><th>KM zgłoszony</th><th>Przejazd km</th></tr></thead>
+        <tbody>${tripRows}</tbody>
+      </table>
+      <h2>Punkty dnia</h2>
+      <table>
+        <thead><tr><th>Lp.</th><th class="l">Hotel/Klient</th><th>Z pralni godz.</th><th>Dostarczono godz.</th><th>Kg</th><th>Wózki z pralni</th><th>Brudne wózki</th><th>Brudne godz.</th><th class="l">Uwagi</th></tr></thead>
+        <tbody>${startRow}${stopRows}${endRow}</tbody>
+      </table>
+      <p style="margin-top:40px;font-size:13px">Podpis kierowcy: ______________________</p>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { toastError('Wyłącz blokadę wyskakujących okienek, aby wydrukować'); return; }
+    w.document.write(html); w.document.close(); w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
   if (error) return <DataError onRetry={refetch} />;
   if (loading || tripLoading) return <div className="loader">Ładowanie trasy…</div>;
 
@@ -1603,7 +1767,12 @@ export default function DriverRouteView({ manageMode = false }) {
               {isAdmin && t.end_km && !kmApproval.approved && (
                 <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setKmEditTrip(t); setKmEditValue(String(t.end_km ?? '')); }} disabled={busy}>Zatwierdź km</button>
               )}
-              {t.status === 'finished' && <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>}
+              {t.status === 'finished' && (
+                <>
+                  <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printDayCard(t); }}>Dzień</button>
+                  <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); printCard(t); }}>Karta</button>
+                </>
+              )}
             </div>
           </div>
         )}
