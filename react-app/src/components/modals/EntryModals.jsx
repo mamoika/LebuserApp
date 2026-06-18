@@ -51,11 +51,21 @@ function clientRouteSchedule(clients, routes, clientName) {
   return route?.schedule || 'other';
 }
 
-function nextWeekKey(weekKey) {
-  const parts = weekKey.split('-');
+// Klucz tygodnia przesunięty o n tygodni (n może być >1 — odbiór w dalszym terminie).
+function addWeeks(weekKey, n) {
+  const parts = (weekKey || '').split('-');
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  d.setDate(d.getDate() + 7);
+  d.setDate(d.getDate() + 7 * (Number(n) || 0));
   return formatWeekKey(d);
+}
+
+// Ile tygodni dzieli dwa klucze tygodni (do odtworzenia offsetu przy edycji wpisu).
+function weeksBetween(fromWeekKey, toWeekKey) {
+  if (!fromWeekKey || !toWeekKey) return 0;
+  const [ay, am, ad] = fromWeekKey.split('-').map(Number);
+  const [by, bm, bd] = toWeekKey.split('-').map(Number);
+  const a = new Date(ay, am - 1, ad), b = new Date(by, bm - 1, bd);
+  return Math.max(0, Math.round((b - a) / (7 * 86400000)));
 }
 
 // Data dnia roboczego (1=Pn..5=Pt) w tygodniu zaczynającym się od weekKey (poniedziałek).
@@ -76,8 +86,8 @@ function dayWithDate(weekKey, day) {
 // tydzień" (pickWeek 1) ma wszystkie dni (zawsze jest po przyjeździe). `includeDay`
 // chroni bieżącą wartość (np. starszy wpis) przed cichą zmianą przy otwarciu.
 function buildPickDayOptions(baseWeekKey, arrDay, pickWeek, includeDay) {
-  const wk = Number(pickWeek) === 1 ? nextWeekKey(baseWeekKey) : baseWeekKey;
-  const min = Number(pickWeek) === 1 ? 1 : (parseInt(arrDay) || 1);
+  const wk = addWeeks(baseWeekKey, Number(pickWeek) || 0);
+  const min = Number(pickWeek) >= 1 ? 1 : (parseInt(arrDay) || 1);
   const out = [];
   const seen = new Set();
   for (let d = min; d <= 5; d++) { out.push({ value: d, label: dayWithDate(wk, d) }); seen.add(d); }
@@ -544,11 +554,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       if (!client) throw new Error(t('entry.selectClient'));
       const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
 
-      // Calculate pick_week_key
-      let pickWeekKey = weekKey;
-      if (pickWeek === 1) {
-        pickWeekKey = nextWeekKey(weekKey);
-      }
+      // Calculate pick_week_key — offset 0/1 (kierowca) lub dalej (admin)
+      const pickWeekKey = addWeeks(weekKey, Number(pickWeek) || 0);
 
       // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
       // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
@@ -695,10 +702,18 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupWeek')}</div>
-              <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                <option value={0}>{t('entry.sameWeek')}</option>
-                <option value={1}>{t('entry.nextWeek')}</option>
-              </select>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
+                  <option value={0}>{t('entry.sameWeek')}</option>
+                  <option value={1}>{t('entry.nextWeek')}</option>
+                  {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
+                    <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(weekKey, n), 1))})</option>
+                  ))}
+                </select>
+                {isAdmin && (
+                  <button type="button" className="ap-input" style={{ width: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }} title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+                )}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
@@ -749,7 +764,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setWeight(entry.weight || '');
       setArrDay(entry.arr_day || 1);
       setPickDay(entry.pick_day || 1);
-      setPickWeek(entry.week_key === entry.pick_week_key ? 0 : 1);
+      setPickWeek(weeksBetween(entry.week_key, entry.pick_week_key));
       setTrolleys(entry.trolleys ?? 1);
       setUrgent(entry.urgent || false);
       // Komentarz klienta (wspólna notatka) — preferuj clients.note, fallback na stary entry.comment
@@ -982,8 +997,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     try {
       setLoading(true);
 
-      let pickWeekKey = targetEntry.week_key;
-      if (pickWeek === 1) pickWeekKey = nextWeekKey(targetEntry.week_key);
+      const pickWeekKey = addWeeks(targetEntry.week_key, Number(pickWeek) || 0);
 
       const nextRouteId = routeId || selectedClient?.route_id || targetEntry.route_id || null;
 
@@ -1291,10 +1305,18 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupWeek')}</div>
-                <select className="ap-input" value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                  <option value={0}>{t('entry.sameWeek')}</option>
-                  <option value={1}>{t('entry.nextWeek')}</option>
-                </select>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
+                    <option value={0}>{t('entry.sameWeek')}</option>
+                    <option value={1}>{t('entry.nextWeek')}</option>
+                    {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
+                      <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(targetEntry.week_key, n), 1))})</option>
+                    ))}
+                  </select>
+                  {isAdmin && (
+                    <button type="button" className="ap-input" style={{ width: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }} title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+                  )}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
