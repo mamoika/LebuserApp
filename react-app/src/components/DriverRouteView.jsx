@@ -1806,6 +1806,8 @@ export default function DriverRouteView({ manageMode = false }) {
             );
           })}
         </div>
+
+        {renderAddDirtyPickupModal()}
       </div>
     );
   };
@@ -2001,6 +2003,25 @@ export default function DriverRouteView({ manageMode = false }) {
           </div>
         </div>
       </div>
+    );
+  };
+
+  const renderAddDirtyPickupModal = () => {
+    if (!addDirtyTrip) return null;
+    const targetTrip = addDirtyTrip.trip || addDirtyTrip;
+    const info = tripDateInfo(targetTrip.trip_date);
+    return (
+      <AddEntryModal
+        isOpen={true}
+        onClose={() => setAddDirtyTrip(null)}
+        defaultArrDay={info.arrDay}
+        defaultClientName={addDirtyTrip.clientName || undefined}
+        defaultType="P"
+        weekKey={info.weekKey}
+        clients={clients.filter(c => c.route_id)}
+        routes={allRoutes}
+        onAdded={(entry) => addDirtyPickupToTrip(targetTrip, entry)}
+      />
     );
   };
 
@@ -2668,23 +2689,7 @@ export default function DriverRouteView({ manageMode = false }) {
         );
       })()}
 
-      {addDirtyTrip && (() => {
-        const targetTrip = addDirtyTrip.trip || addDirtyTrip;
-        const info = tripDateInfo(targetTrip.trip_date);
-        return (
-          <AddEntryModal
-            isOpen={true}
-            onClose={() => setAddDirtyTrip(null)}
-            defaultArrDay={info.arrDay}
-            defaultClientName={addDirtyTrip.clientName || undefined}
-            defaultType="P"
-            weekKey={info.weekKey}
-            clients={clients.filter(c => c.route_id)}
-            routes={allRoutes}
-            onAdded={(entry) => addDirtyPickupToTrip(targetTrip, entry)}
-          />
-        );
-      })()}
+      {renderAddDirtyPickupModal()}
 
       {/* MODAL: szczegóły/edycja przyjazdu */}
       {viewEntry && (
