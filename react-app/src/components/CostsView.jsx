@@ -75,6 +75,29 @@ async function fetchAllTimelineEntries(dateFrom, dateTo) {
   return all;
 }
 
+// Jak wyżej, ale dla grafiku całego roku (historia) — też potrafi przekroczyć
+// 1000 wierszy, co zaniżałoby godziny pracy w podsumowaniu miesięcy.
+async function fetchAllScheduleYear(year) {
+  const pageSize = 1000;
+  let from = 0;
+  const all = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from('schedule_entries')
+      .select('year, month, value')
+      .eq('year', year)
+      .order('month', { ascending: true })
+      .order('employee_id', { ascending: true })
+      .order('day', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    all.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
 const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 0 }) : '---';
 const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 1 }) : '---';
@@ -401,13 +424,14 @@ export default function CostsView() {
     const winFrom = toDateStr(new Date(y - 1, 11, 1));  // 1 grudnia poprz. roku — zapas na carryover liczników do stycznia
     const curStart = `${monthKey}-01`;                  // tylko miesiące przed bieżącym
     (async () => {
-      const [{ data: costs }, { data: setsRows }, { data: sched }] = await Promise.all([
+      const schedPromise = fetchAllScheduleYear(y);
+      const [{ data: costs }, { data: setsRows }] = await Promise.all([
         supabase.from('daily_costs')
           .select('entry_date, fiat_end, isuzu_end, merc_end, iveco_end, elec_end, gas_prod_end, gas_heat_end, water_end, other_costs, ton_zd1, ton_zd2, ton_pralki')
           .gte('entry_date', winFrom).lt('entry_date', curStart).order('entry_date', { ascending: true }),
         supabase.from('cost_settings').select('*').order('month_key', { ascending: true }),
-        supabase.from('schedule_entries').select('year, month, value').eq('year', y),
       ]);
+      const sched = await schedPromise;
       const laborByMonth = {};
       (sched || []).forEach(e => { const k = `${e.year}-${String(e.month).padStart(2, '0')}`; laborByMonth[k] = (laborByMonth[k] || 0) + scheduleDayHours(e.value); });
       const ctx = { costsAsc: costs || [], settsAsc: setsRows || [], laborByMonth };
