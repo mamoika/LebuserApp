@@ -124,14 +124,5 @@ grant execute on function public.admin_plan_driver_trip(text, uuid, date, text, 
 grant execute on function public.admin_set_trip_planned_start(text, uuid, timestamptz) to anon, authenticated;
 grant execute on function public.auto_start_due_trips(text) to anon, authenticated;
 
--- =====================================================================
--- OPCJONALNIE (pełna automatyzacja bez otwartej aplikacji): jeśli masz
--- włączone pg_cron, odkomentuj — będzie startować trasy co minutę nawet
--- gdy nikt nie ma otwartej apki. Bez tego auto-start dzieje się przy
--- najbliższym wejściu kierowcy/admina do aplikacji (zwykle wystarcza).
--- =====================================================================
--- create extension if not exists pg_cron;
--- select cron.schedule('auto-start-due-trips', '* * * * *', $cron$
---   update public.driver_trips set status='active', started_at=planned_start
---   where status='planned' and planned_start is not null and planned_start <= now();
--- $cron$);
+-- Pełny serwerowy auto-start bez otwartej aplikacji jest w osobnej migracji:
+-- driver_trip_auto_start_cron.sql
