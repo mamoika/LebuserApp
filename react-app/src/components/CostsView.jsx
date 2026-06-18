@@ -51,6 +51,30 @@ function scheduleDayHours(value) {
   return parseFloat(v.replace(',', '.')) || 0;
 }
 
+// Pobiera WSZYSTKIE wiersze osi czasu w zakresie dat, stronicując po 1000
+// (PostgREST domyślnie obcina odpowiedź do 1000 — bez tego dni „za progiem"
+// miały zaniżone godziny i zawyżone kg/h). Stały porządek = poprawne strony.
+async function fetchAllTimelineEntries(dateFrom, dateTo) {
+  const pageSize = 1000;
+  let from = 0;
+  const all = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from('timeline_entries')
+      .select('entry_date, role, employee_id, hour')
+      .gte('entry_date', dateFrom).lte('entry_date', dateTo)
+      .order('entry_date', { ascending: true })
+      .order('employee_id', { ascending: true })
+      .order('hour', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    all.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
 const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 0 }) : '---';
 const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 1 }) : '---';
@@ -261,19 +285,21 @@ export default function CostsView() {
     const dateTo = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
 
     try {
+      // timeline_entries potrafi mieć >1000 wierszy/miesiąc (PostgREST domyślnie
+      // obcina do 1000) — pobieramy stronami, żeby wydajność liczyła pełne godziny.
+      const timelinePromise = fetchAllTimelineEntries(dateFrom, dateTo);
       const [
         { data: sets },
         { data: costs },
-        { data: timeline },
         { data: prevRows },
         { data: emps }
       ] = await Promise.all([
         supabase.from('cost_settings').select('*').eq('month_key', monthKey).maybeSingle(),
         supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-        supabase.from('timeline_entries').select('entry_date, role, employee_id, hour').gte('entry_date', dateFrom).lte('entry_date', dateTo),
         supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(150),
         supabase.from('employees').select('id, group_name, default_start')
       ]);
+      const timeline = await timelinePromise;
 
     // Grafik miesiąca — do ustalenia godziny startu każdej osoby w danym dniu (dla przerw)
     const { data: sched } = await supabase
