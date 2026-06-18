@@ -40,6 +40,18 @@ function fmtDate(dateStr) {
   if (!dateStr) return '—';
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
+// Data + godzina z timestampu ISO (np. planowany start).
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+// ISO → wartość dla <input type="datetime-local"> (lokalna strefa).
+function isoToLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 function fmtDuration(startIso, endIso) {
   if (!startIso) return '—';
   const end = endIso ? new Date(endIso) : new Date();
@@ -177,6 +189,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [assignTrip, setAssignTrip] = useState(null); // wirtualna trasa, którą admin przypisuje
   const [assignDriverId, setAssignDriverId] = useState('');
   const [assignCar, setAssignCar] = useState(VEHICLES[0].key);
+  const [assignPlannedStart, setAssignPlannedStart] = useState(''); // datetime-local: planowany start
   const [addStopOpen, setAddStopOpen] = useState(false); // panel "dorzuć przystanek" w podglądzie trasy
   const [kmResolvedIds, setKmResolvedIds] = useState([]); // trasy z licznikiem zatwierdzonym bez wpisu do kosztów
   const [dailyCosts, setDailyCosts] = useState([]);
@@ -274,6 +287,11 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   const loadTrips = useCallback(async () => {
+    // Auto-start tras zaplanowanych, którym minął planowany start — idempotentne.
+    // Dzięki temu po wejściu kierowcy/admina do apki trasa jest już rozpoczęta.
+    if (sessionToken) {
+      try { await supabase.rpc('auto_start_due_trips', { p_session_token: sessionToken }); } catch { /* nieblokujące */ }
+    }
     let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
     // Nie-admin widzi własne trasy + pulę „do przejęcia" (handover) + trasy
     // aktywne (status.eq.active) — te ostatnie potrzebne, by wiedzieć, które
@@ -295,7 +313,7 @@ export default function DriverRouteView({ manageMode = false }) {
     setAllTrips(trips);
     setDailyCosts(costs || []);
     return trips;
-  }, [canViewAdminData, user?.id]);
+  }, [canViewAdminData, user?.id, sessionToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -807,18 +825,36 @@ export default function DriverRouteView({ manageMode = false }) {
       setBusy(true);
       const drv = driverOptions.find(d => String(d.id) === String(assignDriverId));
       if (!drv) { toastError('Wybierz kierowcę'); setBusy(false); return; }
+      const plannedStartIso = assignPlannedStart ? new Date(assignPlannedStart).toISOString() : null;
       await callTripRpc('admin_plan_driver_trip', {
         p_driver_id: drv.id,
         p_trip_date: assignTrip.trip_date,
         p_car: assignCar,
         p_routes: String(assignTrip.routes),
         p_extra_clients: null,
+        p_planned_start: plannedStartIso,
       });
-      await logAction({ sessionToken, action: 'edited', details: `Przypisano trasę ${routeNamesForTrip(assignTrip)} (${fmtDate(assignTrip.trip_date)}) → ${drv.name}, ${VEHICLE_LABELS[assignCar] || assignCar}` });
+      await logAction({ sessionToken, action: 'edited', details: `Przypisano trasę ${routeNamesForTrip(assignTrip)} (${fmtDate(assignTrip.trip_date)}) → ${drv.name}, ${VEHICLE_LABELS[assignCar] || assignCar}${plannedStartIso ? ` · start ${fmtDateTime(plannedStartIso)}` : ''}` });
       setAssignTrip(null); setAssignDriverId('');
       await loadTrips();
       toastSuccess(`Przypisano: ${drv.name} · ${fmtDate(assignTrip.trip_date)}`);
     } catch (err) { toastError('Błąd przypisania: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
+  // Edycja planowanego startu istniejącej (planowanej) trasy
+  const updatePlannedStart = async (trip, localValue) => {
+    try {
+      setBusy(true);
+      const iso = localValue ? new Date(localValue).toISOString() : null;
+      const { data, error } = await supabase.rpc('admin_set_trip_planned_start', {
+        p_session_token: sessionToken, p_trip_id: trip.id, p_planned_start: iso,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await loadTrips();
+      toastSuccess(iso ? `Planowany start: ${fmtDateTime(iso)}` : 'Usunięto planowany start');
+    } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
 
@@ -1522,7 +1558,8 @@ export default function DriverRouteView({ manageMode = false }) {
             <div className="trip-card-driver">{t.driver_name || 'Brak kierowcy'}</div>
             <div className="trip-card-meta">
               {t.car ? (VEHICLE_LABELS[t.car] || t.car) : (t.isVirtual ? 'nieprzypisana' : '—')}
-              {!t.isVirtual && t.started_at ? ` · ${fmtTime(t.started_at)}` : ''}
+              {t.status === 'planned' && t.planned_start ? ` · plan ${fmtDateTime(t.planned_start)}` : ''}
+              {t.status !== 'planned' && !t.isVirtual && t.started_at ? ` · ${fmtTime(t.started_at)}` : ''}
               {t.ended_at ? `–${fmtTime(t.ended_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : (t.status === 'active' ? ` · ${fmtDuration(t.started_at, null)}` : '')}
             </div>
           </div>
@@ -1546,7 +1583,7 @@ export default function DriverRouteView({ manageMode = false }) {
             </span>
             <div className="trip-card-actions">
               {canAssign && (
-                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setAssignTrip(t); setAssignDriverId(''); setAssignCar(VEHICLES[0].key); }} disabled={busy}>👤 Przypisz</button>
+                <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setAssignTrip(t); setAssignDriverId(''); setAssignCar(VEHICLES[0].key); setAssignPlannedStart(`${t.trip_date}T06:00`); }} disabled={busy}>👤 Przypisz</button>
               )}
               {isAdmin && t.end_km && !kmApproval.approved && (
                 <button className="driver-mini-card-btn" onClick={(e) => { e.stopPropagation(); setKmEditTrip(t); setKmEditValue(String(t.end_km ?? '')); }} disabled={busy}>Zatwierdź km</button>
@@ -1598,7 +1635,8 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
             <div className="driver-trip-subtitle">
               {fmtDate(t.trip_date)} · {routeNamesForTrip(t)}
-              {!t.isVirtual && t.started_at ? ` · Start ${fmtTime(t.started_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : ''}
+              {t.status === 'planned' && t.planned_start ? ` · Planowany start ${fmtDateTime(t.planned_start)}` : ''}
+              {t.status !== 'planned' && !t.isVirtual && t.started_at ? ` · Start ${fmtTime(t.started_at)} · ${fmtDuration(t.started_at, t.ended_at)}` : ''}
               {t.end_km ? ` · licznik ${t.end_km} km` : ''}
             </div>
           </div>
@@ -1617,6 +1655,14 @@ export default function DriverRouteView({ manageMode = false }) {
           <TripProgress stats={stats} />
           <TripMetrics stats={stats} />
         </div>
+
+        {isAdmin && t.status === 'planned' && !t.isVirtual && (
+          <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '10px 12px', borderRadius: '11px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>⏰ Planowany start (auto-rozpoczęcie):</span>
+            <input type="datetime-local" defaultValue={isoToLocalInput(t.planned_start)} onBlur={e => updatePlannedStart(t, e.target.value)} disabled={busy} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }} />
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Trasa rozpocznie się sama o tej porze.</span>
+          </div>
+        )}
 
         {canAddStop && (
           <div style={{ marginBottom: '14px' }}>
@@ -1801,12 +1847,15 @@ export default function DriverRouteView({ manageMode = false }) {
               {driverOptions.map(d => <option key={d.id} value={d.id}>{d.name}{d.role === 'admin' ? ' (admin)' : ''}</option>)}
             </select>
             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Auto</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', marginBottom: '14px' }}>
               {VEHICLES.map(v => {
                 const active = assignCar === v.key;
                 return <button key={v.key} type="button" onClick={() => setAssignCar(v.key)} style={{ flex: '1 1 100px', padding: '10px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13px', border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-light)' : 'var(--bg-card)', color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>{v.label}</button>;
               })}
             </div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Planowany start (auto-rozpoczęcie)</label>
+            <input type="datetime-local" className="ap-input" value={assignPlannedStart} onChange={e => setAssignPlannedStart(e.target.value)} style={{ marginTop: '6px', marginBottom: '6px', padding: '12px 14px' }} />
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>Trasa rozpocznie się automatycznie o tej porze. Zostaw puste, by kierowca startował ręcznie.</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setAssignTrip(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
               <button onClick={assignPlannedTrip} disabled={busy || !assignDriverId} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, opacity: assignDriverId ? 1 : 0.5 }}>{busy ? 'Zapisywanie…' : 'Przypisz'}</button>
