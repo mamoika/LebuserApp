@@ -4,33 +4,13 @@
 -- Standardowe driver_* RPC stempluja akcję na osobę, która kliknęła, i
 -- pilnują własności (dostarczyć może tylko ten, kto odebrał). Admin chce
 -- móc „dopchnąć" cudzą trasę z widoku Trasy na żywo. Te funkcje:
---   * są dozwolone WYŁĄCZNIE dla roli admin,
+--   * są dozwolone WYŁĄCZNIE dla roli admin (istniejący require_admin),
 --   * stemplują odbiór/dostawę na PRZYPISANEGO KIEROWCĘ trasy (p_driver_name),
 --     a nie na admina — żeby audyt i statystyki pozostały spójne,
 --   * pomijają blokadę „picked_by = ja" (override administracyjny).
+-- require_admin(text) już istnieje w bazie (używany przez inne admin_* RPC),
+-- więc go NIE redefiniujemy — tylko wywołujemy.
 -- =====================================================================
-
--- Wspólny strażnik: wymaga aktywnej sesji o roli admin. Zwraca nazwę admina.
-create or replace function public.require_admin(p_session_token text)
-returns text
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  v_user record;
-begin
-  select * into v_user from public.session_user(p_session_token) limit 1;
-  if v_user.id is null then
-    raise exception 'Invalid or expired session' using errcode = '28000';
-  end if;
-  if v_user.role <> 'admin' then
-    raise exception 'Admin session required' using errcode = '42501';
-  end if;
-  return v_user.name;
-end;
-$$;
-revoke all on function public.require_admin(text) from public;
 
 -- 1) Odbiór z pralni w imieniu kierowcy trasy
 create or replace function public.admin_pickup_entries(
@@ -45,13 +25,14 @@ security definer
 set search_path = public
 as $$
 declare
-  v_admin text;
   v_name  text;
   v_affected integer;
 begin
-  v_admin := public.require_admin(p_session_token);
+  perform public.require_admin(p_session_token);
   v_name := nullif(btrim(coalesce(p_driver_name, '')), '');
-  if v_name is null then v_name := v_admin; end if;
+  if v_name is null then
+    select name into v_name from public.session_user(p_session_token) limit 1;
+  end if;
 
   update public.entries set
     done           = true,
@@ -77,13 +58,14 @@ security definer
 set search_path = public
 as $$
 declare
-  v_admin text;
   v_name  text;
   v_affected integer;
 begin
-  v_admin := public.require_admin(p_session_token);
+  perform public.require_admin(p_session_token);
   v_name := nullif(btrim(coalesce(p_driver_name, '')), '');
-  if v_name is null then v_name := v_admin; end if;
+  if v_name is null then
+    select name into v_name from public.session_user(p_session_token) limit 1;
+  end if;
 
   update public.entries set
     delivered    = true,
