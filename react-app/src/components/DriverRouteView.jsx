@@ -954,6 +954,63 @@ export default function DriverRouteView({ manageMode = false }) {
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
   };
+  // --- Akcje admina na cudzej trasie (Trasy na żywo) — bez logowania jako kierowca.
+  // Stempel idzie na przypisanego kierowcę trasy (trip.driver_name), audyt spójny.
+  const adminPralnia = async (trip, stop) => {
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { data, error } = await supabase.rpc('admin_pickup_entries', {
+        p_session_token: sessionToken, p_ids: ids, p_driver_name: trip?.driver_name || null,
+        p_baskets: Math.max(1, getPickedBaskets(stop) || 1),
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ sessionToken, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór z pralni (admin za ${trip?.driver_name || '—'})` });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+  const adminDeliver = async (trip, stop) => {
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { data, error } = await supabase.rpc('admin_deliver_entries', {
+        p_session_token: sessionToken, p_ids: ids, p_driver_name: trip?.driver_name || null,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ sessionToken, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta (admin za ${trip?.driver_name || '—'})` });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+  const adminUndoDeliver = async (stop) => {
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { data, error } = await supabase.rpc('admin_undo_deliver', { p_session_token: sessionToken, p_ids: ids });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ sessionToken, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto dostawę (admin)' });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+  const adminUndoPralnia = async (stop) => {
+    if (stop.entries.some(e => e.delivered)) { toastError('Najpierw cofnij dostawę'); return; }
+    try {
+      setBusy(true);
+      const ids = stop.entries.map(e => e.id);
+      const { data, error } = await supabase.rpc('admin_undo_pickup', { p_session_token: sessionToken, p_ids: ids });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAction({ sessionToken, action: 'undone', clientName: stop.client_name, entryId: ids[0], details: 'cofnięto odbiór z pralni (admin)' });
+      await refetch();
+    } catch (err) { toastError('Błąd: ' + err.message); }
+    finally { setBusy(false); }
+  };
+
   // Notatka klienta — wspólna (clients.note), widoczna w harmonogramie i na trasie
   const saveClientNote = async (clientName, val) => {
     const { data, error } = await supabase.rpc('driver_set_client_note', {
@@ -1633,22 +1690,33 @@ export default function DriverRouteView({ manageMode = false }) {
                   </div>
                 </div>
 
-                {hasPickup && (
+                {hasPickup && (() => {
+                  const canAct = isAdmin && t.status === 'active' && !t.isVirtual;
+                  const aBtn = (label, onClick, tone) => (
+                    <button type="button" disabled={busy} onClick={onClick} style={{
+                      marginLeft: '8px', padding: '4px 10px', borderRadius: '8px', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 700, border: '1px solid var(--border)',
+                      background: tone === 'undo' ? 'var(--bg-card)' : 'var(--accent)',
+                      color: tone === 'undo' ? 'var(--text-secondary)' : '#fff',
+                    }}>{label}</button>
+                  );
+                  return (
                   <>
                     <div className="driver-action-row driver-action-laundry">
                       <span className="driver-action-label">🏭 Odbiór z pralni</span>
                       {pralniaDone
-                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.picked_at)}</span><span className="driver-action-extra">{trolleyLabel(getPickedBaskets(stop))}</span></span>
-                        : <span style={muted}>oczekuje</span>}
+                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.picked_at)}</span><span className="driver-action-extra">{trolleyLabel(getPickedBaskets(stop))}</span>{canAct && !deliveredDone && aBtn('Cofnij', () => adminUndoPralnia(stop), 'undo')}</span>
+                        : (canAct ? aBtn('Odbierz z pralni', () => adminPralnia(t, stop)) : <span style={muted}>oczekuje</span>)}
                     </div>
                     <div className="driver-action-row driver-action-delivered">
                       <span className="driver-action-label">📦 Dostarczono</span>
                       {deliveredDone
-                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.delivered_at)}</span></span>
-                        : <span style={muted}>oczekuje</span>}
+                        ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.delivered_at)}</span>{canAct && aBtn('Cofnij', () => adminUndoDeliver(stop), 'undo')}</span>
+                        : (canAct && pralniaDone ? aBtn('Dostarczono', () => adminDeliver(t, stop)) : <span style={muted}>oczekuje</span>)}
                     </div>
                   </>
-                )}
+                  );
+                })()}
 
                 {arrivals.length > 0 && (
                   <div className="driver-arrivals-section">
