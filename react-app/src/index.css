@@ -1750,7 +1750,11 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 .divider{height:0.5px;background:var(--border)}
 
 /* ── MODALS ── */
-body.modal-open { overflow:hidden; }
+html.modal-open,
+body.modal-open {
+  overflow:hidden;
+  overscroll-behavior:none;
+}
 .overlay {
   position:fixed;inset:0;
   background: rgba(15, 23, 42, 0.4);
