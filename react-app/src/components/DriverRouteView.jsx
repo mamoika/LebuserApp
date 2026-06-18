@@ -223,7 +223,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [planPickupOpen, setPlanPickupOpen] = useState(false);
   const [planPickupDraft, setPlanPickupDraft] = useState({});
   const [addEntryFor, setAddEntryFor] = useState(null); // nazwa klienta, dla którego otwieramy AddEntryModal
-  const [addDirtyTrip, setAddDirtyTrip] = useState(null); // trasa admina, do której dorzucamy odbiór brudnego
+  const [addDirtyTrip, setAddDirtyTrip] = useState(null); // { trip, clientName? } — trasa admina, do której dorzucamy odbiór brudnego
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
   const [partialPickup, setPartialPickup] = useState(null); // { stop, kg, value, baskets }
   const [draft, setDraft] = useState({}); // { clientKey: { note } }
@@ -702,6 +702,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const addDirtyPickupToTrip = async (targetTrip, addedEntry) => {
     if (!isAdmin || !targetTrip || !addedEntry?.clientName) return;
     try {
+      setBusy(true);
       await attachClientToTrip(targetTrip, addedEntry.clientName);
       await logAction({
         sessionToken,
@@ -713,8 +714,14 @@ export default function DriverRouteView({ manageMode = false }) {
     } catch (err) {
       toastError('Błąd dopinania odbioru do trasy: ' + err.message);
     } finally {
+      setBusy(false);
       setAddDirtyTrip(null);
     }
+  };
+
+  const openAddDirtyPickupToTrip = (targetTrip, clientName = '') => {
+    if (!targetTrip) return;
+    setAddDirtyTrip({ trip: targetTrip, clientName });
   };
 
   const openPlanPickup = () => {
@@ -1693,7 +1700,7 @@ export default function DriverRouteView({ manageMode = false }) {
                 ))}
               </div>
             )}
-            <button onClick={() => setAddDirtyTrip(t)} disabled={busy} style={{
+            <button onClick={() => openAddDirtyPickupToTrip(t)} disabled={busy} style={{
               width: '100%',
               padding: '11px',
               borderRadius: '11px',
@@ -1780,6 +1787,19 @@ export default function DriverRouteView({ manageMode = false }) {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {canAddStop && (
+                  <div className="driver-arrivals-section">
+                    <button
+                      type="button"
+                      className="driver-add-inline"
+                      onClick={() => openAddDirtyPickupToTrip(t, stop.client_name)}
+                      disabled={busy}
+                    >
+                      ➕ Dodaj
+                    </button>
                   </div>
                 )}
               </div>
@@ -2649,17 +2669,19 @@ export default function DriverRouteView({ manageMode = false }) {
       })()}
 
       {addDirtyTrip && (() => {
-        const info = tripDateInfo(addDirtyTrip.trip_date);
+        const targetTrip = addDirtyTrip.trip || addDirtyTrip;
+        const info = tripDateInfo(targetTrip.trip_date);
         return (
           <AddEntryModal
             isOpen={true}
             onClose={() => setAddDirtyTrip(null)}
             defaultArrDay={info.arrDay}
+            defaultClientName={addDirtyTrip.clientName || undefined}
             defaultType="P"
             weekKey={info.weekKey}
             clients={clients.filter(c => c.route_id)}
             routes={allRoutes}
-            onAdded={(entry) => addDirtyPickupToTrip(addDirtyTrip, entry)}
+            onAdded={(entry) => addDirtyPickupToTrip(targetTrip, entry)}
           />
         );
       })()}
