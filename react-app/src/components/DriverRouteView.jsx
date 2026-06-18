@@ -1584,7 +1584,10 @@ export default function DriverRouteView({ manageMode = false }) {
       hasR: v.entries.some(e => e.type === 'R'),
       isUrgent: v.entries.some(e => e.urgent),
     }));
-    const canAddStop = isAdmin && t.status === 'active' && !t.isVirtual;
+    // Dorzucanie przystanków / odbioru brudnego działa też dla tras PLANOWANYCH
+    // (status 'planned') — nie tylko aktywnych. Serwer (driver_set_trip_extra_clients)
+    // tego nie blokuje, więc admin może przygotować trasę przed startem kierowcy.
+    const canAddStop = isAdmin && !t.isVirtual && (t.status === 'active' || t.status === 'planned');
     return (
       <div className="admin-dashboard-shell">
         <div className="driver-history-header">
