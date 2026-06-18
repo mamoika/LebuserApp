@@ -580,6 +580,15 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   const entryAssignmentLabel = (entry) => {
+    return assignedTripForEntry(entry)?.label || null;
+  };
+  const entryAssignmentCaption = (entry) => {
+    const status = assignedTripForEntry(entry)?.trip?.status;
+    if (status === 'finished') return 'Przywiózł';
+    if (status === 'active') return 'Wiezie';
+    return 'Przywiezie';
+  };
+  const assignedTripForEntry = (entry) => {
     if (!entry) return null;
     const date = arrivalDateStr(entry);
     const candidates = [
@@ -594,8 +603,8 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!assignedTrip) return null;
     const driver = assignedTrip.driver_name || 'nieprzypisane';
     const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
-    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : assignedTrip.status === 'finished' ? ' · zakończona' : '';
-    return `${driver}${car}${status}`;
+    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : '';
+    return { trip: assignedTrip, label: `${driver}${car}${status}` };
   };
 
   const clientByName = (name) => clients.find(c => c.name === name);
@@ -2909,6 +2918,7 @@ export default function DriverRouteView({ manageMode = false }) {
           clients={clients}
           routes={allRoutes}
           entryAssignmentLabel={entryAssignmentLabel(viewEntry)}
+          entryAssignmentCaption={entryAssignmentCaption(viewEntry)}
         />
       )}
 

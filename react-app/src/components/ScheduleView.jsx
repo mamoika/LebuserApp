@@ -285,6 +285,15 @@ export default function ScheduleView() {
     return routeIds.size === 0 || routeIds.has(entryRouteId) || extras.has(entry.client_name);
   };
   const entryAssignmentLabel = (entry) => {
+    return assignedTripForEntry(entry)?.label || null;
+  };
+  const entryAssignmentCaption = (entry) => {
+    const status = assignedTripForEntry(entry)?.trip?.status;
+    if (status === 'finished') return 'Przywiózł';
+    if (status === 'active') return 'Wiezie';
+    return 'Przywiezie';
+  };
+  const assignedTripForEntry = (entry) => {
     if (!entry) return null;
     const date = arrivalDateStr(entry);
     const candidates = [
@@ -297,8 +306,8 @@ export default function ScheduleView() {
     if (!assignedTrip) return null;
     const driver = assignedTrip.driver_name || 'nieprzypisane';
     const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
-    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : assignedTrip.status === 'finished' ? ' · zakończona' : '';
-    return `${driver}${car}${status}`;
+    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : '';
+    return { trip: assignedTrip, label: `${driver}${car}${status}` };
   };
   const compareEntriesByRouteOrder = (a, b) => {
     const routeA = routeIdForEntry(a);
@@ -528,6 +537,7 @@ export default function ScheduleView() {
           receipts={receipts}
           source="schedule"
           entryAssignmentLabel={selectedEntryMode === 'arr' ? entryAssignmentLabel(selectedEntry) : null}
+          entryAssignmentCaption={selectedEntryMode === 'arr' ? entryAssignmentCaption(selectedEntry) : 'Przywiezie'}
         />
       )}
     </div>
