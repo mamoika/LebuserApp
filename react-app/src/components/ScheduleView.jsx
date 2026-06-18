@@ -5,6 +5,8 @@ import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
+import { supabase } from '../lib/supabaseClient';
+import { VEHICLE_LABELS } from '../lib/vehicles';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 function addDays(date, days) {
@@ -48,6 +50,31 @@ function parseRouteIds(routesStr) {
   return new Set(
     (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
   );
+}
+
+function parseExtraClients(value) {
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function ymd(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function parseMonday(weekKey) {
+  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function arrivalDateStr(entry) {
+  if (!entry?.week_key) return null;
+  const dt = parseMonday(entry.week_key);
+  dt.setDate(dt.getDate() + ((Number(entry.arr_day) || 1) - 1));
+  return ymd(dt);
 }
 
 function addDaysToWeekKey(weekKey, days) {
@@ -155,6 +182,7 @@ export default function ScheduleView() {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [selectedRelatedEntries, setSelectedRelatedEntries] = useState([]);
   const [selectedEntryMode, setSelectedEntryMode] = useState('view');
+  const [driverTrips, setDriverTrips] = useState([]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 600px), (max-device-width: 600px)');
@@ -162,6 +190,27 @@ export default function ScheduleView() {
     onChange();
     mq.addEventListener?.('change', onChange);
     return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadDriverTrips = async () => {
+      const { data } = await supabase
+        .from('driver_trips')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(120);
+      if (!cancelled) setDriverTrips(data || []);
+    };
+    loadDriverTrips();
+    const channel = supabase
+      .channel('schedule-driver-trips')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_trips' }, loadDriverTrips)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
   
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
@@ -228,6 +277,29 @@ export default function ScheduleView() {
       .forEach((client, index) => clientPointByName.set(client.name, index + 1));
   });
   const routeIdForEntry = entry => clientByName.get(entry.client_name)?.route_id || entry.route_id || 0;
+  const tripContainsEntryClient = (sourceTrip, entry) => {
+    if (!sourceTrip || !entry) return false;
+    const entryRouteId = routeIdForEntry(entry);
+    const routeIds = parseRouteIds(sourceTrip.routes);
+    const extras = new Set(parseExtraClients(sourceTrip.extra_clients));
+    return routeIds.size === 0 || routeIds.has(entryRouteId) || extras.has(entry.client_name);
+  };
+  const entryAssignmentLabel = (entry) => {
+    if (!entry) return null;
+    const date = arrivalDateStr(entry);
+    const candidates = [
+      ...driverTrips
+        .filter(t => t.trip_date === date && t.status !== 'finished')
+        .sort((a, b) => (a.status === 'active' ? -1 : 0) - (b.status === 'active' ? -1 : 0)),
+      ...driverTrips.filter(t => t.trip_date === date && t.status === 'finished'),
+    ];
+    const assignedTrip = candidates.find(t => tripContainsEntryClient(t, entry));
+    if (!assignedTrip) return null;
+    const driver = assignedTrip.driver_name || 'nieprzypisane';
+    const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
+    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : assignedTrip.status === 'finished' ? ' · zakończona' : '';
+    return `${driver}${car}${status}`;
+  };
   const compareEntriesByRouteOrder = (a, b) => {
     const routeA = routeIdForEntry(a);
     const routeB = routeIdForEntry(b);
@@ -455,6 +527,7 @@ export default function ScheduleView() {
           routes={routes}
           receipts={receipts}
           source="schedule"
+          entryAssignmentLabel={selectedEntryMode === 'arr' ? entryAssignmentLabel(selectedEntry) : null}
         />
       )}
     </div>
