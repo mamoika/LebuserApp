@@ -736,7 +736,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, entryAssignmentLabel = null }) {
   const { t } = useTranslation();
   const { isAdmin, canEdit, isViewer, user, sessionToken } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -1389,6 +1389,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           <ROW label={isGroupedPickup ? t('entry.arrivals') : t('entry.arrival')} value={isGroupedPickup ? pickupArrivalDays : daysFull[entry.arr_day - 1]} />
           <ROW label={t('entry.pickup')} value={daysFull[entry.pick_day - 1]} />
           {entry.added_by && <ROW label={t('entry.addedBy')} value={`${entry.added_by} · ${fmtDateTime(entry.added_at)}`} />}
+          {contextMode === 'arr' && entryAssignmentLabel && <ROW label="Przywiezie" value={entryAssignmentLabel} valueColor="var(--accent)" />}
           {allPickupDone && pickedByNames.length > 0 && <ROW label={t('entry.pickedBy')} value={pickedByNames.join(', ')} valueColor="var(--accent-green)" />}
           {!isGroupedPickup && entry.washed && <ROW label={t('entry.washingRow')} value={`${t('entry.washedCheck')}${entry.washed_by ? ` · ${entry.washed_by}` : ''}${entry.washed_at ? ` · ${fmtDateTime(entry.washed_at)}` : ''}`} valueColor="var(--accent-green)" />}
           {(() => { const cn = (clients || []).find(c => c.name === entry.client_name)?.note || entry.comment; return cn ? <ROW label={t('entry.comment')} value={cn} /> : null; })()}

@@ -572,6 +572,32 @@ export default function DriverRouteView({ manageMode = false }) {
     }).join(', ');
   };
 
+  const tripContainsEntryClient = (sourceTrip, entry) => {
+    if (!sourceTrip || !entry) return false;
+    const routeIds = parseRouteIds(sourceTrip.routes);
+    const extras = new Set(parseExtraClients(sourceTrip.extra_clients));
+    return routeIds.size === 0 || routeIds.has(entry.route_id) || extras.has(entry.client_name);
+  };
+
+  const entryAssignmentLabel = (entry) => {
+    if (!entry) return null;
+    const date = arrivalDateStr(entry);
+    const candidates = [
+      detailTrip,
+      trip,
+      ...allTrips
+        .filter(t => t.trip_date === date && t.status !== 'finished')
+        .sort((a, b) => (a.status === 'active' ? -1 : 0) - (b.status === 'active' ? -1 : 0)),
+      ...allTrips.filter(t => t.trip_date === date && t.status === 'finished'),
+    ].filter(Boolean);
+    const assignedTrip = candidates.find(t => tripContainsEntryClient(t, entry));
+    if (!assignedTrip) return null;
+    const driver = assignedTrip.driver_name || 'nieprzypisane';
+    const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
+    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : assignedTrip.status === 'finished' ? ' · zakończona' : '';
+    return `${driver}${car}${status}`;
+  };
+
   const clientByName = (name) => clients.find(c => c.name === name);
   const routeScheduleForId = (routeId) => allRoutes.find(r => Number(r.id) === Number(routeId))?.schedule || 'other';
   const plannedPickupDateFor = (dirtyDate, routeId) => {
@@ -2882,6 +2908,7 @@ export default function DriverRouteView({ manageMode = false }) {
           onDeleted={() => { setViewEntry(null); refetch(); }}
           clients={clients}
           routes={allRoutes}
+          entryAssignmentLabel={entryAssignmentLabel(viewEntry)}
         />
       )}
 
