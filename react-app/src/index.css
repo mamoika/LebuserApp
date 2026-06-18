@@ -1062,6 +1062,22 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   align-items: center;
   gap: 8px;
 }
+.stop-route-progress-badge {
+  flex-shrink: 0;
+  min-width: 42px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: rgba(0,122,255,0.10);
+  border: 1px solid rgba(0,122,255,0.18);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
 .driver-client-name {
   flex: 1;
   min-width: 0;
@@ -4456,6 +4472,8 @@ select.ap-input {
 .trip-metric-label { font-size: 9px; font-weight: 650; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .2px; }
 .trip-metric.tone-delivered .trip-metric-val { color: #34C759; }
 .trip-metric.tone-picked .trip-metric-val { color: var(--accent); }
+.trip-metric.tone-total { background: rgba(0,122,255,0.08); border-color: rgba(0,122,255,0.22); }
+.trip-metric.tone-total .trip-metric-val { color: var(--accent); }
 .trip-metric.tone-dirty { background: rgba(255,149,0,0.07); border-color: rgba(255,149,0,0.22); }
 .trip-metric.tone-dirty .trip-metric-val { color: #C2410C; }
 

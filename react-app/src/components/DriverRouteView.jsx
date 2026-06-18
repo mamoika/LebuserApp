@@ -551,6 +551,7 @@ export default function DriverRouteView({ manageMode = false }) {
     // brudne może być "z poza trasy" — liczy się do roboty kierowcy, który je dodał.
     const dirtyFlat = tripStops.flatMap(s => s.dirtyEntries || []);
     return {
+      totalStops: tripStops.length,
       stops: deliveryStops.length,
       picked: deliveryStops.filter(s => s.entries.every(e => e.done)).length,
       delivered: deliveryStops.filter(s => s.entries.every(e => e.delivered)).length,
@@ -1522,6 +1523,13 @@ export default function DriverRouteView({ manageMode = false }) {
   // Dwa rozdzielone flow: dostawa czystego (postęp trasy) + odbiór brudnego (osobno).
   const TripMetrics = ({ stats }) => (
     <div className="trip-metric-groups">
+      <div className="trip-metric-group trip-metric-group-total">
+        <div className="trip-card-metrics">
+          <Metric value={stats.totalStops || 0} label="punkty razem" tone="total" />
+          <Metric value={stats.stops || 0} label="z czystym" />
+          <Metric value={stats.dirtyStops || 0} label="z brudnym" tone="dirty" />
+        </div>
+      </div>
       <div className="trip-metric-group">
         <div className="trip-metric-grouplabel">📦 Dostawa czystego</div>
         <div className="trip-card-metrics">
@@ -1717,7 +1725,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
         <div className="driver-stops-list">
           {tripStops.length === 0 && <div className="driver-empty-row">Brak przystanków dla tej trasy</div>}
-          {tripStops.map(stop => {
+          {tripStops.map((stop, index) => {
             const pickupEntries = stop.entries || [];
             const hasPickup = pickupEntries.length > 0;
             const pralniaDone = hasPickup && pickupEntries.every(e => e.done);
@@ -1729,6 +1737,7 @@ export default function DriverRouteView({ manageMode = false }) {
               <div key={stop.key} className={`driver-stop-card ${deliveredDone ? 'is-delivered' : ''}`}>
                 <div className="driver-stop-header">
                   <div className="driver-stop-title-row">
+                    <span className="stop-route-progress-badge">{index + 1}/{tripStops.length}</span>
                     {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                     <RouteBadge id={stop.route_id} />
                     <span className="driver-client-name">{stop.client_name}</span>
@@ -2448,7 +2457,7 @@ export default function DriverRouteView({ manageMode = false }) {
           </div>
           <div className="driver-stops-list">
             {visibleTripStops.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '8px 0' }}>Brak przystanków dla wybranych tras</div>}
-            {visibleTripStops.map(stop => {
+            {visibleTripStops.map((stop, index) => {
               const pickupEntries = stop.entries || [];
               const dirtyEntries = stop.dirtyEntries || [];
               const hasPickupEntries = pickupEntries.length > 0;
@@ -2474,6 +2483,7 @@ export default function DriverRouteView({ manageMode = false }) {
                   {/* Nagłówek klienta */}
                   <div className="driver-stop-header">
                     <div className="driver-stop-title-row">
+                      <span className="stop-route-progress-badge">{index + 1}/{visibleTripStops.length}</span>
                       {stopOrderNum(stop.client_name) != null && <span className="stop-order-badge">{stopOrderNum(stop.client_name)}</span>}
                       <RouteBadge id={stop.route_id} />
                       <span className="driver-client-name">{stop.client_name}</span>
