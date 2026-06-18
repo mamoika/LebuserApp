@@ -808,6 +808,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
   const canSaveLaundryReceipt = source === 'schedule' && canEdit;
   const receiptEntries = isPickupContext ? pickupEntries : [targetEntry];
+  const canChangeClient = contextMode !== 'arr' || isAdmin;
 
   // Znajdź już zapisaną kartkę dla tego przyjęcia — najpierw po powiązanym wpisie,
   // a w razie braku po kliencie + tygodniu (gdy P i O były na osobnych wpisach).
@@ -999,10 +1000,14 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
       const pickWeekKey = addWeeks(targetEntry.week_key, Number(pickWeek) || 0);
 
-      const nextRouteId = routeId || selectedClient?.route_id || targetEntry.route_id || null;
+      const effectiveClientName = canChangeClient ? clientName : targetEntry.client_name;
+      const effectiveClient = (clients || []).find(c => c.name === effectiveClientName);
+      const nextRouteId = canChangeClient
+        ? (routeId || effectiveClient?.route_id || targetEntry.route_id || null)
+        : (targetEntry.route_id || null);
 
       let updates = {
-        client_name: clientName,
+        client_name: effectiveClientName,
         type: type,
         weight: weight ? parseFloat(String(weight).replace(',', '.')) : null,
         arr_day: parseInt(arrDay),
@@ -1017,7 +1022,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const { data: editData, error } = await supabase.rpc('admin_update_entry', {
         p_session_token: sessionToken,
         p_id: targetEntry.id,
-        p_client_name: clientName,
+        p_client_name: effectiveClientName,
         p_type: type,
         p_arr_day: parseInt(arrDay),
         p_pick_day: parseInt(pickDay),
@@ -1035,7 +1040,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       if (comment !== (currentClientNote || '')) {
         await supabase.rpc('admin_set_client_note', {
           p_session_token: sessionToken,
-          p_name: clientName.trim() || entry.client_name,
+          p_name: effectiveClientName.trim() || entry.client_name,
           p_note: comment || null,
         });
       }
@@ -1045,6 +1050,10 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const currentClientNote2 = (clients || []).find(c => c.name === entry.client_name)?.note || '';
       if (comment !== (currentClientNote2 || '')) {
         changes.push(`${t('entry.diffComment')}: "${currentClientNote2 || '—'}" → "${comment || '—'}"`);
+      }
+      if (isAdmin && contextMode === 'arr' && targetEntry.client_name !== updates.client_name) {
+        const originalBy = targetEntry.added_by || targetEntry.picked_by || targetEntry.delivered_by || '—';
+        changes.unshift(`korekta hotelu przez admina: ${targetEntry.client_name || '—'} → ${updates.client_name || '—'}; pierwotnie dodał/przywiózł: ${originalBy}`);
       }
       if (changes.length > 0) {
         await logAction({
@@ -1244,9 +1253,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               </div>
             </div>
 
-            {contextMode !== 'arr' && (
+            {canChangeClient && (
               <>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.client')}</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
+                  {contextMode === 'arr' ? 'Hotel / klient do korekty' : t('entry.client')}
+                </div>
                 <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
                   {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
                   {sortedRoutes
