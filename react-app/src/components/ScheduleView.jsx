@@ -303,15 +303,6 @@ export default function ScheduleView() {
     if (status === 'active') return 'Wiezie';
     return 'Przywiezie';
   };
-  const entryAssignmentChip = (entry) => {
-    const assigned = assignedTripForEntry(entry);
-    if (!assigned?.trip) return null;
-    const trip = assigned.trip;
-    const driver = (trip.driver_name || 'nieprzypisane').split(/\s+/)[0];
-    const car = trip.car ? ` · ${VEHICLE_LABELS[trip.car] || trip.car}` : '';
-    const status = trip.status === 'finished' ? '✓' : trip.status === 'active' ? 'w toku' : 'plan';
-    return `${driver}${car} · ${status}`;
-  };
   const assignedTripForEntry = (entry) => {
     if (!entry) return null;
     const date = arrivalDateStr(entry);
@@ -361,7 +352,6 @@ export default function ScheduleView() {
       ? (entry.done ? entry.totalWeight : entry.pendingWeight)
       : parseFloat(entry.weight) || 0;
     const hasMixedTypes = entry.isPickupGroup && relatedEntries.some(e => e.type === 'O') && relatedEntries.some(e => (e.type || 'P') === 'P');
-    const assignmentChip = mode === 'arr' ? entryAssignmentChip(entry) : null;
 
     return (
       <div
@@ -384,7 +374,6 @@ export default function ScheduleView() {
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
         {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
         <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
-        {assignmentChip && <span className="kg-badge" title={entryAssignmentCaption(entry)}>{assignmentChip}</span>}
         <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
       </div>
     );
