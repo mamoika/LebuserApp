@@ -689,7 +689,11 @@ export default function CostsView() {
   ];
   // Koszt dzienny BEZ jednorazowych „Inne" — lumpy wpis nie zaburza wykresu (Inne nadal liczone w sumach i KPI)
   const dailyTotals = days.map((d, idx) => { const c = calcDay(d, idx); return c.total_cost - c.other_cost; });
-  const trendAvg = dailyTotals.reduce((s, v) => s + v, 0) / (daysInMonth || 1);
+  // Dni wolne (weekendy + święta) — pomijane na krzywej, żeby trend nie skakał do zera
+  const isDayOff = (dStr) => { const d = new Date(dStr); return d.getDay() === 0 || d.getDay() === 6 || !!isHoliday(d); };
+  const offFlags = days.map(isDayOff);
+  const workVals = dailyTotals.filter((_, i) => !offFlags[i]);
+  const trendAvg = workVals.length ? workVals.reduce((s, v) => s + v, 0) / workVals.length : 0;
 
   // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
   const exportToExcel = () => {
@@ -786,7 +790,7 @@ export default function CostsView() {
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} carBreakdown={carBreakdown} monthsHistory={monthsHistory} />
+            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} />
           )}
 
           {activeTab === 'entry' && (
@@ -803,7 +807,7 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, carBreakdown = [], monthsHistory = [] }) {
+function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [] }) {
   const { t } = useTranslation();
   const cats = [
     { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
@@ -913,7 +917,7 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
         <div style={cardStyle}>
           <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.dailyCost')}</div>
           <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>{t('costs.dailyCostHint')}</div>
-          <TrendChart data={dailyTotals} days={days} avg={trendAvg} />
+          <TrendChart data={dailyTotals} days={days} avg={trendAvg} offFlags={offFlags} />
         </div>
       </div>
     </div>
@@ -1136,17 +1140,23 @@ function MultiMonthTrend({ months }) {
   );
 }
 
-function TrendChart({ data, days, avg }) {
+function TrendChart({ data, days, avg, offFlags = [] }) {
   const { t } = useTranslation();
   const W = 600, H = 170, P = 10;
   const n = data.length;
-  const max = Math.max(...data, 1);
+  // Tylko dni robocze tworzą wierzchołki linii — pozycja X wg realnego dnia w miesiącu,
+  // więc weekendy/święta są płynnie mostkowane prostym odcinkiem (krzywa bez dołków do zera).
+  const workIdx = data.map((_, i) => i).filter(i => !offFlags[i]);
+  const max = Math.max(...workIdx.map(i => data[i]), 1);
   const x = (i) => P + (n <= 1 ? 0 : (i / (n - 1)) * (W - 2 * P));
   const y = (v) => H - P - (v / max) * (H - 2 * P);
-  const linePts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const areaPts = `${x(0).toFixed(1)},${(H - P).toFixed(1)} ${linePts} ${x(n - 1).toFixed(1)},${(H - P).toFixed(1)}`;
+  const linePts = workIdx.map(i => `${x(i).toFixed(1)},${y(data[i]).toFixed(1)}`).join(' ');
+  const firstX = workIdx.length ? x(workIdx[0]) : x(0);
+  const lastX = workIdx.length ? x(workIdx[workIdx.length - 1]) : x(n - 1);
+  const areaPts = `${firstX.toFixed(1)},${(H - P).toFixed(1)} ${linePts} ${lastX.toFixed(1)},${(H - P).toFixed(1)}`;
   const avgY = y(avg);
-  const maxIdx = data.indexOf(Math.max(...data));
+  let maxIdx = workIdx.length ? workIdx[0] : 0;
+  workIdx.forEach(i => { if (data[i] > data[maxIdx]) maxIdx = i; });
 
   return (
     <div>
