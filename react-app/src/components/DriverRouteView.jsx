@@ -446,13 +446,11 @@ export default function DriverRouteView({ manageMode = false }) {
   const previewStops = stops
     .map(s => ({ ...s, pendingClean: (s.entries || []).filter(e => !e.delivered) }))
     .filter(s => s.pendingClean.length > 0);
-  // Trasa w toku: przystanek widoczny, gdy ma czyste do dowiezienia dla tego
-  // kierowcy (entries po filtrze własności) LUB brudne dodane przez niego.
-  // Przystanki w całości obsłużone przez innego kierowcę (jego czyste + jego
-  // brudne) znikają — nowe brudne dodaje się dolnym przyciskiem.
+  // Trasa w toku: przystanek widoczny, gdy ma czyste do dowiezienia albo
+  // zaplanowany odbiór brudnego przypięty do tej trasy.
   const visibleTripStops = stops.filter(s =>
     (s.entries || []).length > 0 ||
-    (s.dirtyEntries || []).some(e => e.added_by === user?.name)
+    (s.dirtyEntries || []).length > 0
   );
   // Czy na trasie w toku cokolwiek zrobiono (odbiór z pralni lub dostawa przez
   // tego kierowcę). Steruje dostępnością „Anuluj trasę".

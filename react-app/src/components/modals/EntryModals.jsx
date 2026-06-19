@@ -789,6 +789,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   // usuwanie / „wyprane" trafiały w istniejący rekord (inaczej: „Nie znaleziono wpisu").
   const targetEntry = isPickupContext && pickupEntries.length === 1 ? pickupEntries[0] : entry;
   const pickupTotalWeight = pickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+  const pendingPickupEntries = pickupEntries.filter(e => !e.done);
+  const pickupPendingWeight = pendingPickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const allPickupDone = pickupEntries.every(e => e.done);
   const pickedByNames = [...new Set(pickupEntries.map(e => e.picked_by).filter(Boolean))];
   const daysFull = dayNamesFull();
@@ -941,7 +943,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setLoading(true);
       const isDone = !allPickupDone;
 
-      const ids = pickupEntries.map(e => e.id);
+      const affectedEntries = isDone ? pendingPickupEntries : pickupEntries;
+      const ids = affectedEntries.map(e => e.id);
+      if (ids.length === 0) {
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.rpc('admin_set_entries_done', {
         p_session_token: sessionToken,
         p_ids: ids,
@@ -955,7 +962,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: isDone ? 'done' : 'undone',
         clientName: entry.client_name,
         entryId: entry.id,
-        details: isGroupedPickup ? t('entry.logDoneDetails', { count: pickupEntries.length, weight: pickupTotalWeight ? Number(pickupTotalWeight.toFixed(1)) + ' kg' : t('entry.noWeight') }) : undefined,
+        details: isGroupedPickup ? t('entry.logDoneDetails', {
+          count: affectedEntries.length,
+          weight: (isDone ? pickupPendingWeight : pickupTotalWeight)
+            ? Number((isDone ? pickupPendingWeight : pickupTotalWeight).toFixed(1)) + ' kg'
+            : t('entry.noWeight'),
+        }) : undefined,
       });
       onUpdated();
       onClose();
@@ -1383,7 +1395,14 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           <ROW label={t('entry.status')} value={allPickupDone ? t('entry.pickedUpCheck') : t('entry.inProgress')} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
           <ROW label={t('entry.view')} value={isPickupContext ? t('entry.pickup') : contextMode === 'arr' ? t('entry.arrival') : t('entry.viewDetails')} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
           <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')} />
-          <ROW label={t('entry.weight')} value={isPickupContext ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—') : (entry.weight ? `${entry.weight} kg` : '—')} />
+          <ROW
+            label={t('entry.weight')}
+            value={isPickupContext
+              ? (allPickupDone
+                ? (pickupTotalWeight ? `${Number(pickupTotalWeight.toFixed(1))} kg` : '—')
+                : (pickupPendingWeight ? `${Number(pickupPendingWeight.toFixed(1))} kg` : '—'))
+              : (entry.weight ? `${entry.weight} kg` : '—')}
+          />
           {!isGroupedPickup && <ROW label={t('entry.trolleys')} value={entry.trolleys ?? 1} />}
           {isGroupedPickup && <ROW label={t('entry.entriesField')} value={t('entry.arrivalsCount', { count: pickupEntries.length })} />}
           <ROW label={isGroupedPickup ? t('entry.arrivals') : t('entry.arrival')} value={isGroupedPickup ? pickupArrivalDays : daysFull[entry.arr_day - 1]} />

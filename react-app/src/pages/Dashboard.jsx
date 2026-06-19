@@ -20,6 +20,7 @@ import ToastContainer from '../components/ToastContainer';
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
 const PAGE_KEYS = {
   '/': 'home',
+  '/schedule': 'home',
   '/route': 'route',
   '/routes': 'routes',
   '/clients': 'clients',
@@ -157,6 +158,7 @@ export default function Dashboard() {
       <main>
         <Routes>
           <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
+          <Route path="/schedule" element={<ScheduleView />} />
           <Route path="/route" element={<DriverRouteView />} />
           <Route path="/routes" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />

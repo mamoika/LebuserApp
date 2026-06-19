@@ -84,6 +84,14 @@ function addDaysToWeekKey(weekKey, days) {
   return formatWeekKey(dt);
 }
 
+function hasPositiveWeight(entry) {
+  return (parseFloat(entry?.weight) || 0) > 0;
+}
+
+function isVisibleScheduleEntry(entry) {
+  return hasPositiveWeight(entry);
+}
+
 // Czas absolutny dnia roboczego (1=Pn..5=Pt) w danym tygodniu — do porównań.
 function dayWeekToTime(day, weekKey) {
   const [y, m, d] = (weekKey || '').split('-').map(Number);
@@ -144,12 +152,18 @@ function groupPickupEntries(entries, compareEntries) {
       isPickupGroup: true,
       done: true,
       weight: 0,
+      totalWeight: 0,
+      pendingWeight: 0,
       urgent: false,
     };
     current.entries.push(entry);
     current.done = current.entries.every(e => e.done);
     current.urgent = current.entries.some(e => e.urgent);
-    current.weight = current.entries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+    current.totalWeight = current.entries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+    current.pendingWeight = current.entries
+      .filter(e => !e.done)
+      .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+    current.weight = current.done ? current.totalWeight : current.pendingWeight;
     current.type = current.entries.some(e => e.type === 'O') && current.entries.some(e => (e.type || 'P') === 'P')
       ? 'M'
       : current.entries[0]?.type || 'P';
@@ -322,6 +336,7 @@ export default function ScheduleView() {
   };
   const washKgBySlot = new Map();
   entries.forEach(e => {
+    if (!isVisibleScheduleEntry(e)) return;
     if (e.washed) return; // już wyprane → nie liczymy do prania
     const slot = washSlotOf(e, scheduleByRoute);
     if (!slot) return;
@@ -338,7 +353,7 @@ export default function ScheduleView() {
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
     const totalWeight = entry.isPickupGroup
-      ? relatedEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0)
+      ? (entry.done ? entry.totalWeight : entry.pendingWeight)
       : parseFloat(entry.weight) || 0;
     const hasMixedTypes = entry.isPickupGroup && relatedEntries.some(e => e.type === 'O') && relatedEntries.some(e => (e.type || 'P') === 'P');
 
@@ -373,13 +388,18 @@ export default function ScheduleView() {
 
     const arrived = entries
       .filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey)
+      .filter(isVisibleScheduleEntry)
       .sort(compareEntriesByRouteOrder);
 
-    const picked = entries.filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey);
+    const picked = entries
+      .filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey)
+      .filter(isVisibleScheduleEntry);
     const pickupGroups = groupPickupEntries(picked, compareEntriesByRouteOrder);
 
     const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
-    const sumPicked = picked.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
+    const sumPicked = picked
+      .filter(e => !e.done)
+      .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
     const sumWash = washKgBySlot.get(`${weekKey}|${dayIndex + 1}`) || 0;
 
     return (

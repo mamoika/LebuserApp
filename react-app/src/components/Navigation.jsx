@@ -14,7 +14,7 @@ export default function Navigation() {
   navItems.push(
     { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
-    { to: '/', icon: '📅', label: t('nav.schedule') },
+    { to: '/schedule', icon: '📅', label: t('nav.schedule') },
     { to: '/history', icon: '📋', label: t('nav.history') }
   );
 
@@ -48,7 +48,7 @@ export default function Navigation() {
         <NavLink
           key={item.to}
           to={item.to}
-          end={item.to === '/'}
+          end={item.to === '/' || item.to === '/schedule'}
           style={({ isActive }) => ({
             display: 'flex',
             alignItems: 'center',
