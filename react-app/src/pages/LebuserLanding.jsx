@@ -58,6 +58,65 @@ const audience = [
   'Placówki medyczne', 'Zakłady produkcyjne', 'Firmy sprzątające', 'Catering',
 ];
 
+const offer = [
+  {
+    group: 'Bielizna pościelowa i stołowa',
+    items: [
+      ['Pościel z wykończeniem', 'kg'],
+      ['Poszwy i poszewki', 'szt.'],
+      ['Prześcieradła i pokrowce na materace', 'szt.'],
+      ['Obrusy (do 150 i do 300 cm)', 'szt.'],
+      ['Serwety, ścierki, ręczniki frotté', 'szt.'],
+    ],
+  },
+  {
+    group: 'Firany, zasłony i dekoracje',
+    items: [
+      ['Firany gładkie', 'm²'],
+      ['Zasłony i flagi', 'm²'],
+      ['Falbany, lambrekiny, drapowania', 'mb'],
+      ['Pokrowce na krzesła (proste i ozdobne)', 'szt.'],
+    ],
+  },
+  {
+    group: 'Odzież robocza i fasonowa',
+    items: [
+      ['Koszule, bluzki, piżamy, szlafroki', 'szt.'],
+      ['Fartuchy kucharskie i kelnerskie', 'szt.'],
+      ['Fartuchy medyczne i płócienne', 'szt.'],
+      ['Peleryny fryzjerskie, czepki', 'szt.'],
+      ['Odzież sportowa', 'szt.'],
+    ],
+  },
+  {
+    group: 'Pranie chemiczne i dodatki',
+    items: [
+      ['Garnitury, sukienki, płaszcze, kurtki', 'szt.'],
+      ['Dzianiny i odzież dziecięca', 'szt.'],
+      ['Dywany i tapicerka', 'm²'],
+      ['Produkty puchowe (kołdry, poduszki)', 'szt.'],
+      ['Prasowanie odzieży / pranie na wsad', 'kg'],
+    ],
+  },
+];
+
+const references = [
+  { name: 'Qubus Hotel', type: 'Hotel' },
+  { name: 'Hotel ALMA', type: 'Hotel' },
+  { name: 'Hotel Woiński SPA', type: 'Hotel & SPA' },
+  { name: 'Pałac Mierzęcin', type: 'Hotel & Winnica' },
+  { name: 'PKS Gorzów', type: 'Transport' },
+  { name: 'Leśniczówka Przyłęsko', type: 'Ośrodek' },
+];
+
+const refTrust = [
+  'Terminowość dostaw',
+  'Powtarzalna jakość',
+  'Szybkie reklamacje',
+  'Doradztwo tekstylne',
+  'Obsługa pilnych zleceń',
+];
+
 const stats = [
   { value: 'od 1876', label: 'tradycja Textilservice' },
   { value: 'Gorzów', label: 'Wielkopolski · siedziba' },
@@ -157,6 +216,27 @@ export default function LebuserLanding() {
           </div>
         </section>
 
+        {/* Oferta */}
+        <section className="lw-section">
+          <div className="lw-head lw-reveal">
+            <span className="lw-eyebrow">OFERTA</span>
+            <h2 className="lw-h2">Pełen zakres usług pralniczych</h2>
+            <p className="lw-sub">Pierzemy i serwisujemy tekstylia rozliczane na sztukę, kilogram, metr lub wsad.</p>
+          </div>
+          <div className="lw-offer-grid">
+            {offer.map((g, i) => (
+              <article className="lw-card lw-offer-card lw-reveal" key={g.group} style={{ animationDelay: `${0.05 * i}s` }}>
+                <h3 className="lw-offer-title">{g.group}</h3>
+                <ul className="lw-offer-list">
+                  {g.items.map(([name, unit]) => (
+                    <li key={name}><span>{name}</span><span className="lw-unit">{unit}</span></li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+
         {/* Branże */}
         <section className="lw-section">
           <div className="lw-head lw-reveal">
@@ -165,6 +245,26 @@ export default function LebuserLanding() {
           </div>
           <div className="lw-tags lw-reveal">
             {audience.map((a) => <span className="lw-tag" key={a}>{a}</span>)}
+          </div>
+        </section>
+
+        {/* Referencje */}
+        <section className="lw-section">
+          <div className="lw-head lw-reveal">
+            <span className="lw-eyebrow">REFERENCJE</span>
+            <h2 className="lw-h2">Zaufali nam</h2>
+            <p className="lw-sub">Hotele, ośrodki i firmy, które na co dzień korzystają z naszych usług.</p>
+          </div>
+          <div className="lw-ref-grid">
+            {references.map((r, i) => (
+              <article className="lw-card lw-ref lw-reveal" key={r.name} style={{ animationDelay: `${0.04 * i}s` }}>
+                <div className="lw-ref-name">{r.name}</div>
+                <div className="lw-ref-type">{r.type}</div>
+              </article>
+            ))}
+          </div>
+          <div className="lw-tags lw-reveal">
+            {refTrust.map((t) => <span className="lw-tag" key={t}>✓ {t}</span>)}
           </div>
         </section>
 
@@ -371,6 +471,30 @@ const css = `
 .lw-service-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: var(--lb-ink); }
 .lw-service-desc { font-size: 14.5px; line-height: 1.56; color: rgba(10,44,59,0.68); margin: 0; }
 
+/* OFERTA */
+.lw-offer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.lw-offer-card { padding: 26px 28px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.lw-offer-card:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
+.lw-offer-title { font-size: 16px; font-weight: 750; color: var(--lb-primary); margin: 0 0 14px; letter-spacing: -0.01em; }
+.lw-offer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.lw-offer-list li {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  font-size: 14.5px; color: rgba(10,44,59,0.8);
+  border-bottom: 1px solid rgba(10,94,132,0.08); padding-bottom: 11px;
+}
+.lw-offer-list li:last-child { border-bottom: none; padding-bottom: 0; }
+.lw-unit {
+  flex-shrink: 0; font-size: 11px; font-weight: 750; letter-spacing: 0.3px; text-transform: uppercase;
+  color: var(--lb-mid); background: rgba(20,136,171,0.1); border-radius: 999px; padding: 3px 10px;
+}
+
+/* REFERENCJE */
+.lw-ref-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+.lw-ref { padding: 24px 20px; text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.lw-ref:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
+.lw-ref-name { font-size: 16px; font-weight: 750; color: var(--lb-ink); letter-spacing: -0.01em; }
+.lw-ref-type { font-size: 12.5px; color: rgba(10,44,59,0.6); margin-top: 4px; }
+
 /* TAGS */
 .lw-tags { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 760px; margin: 0 auto; }
 .lw-tag {
@@ -422,10 +546,13 @@ const css = `
 @media (max-width: 860px) {
   .lw-stats { grid-template-columns: repeat(2, 1fr); }
   .lw-grid { grid-template-columns: repeat(2, 1fr); }
+  .lw-offer-grid { grid-template-columns: 1fr; }
+  .lw-ref-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
   .lw-grid { grid-template-columns: 1fr; }
   .lw-list { grid-template-columns: 1fr; }
+  .lw-ref-grid { grid-template-columns: 1fr; }
   .lw-contact { flex-direction: column; align-items: stretch; }
   .lw-contact-actions { flex-direction: row; }
   .lw-contact-actions .lw-btn { flex: 1; }
