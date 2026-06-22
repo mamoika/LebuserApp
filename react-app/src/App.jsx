@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import LebuserLanding from './pages/LebuserLanding';
+
+// Strona Lebuser ładowana leniwie — admin-only, nie obciąża głównego bundla.
+const LebuserLanding = lazy(() => import('./pages/LebuserLanding'));
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -117,7 +119,9 @@ function App() {
           <Route path="/register" element={<Navigate to="/login" replace />} />
           <Route path="/lebuser" element={
             <AdminRoute>
-              <LebuserLanding />
+              <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+                <LebuserLanding />
+              </Suspense>
             </AdminRoute>
           } />
           <Route path="/*" element={
