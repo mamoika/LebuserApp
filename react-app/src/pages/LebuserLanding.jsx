@@ -120,8 +120,8 @@ export default function LebuserLanding() {
 
           {/* Fale — motyw z logo */}
           <svg className="lw-waves" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0,40 C200,90 400,0 600,40 C800,80 1000,10 1200,50 L1200,120 L0,120 Z" opacity="0.28" />
-            <path d="M0,70 C200,30 400,100 600,60 C800,20 1000,90 1200,55 L1200,120 L0,120 Z" opacity="0.5" />
+            <path className="lw-w1" d="M0,42 C200,92 400,2 600,42 C800,82 1000,12 1200,52 L1200,120 L0,120 Z" />
+            <path className="lw-w2" d="M0,72 C200,32 400,102 600,62 C800,22 1000,92 1200,57 L1200,120 L0,120 Z" />
           </svg>
         </header>
 
@@ -305,10 +305,13 @@ const css = `
 .lw-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 .lw-waves {
-  position: absolute; left: -48px; right: -48px; bottom: -2px; width: calc(100% + 96px);
-  height: 96px; display: block; color: var(--lb-mid);
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: -1px;
+  width: 100vw; height: 120px; display: block; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 25%, transparent 96%);
+  mask-image: linear-gradient(to bottom, #000 25%, transparent 96%);
 }
-.lw-waves path { fill: currentColor; }
+.lw-waves .lw-w1 { fill: var(--lb-aqua); opacity: 0.22; }
+.lw-waves .lw-w2 { fill: var(--lb-primary); opacity: 0.34; }
 
 /* BUTTONS */
 .lw-btn {
