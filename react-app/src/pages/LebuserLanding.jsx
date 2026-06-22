@@ -542,18 +542,16 @@ const css = `
 .lw-btn:hover .lw-arrow { transform: translateX(3px); }
 .lw-btn-primary {
   color: #fff;
-  background: linear-gradient(180deg, #2a9cc0 0%, var(--lb-primary) 56%, #084d6e 100%);
+  background: linear-gradient(180deg, #1d86ac 0%, #0f6791 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.30),
-    0 2px 4px rgba(6,59,82,0.18),
-    0 10px 22px rgba(10,94,132,0.30);
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    0 4px 12px rgba(10,94,132,0.20);
 }
 .lw-btn-primary:hover {
-  background: linear-gradient(180deg, #34a9cd 0%, #0c688f 56%, #0a5e84 100%);
+  background: linear-gradient(180deg, #2191b8 0%, #14739f 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.34),
-    0 4px 8px rgba(6,59,82,0.20),
-    0 14px 28px rgba(10,94,132,0.40);
+    inset 0 1px 0 rgba(255,255,255,0.20),
+    0 7px 18px rgba(10,94,132,0.28);
 }
 .lw-btn-ghost {
   color: var(--lb-primary); background: rgba(255,255,255,0.66);
