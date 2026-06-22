@@ -779,7 +779,6 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
   const sortedRoutes = [...(routes || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const knownClientNames = new Set((clients || []).map(c => c.name));
-  const selectedClient = (clients || []).find(c => c.name === clientName);
   const isPickupContext = contextMode === 'pick';
   const pickupEntries = isPickupContext && relatedEntries.length > 0 ? relatedEntries : [entry];
   const isGroupedPickup = isPickupContext && pickupEntries.length > 1;

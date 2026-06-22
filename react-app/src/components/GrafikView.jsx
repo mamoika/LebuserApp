@@ -99,7 +99,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
       if (inputRef.current) {
         inputRef.current.focus();
         inputRef.current.select();
-        try { inputRef.current.setSelectionRange(0, 9999); } catch(e){}
+        try { inputRef.current.setSelectionRange(0, 9999); } catch { /* setSelectionRange nieobsługiwane dla tego typu inputa */ }
       }
     }, 50);
     return () => clearTimeout(tId);
@@ -133,7 +133,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               ref={inputRef}
               autoFocus
               value={customValue} onChange={e => setCustomValue(e.target.value)}
-              onFocus={e => { e.target.select(); try { e.target.setSelectionRange(0, 9999); } catch(err){} }}
+              onFocus={e => { e.target.select(); try { e.target.setSelectionRange(0, 9999); } catch { /* setSelectionRange nieobsługiwane dla tego typu inputa */ } }}
               placeholder={t('grafik.otherValue')}
               onKeyDown={e => { 
                 if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); }
