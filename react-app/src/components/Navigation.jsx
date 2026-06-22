@@ -27,6 +27,7 @@ export default function Navigation() {
 
   if (isAdmin) {
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
+    navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
   }
 
   return (
