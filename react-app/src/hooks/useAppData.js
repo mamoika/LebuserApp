@@ -10,6 +10,16 @@ const FETCH_TIMEOUT_MS = 15000;
 const MAX_RETRIES = 2;
 // Po jakim czasie ciszy realtime wykonujemy JEDNO przeładowanie (anty-lawina).
 const REALTIME_DEBOUNCE_MS = 600;
+// Krótki cache między widokami: przełączanie Harmonogram/Trasy nie powinno
+// blokować UI pełnym pobieraniem tych samych danych.
+const CACHE_TTL_MS = 30000;
+const EMPTY_DATA = { clients: [], routes: [], entries: [], receipts: [], allRoutes: [] };
+
+let sharedCache = null;
+let sharedCacheToken = null;
+let sharedCacheAt = 0;
+let sharedFetch = null;
+let sharedFetchToken = null;
 
 // Owija obietnicę limitem czasu — jeśli baza nie odpowie, odrzucamy zamiast wisieć w nieskończoność.
 function withTimeout(promise, ms, label) {
@@ -21,17 +31,66 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+function normalizeAppData(result) {
+  const routes = result?.routes || [];
+  return {
+    clients: result?.clients || [],
+    routes,
+    entries: result?.entries || [],
+    receipts: result?.receipts || [],
+    allRoutes: routes,
+  };
+}
+
+function getCachedData(sessionToken) {
+  return sessionToken && sharedCacheToken === sessionToken ? sharedCache : null;
+}
+
+function hasFreshCache(sessionToken) {
+  return !!getCachedData(sessionToken) && Date.now() - sharedCacheAt < CACHE_TTL_MS;
+}
+
+async function loadAppData(sessionToken, { force = false } = {}) {
+  if (!force && hasFreshCache(sessionToken)) return sharedCache;
+  if (sharedFetch && sharedFetchToken === sessionToken) return sharedFetch;
+
+  const lastWeekDt = new Date(getCurrentMonday().getTime() - 7 * 86400000);
+  const lastWeekStr = formatWeekKey(lastWeekDt);
+  const token = sessionToken;
+
+  sharedFetchToken = token;
+  sharedFetch = withTimeout(
+    getAppData(token, lastWeekStr),
+    FETCH_TIMEOUT_MS,
+    'pobieranie danych'
+  ).then((result) => {
+    const next = normalizeAppData(result);
+    sharedCache = next;
+    sharedCacheToken = token;
+    sharedCacheAt = Date.now();
+    return next;
+  }).finally(() => {
+    if (sharedFetchToken === token) {
+      sharedFetch = null;
+      sharedFetchToken = null;
+    }
+  });
+
+  return sharedFetch;
+}
+
 export function useAppData() {
   const { sessionToken } = useAuth();
-  const [data, setData] = useState({ clients: [], routes: [], entries: [], receipts: [], allRoutes: [] });
-  const [loading, setLoading] = useState(true);
+  const cachedData = getCachedData(sessionToken);
+  const [data, setData] = useState(() => cachedData || EMPTY_DATA);
+  const [loading, setLoading] = useState(() => !cachedData);
   const [error, setError] = useState(null);
-  const hasLoadedRef = useRef(false);
+  const hasLoadedRef = useRef(!!cachedData);
   const fetchInFlightRef = useRef(null);
   const debounceRef = useRef(null);
   const mountedRef = useRef(true);
 
-  const runFetch = useCallback(async () => {
+  const runFetch = useCallback(async ({ force = false } = {}) => {
     if (!sessionToken) {
       if (mountedRef.current) setError('Brak aktywnej sesji');
       return;
@@ -40,24 +99,10 @@ export function useAppData() {
     let lastErr = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const lastWeekDt = new Date(getCurrentMonday().getTime() - 7 * 86400000);
-        const lastWeekStr = formatWeekKey(lastWeekDt);
-
-        const result = await withTimeout(
-          getAppData(sessionToken, lastWeekStr),
-          FETCH_TIMEOUT_MS,
-          'pobieranie danych'
-        );
+        const next = await loadAppData(sessionToken, { force });
 
         if (!mountedRef.current) return;
-        const routes = result?.routes || [];
-        setData({
-          clients: result?.clients || [],
-          routes,
-          entries: result?.entries || [],
-          receipts: result?.receipts || [],
-          allRoutes: routes,
-        });
+        setData(next);
         hasLoadedRef.current = true;
         setError(null);
         return; // sukces — kończymy
@@ -73,13 +118,24 @@ export function useAppData() {
     if (mountedRef.current && lastErr) setError(lastErr.message);
   }, [sessionToken]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async ({ force = false } = {}) => {
     if (fetchInFlightRef.current) return fetchInFlightRef.current;
+
+    const cached = getCachedData(sessionToken);
+    if (cached) {
+      setData(cached);
+      hasLoadedRef.current = true;
+      setError(null);
+      if (!force && hasFreshCache(sessionToken)) {
+        setLoading(false);
+        return cached;
+      }
+    }
 
     const request = (async () => {
       try {
         if (!hasLoadedRef.current) setLoading(true);
-        await runFetch();
+        await runFetch({ force });
       } finally {
         if (mountedRef.current) setLoading(false);
         fetchInFlightRef.current = null;
@@ -88,7 +144,9 @@ export function useAppData() {
 
     fetchInFlightRef.current = request;
     return request;
-  }, [runFetch]);
+  }, [runFetch, sessionToken]);
+
+  const refetch = useCallback(() => fetchData({ force: true }), [fetchData]);
 
   // Realtime: zamiast przeładowywać przy KAŻDEJ zmianie, zbieramy zmiany
   // i robimy jedno przeładowanie po chwili ciszy (debounce). To zabija lawinę
@@ -97,12 +155,21 @@ export function useAppData() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
-      fetchData();
+      refetch();
     }, REALTIME_DEBOUNCE_MS);
-  }, [fetchData]);
+  }, [refetch]);
 
   useEffect(() => {
     mountedRef.current = true;
+    const cached = getCachedData(sessionToken);
+    if (cached) {
+      setData(cached);
+      hasLoadedRef.current = true;
+      setLoading(false);
+    } else {
+      setData(EMPTY_DATA);
+      hasLoadedRef.current = false;
+    }
     fetchData();
     // Unikalna nazwa kanału na każdy mount — zapobiega kolizji nazw przy
     // podwójnym montowaniu (React StrictMode / HMR), gdy poprzedni kanał nie
@@ -121,9 +188,9 @@ export function useAppData() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [fetchData, scheduleRefetch]);
+  }, [fetchData, scheduleRefetch, sessionToken]);
 
-  return { ...data, loading, error, refetch: fetchData };
+  return { ...data, loading, error, refetch };
 }
 
 // Helper: przefiltruj dane dla kierowcy na podstawie jego tras
