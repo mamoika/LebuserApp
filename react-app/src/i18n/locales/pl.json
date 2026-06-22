@@ -394,6 +394,7 @@
     "role": "Rola",
     "roleViewer": "Podgląd",
     "roleAdminViewer": "Admin do wglądu",
+    "roleAdminViewerDriver": "Admin do wglądu + Kierowca",
     "roleDriver": "Kierowca",
     "roleAdmin": "Administrator",
     "creating": "Tworzenie…",

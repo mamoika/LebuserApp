@@ -384,6 +384,7 @@
     "role": "Rolle",
     "roleViewer": "Nur Ansicht",
     "roleAdminViewer": "Admin-Ansicht",
+    "roleAdminViewerDriver": "Admin-Ansicht + Fahrer",
     "roleDriver": "Fahrer",
     "roleAdmin": "Administrator",
     "creating": "Wird erstellt…",

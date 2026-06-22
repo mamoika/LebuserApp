@@ -216,8 +216,8 @@ export const AuthProvider = ({ children }) => {
 
   const role = user?.role ?? null;
   const isAdmin = role === 'admin';
-  const isAdminViewer = role === 'admin_viewer';
-  const isDriver = role === 'driver';
+  const isAdminViewer = role === 'admin_viewer' || role === 'admin_viewer_driver';
+  const isDriver = role === 'driver' || role === 'admin_viewer_driver';
   const isViewer = role === 'viewer';
   const canViewAdminData = isAdmin || isAdminViewer;
 

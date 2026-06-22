@@ -38,7 +38,7 @@ function DriverRoutesModal({ routes, onClose }) {
 
   useEffect(() => {
     supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
-      const driverList = (data || []).filter(u => u.role === 'driver');
+      const driverList = (data || []).filter(u => u.role === 'driver' || u.role === 'admin_viewer_driver');
       setDrivers(driverList);
       const init = {};
       driverList.forEach(d => {

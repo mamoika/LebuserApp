@@ -384,7 +384,7 @@ export default function DriverRouteView({ manageMode = false }) {
   useEffect(() => {
     if (!manageMode || !sessionToken) return;
     supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
-      setDriverOptions((data || []).filter(u => u.role === 'driver' || u.role === 'admin'));
+      setDriverOptions((data || []).filter(u => u.role === 'driver' || u.role === 'admin' || u.role === 'admin_viewer_driver'));
     });
   }, [manageMode, sessionToken]);
 
