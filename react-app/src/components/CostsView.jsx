@@ -7,7 +7,7 @@ import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/a
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
-import * as XLSX from 'xlsx';
+import { exportSheetsAsXlsx } from '../lib/excelExport';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -696,7 +696,7 @@ export default function CostsView() {
   const trendAvg = workVals.length ? workVals.reduce((s, v) => s + v, 0) / workVals.length : 0;
 
   // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const r2 = (n) => Math.round((n || 0) * 100) / 100;
     const dayLabel = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')}.${String(month).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
@@ -711,7 +711,7 @@ export default function CostsView() {
     const totalsForExport = monthlyTotals;
     const costsTotal = [t('costs.total'), r2(totalsForExport.kmFiat), r2(totalsForExport.kmIsuzu), r2(totalsForExport.kmMerc), r2(totalsForExport.kmIveco), r2(totalsForExport.transport), r2(totalsForExport.kWh), r2(totalsForExport.elec),
       r2(totalsForExport.m3GasProd), r2(totalsForExport.gasProd), r2(totalsForExport.m3GasHeat), r2(totalsForExport.gasHeat), r2(totalsForExport.m3Water), r2(totalsForExport.water), r2(totalsForExport.workers), r2(totalsForExport.other), r2(totalsForExport.total), perfTotals.kg > 0 ? r2(totalsForExport.total / perfTotals.kg) : ''];
-    const wsCosts = XLSX.utils.aoa_to_sheet([[t('costs.exportCostsTitle', { month: months[month - 1], year })], [], costsHead, ...costsRows, [], costsTotal]);
+    const costsData = [[t('costs.exportCostsTitle', { month: months[month - 1], year })], [], costsHead, ...costsRows, [], costsTotal];
 
     // Arkusz 2: Wydajność
     const perfHead = t('costs.exportPerformanceHead', { returnObjects: true });
@@ -726,12 +726,16 @@ export default function CostsView() {
         hZd1 ? r2(hZd1) : '', hZd2 ? r2(hZd2) : '', hKier ? r2(hKier) : '', hSuma ? r2(hSuma) : '',
         hZd1 > 0 ? r2(kgZd1 / hZd1) : '', hZd2 > 0 ? r2(kgZd2pr / hZd2) : '', hSuma > 0 ? r2(tSuma / hSuma) : ''];
     });
-    const wsPerf = XLSX.utils.aoa_to_sheet([[t('costs.exportPerformanceTitle', { month: months[month - 1], year })], [], perfHead, ...perfRows]);
+    const performanceData = [[t('costs.exportPerformanceTitle', { month: months[month - 1], year })], [], perfHead, ...perfRows];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsCosts, t('costs.sheetCosts'));
-    XLSX.utils.book_append_sheet(wb, wsPerf, t('costs.sheetPerformance'));
-    XLSX.writeFile(wb, `${t('costs.filePrefix')}_${months[month - 1]}_${year}.xlsx`);
+    try {
+      await exportSheetsAsXlsx([
+        { sheet: t('costs.sheetCosts'), data: costsData },
+        { sheet: t('costs.sheetPerformance'), data: performanceData },
+      ], `${t('costs.filePrefix')}_${months[month - 1]}_${year}.xlsx`);
+    } catch {
+      toastError(t('common.error'));
+    }
   };
 
   return (

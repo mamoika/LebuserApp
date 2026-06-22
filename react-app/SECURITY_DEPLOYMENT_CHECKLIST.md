@@ -57,6 +57,51 @@ Repeat the same smoke test.
 
 Status: run in Supabase and smoke-tested.
 
+Next shared app-data read-hardening migration:
+
+1. `db/migrations/app_data_read_rpc.sql`
+
+After deploying the frontend that uses it, verify:
+
+- Schedule loads current and next week.
+- Map loads routes and client markers.
+- Clients/routes view loads and reorder/edit flows still refresh data.
+- Driver route view loads entries and route list.
+- Laundry receipt list/links still appear where expected.
+
+Do not revoke `select` on `clients`, `routes`, `entries`, or
+`laundry_receipts` yet: other views still have direct reads that must be moved
+behind RPCs first.
+
+Next history read-hardening migration:
+
+1. `db/migrations/history_entries_read_rpc.sql`
+
+After deploying the frontend that uses it, verify:
+
+- History loads recent entries.
+- Admin can use client, route, driver and status filters.
+- Driver accounts see only entries for assigned routes.
+- A driver with no assigned routes does not see all history.
+- Entry change log still opens through `get_entry_logs`.
+
+Do not revoke `select` on `entries` yet: schedule, driver route and other
+views still need their remaining direct reads migrated or covered by RPCs.
+
+Next schedule driver-trip label migration:
+
+1. `db/migrations/schedule_driver_trips_read_rpc.sql`
+
+After deploying the frontend that uses it, verify:
+
+- Schedule still shows trip assignment labels such as `Przywiezie`, `Wiezie`
+  and `Przywiózł`.
+- Labels update after starting/finishing/changing a driver trip.
+- Realtime refresh still triggers without a page reload.
+
+Do not revoke `select` on `driver_trips` yet: `DriverRouteView` still has
+remaining direct reads that must be migrated first.
+
 ## Phase 5: RODO/EU Operations
 
 Complete the operational documents in `docs/compliance`:

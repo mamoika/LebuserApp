@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
+import { useAuth } from '../context/AuthContext';
+import { getAppData } from '../lib/appDataRpc';
 
 // Ile czekamy na odpowiedź bazy, zanim uznamy zapytanie za zawieszone.
 const FETCH_TIMEOUT_MS = 15000;
@@ -20,6 +22,7 @@ function withTimeout(promise, ms, label) {
 }
 
 export function useAppData() {
+  const { sessionToken } = useAuth();
   const [data, setData] = useState({ clients: [], routes: [], entries: [], receipts: [], allRoutes: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,44 +31,32 @@ export function useAppData() {
   const debounceRef = useRef(null);
   const mountedRef = useRef(true);
 
-  const runFetch = async () => {
+  const runFetch = useCallback(async () => {
+    if (!sessionToken) {
+      if (mountedRef.current) setError('Brak aktywnej sesji');
+      return;
+    }
+
     let lastErr = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         const lastWeekDt = new Date(getCurrentMonday().getTime() - 7 * 86400000);
         const lastWeekStr = formatWeekKey(lastWeekDt);
 
-        const [
-          { data: clients, error: clientsError },
-          { data: routes, error: routesError },
-          { data: entries, error: entriesError },
-          { data: receipts, error: receiptsError },
-        ] = await withTimeout(
-          Promise.all([
-            supabase.from('clients').select('*').order('sort_order'),
-            supabase.from('routes').select('*').order('sort_order'),
-            supabase.from('entries').select('*').is('deleted_at', null).or(`done.eq.false,week_key.gte.${lastWeekStr},pick_week_key.gte.${lastWeekStr}`),
-            supabase.from('laundry_receipts').select('*').is('deleted_at', null).order('doc_no', { ascending: false }),
-          ]),
+        const result = await withTimeout(
+          getAppData(sessionToken, lastWeekStr),
           FETCH_TIMEOUT_MS,
           'pobieranie danych'
         );
 
-        // Kartki prania są opcjonalne — jeśli migracja `laundry_receipts` nie jest
-        // jeszcze wgrana na bazę, nie wywalamy całej aplikacji, tylko pomijamy listę.
-        if (receiptsError) console.warn('Pominięto kartki prania:', receiptsError.message);
-
-        const fetchError = clientsError || routesError || entriesError;
-        if (fetchError) throw fetchError;
-
         if (!mountedRef.current) return;
-        const allRoutes = routes || [];
+        const routes = result?.routes || [];
         setData({
-          clients: clients || [],
-          routes: allRoutes,
-          entries: entries || [],
-          receipts: receiptsError ? [] : (receipts || []),
-          allRoutes,
+          clients: result?.clients || [],
+          routes,
+          entries: result?.entries || [],
+          receipts: result?.receipts || [],
+          allRoutes: routes,
         });
         hasLoadedRef.current = true;
         setError(null);
@@ -80,9 +71,9 @@ export function useAppData() {
     }
     // Wyczerpaliśmy próby — pokazujemy błąd.
     if (mountedRef.current && lastErr) setError(lastErr.message);
-  };
+  }, [sessionToken]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (fetchInFlightRef.current) return fetchInFlightRef.current;
 
     const request = (async () => {
@@ -97,18 +88,18 @@ export function useAppData() {
 
     fetchInFlightRef.current = request;
     return request;
-  };
+  }, [runFetch]);
 
   // Realtime: zamiast przeładowywać przy KAŻDEJ zmianie, zbieramy zmiany
   // i robimy jedno przeładowanie po chwili ciszy (debounce). To zabija lawinę
   // zapytań, gdy ktoś wpisuje dużo danych pod rząd.
-  const scheduleRefetch = () => {
+  const scheduleRefetch = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
       fetchData();
     }, REALTIME_DEBOUNCE_MS);
-  };
+  }, [fetchData]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -130,7 +121,7 @@ export function useAppData() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchData, scheduleRefetch]);
 
   return { ...data, loading, error, refetch: fetchData };
 }

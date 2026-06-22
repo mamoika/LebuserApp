@@ -6,6 +6,7 @@ import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils'
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { supabase } from '../lib/supabaseClient';
+import { getScheduleDriverTrips } from '../lib/driverTripsRpc';
 import { VEHICLE_LABELS } from '../lib/vehicles';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
@@ -171,7 +172,7 @@ function groupPickupEntries(entries, compareEntries) {
 export default function ScheduleView() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, user } = useAuth();
+  const { isAdmin, isDriver, user, sessionToken } = useAuth();
   const { entries, clients, routes, receipts, loading, error, refetch } = rawData;
   const assignedRouteIds = parseRouteIds(user?.routes);
   
@@ -205,12 +206,16 @@ export default function ScheduleView() {
   useEffect(() => {
     let cancelled = false;
     const loadDriverTrips = async () => {
-      const { data } = await supabase
-        .from('driver_trips')
-        .select('*')
-        .order('started_at', { ascending: false })
-        .limit(120);
-      if (!cancelled) setDriverTrips(data || []);
+      if (!sessionToken) {
+        if (!cancelled) setDriverTrips([]);
+        return;
+      }
+      try {
+        const data = await getScheduleDriverTrips(sessionToken, { limit: 120 });
+        if (!cancelled) setDriverTrips(data || []);
+      } catch {
+        if (!cancelled) setDriverTrips([]);
+      }
     };
     loadDriverTrips();
     const channel = supabase
@@ -221,7 +226,7 @@ export default function ScheduleView() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [sessionToken]);
   
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
   if (error) return <DataError onRetry={refetch} />;

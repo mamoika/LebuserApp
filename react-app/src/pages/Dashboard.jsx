@@ -8,8 +8,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 import ToastContainer from '../components/ToastContainer';
 
-// Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki (leaflet w
-// MapView, xlsx w CostsView) pobierają się dopiero przy wejściu na dany widok.
+// Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki, np. mapa i
+// eksport Excela, pobierają się dopiero przy wejściu na dany widok.
 const ScheduleView = lazy(() => import('../components/ScheduleView'));
 const DriverRouteView = lazy(() => import('../components/DriverRouteView'));
 const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));

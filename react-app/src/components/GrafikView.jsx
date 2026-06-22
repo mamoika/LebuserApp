@@ -6,7 +6,7 @@ import { isHoliday } from '../utils/holidays';
 import { loadMonthRoster } from '../lib/roster';
 import { toastError } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
-import * as XLSX from 'xlsx';
+import { exportRowsAsXlsx } from '../lib/excelExport';
 import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
 
 const VALUE_STYLE = {
@@ -312,7 +312,7 @@ export default function GrafikView() {
   const prevMonth = () => { if (atMinMonth) return; if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const wsData = [];
     const headers = [t('grafik.employee'), ...days.map(d => `${d}`), t('grafik.excelSumHours'), t('grafik.excelNorm'), t('grafik.diffShort'), 'L4', 'UW', 'NN'];
     wsData.push([`${MONTH_NAMES[month - 1]} ${year}`, `${t('grafik.workdays')} ${workingDays}`, `${t('grafik.norm')} ${norm}h`]);
@@ -352,10 +352,11 @@ export default function GrafikView() {
     wsData.push(uwRow);
     wsData.push(nnRow);
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, t('grafik.sheetName'));
-    XLSX.writeFile(wb, `${t('grafik.fileName')}_${MONTH_NAMES[month-1]}_${year}.xlsx`);
+    try {
+      await exportRowsAsXlsx(wsData, `${t('grafik.fileName')}_${MONTH_NAMES[month-1]}_${year}.xlsx`);
+    } catch {
+      toastError(t('common.error'));
+    }
   };
 
   const handlePrint = () => {

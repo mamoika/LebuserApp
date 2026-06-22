@@ -110,18 +110,30 @@ After the write-hardening SQL run, live verification showed:
 - Added privacy notice acknowledgement flow:
   `db/migrations/privacy_notice_ack.sql`, a post-login RODO modal and admin
   acknowledgement status on the user list.
+- Added main app data read RPC: `db/migrations/app_data_read_rpc.sql`.
+  Updated `useAppData` so the shared clients/routes/entries/laundry_receipts
+  load goes through `get_app_data(p_session_token, p_last_week_key)` instead
+  of direct browser table reads.
+- Added history entries read RPC: `db/migrations/history_entries_read_rpc.sql`.
+  Updated `HistoryView` so history rows load through
+  `get_history_entries(p_session_token, p_limit)` instead of a direct browser
+  `select` on `entries`.
+- Added schedule driver trip read RPC:
+  `db/migrations/schedule_driver_trips_read_rpc.sql`. Updated `ScheduleView`
+  so driver trip assignment labels load through
+  `get_schedule_driver_trips(p_session_token, p_limit)` instead of a direct
+  browser `select` on `driver_trips`.
 
 ## Remaining Hardening Plan
 
 1. Continue moving sensitive reads behind RPC
 
-   `logs` read access has been moved first. Continue with broader direct table
-   reads using functions such as:
+   `logs`, the shared `useAppData` load, `HistoryView` entry history, and
+   `ScheduleView` driver-trip labels have been moved first. Continue with
+   broader direct table reads using functions such as:
 
-   - `get_app_data(p_session_token)`
    - `get_driver_day(p_session_token, p_date)`
    - `get_costs_month(p_session_token, p_month_key)`
-   - `get_history(p_session_token, filters...)`
 
 2. Revoke table read access from anon/authenticated
 
