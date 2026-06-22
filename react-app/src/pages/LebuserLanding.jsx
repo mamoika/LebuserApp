@@ -15,6 +15,11 @@ const EMAIL = 'info@lebuser.pl';
 const PHONE = '+48 95 722 60 40';
 const PHONE_HREF = '+48957226040';
 
+// Dane rejestrowe (KRS 0000648492)
+const LEGAL_NAME = 'Lebuser Textilservice Sp. z o.o.';
+const LEGAL_ADDR = 'ul. Owcza 10, 66-400 Gorzów Wielkopolski';
+const REG = { nip: '9271945131', regon: '365910038', krs: '0000648492' };
+
 const content = {
   pl: {
     back: 'Powrót do aplikacji',
@@ -96,7 +101,8 @@ const content = {
     contactAddress: 'ul. Owcza 10, 66-400 Gorzów Wielkopolski',
     ctaWrite: 'Napisz do nas',
     ctaCall: 'Zadzwoń',
-    footer: 'LEBUSER · Textilservice od 1876 · ul. Owcza 10, Gorzów Wielkopolski — strona testowa',
+    privacy: 'Polityka prywatności',
+    footerNote: 'strona testowa',
   },
   de: {
     back: 'Zurück zur App',
@@ -178,7 +184,9 @@ const content = {
     contactAddress: 'ul. Owcza 10, 66-400 Gorzów Wielkopolski',
     ctaWrite: 'Schreiben Sie uns',
     ctaCall: 'Anrufen',
-    footer: 'LEBUSER · Textilservice seit 1876 · ul. Owcza 10, Gorzów Wielkopolski — Testseite',
+    privacy: 'Datenschutz',
+    imprint: 'Impressum',
+    footerNote: 'Testseite',
   },
 };
 
@@ -198,6 +206,13 @@ export default function LebuserLanding() {
     document.title = 'LEBUSER · Textilservice od 1876';
     return () => { document.title = prev; };
   }, []);
+
+  // Dostępność: atrybut języka dokumentu zgodny z treścią (WCAG / EAA).
+  useEffect(() => {
+    const prev = document.documentElement.lang;
+    document.documentElement.lang = lang;
+    return () => { document.documentElement.lang = prev; };
+  }, [lang]);
 
   const setLang = (l) => { if (l !== lang) i18n.changeLanguage(l); };
 
@@ -276,7 +291,7 @@ export default function LebuserLanding() {
                 key={srv.title}
                 style={{ animationDelay: `${0.05 * i}s` }}
               >
-                <div className="lw-service-icon">{srv.icon}</div>
+                <div className="lw-service-icon" aria-hidden="true">{srv.icon}</div>
                 <h3 className="lw-service-title">{srv.title}</h3>
                 <p className="lw-service-desc">{srv.desc}</p>
               </article>
@@ -332,7 +347,7 @@ export default function LebuserLanding() {
             ))}
           </div>
           <div className="lw-tags lw-reveal">
-            {c.refTrust.map((t) => <span className="lw-tag" key={t}>✓ {t}</span>)}
+            {c.refTrust.map((t) => <span className="lw-tag" key={t}><span aria-hidden="true">✓ </span>{t}</span>)}
           </div>
         </section>
 
@@ -356,9 +371,9 @@ export default function LebuserLanding() {
               {c.contactTitle}
             </h2>
             <ul className="lw-contact-list">
-              <li><span className="lw-ci">📍</span> {c.contactAddress}</li>
-              <li><span className="lw-ci">📞</span> <a href={`tel:${PHONE_HREF}`}>{PHONE}</a></li>
-              <li><span className="lw-ci">✉️</span> <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
+              <li><span className="lw-ci" aria-hidden="true">📍</span> {c.contactAddress}</li>
+              <li><span className="lw-ci" aria-hidden="true">📞</span> <a href={`tel:${PHONE_HREF}`}>{PHONE}</a></li>
+              <li><span className="lw-ci" aria-hidden="true">✉️</span> <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
             </ul>
           </div>
           <div className="lw-contact-actions">
@@ -368,7 +383,18 @@ export default function LebuserLanding() {
         </section>
 
         <footer className="lw-footer">
-          {c.footer}
+          <div className="lw-footer-legal">{LEGAL_NAME} · {LEGAL_ADDR}</div>
+          <div className="lw-footer-reg">NIP {REG.nip} · REGON {REG.regon} · KRS {REG.krs}</div>
+          <div className="lw-footer-links">
+            <a href="#" onClick={(e) => e.preventDefault()}>{c.privacy}</a>
+            {lang === 'de' && (
+              <>
+                <span aria-hidden="true">·</span>
+                <a href="#" onClick={(e) => e.preventDefault()}>{c.imprint}</a>
+              </>
+            )}
+          </div>
+          <div className="lw-footer-copy">© {new Date().getFullYear()} {LEGAL_NAME} — {c.footerNote}</div>
         </footer>
       </div>
     </div>
@@ -483,9 +509,17 @@ const css = `
 }
 .lw-lead {
   max-width: 640px; margin: 0 auto 30px; font-size: clamp(16px, 2.1vw, 19px);
-  line-height: 1.58; color: rgba(10,44,59,0.74);
+  line-height: 1.58; color: rgba(10,44,59,0.82);
 }
 .lw-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* Dostępność: widoczny focus dla nawigacji klawiaturą (WCAG / EAA) */
+.lw-root a:focus-visible,
+.lw-root button:focus-visible {
+  outline: 3px solid var(--lb-primary);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
 
 .lw-waves {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: -1px;
@@ -528,17 +562,17 @@ const css = `
 }
 .lw-stat:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
 .lw-stat-value { font-size: clamp(19px, 2.6vw, 27px); font-weight: 800; color: var(--lb-deep); letter-spacing: -0.01em; }
-.lw-stat-label { font-size: 12.5px; color: rgba(10,44,59,0.6); margin-top: 5px; }
+.lw-stat-label { font-size: 12.5px; color: rgba(10,44,59,0.74); margin-top: 5px; }
 
 /* SECTION HEAD */
 .lw-section { margin-bottom: 64px; }
 .lw-head { text-align: center; max-width: 620px; margin: 0 auto 30px; }
 .lw-eyebrow {
   display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1.6px;
-  color: var(--lb-mid); margin-bottom: 10px;
+  color: var(--lb-primary); margin-bottom: 10px;
 }
 .lw-h2 { font-size: clamp(25px, 3.6vw, 36px); font-weight: 800; letter-spacing: -0.02em; margin: 0; color: var(--lb-ink); }
-.lw-sub { margin: 12px 0 0; font-size: 16px; line-height: 1.55; color: rgba(10,44,59,0.66); }
+.lw-sub { margin: 12px 0 0; font-size: 16px; line-height: 1.55; color: rgba(10,44,59,0.78); }
 
 /* SERVICES */
 .lw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -552,7 +586,7 @@ const css = `
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
 }
 .lw-service-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: var(--lb-ink); }
-.lw-service-desc { font-size: 14.5px; line-height: 1.56; color: rgba(10,44,59,0.68); margin: 0; }
+.lw-service-desc { font-size: 14.5px; line-height: 1.56; color: rgba(10,44,59,0.8); margin: 0; }
 
 /* OFERTA */
 .lw-offer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
@@ -568,7 +602,7 @@ const css = `
 .lw-offer-list li:last-child { border-bottom: none; padding-bottom: 0; }
 .lw-unit {
   flex-shrink: 0; font-size: 11px; font-weight: 750; letter-spacing: 0.3px; text-transform: uppercase;
-  color: var(--lb-mid); background: rgba(20,136,171,0.1); border-radius: 999px; padding: 3px 10px;
+  color: var(--lb-primary); background: rgba(10,94,132,0.12); border-radius: 999px; padding: 3px 10px;
 }
 
 /* REFERENCJE */
@@ -576,7 +610,7 @@ const css = `
 .lw-ref { padding: 24px 20px; text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .lw-ref:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
 .lw-ref-name { font-size: 16px; font-weight: 750; color: var(--lb-ink); letter-spacing: -0.01em; }
-.lw-ref-type { font-size: 12.5px; color: rgba(10,44,59,0.6); margin-top: 4px; }
+.lw-ref-type { font-size: 12.5px; color: rgba(10,44,59,0.74); margin-top: 4px; }
 
 /* TAGS */
 .lw-tags { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 760px; margin: 0 auto; }
@@ -590,7 +624,7 @@ const css = `
 
 /* ABOUT */
 .lw-about { padding: 38px 36px; margin-bottom: 24px; }
-.lw-about p { font-size: 16px; line-height: 1.62; color: rgba(10,44,59,0.76); margin: 0; max-width: 760px; }
+.lw-about p { font-size: 16px; line-height: 1.62; color: rgba(10,44,59,0.84); margin: 0; max-width: 760px; }
 .lw-list { margin: 22px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 28px; }
 .lw-list li { position: relative; padding-left: 30px; font-size: 15px; color: rgba(10,44,59,0.84); line-height: 1.45; }
 .lw-list li::before {
@@ -617,7 +651,14 @@ const css = `
 }
 .lw-contact-actions { display: flex; flex-direction: column; gap: 12px; }
 
-.lw-footer { text-align: center; font-size: 13px; color: rgba(10,44,59,0.5); padding-top: 8px; }
+.lw-footer { text-align: center; padding-top: 8px; display: grid; gap: 6px; }
+.lw-footer-legal { font-size: 13.5px; font-weight: 650; color: rgba(10,44,59,0.8); }
+.lw-footer-reg { font-size: 12.5px; color: rgba(10,44,59,0.68); }
+.lw-footer-links { display: flex; gap: 10px; justify-content: center; align-items: center; font-size: 13px; }
+.lw-footer-links a { color: var(--lb-primary); text-decoration: none; font-weight: 650; }
+.lw-footer-links a:hover { text-decoration: underline; }
+.lw-footer-links span { color: rgba(10,44,59,0.4); }
+.lw-footer-copy { font-size: 12px; color: rgba(10,44,59,0.62); margin-top: 4px; }
 
 /* REVEAL */
 .lw-reveal { animation: lw-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
