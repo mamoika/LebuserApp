@@ -1,128 +1,186 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import logoImg from '../assets/logo-icon.png';
 
 /**
  * Testowa strona główna w stylu Apple / Glassmorphism — marka LEBUSER.
  * Firma: Lebuser, siedziba ul. Owcza 10, Gorzów Wielkopolski.
- * Treść oparta na profilu lebuser.de (Textilservice od 1876):
- * leasing tekstyliów, wynajem bielizny, odzież robocza, tekstylia dla gastronomii.
+ * Dwujęzyczna (PL / DE) — język sterowany globalnym i18n aplikacji.
  * Renderowana pod osobnym przyciskiem "Lebuser" (tylko dla admina) — NIE jest
  * główną stroną aplikacji.
  */
 
-const services = [
-  {
-    icon: '♻️',
-    title: 'Leasing tekstyliów',
-    desc: 'Certyfikowane tekstylia w obiegu zamkniętym. Płacisz tylko za to, co wynajęte i wyprane — bez inwestycji w zapasy.',
-  },
-  {
-    icon: '🛏️',
-    title: 'Wynajem bielizny',
-    desc: 'Pościel, ręczniki i obrusy dostarczane regularnie, czyste i gotowe do użycia. Brudne wymieniamy na świeże.',
-  },
-  {
-    icon: '🍽️',
-    title: 'Tekstylia dla gastronomii',
-    desc: 'Obrusy, serwety i bielizna stołowa dla restauracji i hoteli — spójny, profesjonalny wygląd Twojego lokalu.',
-  },
-  {
-    icon: '🦺',
-    title: 'Odzież robocza',
-    desc: 'Wynajem i serwis odzieży roboczej oraz ochronnej dla całego zespołu, z regularnym praniem i wymianą.',
-  },
-  {
-    icon: '🧼',
-    title: 'Pranie i serwis',
-    desc: 'Kompleksowe czyszczenie produktów tekstylnych. Odbieramy, pierzemy i odwozimy — Ty zajmujesz się biznesem.',
-  },
-  {
-    icon: '🌱',
-    title: 'Ekologia i oszczędność',
-    desc: 'Tekstylia wielorazowe zamiast jednorazowych: lepszy łańcuch dostaw, mniejszy ślad środowiskowy i realne oszczędności.',
-  },
-];
+const EMAIL = 'info@lebuser.pl';
+const PHONE = '+48 95 722 60 40';
+const PHONE_HREF = '+48957226040';
 
-const benefits = [
-  'Wspieramy rozwój Twojego biznesu',
-  'Optymalizujemy procesy obsługi tekstyliów',
-  'Budujemy trwałe, długofalowe relacje',
-  'Płacisz tylko za wynajęte i wyprane sztuki',
-  'Dbamy o środowisko dzięki obiegowi zamkniętemu',
-  'Generujemy realne oszczędności finansowe',
-];
-
-const audience = [
-  'Hotele', 'Restauracje', 'Kawiarnie', 'Ośrodki wypoczynkowe',
-  'Placówki medyczne', 'Zakłady produkcyjne', 'Firmy sprzątające', 'Catering',
-];
-
-const offer = [
-  {
-    group: 'Bielizna pościelowa i stołowa',
-    items: [
-      ['Pościel z wykończeniem', 'kg'],
-      ['Poszwy i poszewki', 'szt.'],
-      ['Prześcieradła i pokrowce na materace', 'szt.'],
-      ['Obrusy (do 150 i do 300 cm)', 'szt.'],
-      ['Serwety, ścierki, ręczniki frotté', 'szt.'],
+const content = {
+  pl: {
+    back: 'Powrót do aplikacji',
+    pill: 'Textilservice od 1876 · Gorzów Wielkopolski',
+    h1: ['Leasing tekstyliów dla', 'gastronomii i hoteli'],
+    lead: 'Wynajem, pranie i dostawa tekstyliów w jednym serwisie. Wspieramy rozwój Twojego biznesu i optymalizujemy procesy — a Ty płacisz tylko za tekstylia, które wynajmujesz i pierzesz.',
+    ctaOffer: 'Zapytaj o ofertę',
+    ctaServices: 'Zobacz usługi',
+    stats: [
+      { value: 'od 1876', label: 'tradycja Textilservice' },
+      { value: 'Gorzów Wlkp.', label: 'siedziba firmy' },
+      { value: '100%', label: 'obieg zamknięty' },
+      { value: 'pay-per-use', label: 'płacisz za użycie' },
     ],
-  },
-  {
-    group: 'Firany, zasłony i dekoracje',
-    items: [
-      ['Firany gładkie', 'm²'],
-      ['Zasłony i flagi', 'm²'],
-      ['Falbany, lambrekiny, drapowania', 'mb'],
-      ['Pokrowce na krzesła (proste i ozdobne)', 'szt.'],
+    servicesHead: { eyebrow: 'USŁUGI', title: 'Tekstylia w jednym serwisie', sub: 'Od leasingu i wynajmu po pranie, dostawę i wymianę — wszystko po naszej stronie.' },
+    services: [
+      { icon: '♻️', title: 'Leasing tekstyliów', desc: 'Certyfikowane tekstylia w obiegu zamkniętym. Płacisz tylko za to, co wynajęte i wyprane — bez inwestycji w zapasy.' },
+      { icon: '🛏️', title: 'Wynajem bielizny', desc: 'Pościel, ręczniki i obrusy dostarczane regularnie, czyste i gotowe do użycia. Brudne wymieniamy na świeże.' },
+      { icon: '🍽️', title: 'Tekstylia dla gastronomii', desc: 'Obrusy, serwety i bielizna stołowa dla restauracji i hoteli — spójny, profesjonalny wygląd Twojego lokalu.' },
+      { icon: '🦺', title: 'Odzież robocza', desc: 'Wynajem i serwis odzieży roboczej oraz ochronnej dla całego zespołu, z regularnym praniem i wymianą.' },
+      { icon: '🧼', title: 'Pranie i serwis', desc: 'Kompleksowe czyszczenie produktów tekstylnych. Odbieramy, pierzemy i odwozimy — Ty zajmujesz się biznesem.' },
+      { icon: '🌱', title: 'Ekologia i oszczędność', desc: 'Tekstylia wielorazowe zamiast jednorazowych: lepszy łańcuch dostaw, mniejszy ślad środowiskowy i realne oszczędności.' },
     ],
-  },
-  {
-    group: 'Odzież robocza i fasonowa',
-    items: [
-      ['Koszule, bluzki, piżamy, szlafroki', 'szt.'],
-      ['Fartuchy kucharskie i kelnerskie', 'szt.'],
-      ['Fartuchy medyczne i płócienne', 'szt.'],
-      ['Peleryny fryzjerskie, czepki', 'szt.'],
-      ['Odzież sportowa', 'szt.'],
+    offerHead: { eyebrow: 'OFERTA', title: 'Pełen zakres usług pralniczych', sub: 'Pierzemy i serwisujemy tekstylia rozliczane na sztukę, kilogram, metr lub wsad.' },
+    offer: [
+      { group: 'Bielizna pościelowa i stołowa', items: [
+        ['Pościel z wykończeniem', 'kg'],
+        ['Poszwy i poszewki', 'szt.'],
+        ['Prześcieradła i pokrowce na materace', 'szt.'],
+        ['Obrusy (do 150 i do 300 cm)', 'szt.'],
+        ['Serwety, ścierki, ręczniki frotté', 'szt.'],
+      ] },
+      { group: 'Firany, zasłony i dekoracje', items: [
+        ['Firany gładkie', 'm²'],
+        ['Zasłony i flagi', 'm²'],
+        ['Falbany, lambrekiny, drapowania', 'mb'],
+        ['Pokrowce na krzesła (proste i ozdobne)', 'szt.'],
+      ] },
+      { group: 'Odzież robocza i fasonowa', items: [
+        ['Koszule, bluzki, piżamy, szlafroki', 'szt.'],
+        ['Fartuchy kucharskie i kelnerskie', 'szt.'],
+        ['Fartuchy medyczne i płócienne', 'szt.'],
+        ['Peleryny fryzjerskie, czepki', 'szt.'],
+        ['Odzież sportowa', 'szt.'],
+      ] },
+      { group: 'Pranie chemiczne i dodatki', items: [
+        ['Garnitury, sukienki, płaszcze, kurtki', 'szt.'],
+        ['Dzianiny i odzież dziecięca', 'szt.'],
+        ['Dywany i tapicerka', 'm²'],
+        ['Produkty puchowe (kołdry, poduszki)', 'szt.'],
+        ['Prasowanie odzieży / pranie na wsad', 'kg'],
+      ] },
     ],
-  },
-  {
-    group: 'Pranie chemiczne i dodatki',
-    items: [
-      ['Garnitury, sukienki, płaszcze, kurtki', 'szt.'],
-      ['Dzianiny i odzież dziecięca', 'szt.'],
-      ['Dywany i tapicerka', 'm²'],
-      ['Produkty puchowe (kołdry, poduszki)', 'szt.'],
-      ['Prasowanie odzieży / pranie na wsad', 'kg'],
+    audienceHead: { eyebrow: 'DLA KOGO', title: 'Branże, które obsługujemy' },
+    audience: ['Hotele', 'Restauracje', 'Kawiarnie', 'Ośrodki wypoczynkowe', 'Placówki medyczne', 'Zakłady produkcyjne', 'Firmy sprzątające', 'Catering'],
+    refHead: { eyebrow: 'REFERENCJE', title: 'Zaufali nam', sub: 'Hotele, ośrodki i firmy, które na co dzień korzystają z naszych usług.' },
+    references: [
+      { name: 'Qubus Hotel', type: 'Hotel' },
+      { name: 'Hotel ALMA', type: 'Hotel' },
+      { name: 'Hotel Woiński SPA', type: 'Hotel & SPA' },
+      { name: 'Pałac Mierzęcin', type: 'Hotel & Winnica' },
+      { name: 'PKS Gorzów', type: 'Transport' },
+      { name: 'Leśniczówka Przyłęsko', type: 'Ośrodek' },
     ],
+    refTrust: ['Terminowość dostaw', 'Powtarzalna jakość', 'Szybkie reklamacje', 'Doradztwo tekstylne', 'Obsługa pilnych zleceń'],
+    aboutEyebrow: 'DLACZEGO LEBUSER',
+    aboutTitle: 'Tradycja od 1876 w nowoczesnym wydaniu',
+    aboutText: 'Łączymy ponad stuletnie doświadczenie Textilservice z nowoczesnym, wielorazowym modelem obsługi tekstyliów. Zamiast kupować i magazynować — wynajmujesz, a my dbamy o pranie, dostawę i wymianę.',
+    benefits: [
+      'Wspieramy rozwój Twojego biznesu',
+      'Optymalizujemy procesy obsługi tekstyliów',
+      'Budujemy trwałe, długofalowe relacje',
+      'Płacisz tylko za wynajęte i wyprane sztuki',
+      'Dbamy o środowisko dzięki obiegowi zamkniętemu',
+      'Generujemy realne oszczędności finansowe',
+    ],
+    contactEyebrow: 'KONTAKT',
+    contactTitle: 'Porozmawiajmy o Twoich tekstyliach',
+    contactAddress: 'ul. Owcza 10, 66-400 Gorzów Wielkopolski',
+    ctaWrite: 'Napisz do nas',
+    ctaCall: 'Zadzwoń',
+    footer: 'LEBUSER · Textilservice od 1876 · ul. Owcza 10, Gorzów Wielkopolski — strona testowa',
   },
-];
-
-const references = [
-  { name: 'Qubus Hotel', type: 'Hotel' },
-  { name: 'Hotel ALMA', type: 'Hotel' },
-  { name: 'Hotel Woiński SPA', type: 'Hotel & SPA' },
-  { name: 'Pałac Mierzęcin', type: 'Hotel & Winnica' },
-  { name: 'PKS Gorzów', type: 'Transport' },
-  { name: 'Leśniczówka Przyłęsko', type: 'Ośrodek' },
-];
-
-const refTrust = [
-  'Terminowość dostaw',
-  'Powtarzalna jakość',
-  'Szybkie reklamacje',
-  'Doradztwo tekstylne',
-  'Obsługa pilnych zleceń',
-];
-
-const stats = [
-  { value: 'od 1876', label: 'tradycja Textilservice' },
-  { value: 'Gorzów', label: 'Wielkopolski · siedziba' },
-  { value: '100%', label: 'obieg zamknięty' },
-  { value: 'pay-per-use', label: 'płacisz za użycie' },
-];
+  de: {
+    back: 'Zurück zur App',
+    pill: 'Textilservice seit 1876 · Gorzów Wielkopolski',
+    h1: ['Textilleasing für', 'Gastronomie und Hotels'],
+    lead: 'Vermietung, Wäscherei und Lieferung von Textilien aus einer Hand. Wir unterstützen das Wachstum Ihres Unternehmens und optimieren Prozesse — und Sie zahlen nur für die Textilien, die Sie mieten und waschen lassen.',
+    ctaOffer: 'Angebot anfragen',
+    ctaServices: 'Leistungen ansehen',
+    stats: [
+      { value: 'seit 1876', label: 'Tradition Textilservice' },
+      { value: 'Gorzów Wlkp.', label: 'Firmensitz' },
+      { value: '100%', label: 'geschlossener Kreislauf' },
+      { value: 'pay-per-use', label: 'Sie zahlen pro Nutzung' },
+    ],
+    servicesHead: { eyebrow: 'LEISTUNGEN', title: 'Textilien aus einer Hand', sub: 'Von Leasing und Vermietung über Wäscherei und Lieferung bis zum Austausch — alles bei uns.' },
+    services: [
+      { icon: '♻️', title: 'Textilleasing', desc: 'Zertifizierte Textilien im geschlossenen Kreislauf. Sie zahlen nur für gemietete und gewaschene Stücke — ohne Investition in Bestände.' },
+      { icon: '🛏️', title: 'Wäschevermietung', desc: 'Bettwäsche, Handtücher und Tischwäsche, regelmäßig sauber und einsatzbereit geliefert. Schmutziges tauschen wir gegen Frisches.' },
+      { icon: '🍽️', title: 'Textilien für die Gastronomie', desc: 'Tischdecken, Servietten und Tischwäsche für Restaurants und Hotels — ein einheitliches, professionelles Erscheinungsbild Ihres Betriebs.' },
+      { icon: '🦺', title: 'Arbeitskleidung', desc: 'Vermietung und Service von Arbeits- und Schutzkleidung für das ganze Team, mit regelmäßiger Wäsche und Austausch.' },
+      { icon: '🧼', title: 'Wäscherei und Service', desc: 'Umfassende Reinigung von Textilprodukten. Wir holen ab, waschen und liefern zurück — Sie kümmern sich um Ihr Geschäft.' },
+      { icon: '🌱', title: 'Ökologie und Ersparnis', desc: 'Mehrwegtextilien statt Einweg: bessere Lieferkette, kleinerer ökologischer Fußabdruck und echte Einsparungen.' },
+    ],
+    offerHead: { eyebrow: 'ANGEBOT', title: 'Komplettes Wäschereiangebot', sub: 'Wir waschen und pflegen Textilien — abgerechnet pro Stück, Kilogramm, Meter oder Ladung.' },
+    offer: [
+      { group: 'Bett- und Tischwäsche', items: [
+        ['Bettwäsche mit Finish', 'kg'],
+        ['Bezüge und Kissenbezüge', 'Stk.'],
+        ['Laken und Matratzenbezüge', 'Stk.'],
+        ['Tischdecken (bis 150 und bis 300 cm)', 'Stk.'],
+        ['Servietten, Tücher, Frottee-Handtücher', 'Stk.'],
+      ] },
+      { group: 'Gardinen, Vorhänge und Dekoration', items: [
+        ['Glatte Gardinen', 'm²'],
+        ['Vorhänge und Fahnen', 'm²'],
+        ['Volants, Lambrequins, Drapierungen', 'lfm'],
+        ['Stuhlhussen (einfach und dekorativ)', 'Stk.'],
+      ] },
+      { group: 'Arbeits- und Berufskleidung', items: [
+        ['Hemden, Blusen, Pyjamas, Bademäntel', 'Stk.'],
+        ['Koch- und Kellnerschürzen', 'Stk.'],
+        ['Medizinische und Leinenkittel', 'Stk.'],
+        ['Friseurumhänge, Hauben', 'Stk.'],
+        ['Sportbekleidung', 'Stk.'],
+      ] },
+      { group: 'Chemische Reinigung und Extras', items: [
+        ['Anzüge, Kleider, Mäntel, Jacken', 'Stk.'],
+        ['Strickwaren und Kinderkleidung', 'Stk.'],
+        ['Teppiche und Polster', 'm²'],
+        ['Daunenprodukte (Decken, Kissen)', 'Stk.'],
+        ['Bügeln / Wäsche pro Ladung', 'kg'],
+      ] },
+    ],
+    audienceHead: { eyebrow: 'FÜR WEN', title: 'Branchen, die wir betreuen' },
+    audience: ['Hotels', 'Restaurants', 'Cafés', 'Erholungszentren', 'Medizinische Einrichtungen', 'Produktionsbetriebe', 'Reinigungsfirmen', 'Catering'],
+    refHead: { eyebrow: 'REFERENZEN', title: 'Sie vertrauen uns', sub: 'Hotels, Zentren und Firmen, die täglich unsere Leistungen nutzen.' },
+    references: [
+      { name: 'Qubus Hotel', type: 'Hotel' },
+      { name: 'Hotel ALMA', type: 'Hotel' },
+      { name: 'Hotel Woiński SPA', type: 'Hotel & SPA' },
+      { name: 'Pałac Mierzęcin', type: 'Hotel & Weingut' },
+      { name: 'PKS Gorzów', type: 'Transport' },
+      { name: 'Leśniczówka Przyłęsko', type: 'Erholungszentrum' },
+    ],
+    refTrust: ['Termintreue Lieferung', 'Gleichbleibende Qualität', 'Schnelle Reklamationen', 'Textilberatung', 'Eilaufträge möglich'],
+    aboutEyebrow: 'WARUM LEBUSER',
+    aboutTitle: 'Tradition seit 1876 in moderner Form',
+    aboutText: 'Wir verbinden über hundertjährige Textilservice-Erfahrung mit einem modernen Mehrwegmodell der Textilbewirtschaftung. Statt zu kaufen und zu lagern — Sie mieten, und wir kümmern uns um Wäsche, Lieferung und Austausch.',
+    benefits: [
+      'Wir fördern das Wachstum Ihres Unternehmens',
+      'Wir optimieren Ihre Textilprozesse',
+      'Wir bauen dauerhafte, langfristige Beziehungen',
+      'Sie zahlen nur für gemietete und gewaschene Stücke',
+      'Wir schonen die Umwelt durch geschlossenen Kreislauf',
+      'Wir erzeugen echte finanzielle Einsparungen',
+    ],
+    contactEyebrow: 'KONTAKT',
+    contactTitle: 'Sprechen wir über Ihre Textilien',
+    contactAddress: 'ul. Owcza 10, 66-400 Gorzów Wielkopolski',
+    ctaWrite: 'Schreiben Sie uns',
+    ctaCall: 'Anrufen',
+    footer: 'LEBUSER · Textilservice seit 1876 · ul. Owcza 10, Gorzów Wielkopolski — Testseite',
+  },
+};
 
 const Arrow = () => (
   <svg className="lw-arrow" viewBox="0 0 16 16" aria-hidden="true">
@@ -131,11 +189,17 @@ const Arrow = () => (
 );
 
 export default function LebuserLanding() {
+  const { i18n } = useTranslation();
+  const lang = i18n.language && i18n.language.toLowerCase().startsWith('de') ? 'de' : 'pl';
+  const c = content[lang];
+
   useEffect(() => {
     const prev = document.title;
     document.title = 'LEBUSER · Textilservice od 1876';
     return () => { document.title = prev; };
   }, []);
+
+  const setLang = (l) => { if (l !== lang) i18n.changeLanguage(l); };
 
   return (
     <div className="lw-root">
@@ -152,29 +216,33 @@ export default function LebuserLanding() {
       {/* Powrót do aplikacji */}
       <Link to="/" className="lw-back">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4M7.5 4l-4 4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        Powrót do aplikacji
+        {c.back}
       </Link>
+
+      {/* Przełącznik języka */}
+      <div className="lw-lang" role="group" aria-label="Language">
+        <button type="button" className={lang === 'pl' ? 'is-active' : ''} onClick={() => setLang('pl')}>PL</button>
+        <button type="button" className={lang === 'de' ? 'is-active' : ''} onClick={() => setLang('de')}>DE</button>
+      </div>
 
       <div className="lw-container">
         {/* Hero */}
         <header className="lw-hero">
           <img src={logoImg} alt="LEBUSER Textilservice" className="lw-logo lw-reveal" />
           <span className="lw-pill lw-reveal" style={{ animationDelay: '0.04s' }}>
-            Textilservice od 1876 · Gorzów Wielkopolski
+            {c.pill}
           </span>
           <h1 className="lw-h1 lw-reveal" style={{ animationDelay: '0.08s' }}>
-            Leasing tekstyliów dla<br />gastronomii i hoteli
+            {c.h1[0]}<br />{c.h1[1]}
           </h1>
           <p className="lw-lead lw-reveal" style={{ animationDelay: '0.12s' }}>
-            Wynajem, pranie i dostawa tekstyliów w jednym serwisie. Wspieramy rozwój
-            Twojego biznesu i optymalizujemy procesy — a Ty płacisz tylko za tekstylia,
-            które wynajmujesz i pierzesz.
+            {c.lead}
           </p>
           <div className="lw-cta lw-reveal" style={{ animationDelay: '0.16s' }}>
-            <a className="lw-btn lw-btn-primary" href="mailto:info@lebuser.de">
-              Zapytaj o ofertę <Arrow />
+            <a className="lw-btn lw-btn-primary" href={`mailto:${EMAIL}`}>
+              {c.ctaOffer} <Arrow />
             </a>
-            <a className="lw-btn lw-btn-ghost" href="#uslugi">Zobacz usługi</a>
+            <a className="lw-btn lw-btn-ghost" href="#uslugi">{c.ctaServices}</a>
           </div>
 
           {/* Fale — motyw z logo */}
@@ -186,7 +254,7 @@ export default function LebuserLanding() {
 
         {/* Statystyki */}
         <section className="lw-stats lw-reveal">
-          {stats.map((s) => (
+          {c.stats.map((s) => (
             <div className="lw-card lw-stat" key={s.label}>
               <div className="lw-stat-value">{s.value}</div>
               <div className="lw-stat-label">{s.label}</div>
@@ -197,12 +265,12 @@ export default function LebuserLanding() {
         {/* Usługi */}
         <section id="uslugi" className="lw-section">
           <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">USŁUGI</span>
-            <h2 className="lw-h2">Tekstylia w jednym serwisie</h2>
-            <p className="lw-sub">Od leasingu i wynajmu po pranie, dostawę i wymianę — wszystko po naszej stronie.</p>
+            <span className="lw-eyebrow">{c.servicesHead.eyebrow}</span>
+            <h2 className="lw-h2">{c.servicesHead.title}</h2>
+            <p className="lw-sub">{c.servicesHead.sub}</p>
           </div>
           <div className="lw-grid">
-            {services.map((srv, i) => (
+            {c.services.map((srv, i) => (
               <article
                 className="lw-card lw-service lw-reveal"
                 key={srv.title}
@@ -219,12 +287,12 @@ export default function LebuserLanding() {
         {/* Oferta */}
         <section className="lw-section">
           <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">OFERTA</span>
-            <h2 className="lw-h2">Pełen zakres usług pralniczych</h2>
-            <p className="lw-sub">Pierzemy i serwisujemy tekstylia rozliczane na sztukę, kilogram, metr lub wsad.</p>
+            <span className="lw-eyebrow">{c.offerHead.eyebrow}</span>
+            <h2 className="lw-h2">{c.offerHead.title}</h2>
+            <p className="lw-sub">{c.offerHead.sub}</p>
           </div>
           <div className="lw-offer-grid">
-            {offer.map((g, i) => (
+            {c.offer.map((g, i) => (
               <article className="lw-card lw-offer-card lw-reveal" key={g.group} style={{ animationDelay: `${0.05 * i}s` }}>
                 <h3 className="lw-offer-title">{g.group}</h3>
                 <ul className="lw-offer-list">
@@ -240,23 +308,23 @@ export default function LebuserLanding() {
         {/* Branże */}
         <section className="lw-section">
           <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">DLA KOGO</span>
-            <h2 className="lw-h2">Branże, które obsługujemy</h2>
+            <span className="lw-eyebrow">{c.audienceHead.eyebrow}</span>
+            <h2 className="lw-h2">{c.audienceHead.title}</h2>
           </div>
           <div className="lw-tags lw-reveal">
-            {audience.map((a) => <span className="lw-tag" key={a}>{a}</span>)}
+            {c.audience.map((a) => <span className="lw-tag" key={a}>{a}</span>)}
           </div>
         </section>
 
         {/* Referencje */}
         <section className="lw-section">
           <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">REFERENCJE</span>
-            <h2 className="lw-h2">Zaufali nam</h2>
-            <p className="lw-sub">Hotele, ośrodki i firmy, które na co dzień korzystają z naszych usług.</p>
+            <span className="lw-eyebrow">{c.refHead.eyebrow}</span>
+            <h2 className="lw-h2">{c.refHead.title}</h2>
+            <p className="lw-sub">{c.refHead.sub}</p>
           </div>
           <div className="lw-ref-grid">
-            {references.map((r, i) => (
+            {c.references.map((r, i) => (
               <article className="lw-card lw-ref lw-reveal" key={r.name} style={{ animationDelay: `${0.04 * i}s` }}>
                 <div className="lw-ref-name">{r.name}</div>
                 <div className="lw-ref-type">{r.type}</div>
@@ -264,47 +332,43 @@ export default function LebuserLanding() {
             ))}
           </div>
           <div className="lw-tags lw-reveal">
-            {refTrust.map((t) => <span className="lw-tag" key={t}>✓ {t}</span>)}
+            {c.refTrust.map((t) => <span className="lw-tag" key={t}>✓ {t}</span>)}
           </div>
         </section>
 
         {/* Dlaczego my */}
         <section className="lw-card lw-about lw-reveal">
-          <span className="lw-eyebrow">DLACZEGO LEBUSER</span>
+          <span className="lw-eyebrow">{c.aboutEyebrow}</span>
           <h2 className="lw-h2" style={{ textAlign: 'left', margin: '8px 0 14px' }}>
-            Tradycja od 1876 w nowoczesnym wydaniu
+            {c.aboutTitle}
           </h2>
-          <p>
-            Łączymy ponad stuletnie doświadczenie Textilservice z nowoczesnym, wielorazowym
-            modelem obsługi tekstyliów. Zamiast kupować i magazynować — wynajmujesz, a my
-            dbamy o pranie, dostawę i wymianę.
-          </p>
+          <p>{c.aboutText}</p>
           <ul className="lw-list">
-            {benefits.map((b) => <li key={b}>{b}</li>)}
+            {c.benefits.map((b) => <li key={b}>{b}</li>)}
           </ul>
         </section>
 
         {/* Kontakt */}
         <section className="lw-card lw-contact lw-reveal">
           <div className="lw-contact-info">
-            <span className="lw-eyebrow">KONTAKT</span>
+            <span className="lw-eyebrow">{c.contactEyebrow}</span>
             <h2 className="lw-h2" style={{ textAlign: 'left', margin: '8px 0 16px' }}>
-              Porozmawiajmy o Twoich tekstyliach
+              {c.contactTitle}
             </h2>
             <ul className="lw-contact-list">
-              <li><span className="lw-ci">📍</span> ul. Owcza 10, 66-400 Gorzów Wielkopolski</li>
-              <li><span className="lw-ci">📞</span> <a href="tel:+48957226040">+48 95 722 60 40</a></li>
-              <li><span className="lw-ci">✉️</span> <a href="mailto:info@lebuser.de">info@lebuser.de</a></li>
+              <li><span className="lw-ci">📍</span> {c.contactAddress}</li>
+              <li><span className="lw-ci">📞</span> <a href={`tel:${PHONE_HREF}`}>{PHONE}</a></li>
+              <li><span className="lw-ci">✉️</span> <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
             </ul>
           </div>
           <div className="lw-contact-actions">
-            <a className="lw-btn lw-btn-primary" href="mailto:info@lebuser.de">Napisz do nas <Arrow /></a>
-            <a className="lw-btn lw-btn-ghost" href="tel:+48957226040">Zadzwoń</a>
+            <a className="lw-btn lw-btn-primary" href={`mailto:${EMAIL}`}>{c.ctaWrite} <Arrow /></a>
+            <a className="lw-btn lw-btn-ghost" href={`tel:${PHONE_HREF}`}>{c.ctaCall}</a>
           </div>
         </section>
 
         <footer className="lw-footer">
-          LEBUSER · Textilservice od 1876 · ul. Owcza 10, Gorzów Wielkopolski — strona testowa
+          {c.footer}
         </footer>
       </div>
     </div>
@@ -372,6 +436,25 @@ const css = `
 .lw-back svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
 .lw-back:hover { transform: translateY(-2px); background: rgba(255,255,255,0.9); box-shadow: 0 12px 28px rgba(6,59,82,0.2); }
 .lw-back:hover svg { transform: translateX(-3px); }
+
+/* Przełącznik języka */
+.lw-lang {
+  position: fixed; top: 20px; right: 20px; z-index: 20;
+  display: inline-flex; align-items: center; gap: 2px; padding: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9);
+  backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: 0 8px 22px rgba(6,59,82,0.14);
+}
+.lw-lang button {
+  border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 750;
+  padding: 7px 14px; border-radius: 999px; color: var(--lb-primary); background: transparent;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.lw-lang button.is-active {
+  color: #fff; background: linear-gradient(135deg, var(--lb-primary), var(--lb-aqua));
+  box-shadow: 0 4px 12px rgba(10,94,132,0.3);
+}
 
 .lw-card {
   background: rgba(255, 255, 255, 0.58);
@@ -444,7 +527,7 @@ const css = `
   background: linear-gradient(90deg, var(--lb-primary), var(--lb-aqua));
 }
 .lw-stat:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
-.lw-stat-value { font-size: clamp(20px, 2.8vw, 28px); font-weight: 800; color: var(--lb-deep); letter-spacing: -0.01em; }
+.lw-stat-value { font-size: clamp(19px, 2.6vw, 27px); font-weight: 800; color: var(--lb-deep); letter-spacing: -0.01em; }
 .lw-stat-label { font-size: 12.5px; color: rgba(10,44,59,0.6); margin-top: 5px; }
 
 /* SECTION HEAD */
@@ -556,6 +639,7 @@ const css = `
   .lw-contact { flex-direction: column; align-items: stretch; }
   .lw-contact-actions { flex-direction: row; }
   .lw-contact-actions .lw-btn { flex: 1; }
+  .lw-back { font-size: 13px; padding: 9px 13px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
