@@ -89,9 +89,7 @@ export default function MapView() {
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [initialized, setInitialized] = useState(false);
   const [userPos, setUserPos] = useState(null);
-  const [darkMode, setDarkMode] = useState(
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     if (routes.length > 0 && !initialized) {

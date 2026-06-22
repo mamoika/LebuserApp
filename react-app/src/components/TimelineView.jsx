@@ -645,9 +645,8 @@ export default function TimelineView() {
                 <td colSpan={weekDays.length * (HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
               </tr>
               {members.map((emp) => {
-                const isDark = document.documentElement.style.getPropertyValue('color-scheme') === 'dark';
-                const rowBg = isDark ? '#1C1C1E' : '#ffffff';
-                
+                const rowBg = '#ffffff';
+
                 return (
                   <TimelineRow
                     key={emp.id}
