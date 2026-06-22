@@ -113,7 +113,13 @@ export function useAppData() {
   useEffect(() => {
     mountedRef.current = true;
     fetchData();
-    const channel = supabase.channel('schema-db-changes')
+    // Unikalna nazwa kanału na każdy mount — zapobiega kolizji nazw przy
+    // podwójnym montowaniu (React StrictMode / HMR), gdy poprzedni kanał nie
+    // został jeszcze w pełni usunięty. Logika subskrypcji pozostaje ta sama.
+    const channelName = `schema-db-changes-${
+      globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    }`;
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, scheduleRefetch)
