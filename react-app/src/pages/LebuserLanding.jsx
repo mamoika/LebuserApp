@@ -532,8 +532,8 @@ const css = `
 
 /* BUTTONS */
 .lw-btn {
-  display: inline-flex; align-items: center; gap: 8px; justify-content: center;
-  padding: 13px 24px; border-radius: 14px; font-size: 15px; font-weight: 650;
+  display: inline-flex; align-items: center; gap: 9px; justify-content: center;
+  padding: 14px 26px; border-radius: 16px; font-size: 15px; font-weight: 650;
   text-decoration: none; cursor: pointer; border: 1px solid transparent;
   transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, background 0.2s ease;
 }
@@ -541,10 +541,20 @@ const css = `
 .lw-btn:hover { transform: translateY(-2px); }
 .lw-btn:hover .lw-arrow { transform: translateX(3px); }
 .lw-btn-primary {
-  color: #fff; background: linear-gradient(135deg, var(--lb-primary), var(--lb-aqua));
-  box-shadow: 0 10px 24px rgba(10,94,132,0.36);
+  color: #fff;
+  background: linear-gradient(180deg, #2a9cc0 0%, var(--lb-primary) 56%, #084d6e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.30),
+    0 2px 4px rgba(6,59,82,0.18),
+    0 10px 22px rgba(10,94,132,0.30);
 }
-.lw-btn-primary:hover { box-shadow: 0 14px 30px rgba(10,94,132,0.44); }
+.lw-btn-primary:hover {
+  background: linear-gradient(180deg, #34a9cd 0%, #0c688f 56%, #0a5e84 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.34),
+    0 4px 8px rgba(6,59,82,0.20),
+    0 14px 28px rgba(10,94,132,0.40);
+}
 .lw-btn-ghost {
   color: var(--lb-primary); background: rgba(255,255,255,0.66);
   border-color: rgba(255,255,255,0.9); backdrop-filter: blur(12px);
