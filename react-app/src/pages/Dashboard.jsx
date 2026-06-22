@@ -15,7 +15,6 @@ import HistoryView from '../components/HistoryView';
 import GrafikView from '../components/GrafikView';
 import TimelineView from '../components/TimelineView';
 import CostsView from '../components/CostsView';
-import LebuserLanding from './LebuserLanding';
 import ToastContainer from '../components/ToastContainer';
 
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
@@ -169,7 +168,6 @@ export default function Dashboard() {
           <Route path="/timeline" element={<TimelineView />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
-          <Route path="/lebuser" element={isAdmin ? <LebuserLanding /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
       </main>

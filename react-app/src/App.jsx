@@ -3,11 +3,23 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import LebuserLanding from './pages/LebuserLanding';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+const AdminRoute = ({ children }) => {
+  const { user, isAdmin } = useAuth();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
   }
   return children;
 };
@@ -103,6 +115,11 @@ function App() {
             </PublicRoute>
           } />
           <Route path="/register" element={<Navigate to="/login" replace />} />
+          <Route path="/lebuser" element={
+            <AdminRoute>
+              <LebuserLanding />
+            </AdminRoute>
+          } />
           <Route path="/*" element={
             <ProtectedRoute>
               <Dashboard />

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 
 /**
@@ -88,6 +89,12 @@ export default function LebuserLanding() {
         <span className="lw-blob lw-blob-3" />
         <span className="lw-grid-overlay" />
       </div>
+
+      {/* Powrót do aplikacji */}
+      <Link to="/" className="lw-back">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4M7.5 4l-4 4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        Powrót do aplikacji
+      </Link>
 
       <div className="lw-container">
         {/* Hero */}
@@ -215,9 +222,9 @@ const css = `
   --lb-card-shadow-hi: 0 1px 2px rgba(6,59,82,0.08), 0 26px 60px rgba(6,59,82,0.20);
 
   position: relative;
-  min-height: 100%;
-  margin: -16px;
-  padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 48px) 48px;
+  min-height: 100vh;
+  margin: 0;
+  padding: clamp(64px, 8vw, 96px) clamp(16px, 4vw, 48px) 48px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   color: var(--lb-ink);
   overflow: hidden;
@@ -250,6 +257,21 @@ const css = `
 }
 
 .lw-container { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
+
+/* Powrót do aplikacji */
+.lw-back {
+  position: fixed; top: 20px; left: 20px; z-index: 20;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 650;
+  color: var(--lb-primary); text-decoration: none;
+  background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9);
+  backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: 0 8px 22px rgba(6,59,82,0.14);
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, background 0.2s ease;
+}
+.lw-back svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+.lw-back:hover { transform: translateY(-2px); background: rgba(255,255,255,0.9); box-shadow: 0 12px 28px rgba(6,59,82,0.2); }
+.lw-back:hover svg { transform: translateX(-3px); }
 
 .lw-card {
   background: rgba(255, 255, 255, 0.58);
