@@ -194,6 +194,10 @@
   "clients": {
     "schedule": { "daily": "Täglich (Mo–Fr)", "mwf": "Mo – Mi – Fr", "tth": "Di – Do", "other": "Sonstige" },
     "groups": { "daily": "Tägliche Routen (Mo–Fr)", "mwf": "Routen Mo – Mi – Fr", "tth": "Routen Di – Do", "other": "Sonstige Routen" },
+    "searchClient": "Kunde suchen…",
+    "searchResults": "Gefunden: {{count}}",
+    "searchNoResults": "Keine Treffer",
+    "clearSearch": "Suche zurücksetzen",
     "driverRoutes": "Fahrer-Routen",
     "driverRoutesBtn": "👨‍✈️ Fahrer-Routen",
     "noDrivers": "Keine Fahrer in der Datenbank",

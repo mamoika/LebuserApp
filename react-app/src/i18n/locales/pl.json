@@ -196,6 +196,10 @@
   "clients": {
     "schedule": { "daily": "Codziennie (Pn–Pt)", "mwf": "Pn – Śr – Pt", "tth": "Wt – Czw", "other": "Pozostałe" },
     "groups": { "daily": "Trasy codzienne (Pn–Pt)", "mwf": "Trasy Pn – Śr – Pt", "tth": "Trasy Wt – Czw", "other": "Pozostałe trasy" },
+    "searchClient": "Szukaj klienta…",
+    "searchResults": "Znaleziono: {{count}}",
+    "searchNoResults": "Brak wyników",
+    "clearSearch": "Wyczyść wyszukiwanie",
     "driverRoutes": "Trasy kierowców",
     "driverRoutesBtn": "👨‍✈️ Trasy kierowców",
     "noDrivers": "Brak kierowców w bazie",

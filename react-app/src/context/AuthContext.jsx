@@ -53,6 +53,43 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   }, []);
 
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(BACKUP_KEY);
+    setUser(null);
+    setAdminBackup(null);
+  }, []);
+
+  const refreshUserProfile = useCallback(async () => {
+    if (!user?.session_token) return;
+    const { data, error } = await supabase.rpc('session_user', {
+      p_session_token: user.session_token,
+    });
+    if (error) return;
+    const fresh = Array.isArray(data) ? data[0] : data;
+    if (!fresh?.id) {
+      clearSession();
+      return;
+    }
+    setUser((prev) => {
+      if (!prev || prev.session_token !== user.session_token) return prev;
+      const next = {
+        ...prev,
+        id: fresh.id,
+        username: fresh.username,
+        name: fresh.name,
+        role: fresh.role,
+        routes: fresh.routes,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [clearSession, user?.session_token]);
+
+  useEffect(() => {
+    refreshUserProfile();
+  }, [refreshUserProfile]);
+
   useEffect(() => {
     if (!user?.session_expires_at) return undefined;
     const expiresAt = Date.parse(user.session_expires_at);
@@ -60,21 +97,15 @@ export const AuthProvider = ({ children }) => {
 
     const msUntilExpiry = expiresAt - Date.now();
     if (msUntilExpiry <= 0) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(BACKUP_KEY);
-      setUser(null);
-      setAdminBackup(null);
+      clearSession();
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(BACKUP_KEY);
-      setUser(null);
-      setAdminBackup(null);
+      clearSession();
     }, Math.min(msUntilExpiry, MAX_SESSION_TIMEOUT_MS));
     return () => window.clearTimeout(timeoutId);
-  }, [user?.session_expires_at]);
+  }, [clearSession, user?.session_expires_at]);
 
   const checkUsername = async (username) => {
     const { data, error } = await supabase.rpc('check_username', { p_username: username });
@@ -233,6 +264,7 @@ export const AuthProvider = ({ children }) => {
       stopImpersonating,
       acknowledgePrivacyNotice,
       setLanguage,
+      refreshUserProfile,
       signOut,
       isAdmin,
       isAdminViewer,

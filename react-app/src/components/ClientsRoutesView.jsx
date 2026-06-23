@@ -17,6 +17,14 @@ function parseRouteIds(routesStr) {
   );
 }
 
+function normalizeSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 function sortClientsByOrder(a, b) {
   const orderDiff = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
   if (orderDiff !== 0) return orderDiff;
@@ -417,6 +425,7 @@ export default function ClientsRoutesView() {
   const assignedRouteIds = parseRouteIds(user?.routes);
 
   const [localClients, setLocalClients] = useState([]);
+  const [clientSearch, setClientSearch] = useState('');
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
   const [editRouteModal, setEditRouteModal] = useState(null);
@@ -424,11 +433,48 @@ export default function ClientsRoutesView() {
   const [editClient, setEditClient] = useState(null);
   const [driverRoutesOpen, setDriverRoutesOpen] = useState(false);
   const savingOrderRef = useRef(false);
+  const clientRefs = useRef(new Map());
+
+  const normalizedClientSearch = normalizeSearch(clientSearch);
+  const hasClientSearch = normalizedClientSearch.length > 0;
+  const routeOrderById = new Map(
+    [...routes]
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((route, index) => [route.id, index])
+  );
+  const matchingClientIds = new Set(
+    hasClientSearch
+      ? localClients
+        .filter(client => normalizeSearch(client.name).includes(normalizedClientSearch))
+        .map(client => client.id)
+      : []
+  );
+  const firstMatchingClientId = hasClientSearch
+    ? [...localClients]
+      .filter(client => matchingClientIds.has(client.id))
+      .sort((a, b) => {
+        const routeDiff = (routeOrderById.get(a.route_id) ?? 9999) - (routeOrderById.get(b.route_id) ?? 9999);
+        if (routeDiff !== 0) return routeDiff;
+        return sortClientsByOrder(a, b);
+      })[0]?.id
+    : null;
 
   useEffect(() => {
     if (savingOrderRef.current) return;
     setLocalClients(clients);
   }, [clients]);
+
+  useEffect(() => {
+    if (!firstMatchingClientId) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      clientRefs.current.get(firstMatchingClientId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      });
+    }, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [firstMatchingClientId, normalizedClientSearch]);
 
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
   if (error) return <DataError onRetry={refetch} />;
@@ -696,17 +742,18 @@ export default function ClientsRoutesView() {
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
       .sort(sortClientsByOrder);
+    const routeHasSearchMatch = hasClientSearch && routeClients.some(client => matchingClientIds.has(client.id));
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
 
     return (
       <div
         key={route.id}
-        className="col route-card"
+        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''}`}
         style={{
           borderTopColor: routeColor,
-          borderColor: isOwnRoute ? routeColor : undefined,
-          boxShadow: isOwnRoute ? `0 0 0 2px ${routeColor}33, 0 10px 24px rgba(0,0,0,0.08)` : undefined,
+          borderColor: routeHasSearchMatch ? 'var(--accent)' : isOwnRoute ? routeColor : undefined,
+          boxShadow: routeHasSearchMatch ? '0 0 0 2px rgba(0,122,255,0.18), 0 10px 24px rgba(0,0,0,0.08)' : isOwnRoute ? `0 0 0 2px ${routeColor}33, 0 10px 24px rgba(0,0,0,0.08)` : undefined,
           background: isOwnRoute ? `linear-gradient(180deg, ${routeColor}0f 0%, var(--bg-card) 32%)` : undefined,
         }}
       >
@@ -762,10 +809,14 @@ export default function ClientsRoutesView() {
                   <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
                     {(provided, snapshot) => (
                       <div
-                        ref={provided.innerRef}
+                        ref={(node) => {
+                          provided.innerRef(node);
+                          if (node) clientRefs.current.set(client.id, node);
+                          else clientRefs.current.delete(client.id);
+                        }}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className={`tag-client ${isAdmin ? 'draggable' : ''}`}
+                        className={`tag-client ${isAdmin ? 'draggable' : ''} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
                         style={{
                           ...provided.draggableProps.style,
                           boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
@@ -804,12 +855,43 @@ export default function ClientsRoutesView() {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="clients-routes-view">
-        {isAdmin && (
-          <div className="clients-header" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
-            <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
+        <div className="clients-header clients-searchbar">
+          <div className="clients-search-input-wrap">
+            <span className="clients-search-icon" aria-hidden="true">⌕</span>
+            <input
+              value={clientSearch}
+              onChange={e => setClientSearch(e.target.value)}
+              className="clients-search-input"
+              placeholder={t('clients.searchClient')}
+              autoComplete="off"
+            />
+            {clientSearch && (
+              <button
+                type="button"
+                className="clients-search-clear"
+                onClick={() => setClientSearch('')}
+                aria-label={t('clients.clearSearch')}
+              >
+                ×
+              </button>
+            )}
           </div>
-        )}
+
+          {hasClientSearch && (
+            <div className={`clients-search-status ${matchingClientIds.size === 0 ? 'is-empty' : ''}`}>
+              {matchingClientIds.size === 0
+                ? t('clients.searchNoResults')
+                : t('clients.searchResults', { count: matchingClientIds.size })}
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="clients-header-actions">
+              <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
+              <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
+            </div>
+          )}
+        </div>
 
         <div className="clients-hint" style={{ marginBottom: '16px' }}>
           {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}

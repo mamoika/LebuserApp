@@ -31,6 +31,10 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+function isSessionError(err) {
+  return err?.code === '28000' || /invalid or expired session|brak aktywnej sesji/i.test(err?.message || '');
+}
+
 function normalizeAppData(result) {
   const routes = result?.routes || [];
   return {
@@ -93,6 +97,7 @@ export function useAppData() {
   const runFetch = useCallback(async ({ force = false } = {}) => {
     if (!sessionToken) {
       if (mountedRef.current) setError('Brak aktywnej sesji');
+      if (mountedRef.current) setLoading(false);
       return;
     }
 
@@ -108,6 +113,7 @@ export function useAppData() {
         return; // sukces — kończymy
       } catch (err) {
         lastErr = err;
+        if (isSessionError(err)) break;
         // Krótka przerwa przed ponowieniem (rośnie z każdą próbą).
         if (attempt < MAX_RETRIES) {
           await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -115,7 +121,10 @@ export function useAppData() {
       }
     }
     // Wyczerpaliśmy próby — pokazujemy błąd.
-    if (mountedRef.current && lastErr) setError(lastErr.message);
+    if (mountedRef.current && lastErr) {
+      setError(lastErr.message);
+      setLoading(false);
+    }
   }, [sessionToken]);
 
   const fetchData = useCallback(async ({ force = false } = {}) => {

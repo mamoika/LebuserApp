@@ -786,7 +786,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   // groupPickupEntries w ScheduleView) — taki wiersz nie istnieje w bazie.
   // Dla pojedynczego odbioru operujemy więc na PRAWDZIWYM wpisie, żeby edycja /
   // usuwanie / „wyprane" trafiały w istniejący rekord (inaczej: „Nie znaleziono wpisu").
-  const targetEntry = isPickupContext && pickupEntries.length === 1 ? pickupEntries[0] : entry;
+  const targetEntry = isPickupContext ? (pickupEntries[0] || entry) : entry;
   const pickupTotalWeight = pickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
   const pendingPickupEntries = pickupEntries.filter(e => !e.done);
   const pickupPendingWeight = pendingPickupEntries.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
@@ -1313,13 +1313,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     setPickWeek(pw);
                   }}
                 >
-                  {daysFull.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(entry.week_key, i + 1))}</option>)}
+                  {daysFull.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(targetEntry.week_key, i + 1))}</option>)}
                 </select>
               </div>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickup')}</div>
                 <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
-                  {buildPickDayOptions(entry.week_key, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {buildPickDayOptions(targetEntry.week_key, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>

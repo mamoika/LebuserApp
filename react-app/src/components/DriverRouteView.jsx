@@ -360,6 +360,10 @@ export default function DriverRouteView({ manageMode = false }) {
     };
   }, [loadTrips]);
 
+  useEffect(() => {
+    if (!trip && !plannedTrip) setSelectedRoutes(parseRouteIds(user?.routes));
+  }, [plannedTrip, trip, user?.routes]);
+
   // Przełączenie zakładki "Moja trasa" ↔ "Trasy na żywo" (zmiana manageMode
   // bez remountu) — czyścimy stan przejściowy, by widok nie był "zaklejony".
   useEffect(() => {
