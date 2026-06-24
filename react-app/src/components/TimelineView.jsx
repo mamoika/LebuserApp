@@ -34,6 +34,11 @@ const STATUS_STYLE = {
 };
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 5);
+const VISIBLE_START = HOURS[0];
+const VISIBLE_END = HOURS[HOURS.length - 1] + 1;
+const VISIBLE_SPAN = VISIBLE_END - VISIBLE_START;
+const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NN', 'END', 'I']);
+const OVERFLOW_SHIFT_COLOR = 'rgba(245, 158, 11, 0.28)';
 
 function getMondayOfWeek(date) {
   const d = new Date(date);
@@ -46,11 +51,21 @@ function getMondayOfWeek(date) {
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function fmtDate(d) { return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`; }
 function toDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function parseHour(str) {
+function parseHourValue(str) {
   if (!str) return 0;
   const s = String(str).trim();
-  if (s.includes(':')) { const p = s.split(':'); return parseInt(p[0]) + (parseInt(p[1]) || 0) / 60; }
-  return parseFloat(s.replace(',', '.')) || 0;
+  if (!s) return 0;
+  if (s.includes(':')) {
+    const p = s.split(':');
+    const h = parseInt(p[0], 10);
+    const m = parseInt(p[1], 10) || 0;
+    return Number.isFinite(h) ? h + m / 60 : null;
+  }
+  const n = parseFloat(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+function parseHour(str) {
+  return parseHourValue(str) ?? 0;
 }
 function getWeekNum(d) {
   const date = new Date(d); date.setHours(0,0,0,0);
@@ -59,34 +74,159 @@ function getWeekNum(d) {
   return 1 + Math.round(((date - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
 }
 
-function getCellBackground(h, startH, endH, working, role, confirmed) {
+function roundHours(value) {
+  return Math.round((Number(value) || 0) * 10) / 10;
+}
+
+function fmtHours(value) {
+  const n = roundHours(value);
+  return Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
+}
+
+function fmtHourLabel(value) {
+  const rounded = roundHours(value);
+  const dayOffset = Math.floor(rounded / 24);
+  const normalized = ((rounded % 24) + 24) % 24;
+  const base = fmtHours(normalized);
+  return dayOffset > 0 ? `${base}+${dayOffset}` : base;
+}
+
+function getShiftDuration(startH, endH) {
+  if (!Number.isFinite(startH) || !Number.isFinite(endH)) return 0;
+  return roundHours(endH >= startH ? endH - startH : 24 - startH + endH);
+}
+
+function getVisibleShiftSegments(startH, endH) {
+  const segments = [];
+  const addOverlap = (offset) => {
+    const visibleStart = VISIBLE_START + offset;
+    const visibleEnd = VISIBLE_END + offset;
+    const os = Math.max(startH, visibleStart);
+    const oe = Math.min(endH, visibleEnd);
+    if (oe > os) segments.push({ start: os - offset, end: oe - offset });
+  };
+
+  addOverlap(0);
+  if (endH > 24) addOverlap(24);
+
+  return segments
+    .sort((a, b) => a.start - b.start)
+    .reduce((acc, seg) => {
+      const prev = acc[acc.length - 1];
+      if (prev && seg.start <= prev.end) {
+        prev.end = Math.max(prev.end, seg.end);
+      } else {
+        acc.push({ ...seg });
+      }
+      return acc;
+    }, []);
+}
+
+function getCellShiftFill(h, startH, endH) {
+  const cellStart = h;
+  const cellEnd = h + 1;
+  let fillFrom = 1;
+  let fillTo = 0;
+
+  getVisibleShiftSegments(startH, endH).forEach((seg) => {
+    const os = Math.max(cellStart, seg.start);
+    const oe = Math.min(cellEnd, seg.end);
+    if (oe <= os) return;
+    fillFrom = Math.min(fillFrom, os - cellStart);
+    fillTo = Math.max(fillTo, oe - cellStart);
+  });
+
+  return fillTo > fillFrom ? { fillFrom, fillTo } : null;
+}
+
+function isShiftOverflow(startH, endH, duration) {
+  return startH < VISIBLE_START || endH > VISIBLE_END || duration > VISIBLE_SPAN;
+}
+
+function getOverflowLabelHour(startH, endH) {
+  const segments = getVisibleShiftSegments(startH, endH);
+  if (!segments.length) return null;
+  const mainSegment = segments.reduce((best, seg) => (
+    seg.end - seg.start > best.end - best.start ? seg : best
+  ), segments[0]);
+  return Math.min(VISIBLE_END - 1, Math.max(VISIBLE_START, Math.floor((mainSegment.start + mainSegment.end) / 2)));
+}
+
+function parseScheduleShift(value, emp) {
+  const rawValue = String(value || '').trim().toUpperCase();
+  const defaultStart = parseHour(emp.default_start);
+  const defaultEndRaw = parseHour(emp.default_end);
+  const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+  const isWorking = !!rawValue && !ABSENCE_STATUSES.has(rawValue);
+
+  if (!isWorking) {
+    return {
+      start: defaultStart,
+      end: defaultEnd,
+      duration: 0,
+      working: false,
+      status: rawValue,
+      confirmed: false,
+      overflow: false,
+      rawValue,
+    };
+  }
+
+  let finalStart = defaultStart;
+  let finalEnd = defaultEnd;
+  let duration = getShiftDuration(defaultStart, defaultEnd);
+
+  if (rawValue.includes('-')) {
+    const [a, b] = rawValue.split('-');
+    const st = parseHourValue(a);
+    const en = parseHourValue(b);
+    if (st !== null && en !== null) {
+      finalStart = st;
+      finalEnd = en <= st ? en + 24 : en;
+      duration = roundHours(finalEnd - finalStart);
+    }
+  } else if (rawValue.includes('+')) {
+    const [a, b] = rawValue.split('+');
+    const st = parseHourValue(a);
+    const dur = parseHourValue(b);
+    if (st !== null && dur !== null) {
+      finalStart = st;
+      finalEnd = st + dur;
+      duration = roundHours(dur);
+    }
+  } else {
+    const dur = parseHourValue(rawValue);
+    if (dur !== null) {
+      finalStart = defaultStart;
+      finalEnd = defaultStart + dur;
+      duration = roundHours(dur);
+    }
+  }
+
+  return {
+    start: finalStart,
+    end: finalEnd,
+    duration,
+    working: true,
+    status: null,
+    confirmed: true,
+    overflow: isShiftOverflow(finalStart, finalEnd, duration),
+    rawValue,
+  };
+}
+
+function getCellBackground(h, startH, endH, working, role, confirmed, overflow = false) {
   if (!working) return { background: 'transparent', color: 'transparent' };
 
   const rInfo = ROLES[role];
   const unassignedColor = confirmed ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 0, 0, 0.04)';
-  const shiftColor = rInfo ? rInfo.bg : unassignedColor;
+  const shiftColor = overflow && !rInfo ? OVERFLOW_SHIFT_COLOR : rInfo ? rInfo.bg : unassignedColor;
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
   const emptyColor = 'transparent';
 
-  const cellStart = h;
-  const cellEnd = h + 1;
-  let fillFrom;
-  let fillTo;
-
-  if (startH <= endH) {
-    if (cellEnd <= startH || cellStart >= endH) return { background: 'transparent', color: 'transparent' };
-    const os = Math.max(cellStart, startH);
-    const oe = Math.min(cellEnd, endH);
-    const ov = oe - os;
-    fillFrom = os - cellStart; fillTo = fillFrom + ov;
-  } else {
-    const inNight = cellStart >= startH || cellEnd <= endH;
-    if (!inNight) return { background: 'transparent', color: 'transparent' };
-    const os = cellStart >= startH ? Math.max(cellStart, startH) : cellStart;
-    const oe = cellEnd <= endH ? Math.min(cellEnd, endH) : cellEnd;
-    const ov = Math.max(0, oe - os);
-    fillFrom = os - cellStart; fillTo = fillFrom + ov;
-  }
+  const fill = getCellShiftFill(h, startH, endH);
+  if (!fill) return { background: 'transparent', color: 'transparent' };
+  const { fillFrom, fillTo } = fill;
 
   if (fillTo <= 0) return { background: 'transparent', color: 'transparent' };
   
@@ -104,8 +244,7 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
 }
 
 function isHourInShift(h, startH, endH) {
-  if (startH <= endH) return h >= Math.floor(startH) && h < Math.ceil(endH);
-  return h >= Math.floor(startH) || h < Math.ceil(endH);
+  return !!getCellShiftFill(h, startH, endH);
 }
 
 // Zmiana danej osoby w danym dniu (godziny, czy pracuje, potwierdzona, status nieobecności)
@@ -113,12 +252,16 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
   const sched = scheduleMap[`${emp.id}_${dateStr}`];
   const dow = new Date(dateStr + 'T00:00:00').getDay();
   const isWe = dow === 0 || dow === 6;
-  const startH = sched ? sched.start : parseHour(emp.default_start);
-  const endH = sched ? sched.end : parseHour(emp.default_end);
+  const defaultStart = parseHour(emp.default_start);
+  const defaultEndRaw = parseHour(emp.default_end);
+  const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+  const startH = sched ? sched.start : defaultStart;
+  const endH = sched ? sched.end : defaultEnd;
   const working = sched ? sched.working : !isWe;
   const confirmed = sched ? sched.confirmed : false;
   const dayStatus = sched?.status || null;
-  return { startH, endH, working, confirmed, dayStatus };
+  const duration = sched?.duration ?? getShiftDuration(startH, endH);
+  return { startH, endH, duration, working, confirmed, dayStatus, overflow: sched?.overflow || false };
 }
 
 // Zmemoizowany komponent wiersza
@@ -131,32 +274,48 @@ const TimelineRow = React.memo(({
     const isWe = d.getDay() === 0 || d.getDay() === 6;
     const dateStr = toDateStr(d);
     const sched = scheduleMap[`${emp.id}_${dateStr}`];
-    const startH = sched ? sched.start : parseHour(emp.default_start);
-    const endH = sched ? sched.end : parseHour(emp.default_end);
+    const defaultStart = parseHour(emp.default_start);
+    const defaultEndRaw = parseHour(emp.default_end);
+    const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+    const startH = sched ? sched.start : defaultStart;
+    const endH = sched ? sched.end : defaultEnd;
     // Dwie 15-min przerwy: start+3h i start+6h
-    const breakCell1 = Math.floor(startH + 3);
-    const breakCell2 = Math.floor(startH + 6);
+    const breakCell1 = ((Math.floor(startH + 3) % 24) + 24) % 24;
+    const breakCell2 = ((Math.floor(startH + 6) % 24) + 24) % 24;
     const holiday = isHoliday(d);
     const working = sched ? sched.working : false;
     const confirmed = sched ? sched.confirmed : false;
     // Brak wpisu = domyślna wartość grafiku: weekend/święto → 'W' (wolne), powszedni → 'I' (Planowany)
     const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : 'I');
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
-    const schedHours = working ? Math.round((endH >= startH ? endH - startH : 24 - startH + endH) * 10) / 10 : 0;
+    const duration = sched?.duration ?? getShiftDuration(startH, endH);
+    const schedHours = working ? fmtHours(duration) : '';
+    const overflow = working && !dayStatus && (sched?.overflow ?? isShiftOverflow(startH, endH, duration));
+    const overflowLabelHour = overflow ? getOverflowLabelHour(startH, endH) : null;
+    const overflowTitle = overflow
+      ? t('timeline.overflowTitle', {
+          range: `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`,
+          hours: fmtHours(duration),
+        })
+      : undefined;
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
     return (
       <React.Fragment key={di}>
-        <td className="tl-sum-col"
+        <td className={`tl-sum-col ${overflow ? 'tl-overflow-sum' : ''}`}
           onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
-          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : undefined}
+          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : overflowTitle}
           style={{
-            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : working ? 'var(--accent-green-light)' : '#f5f5f7',
-            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : working ? 'var(--accent-green)' : '#ccc',
+            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : overflow ? '#ffedd5' : working ? 'var(--accent-green-light)' : '#f5f5f7',
+            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : overflow ? '#c2410c' : working ? 'var(--accent-green)' : '#ccc',
             cursor: canCopyHere ? 'copy' : 'default',
             outline: isCopySource ? '2px solid var(--accent)' : 'none',
-            boxShadow: copyMode && copySource && canCopyHere && !isCopySource ? 'inset 0 0 0 1px var(--accent)' : 'none',
+            boxShadow: copyMode && copySource && canCopyHere && !isCopySource
+              ? 'inset 0 0 0 1px var(--accent)'
+              : overflow && !isCopySource
+                ? 'inset 0 0 0 2px rgba(249, 115, 22, 0.35)'
+                : 'none',
           }}>
           {dayStatus || (working ? schedHours : '')}
         </td>
@@ -165,17 +324,15 @@ const TimelineRow = React.memo(({
           const role = entries[key];
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
-            : getCellBackground(h, startH, endH, working, role, confirmed);
+            : getCellBackground(h, startH, endH, working, role, confirmed, overflow);
 
-          let isShiftHour = false;
-          if (startH <= endH) {
-            isShiftHour = h >= Math.floor(startH) && h < Math.ceil(endH);
-          } else {
-            isShiftHour = h >= Math.floor(startH) || h < Math.ceil(endH);
-          }
+          const isShiftHour = isHourInShift(h, startH, endH);
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
           const isBreakHour = working && !dayStatus && isShiftHour && (h === breakCell1 || h === breakCell2);
+          const showOverflowLabel = overflow && !dayStatus && isShiftHour && h === overflowLabelHour;
+          const showLeftOverflow = overflow && !dayStatus && isShiftHour && h === VISIBLE_START && startH < VISIBLE_START;
+          const showRightOverflow = overflow && !dayStatus && isShiftHour && h === VISIBLE_END - 1 && endH > VISIBLE_END;
 
           return (
             <td key={h}
@@ -195,9 +352,16 @@ const TimelineRow = React.memo(({
               }}
               style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
-              <div className="tl-cell-inner" style={cellStyle}>
+              <div
+                className={`tl-cell-inner ${overflow && isShiftHour ? 'tl-overflow-cell' : ''}`}
+                style={cellStyle}
+                title={overflowTitle}
+              >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
-                {!dayStatus && (role || '')}
+                {showLeftOverflow && <span className="tl-overflow-edge left">←{fmtHourLabel(startH)}</span>}
+                {showOverflowLabel && <span className="tl-overflow-label">{fmtHours(duration)}h</span>}
+                {showRightOverflow && <span className="tl-overflow-edge right">{fmtHourLabel(endH)}→</span>}
+                {!dayStatus && !showOverflowLabel && (role || '')}
               </div>
             </td>
           );
@@ -291,25 +455,7 @@ export default function TimelineView() {
       const dayDate = allWeekDays.find(d => d.getDate() === e.day && d.getMonth() === monday.getMonth());
       if (!dayDate) return;
       const ds = toDateStr(dayDate);
-      const v = String(e.value || '').toUpperCase();
-      // 'I' (Planowany/na zleceniu) = jeszcze nie pracuje → nie liczony, nie malowalny, ale oznaczony
-      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'END' && v !== 'I';
-      let finalStart = parseHour(emp.default_start), finalEnd = parseHour(emp.default_end);
-      if (isWorking && v) {
-        if (v.includes('-')) {
-          const [a, b] = v.split('-');
-          const st = parseFloat(a.replace(',', '.')), en = parseFloat(b.replace(',', '.'));
-          if (!isNaN(st) && !isNaN(en)) { finalStart = st; finalEnd = en; }
-        } else if (v.includes('+')) {
-          const [a, b] = v.split('+');
-          const st = parseFloat(a.replace(',', '.')), dur = parseFloat(b.replace(',', '.'));
-          if (!isNaN(st) && !isNaN(dur)) { finalStart = st; finalEnd = (st + dur) % 24; }
-        } else if (!isNaN(parseFloat(v.replace(',', '.')))) {
-          const dur = parseFloat(v.replace(',', '.'));
-          if (!isNaN(dur)) finalEnd = (finalStart + dur) % 24;
-        }
-      }
-      sm[`${e.employee_id}_${ds}`] = { start: finalStart, end: finalEnd, working: isWorking, status: isWorking ? null : v, confirmed: isWorking && v !== 'I' };
+      sm[`${e.employee_id}_${ds}`] = parseScheduleShift(e.value, emp);
     });
     setScheduleMap(sm);
     setLoading(false);
