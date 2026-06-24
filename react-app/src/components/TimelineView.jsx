@@ -57,11 +57,17 @@ function isSlotCovered(h, startH, endH) {
 // Posortowane chronologicznie względem startu osi: najpierw wieczór (22,23), potem noc (0..4).
 function getOverflowHours(startH, endH) {
   const out = [];
+  const dayEnd = Math.min(endH, 24);
+  const start = Math.floor(startH);
   for (let h = 0; h < 24; h++) {
-    if (h >= VISIBLE_START && h < VISIBLE_END) continue;
+    // Pomijamy godziny realnie pokazane w siatce (część dnia startu w oknie 5–21).
+    const shownInGrid = h >= VISIBLE_START && h < VISIBLE_END
+      && Math.min(h + 1, dayEnd) > Math.max(h, startH);
+    if (shownInGrid) continue;
     if (isSlotCovered(h, startH, endH)) out.push(h);
   }
-  return out.sort((a, b) => (a < VISIBLE_START ? a + 24 : a) - (b < VISIBLE_START ? b + 24 : b));
+  // Chronologicznie względem startu zmiany (najpierw wieczór, potem godziny po północy).
+  return out.sort((a, b) => ((a - start + 24) % 24) - ((b - start + 24) % 24));
 }
 
 function getMondayOfWeek(date) {
@@ -121,29 +127,11 @@ function getShiftDuration(startH, endH) {
 }
 
 function getVisibleShiftSegments(startH, endH) {
-  const segments = [];
-  const addOverlap = (offset) => {
-    const visibleStart = VISIBLE_START + offset;
-    const visibleEnd = VISIBLE_END + offset;
-    const os = Math.max(startH, visibleStart);
-    const oe = Math.min(endH, visibleEnd);
-    if (oe > os) segments.push({ start: os - offset, end: oe - offset });
-  };
-
-  addOverlap(0);
-  if (endH > 24) addOverlap(24);
-
-  return segments
-    .sort((a, b) => a.start - b.start)
-    .reduce((acc, seg) => {
-      const prev = acc[acc.length - 1];
-      if (prev && seg.start <= prev.end) {
-        prev.end = Math.max(prev.end, seg.end);
-      } else {
-        acc.push({ ...seg });
-      }
-      return acc;
-    }, []);
+  // Tylko część zmiany przypadająca na dzień startu, bez zawijania nocy przez północ —
+  // dzięki temu pasmo zaczyna się o realnej godzinie startu (np. 7:20), a nie od 5:00.
+  const os = Math.max(startH, VISIBLE_START);
+  const oe = Math.min(endH, VISIBLE_END, 24);
+  return oe > os ? [{ start: os, end: oe }] : [];
 }
 
 function getCellShiftFill(h, startH, endH) {
@@ -381,7 +369,7 @@ const TimelineRow = React.memo(({
                 title={dutyTitle}
               >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
-                {!dayStatus && (role || '')}
+                {!dayStatus && isShiftHour && (role || '')}
                 {showBadge && (
                   <button
                     type="button"
