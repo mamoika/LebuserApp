@@ -33,12 +33,14 @@ const STATUS_STYLE = {
   'I':   { bg: '#ede9fe', color: '#6d28d9' },
 };
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 5);
-const VISIBLE_START = HOURS[0];
-const VISIBLE_END = HOURS[HOURS.length - 1] + 1;
-const VISIBLE_SPAN = VISIBLE_END - VISIBLE_START;
+const DEFAULT_VISIBLE_START = 5;
+const DEFAULT_VISIBLE_END = 22; // exclusive: domyślnie widoczne godziny 5–21
 const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NN', 'END', 'I']);
-const OVERFLOW_SHIFT_COLOR = 'rgba(245, 158, 11, 0.28)';
+const range = (start, end) => Array.from({ length: Math.max(0, end - start) }, (_, i) => start + i);
+// Czy zmiana to pełna doba / dyżur (przechodzi przez północ lub trwa ~24h).
+function isFullDayDuty(endH, duration) {
+  return endH > 24 || roundHours(duration) >= 23.5;
+}
 
 function getMondayOfWeek(date) {
   const d = new Date(date);
@@ -96,11 +98,11 @@ function getShiftDuration(startH, endH) {
   return roundHours(endH >= startH ? endH - startH : 24 - startH + endH);
 }
 
-function getVisibleShiftSegments(startH, endH) {
+function getVisibleShiftSegments(startH, endH, winStart, winEnd) {
   const segments = [];
   const addOverlap = (offset) => {
-    const visibleStart = VISIBLE_START + offset;
-    const visibleEnd = VISIBLE_END + offset;
+    const visibleStart = winStart + offset;
+    const visibleEnd = winEnd + offset;
     const os = Math.max(startH, visibleStart);
     const oe = Math.min(endH, visibleEnd);
     if (oe > os) segments.push({ start: os - offset, end: oe - offset });
@@ -122,13 +124,13 @@ function getVisibleShiftSegments(startH, endH) {
     }, []);
 }
 
-function getCellShiftFill(h, startH, endH) {
+function getCellShiftFill(h, startH, endH, winStart, winEnd) {
   const cellStart = h;
   const cellEnd = h + 1;
   let fillFrom = 1;
   let fillTo = 0;
 
-  getVisibleShiftSegments(startH, endH).forEach((seg) => {
+  getVisibleShiftSegments(startH, endH, winStart, winEnd).forEach((seg) => {
     const os = Math.max(cellStart, seg.start);
     const oe = Math.min(cellEnd, seg.end);
     if (oe <= os) return;
@@ -137,19 +139,6 @@ function getCellShiftFill(h, startH, endH) {
   });
 
   return fillTo > fillFrom ? { fillFrom, fillTo } : null;
-}
-
-function isShiftOverflow(startH, endH, duration) {
-  return startH < VISIBLE_START || endH > VISIBLE_END || duration > VISIBLE_SPAN;
-}
-
-function getOverflowLabelHour(startH, endH) {
-  const segments = getVisibleShiftSegments(startH, endH);
-  if (!segments.length) return null;
-  const mainSegment = segments.reduce((best, seg) => (
-    seg.end - seg.start > best.end - best.start ? seg : best
-  ), segments[0]);
-  return Math.min(VISIBLE_END - 1, Math.max(VISIBLE_START, Math.floor((mainSegment.start + mainSegment.end) / 2)));
 }
 
 function parseScheduleShift(value, emp) {
@@ -167,7 +156,7 @@ function parseScheduleShift(value, emp) {
       working: false,
       status: rawValue,
       confirmed: false,
-      overflow: false,
+      fullDay: false,
       rawValue,
     };
   }
@@ -210,21 +199,21 @@ function parseScheduleShift(value, emp) {
     working: true,
     status: null,
     confirmed: true,
-    overflow: isShiftOverflow(finalStart, finalEnd, duration),
+    fullDay: isFullDayDuty(finalEnd, duration),
     rawValue,
   };
 }
 
-function getCellBackground(h, startH, endH, working, role, confirmed, overflow = false) {
+function getCellBackground(h, startH, endH, working, role, confirmed, winStart, winEnd) {
   if (!working) return { background: 'transparent', color: 'transparent' };
 
   const rInfo = ROLES[role];
   const unassignedColor = confirmed ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 0, 0, 0.04)';
-  const shiftColor = overflow && !rInfo ? OVERFLOW_SHIFT_COLOR : rInfo ? rInfo.bg : unassignedColor;
+  const shiftColor = rInfo ? rInfo.bg : unassignedColor;
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
   const emptyColor = 'transparent';
 
-  const fill = getCellShiftFill(h, startH, endH);
+  const fill = getCellShiftFill(h, startH, endH, winStart, winEnd);
   if (!fill) return { background: 'transparent', color: 'transparent' };
   const { fillFrom, fillTo } = fill;
 
@@ -243,8 +232,8 @@ function getCellBackground(h, startH, endH, working, role, confirmed, overflow =
   };
 }
 
-function isHourInShift(h, startH, endH) {
-  return !!getCellShiftFill(h, startH, endH);
+function isHourInShift(h, startH, endH, winStart, winEnd) {
+  return !!getCellShiftFill(h, startH, endH, winStart, winEnd);
 }
 
 // Zmiana danej osoby w danym dniu (godziny, czy pracuje, potwierdzona, status nieobecności)
@@ -261,12 +250,12 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
   const confirmed = sched ? sched.confirmed : false;
   const dayStatus = sched?.status || null;
   const duration = sched?.duration ?? getShiftDuration(startH, endH);
-  return { startH, endH, duration, working, confirmed, dayStatus, overflow: sched?.overflow || false };
+  return { startH, endH, duration, working, confirmed, dayStatus, fullDay: sched?.fullDay || false };
 }
 
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, scheduleMap, entries, isAdmin, rowBg,
+  emp, weekDays, scheduleMap, entries, isAdmin, rowBg, hours, winStart, winEnd,
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   const { t } = useTranslation();
@@ -290,10 +279,9 @@ const TimelineRow = React.memo(({
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
     const duration = sched?.duration ?? getShiftDuration(startH, endH);
     const schedHours = working ? fmtHours(duration) : '';
-    const overflow = working && !dayStatus && (sched?.overflow ?? isShiftOverflow(startH, endH, duration));
-    const overflowLabelHour = overflow ? getOverflowLabelHour(startH, endH) : null;
-    const overflowTitle = overflow
-      ? t('timeline.overflowTitle', {
+    const fullDay = working && !dayStatus && (sched?.fullDay ?? isFullDayDuty(endH, duration));
+    const dutyTitle = fullDay
+      ? t('timeline.dutyTitle', {
           range: `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`,
           hours: fmtHours(duration),
         })
@@ -303,36 +291,33 @@ const TimelineRow = React.memo(({
 
     return (
       <React.Fragment key={di}>
-        <td className={`tl-sum-col ${overflow ? 'tl-overflow-sum' : ''}`}
+        <td className={`tl-sum-col ${fullDay ? 'tl-duty-sum' : ''}`}
           onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
-          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : overflowTitle}
+          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : dutyTitle}
           style={{
-            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : overflow ? '#ffedd5' : working ? 'var(--accent-green-light)' : '#f5f5f7',
-            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : overflow ? '#c2410c' : working ? 'var(--accent-green)' : '#ccc',
+            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : fullDay ? '#ffedd5' : working ? 'var(--accent-green-light)' : '#f5f5f7',
+            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : fullDay ? '#c2410c' : working ? 'var(--accent-green)' : '#ccc',
             cursor: canCopyHere ? 'copy' : 'default',
             outline: isCopySource ? '2px solid var(--accent)' : 'none',
             boxShadow: copyMode && copySource && canCopyHere && !isCopySource
               ? 'inset 0 0 0 1px var(--accent)'
-              : overflow && !isCopySource
+              : fullDay && !isCopySource
                 ? 'inset 0 0 0 2px rgba(249, 115, 22, 0.35)'
                 : 'none',
           }}>
           {dayStatus || (working ? schedHours : '')}
         </td>
-        {HOURS.map(h => {
+        {hours.map(h => {
           const key = `${emp.id}_${dateStr}_${h}`;
           const role = entries[key];
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
-            : getCellBackground(h, startH, endH, working, role, confirmed, overflow);
+            : getCellBackground(h, startH, endH, working, role, confirmed, winStart, winEnd);
 
-          const isShiftHour = isHourInShift(h, startH, endH);
+          const isShiftHour = isHourInShift(h, startH, endH, winStart, winEnd);
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
-          const isBreakHour = working && !dayStatus && isShiftHour && (h === breakCell1 || h === breakCell2);
-          const showOverflowLabel = overflow && !dayStatus && isShiftHour && h === overflowLabelHour;
-          const showLeftOverflow = overflow && !dayStatus && isShiftHour && h === VISIBLE_START && startH < VISIBLE_START;
-          const showRightOverflow = overflow && !dayStatus && isShiftHour && h === VISIBLE_END - 1 && endH > VISIBLE_END;
+          const isBreakHour = working && !dayStatus && !fullDay && isShiftHour && (h === breakCell1 || h === breakCell2);
 
           return (
             <td key={h}
@@ -353,15 +338,12 @@ const TimelineRow = React.memo(({
               style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
               <div
-                className={`tl-cell-inner ${overflow && isShiftHour ? 'tl-overflow-cell' : ''}`}
+                className="tl-cell-inner"
                 style={cellStyle}
-                title={overflowTitle}
+                title={dutyTitle}
               >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
-                {showLeftOverflow && <span className="tl-overflow-edge left">←{fmtHourLabel(startH)}</span>}
-                {showOverflowLabel && <span className="tl-overflow-label">{fmtHours(duration)}h</span>}
-                {showRightOverflow && <span className="tl-overflow-edge right">{fmtHourLabel(endH)}→</span>}
-                {!dayStatus && !showOverflowLabel && (role || '')}
+                {!dayStatus && (role || '')}
               </div>
             </td>
           );
@@ -391,10 +373,11 @@ const TimelineRow = React.memo(({
   if (prev.brushRole !== next.brushRole) return false;
   if (prev.copyMode !== next.copyMode) return false;
   if (prev.copySource !== next.copySource) return false;
+  if (prev.winStart !== next.winStart || prev.winEnd !== next.winEnd) return false;
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
-    for (let h of HOURS) {
+    for (let h of next.hours) {
       const key = `${next.emp.id}_${dateStr}_${h}`;
       if (prev.entries[key] !== next.entries[key]) return false;
     }
@@ -431,6 +414,29 @@ export default function TimelineView() {
     const ds = toDateStr(d);
     return Object.keys(entries).some(k => k.includes(`_${ds}_`));
   });
+
+  // Oś godzin dopasowuje się do treści tygodnia: domyślnie 5–21, ale rozszerza się,
+  // gdy ktoś ma realnie wpisaną zmianę poza tym zakresem lub dobę (przez północ) —
+  // wtedy nocne godziny stają się klikalnymi kolumnami zamiast bursztynowej poświaty.
+  // Liczone tylko z faktycznych wpisów grafiku (tych, które rysują pasmo zmiany).
+  const { winStart, winEnd, hours } = useMemo(() => {
+    let s = DEFAULT_VISIBLE_START;
+    let e = DEFAULT_VISIBLE_END;
+    const weekDateSet = new Set(weekDays.map(toDateStr));
+    for (const [key, sh] of Object.entries(scheduleMap)) {
+      if (!sh || !sh.working || sh.status) continue;
+      if (!weekDateSet.has(key.slice(-10))) continue; // ostatnie 10 znaków = YYYY-MM-DD
+      const dayEnd = Math.min(sh.end, 24);
+      if (dayEnd > sh.start) {
+        s = Math.min(s, Math.floor(Math.max(sh.start, 0)));
+        e = Math.max(e, Math.ceil(dayEnd));
+      }
+      if (sh.end > 24) s = Math.min(s, 0); // poranne godziny doby (po północy)
+    }
+    s = Math.max(0, Math.min(s, DEFAULT_VISIBLE_START));
+    e = Math.min(24, Math.max(e, DEFAULT_VISIBLE_END));
+    return { winStart: s, winEnd: e, hours: range(s, e) };
+  }, [scheduleMap, weekDays]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -553,7 +559,7 @@ export default function TimelineView() {
 
     // godziny ze źródła, które mieszczą się w zmianie docelowej
     const toWrite = [];
-    for (const h of HOURS) {
+    for (const h of hours) {
       const role = entries[`${srcEmpId}_${srcDateStr}_${h}`];
       if (!role) continue;
       if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
@@ -588,7 +594,7 @@ export default function TimelineView() {
     } else {
       toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
-  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, t]);
+  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, hours, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = monday <= minMonday;
@@ -614,7 +620,7 @@ export default function TimelineView() {
     Object.entries(ROLES).forEach(([role]) => { result[role] = {}; });
     groups.forEach(({ g, members }) => {
       members.forEach(emp => {
-        HOURS.forEach(h => {
+        hours.forEach(h => {
           const role = entries[`${emp.id}_${dateStr}_${h}`];
           if (!role) return;
           if (!result[role]) result[role] = {};
@@ -625,7 +631,7 @@ export default function TimelineView() {
       });
     });
     return result;
-  }, [entries, groups]);
+  }, [entries, groups, hours]);
 
   if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
@@ -740,7 +746,7 @@ export default function TimelineView() {
 
       {/* Tabela połączona */}
       <div className="tl-container" ref={containerRef}>
-        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (HOURS.length * HOUR_W + 29)}px` }}>
+        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (hours.length * HOUR_W + 29)}px` }}>
           <thead>
             <tr>
               <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
@@ -753,7 +759,7 @@ export default function TimelineView() {
                 const isWe = dw === 0 || dw === 6;
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <th key={di} colSpan={HOURS.length + 1} className="tl-th-day" style={{
+                  <th key={di} colSpan={hours.length + 1} className="tl-th-day" style={{
                     background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
                     color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
                   }}>
@@ -768,7 +774,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <th key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-quaternary)', fontSize: '8px', fontWeight: 700, textAlign: 'center', borderBottom: '2px solid var(--border)', borderLeft: '2px solid var(--border-strong)', padding: '2px 0' }}>Σ</th>,
-                  ...HOURS.map(h => (
+                  ...hours.map(h => (
                     <th key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)', color: isWe ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>{h}</th>
                   )),
                 ];
@@ -788,7 +794,7 @@ export default function TimelineView() {
                     </div>
                   </div>
                 </td>
-                <td colSpan={weekDays.length * (HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
+                <td colSpan={weekDays.length * (hours.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
               </tr>
               {members.map((emp) => {
                 const rowBg = '#ffffff';
@@ -802,6 +808,9 @@ export default function TimelineView() {
                     entries={entries}
                     isAdmin={isAdmin}
                     rowBg={rowBg}
+                    hours={hours}
+                    winStart={winStart}
+                    winEnd={winEnd}
                     brushRole={brushRole}
                     onBrushCell={handleBrushCell}
                     isPaintingRef={isPainting}
@@ -822,7 +831,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <td key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: '10px', fontWeight: 800, textAlign: 'center', borderBottom: '1px solid var(--border)', borderLeft: '2px solid var(--border-strong)' }}>Σ</td>,
-                  ...HOURS.map(h => (
+                  ...hours.map(h => (
                     <td key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, textAlign: 'center', borderBottom: '1px solid var(--border)' }}>{h}</td>
                   )),
                 ];
@@ -847,7 +856,7 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
+                  <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: '52px' }}>
                       
                       {/* TOP ROW: GROUP NAMES */}
@@ -930,7 +939,7 @@ export default function TimelineView() {
                     const totalGodz = Object.values(roleData).reduce((s, x) => s + (x?.godz || 0), 0);
 
                     return (
-                      <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
+                      <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                           
                           {/* RAZEM */}
@@ -967,11 +976,11 @@ export default function TimelineView() {
               {(() => {
                 const wOs = new Set(weekDays.flatMap(d => {
                   const ds = toDateStr(d);
-                  return employees.filter(e => HOURS.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
+                  return employees.filter(e => hours.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
                 }));
                 const wGodz = weekDays.reduce((s, d) => {
                   const ds = toDateStr(d);
-                  return s + employees.reduce((ss, e) => ss + HOURS.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
+                  return s + employees.reduce((ss, e) => ss + hours.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
                 }, 0);
 
                 return (
@@ -995,11 +1004,11 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const dateStr = toDateStr(d);
                 const isToday = dateStr === todayStr;
-                const allOs = new Set(employees.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                const allGodz = employees.reduce((s, e) => s + HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                const allOs = new Set(employees.filter(e => hours.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                const allGodz = employees.reduce((s, e) => s + hours.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                 
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
+                  <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       
                       {/* RAZEM */}
@@ -1014,8 +1023,8 @@ export default function TimelineView() {
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
                         const gm = groups.find(g => g.g === gn)?.members || [];
-                        const gOs = new Set(gm.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                        const gGodz = gm.reduce((s, e) => s + HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                        const gOs = new Set(gm.filter(e => hours.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                        const gGodz = gm.reduce((s, e) => s + hours.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                         const isLast = idx === groupNames.length - 1;
                         
                         return [

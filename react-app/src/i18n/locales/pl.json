@@ -271,7 +271,7 @@
     "pasteHere": "Kliknij, aby wkleić tutaj",
     "copyThisDay": "Kliknij, aby skopiować ten dzień",
     "break15": "Przerwa 15 min",
-    "overflowTitle": "Zmiana poza osią {{range}}, {{hours}}h",
+    "dutyTitle": "Doba / dyżur {{range}} · {{hours}}h",
     "saveError": "Nie udało się zapisać — spróbuj ponownie",
     "copyError": "Nie udało się skopiować — spróbuj ponownie",
     "targetFreeOrAbsent": "Dzień docelowy jest wolny lub to nieobecność",

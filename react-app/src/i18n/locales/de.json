@@ -267,7 +267,7 @@
     "pasteHere": "Klicken zum Einfügen",
     "copyThisDay": "Klicken, um diesen Tag zu kopieren",
     "break15": "Pause 15 Min",
-    "overflowTitle": "Schicht ausserhalb der Achse {{range}}, {{hours}} Std.",
+    "dutyTitle": "24-Stunden-Dienst {{range}} · {{hours}} Std.",
     "saveError": "Speichern fehlgeschlagen — bitte erneut versuchen",
     "copyError": "Kopieren fehlgeschlagen — bitte erneut versuchen",
     "targetFreeOrAbsent": "Zieltag ist frei oder eine Abwesenheit",
