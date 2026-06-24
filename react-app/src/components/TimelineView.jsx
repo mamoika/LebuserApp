@@ -47,19 +47,19 @@ function isFullDayDuty(endH, duration) {
 }
 
 // Komórki zmiany wypadające poza widoczną osią 5–21 (do panelu „+Xh"), w kolejności
-// chronologicznej: wieczór dnia startu (22, 23…), potem poranek po północy (0…7:20).
-// Każda komórka z ułamkiem wypełnienia — np. koniec doby o 7:20 → komórka godz. 7
-// zamalowana tylko do 1/3 (7:00–7:20), tak jak start 7:20 w siatce.
+// chronologicznej: wieczór dnia startu (22, 23…), potem poranek po północy.
 function getOverflowCells(startH, endH) {
   const cells = [];
+  const dayEnd = Math.min(endH, 24);
+  const isShownInGrid = (h) => h >= VISIBLE_START && h < VISIBLE_END
+    && Math.min(h + 1, dayEnd) > Math.max(h, startH);
   const addRange = (from, to) => {
     for (let h = Math.floor(from); h < to; h++) {
       const cs = Math.max(from, h);
       const ce = Math.min(to, h + 1);
-      if (ce > cs) cells.push({ h, fillFrom: cs - h, fillTo: ce - h });
+      if (ce > cs && !isShownInGrid(h)) cells.push({ h, fillFrom: cs - h, fillTo: ce - h });
     }
   };
-  const dayEnd = Math.min(endH, 24);
   if (startH < VISIBLE_START) addRange(startH, Math.min(dayEnd, VISIBLE_START)); // wczesny ranek dnia startu
   if (dayEnd > VISIBLE_END) addRange(Math.max(startH, VISIBLE_END), dayEnd);      // wieczór dnia startu
   if (endH > 24) addRange(0, endH - 24);                                          // poranek po północy
@@ -306,8 +306,7 @@ const TimelineRow = React.memo(({
       : undefined;
     // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
     const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
-    const visibleBand = getVisibleShiftSegments(startH, endH).reduce((s, seg) => s + (seg.end - seg.start), 0);
-    const overflowH = Math.round(Math.max(0, duration - visibleBand));
+    const overflowH = overflowCells.length;
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
