@@ -66,6 +66,18 @@ function getOverflowCells(startH, endH) {
   return cells;
 }
 
+function getOverflowEndMarker(startH, endH) {
+  if (endH <= 24) return null;
+  const end = endH - 24;
+  const h = Math.floor(end);
+  const fillTo = end - h;
+  if (fillTo <= 0) return null;
+  const dayEnd = Math.min(endH, 24);
+  const shownInGrid = h >= VISIBLE_START && h < VISIBLE_END
+    && Math.min(h + 1, dayEnd) > Math.max(h, startH);
+  return shownInGrid ? { h, fillTo } : null;
+}
+
 function getMondayOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
@@ -115,6 +127,14 @@ function fmtHourLabel(value) {
   const normalized = ((rounded % 24) + 24) % 24;
   const base = fmtHours(normalized);
   return dayOffset > 0 ? `${base}+${dayOffset}` : base;
+}
+
+function fmtClockLabel(value) {
+  const normalized = ((value % 24) + 24) % 24;
+  const totalMinutes = Math.round(normalized * 60);
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return m ? `${h}:${String(m).padStart(2, '0')}` : String(h);
 }
 
 function getShiftDuration(startH, endH) {
@@ -306,6 +326,7 @@ const TimelineRow = React.memo(({
       : undefined;
     // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
     const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
+    const overflowEndMarker = working && !dayStatus ? getOverflowEndMarker(startH, endH) : null;
     const overflowH = overflowCells.length;
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
@@ -378,7 +399,7 @@ const TimelineRow = React.memo(({
                       const r = e.currentTarget.getBoundingClientRect();
                       setDuty(prev => (prev && prev.dateStr === dateStr)
                         ? null
-                        : { dateStr, count: overflowH, cells: overflowCells, rect: r });
+                        : { dateStr, count: overflowH, cells: overflowCells, endMarker: overflowEndMarker, endH, rect: r });
                     }}
                   >
                     +{overflowH}h
@@ -391,6 +412,8 @@ const TimelineRow = React.memo(({
       </React.Fragment>
     );
   });
+
+  const dutyPanelCols = duty ? duty.cells.length + (duty.endMarker ? 1 : 0) : 0;
 
   return (
     <tr style={{ background: rowBg, height: '30px' }}>
@@ -411,7 +434,7 @@ const TimelineRow = React.memo(({
             className="tl-duty-pop"
             style={{
               top: Math.min(duty.rect.bottom + 6, window.innerHeight - 96),
-              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (duty.cells.length * 40 + 24))),
+              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (dutyPanelCols * 40 + 24))),
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -454,6 +477,18 @@ const TimelineRow = React.memo(({
                   </div>
                 );
               })}
+              {duty.endMarker && (
+                <div key={`end-${duty.endMarker.h}`} className="tl-duty-pop-col tl-duty-pop-end-col">
+                  <span className="tl-duty-pop-hl">{fmtClockLabel(duty.endH)}</span>
+                  <div
+                    className="tl-duty-pop-cell tl-duty-pop-end"
+                    title={fmtClockLabel(duty.endH)}
+                    style={{
+                      background: `linear-gradient(to right, rgba(0,122,255,0.12) 0%, rgba(0,122,255,0.12) ${Math.round(duty.endMarker.fillTo * 100)}%, transparent ${Math.round(duty.endMarker.fillTo * 100)}%)`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>,
