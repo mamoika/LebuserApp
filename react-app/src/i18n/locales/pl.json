@@ -273,7 +273,7 @@
     "break15": "Przerwa 15 min",
     "dutyTitle": "Doba / dyżur {{range}} · {{hours}}h",
     "dutyShowHours": "Pokaż godziny poza osią",
-    "dutyPanel": "Doba {{range}} · godziny poza grafikiem",
+    "dutyPanel": "godziny poza osią czasu",
     "saveError": "Nie udało się zapisać — spróbuj ponownie",
     "copyError": "Nie udało się skopiować — spróbuj ponownie",
     "targetFreeOrAbsent": "Dzień docelowy jest wolny lub to nieobecność",

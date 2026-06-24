@@ -46,28 +46,24 @@ function isFullDayDuty(endH, duration) {
   return endH > 24 || roundHours(duration) >= 23.5;
 }
 
-// Czy slot godziny [h, h+1) jest objęty zmianą (uwzględnia przejście przez północ).
-function isSlotCovered(h, startH, endH) {
-  if (Math.min(h + 1, endH) > Math.max(h, startH)) return true;
-  if (endH > 24 && Math.min(h + 25, endH) > Math.max(h + 24, startH)) return true;
-  return false;
-}
-
-// Godziny doby/dyżuru, które wypadają poza widoczną osią 5–21 (do panelu „+Xh").
-// Posortowane chronologicznie względem startu osi: najpierw wieczór (22,23), potem noc (0..4).
-function getOverflowHours(startH, endH) {
-  const out = [];
+// Komórki zmiany wypadające poza widoczną osią 5–21 (do panelu „+Xh"), w kolejności
+// chronologicznej: wieczór dnia startu (22, 23…), potem poranek po północy (0…7:20).
+// Każda komórka z ułamkiem wypełnienia — np. koniec doby o 7:20 → komórka godz. 7
+// zamalowana tylko do 1/3 (7:00–7:20), tak jak start 7:20 w siatce.
+function getOverflowCells(startH, endH) {
+  const cells = [];
+  const addRange = (from, to) => {
+    for (let h = Math.floor(from); h < to; h++) {
+      const cs = Math.max(from, h);
+      const ce = Math.min(to, h + 1);
+      if (ce > cs) cells.push({ h, fillFrom: cs - h, fillTo: ce - h });
+    }
+  };
   const dayEnd = Math.min(endH, 24);
-  const start = Math.floor(startH);
-  for (let h = 0; h < 24; h++) {
-    // Pomijamy godziny realnie pokazane w siatce (część dnia startu w oknie 5–21).
-    const shownInGrid = h >= VISIBLE_START && h < VISIBLE_END
-      && Math.min(h + 1, dayEnd) > Math.max(h, startH);
-    if (shownInGrid) continue;
-    if (isSlotCovered(h, startH, endH)) out.push(h);
-  }
-  // Chronologicznie względem startu zmiany (najpierw wieczór, potem godziny po północy).
-  return out.sort((a, b) => ((a - start + 24) % 24) - ((b - start + 24) % 24));
+  if (startH < VISIBLE_START) addRange(startH, Math.min(dayEnd, VISIBLE_START)); // wczesny ranek dnia startu
+  if (dayEnd > VISIBLE_END) addRange(Math.max(startH, VISIBLE_END), dayEnd);      // wieczór dnia startu
+  if (endH > 24) addRange(0, endH - 24);                                          // poranek po północy
+  return cells;
 }
 
 function getMondayOfWeek(date) {
@@ -309,7 +305,9 @@ const TimelineRow = React.memo(({
       ? t('timeline.dutyTitle', { range: dutyRange, hours: fmtHours(duration) })
       : undefined;
     // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
-    const overflowHours = working && !dayStatus ? getOverflowHours(startH, endH) : [];
+    const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
+    const visibleBand = getVisibleShiftSegments(startH, endH).reduce((s, seg) => s + (seg.end - seg.start), 0);
+    const overflowH = Math.round(Math.max(0, duration - visibleBand));
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
@@ -343,7 +341,7 @@ const TimelineRow = React.memo(({
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
           const isBreakHour = working && !dayStatus && !fullDay && isShiftHour && (h === breakCell1 || h === breakCell2);
           // Znacznik "+Xh" w ostatniej widocznej godzinie (21), jeśli zmiana ma godziny poza osią.
-          const showBadge = h === VISIBLE_END - 1 && overflowHours.length > 0;
+          const showBadge = h === VISIBLE_END - 1 && overflowCells.length > 0;
 
           return (
             <td key={h}
@@ -381,10 +379,10 @@ const TimelineRow = React.memo(({
                       const r = e.currentTarget.getBoundingClientRect();
                       setDuty(prev => (prev && prev.dateStr === dateStr)
                         ? null
-                        : { dateStr, range: dutyRange, overflowHours, rect: r });
+                        : { dateStr, count: overflowH, cells: overflowCells, rect: r });
                     }}
                   >
-                    +{overflowHours.length}h
+                    +{overflowH}h
                   </button>
                 )}
               </div>
@@ -414,26 +412,33 @@ const TimelineRow = React.memo(({
             className="tl-duty-pop"
             style={{
               top: Math.min(duty.rect.bottom + 6, window.innerHeight - 96),
-              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (duty.overflowHours.length * 40 + 24))),
+              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (duty.cells.length * 40 + 24))),
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="tl-duty-pop-head">
-              <span><i className="ti ti-moon" aria-hidden="true" /> {t('timeline.dutyPanel', { range: duty.range })}</span>
+              <span><i className="ti ti-moon" aria-hidden="true" /> +{duty.count} · {t('timeline.dutyPanel')}</span>
               <button type="button" onClick={() => setDuty(null)} aria-label={t('common.close')}>×</button>
             </div>
             <div className="tl-duty-pop-cells">
-              {duty.overflowHours.map(h => {
+              {duty.cells.map(({ h, fillFrom, fillTo }) => {
                 const role = entries[`${emp.id}_${duty.dateStr}_${h}`];
                 const rInfo = role ? ROLES[role] : null;
+                const base = rInfo ? rInfo.bg : 'rgba(0,122,255,0.12)';
+                const full = fillFrom <= 0 && fillTo >= 1;
+                const pF = Math.round(fillFrom * 100);
+                const pT = Math.round(fillTo * 100);
                 const paintable = isAdmin && brushRole;
                 return (
                   <div key={h} className="tl-duty-pop-col">
                     <span className="tl-duty-pop-hl">{h}</span>
                     <div
                       className="tl-duty-pop-cell"
+                      title={full ? undefined : `${h}:00–${h}:${String(Math.round(fillTo * 60)).padStart(2, '0')}`}
                       style={{
-                        background: rInfo ? rInfo.bg : 'rgba(0,122,255,0.12)',
+                        background: full
+                          ? base
+                          : `linear-gradient(to right, transparent ${pF}%, ${base} ${pF}%, ${base} ${pT}%, transparent ${pT}%)`,
                         color: rInfo ? rInfo.fc : 'transparent',
                         cursor: paintable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default',
                       }}
