@@ -268,6 +268,8 @@
     "copyThisDay": "Klicken, um diesen Tag zu kopieren",
     "break15": "Pause 15 Min",
     "dutyTitle": "24-Stunden-Dienst {{range}} · {{hours}} Std.",
+    "dutyShowHours": "Stunden außerhalb der Achse anzeigen",
+    "dutyPanel": "Dienst {{range}} · Stunden außerhalb des Plans",
     "saveError": "Speichern fehlgeschlagen — bitte erneut versuchen",
     "copyError": "Kopieren fehlgeschlagen — bitte erneut versuchen",
     "targetFreeOrAbsent": "Zieltag ist frei oder eine Abwesenheit",

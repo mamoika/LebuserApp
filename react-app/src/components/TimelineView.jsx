@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -33,13 +34,34 @@ const STATUS_STYLE = {
   'I':   { bg: '#ede9fe', color: '#6d28d9' },
 };
 
-const DEFAULT_VISIBLE_START = 5;
-const DEFAULT_VISIBLE_END = 22; // exclusive: domyślnie widoczne godziny 5–21
+const VISIBLE_START = 5;
+const VISIBLE_END = 22; // exclusive: widoczne na osi godziny 5–21 (stała, niezależna od danych)
 const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NN', 'END', 'I']);
 const range = (start, end) => Array.from({ length: Math.max(0, end - start) }, (_, i) => start + i);
+const VISIBLE_HOURS = range(VISIBLE_START, VISIBLE_END); // 5..21 — siatka zawsze standardowa
+const COUNT_HOURS = range(0, 24); // 0..23 — do liczenia sum (łapie też godziny doby spoza osi)
+
 // Czy zmiana to pełna doba / dyżur (przechodzi przez północ lub trwa ~24h).
 function isFullDayDuty(endH, duration) {
   return endH > 24 || roundHours(duration) >= 23.5;
+}
+
+// Czy slot godziny [h, h+1) jest objęty zmianą (uwzględnia przejście przez północ).
+function isSlotCovered(h, startH, endH) {
+  if (Math.min(h + 1, endH) > Math.max(h, startH)) return true;
+  if (endH > 24 && Math.min(h + 25, endH) > Math.max(h + 24, startH)) return true;
+  return false;
+}
+
+// Godziny doby/dyżuru, które wypadają poza widoczną osią 5–21 (do panelu „+Xh").
+// Posortowane chronologicznie względem startu osi: najpierw wieczór (22,23), potem noc (0..4).
+function getOverflowHours(startH, endH) {
+  const out = [];
+  for (let h = 0; h < 24; h++) {
+    if (h >= VISIBLE_START && h < VISIBLE_END) continue;
+    if (isSlotCovered(h, startH, endH)) out.push(h);
+  }
+  return out.sort((a, b) => (a < VISIBLE_START ? a + 24 : a) - (b < VISIBLE_START ? b + 24 : b));
 }
 
 function getMondayOfWeek(date) {
@@ -98,11 +120,11 @@ function getShiftDuration(startH, endH) {
   return roundHours(endH >= startH ? endH - startH : 24 - startH + endH);
 }
 
-function getVisibleShiftSegments(startH, endH, winStart, winEnd) {
+function getVisibleShiftSegments(startH, endH) {
   const segments = [];
   const addOverlap = (offset) => {
-    const visibleStart = winStart + offset;
-    const visibleEnd = winEnd + offset;
+    const visibleStart = VISIBLE_START + offset;
+    const visibleEnd = VISIBLE_END + offset;
     const os = Math.max(startH, visibleStart);
     const oe = Math.min(endH, visibleEnd);
     if (oe > os) segments.push({ start: os - offset, end: oe - offset });
@@ -124,13 +146,13 @@ function getVisibleShiftSegments(startH, endH, winStart, winEnd) {
     }, []);
 }
 
-function getCellShiftFill(h, startH, endH, winStart, winEnd) {
+function getCellShiftFill(h, startH, endH) {
   const cellStart = h;
   const cellEnd = h + 1;
   let fillFrom = 1;
   let fillTo = 0;
 
-  getVisibleShiftSegments(startH, endH, winStart, winEnd).forEach((seg) => {
+  getVisibleShiftSegments(startH, endH).forEach((seg) => {
     const os = Math.max(cellStart, seg.start);
     const oe = Math.min(cellEnd, seg.end);
     if (oe <= os) return;
@@ -204,7 +226,7 @@ function parseScheduleShift(value, emp) {
   };
 }
 
-function getCellBackground(h, startH, endH, working, role, confirmed, winStart, winEnd) {
+function getCellBackground(h, startH, endH, working, role, confirmed) {
   if (!working) return { background: 'transparent', color: 'transparent' };
 
   const rInfo = ROLES[role];
@@ -213,7 +235,7 @@ function getCellBackground(h, startH, endH, working, role, confirmed, winStart, 
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
   const emptyColor = 'transparent';
 
-  const fill = getCellShiftFill(h, startH, endH, winStart, winEnd);
+  const fill = getCellShiftFill(h, startH, endH);
   if (!fill) return { background: 'transparent', color: 'transparent' };
   const { fillFrom, fillTo } = fill;
 
@@ -232,8 +254,8 @@ function getCellBackground(h, startH, endH, working, role, confirmed, winStart, 
   };
 }
 
-function isHourInShift(h, startH, endH, winStart, winEnd) {
-  return !!getCellShiftFill(h, startH, endH, winStart, winEnd);
+function isHourInShift(h, startH, endH) {
+  return !!getCellShiftFill(h, startH, endH);
 }
 
 // Zmiana danej osoby w danym dniu (godziny, czy pracuje, potwierdzona, status nieobecności)
@@ -255,10 +277,24 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
 
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, scheduleMap, entries, isAdmin, rowBg, hours, winStart, winEnd,
+  emp, weekDays, scheduleMap, entries, isAdmin, rowBg,
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   const { t } = useTranslation();
+  // Panel godzin doby spoza osi 5–21 ("+Xh"): { dateStr, range, overflowHours, rect } | null
+  const [duty, setDuty] = useState(null);
+
+  useEffect(() => {
+    if (!duty) return;
+    const close = () => setDuty(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [duty]);
+
   const cells = weekDays.map((d, di) => {
     const isWe = d.getDay() === 0 || d.getDay() === 6;
     const dateStr = toDateStr(d);
@@ -280,12 +316,12 @@ const TimelineRow = React.memo(({
     const duration = sched?.duration ?? getShiftDuration(startH, endH);
     const schedHours = working ? fmtHours(duration) : '';
     const fullDay = working && !dayStatus && (sched?.fullDay ?? isFullDayDuty(endH, duration));
+    const dutyRange = `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`;
     const dutyTitle = fullDay
-      ? t('timeline.dutyTitle', {
-          range: `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`,
-          hours: fmtHours(duration),
-        })
+      ? t('timeline.dutyTitle', { range: dutyRange, hours: fmtHours(duration) })
       : undefined;
+    // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
+    const overflowHours = working && !dayStatus ? getOverflowHours(startH, endH) : [];
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
@@ -307,17 +343,19 @@ const TimelineRow = React.memo(({
           }}>
           {dayStatus || (working ? schedHours : '')}
         </td>
-        {hours.map(h => {
+        {VISIBLE_HOURS.map(h => {
           const key = `${emp.id}_${dateStr}_${h}`;
           const role = entries[key];
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
-            : getCellBackground(h, startH, endH, working, role, confirmed, winStart, winEnd);
+            : getCellBackground(h, startH, endH, working, role, confirmed);
 
-          const isShiftHour = isHourInShift(h, startH, endH, winStart, winEnd);
+          const isShiftHour = isHourInShift(h, startH, endH);
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
           const isBreakHour = working && !dayStatus && !fullDay && isShiftHour && (h === breakCell1 || h === breakCell2);
+          // Znacznik "+Xh" w ostatniej widocznej godzinie (21), jeśli zmiana ma godziny poza osią.
+          const showBadge = h === VISIBLE_END - 1 && overflowHours.length > 0;
 
           return (
             <td key={h}
@@ -339,11 +377,28 @@ const TimelineRow = React.memo(({
             >
               <div
                 className="tl-cell-inner"
-                style={cellStyle}
+                style={{ ...cellStyle, overflow: showBadge ? 'visible' : undefined }}
                 title={dutyTitle}
               >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
                 {!dayStatus && (role || '')}
+                {showBadge && (
+                  <button
+                    type="button"
+                    className={`tl-duty-badge ${duty?.dateStr === dateStr ? 'open' : ''}`}
+                    title={dutyTitle || t('timeline.dutyShowHours')}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setDuty(prev => (prev && prev.dateStr === dateStr)
+                        ? null
+                        : { dateStr, range: dutyRange, overflowHours, rect: r });
+                    }}
+                  >
+                    +{overflowHours.length}h
+                  </button>
+                )}
               </div>
             </td>
           );
@@ -365,6 +420,53 @@ const TimelineRow = React.memo(({
         </div>
       </td>
       {cells}
+      {duty && createPortal(
+        <div className="tl-duty-pop-backdrop" onMouseDown={() => setDuty(null)}>
+          <div
+            className="tl-duty-pop"
+            style={{
+              top: Math.min(duty.rect.bottom + 6, window.innerHeight - 96),
+              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (duty.overflowHours.length * 40 + 24))),
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="tl-duty-pop-head">
+              <span><i className="ti ti-moon" aria-hidden="true" /> {t('timeline.dutyPanel', { range: duty.range })}</span>
+              <button type="button" onClick={() => setDuty(null)} aria-label={t('common.close')}>×</button>
+            </div>
+            <div className="tl-duty-pop-cells">
+              {duty.overflowHours.map(h => {
+                const role = entries[`${emp.id}_${duty.dateStr}_${h}`];
+                const rInfo = role ? ROLES[role] : null;
+                const paintable = isAdmin && brushRole;
+                return (
+                  <div key={h} className="tl-duty-pop-col">
+                    <span className="tl-duty-pop-hl">{h}</span>
+                    <div
+                      className="tl-duty-pop-cell"
+                      style={{
+                        background: rInfo ? rInfo.bg : 'rgba(0,122,255,0.12)',
+                        color: rInfo ? rInfo.fc : 'transparent',
+                        cursor: paintable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default',
+                      }}
+                      onMouseDown={() => {
+                        if (!paintable) return;
+                        isPaintingRef.current = true;
+                        onBrushCell(emp.id, duty.dateStr, h, null, true, true, true);
+                      }}
+                      onMouseEnter={() => {
+                        if (!isPaintingRef.current || !paintable) return;
+                        onBrushCell(emp.id, duty.dateStr, h, null, true, true, true);
+                      }}
+                    >{role || ''}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </tr>
   );
 }, (prev, next) => {
@@ -373,11 +475,10 @@ const TimelineRow = React.memo(({
   if (prev.brushRole !== next.brushRole) return false;
   if (prev.copyMode !== next.copyMode) return false;
   if (prev.copySource !== next.copySource) return false;
-  if (prev.winStart !== next.winStart || prev.winEnd !== next.winEnd) return false;
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
-    for (let h of next.hours) {
+    for (let h of COUNT_HOURS) {
       const key = `${next.emp.id}_${dateStr}_${h}`;
       if (prev.entries[key] !== next.entries[key]) return false;
     }
@@ -414,29 +515,6 @@ export default function TimelineView() {
     const ds = toDateStr(d);
     return Object.keys(entries).some(k => k.includes(`_${ds}_`));
   });
-
-  // Oś godzin dopasowuje się do treści tygodnia: domyślnie 5–21, ale rozszerza się,
-  // gdy ktoś ma realnie wpisaną zmianę poza tym zakresem lub dobę (przez północ) —
-  // wtedy nocne godziny stają się klikalnymi kolumnami zamiast bursztynowej poświaty.
-  // Liczone tylko z faktycznych wpisów grafiku (tych, które rysują pasmo zmiany).
-  const { winStart, winEnd, hours } = useMemo(() => {
-    let s = DEFAULT_VISIBLE_START;
-    let e = DEFAULT_VISIBLE_END;
-    const weekDateSet = new Set(weekDays.map(toDateStr));
-    for (const [key, sh] of Object.entries(scheduleMap)) {
-      if (!sh || !sh.working || sh.status) continue;
-      if (!weekDateSet.has(key.slice(-10))) continue; // ostatnie 10 znaków = YYYY-MM-DD
-      const dayEnd = Math.min(sh.end, 24);
-      if (dayEnd > sh.start) {
-        s = Math.min(s, Math.floor(Math.max(sh.start, 0)));
-        e = Math.max(e, Math.ceil(dayEnd));
-      }
-      if (sh.end > 24) s = Math.min(s, 0); // poranne godziny doby (po północy)
-    }
-    s = Math.max(0, Math.min(s, DEFAULT_VISIBLE_START));
-    e = Math.min(24, Math.max(e, DEFAULT_VISIBLE_END));
-    return { winStart: s, winEnd: e, hours: range(s, e) };
-  }, [scheduleMap, weekDays]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -559,7 +637,7 @@ export default function TimelineView() {
 
     // godziny ze źródła, które mieszczą się w zmianie docelowej
     const toWrite = [];
-    for (const h of hours) {
+    for (const h of COUNT_HOURS) {
       const role = entries[`${srcEmpId}_${srcDateStr}_${h}`];
       if (!role) continue;
       if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
@@ -594,7 +672,7 @@ export default function TimelineView() {
     } else {
       toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
-  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, hours, t]);
+  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = monday <= minMonday;
@@ -620,7 +698,7 @@ export default function TimelineView() {
     Object.entries(ROLES).forEach(([role]) => { result[role] = {}; });
     groups.forEach(({ g, members }) => {
       members.forEach(emp => {
-        hours.forEach(h => {
+        COUNT_HOURS.forEach(h => {
           const role = entries[`${emp.id}_${dateStr}_${h}`];
           if (!role) return;
           if (!result[role]) result[role] = {};
@@ -631,7 +709,7 @@ export default function TimelineView() {
       });
     });
     return result;
-  }, [entries, groups, hours]);
+  }, [entries, groups]);
 
   if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
@@ -746,7 +824,7 @@ export default function TimelineView() {
 
       {/* Tabela połączona */}
       <div className="tl-container" ref={containerRef}>
-        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (hours.length * HOUR_W + 29)}px` }}>
+        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px` }}>
           <thead>
             <tr>
               <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
@@ -759,7 +837,7 @@ export default function TimelineView() {
                 const isWe = dw === 0 || dw === 6;
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <th key={di} colSpan={hours.length + 1} className="tl-th-day" style={{
+                  <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
                     background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
                     color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
                   }}>
@@ -774,7 +852,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <th key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-quaternary)', fontSize: '8px', fontWeight: 700, textAlign: 'center', borderBottom: '2px solid var(--border)', borderLeft: '2px solid var(--border-strong)', padding: '2px 0' }}>Σ</th>,
-                  ...hours.map(h => (
+                  ...VISIBLE_HOURS.map(h => (
                     <th key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)', color: isWe ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>{h}</th>
                   )),
                 ];
@@ -794,7 +872,7 @@ export default function TimelineView() {
                     </div>
                   </div>
                 </td>
-                <td colSpan={weekDays.length * (hours.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
+                <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
               </tr>
               {members.map((emp) => {
                 const rowBg = '#ffffff';
@@ -808,9 +886,6 @@ export default function TimelineView() {
                     entries={entries}
                     isAdmin={isAdmin}
                     rowBg={rowBg}
-                    hours={hours}
-                    winStart={winStart}
-                    winEnd={winEnd}
                     brushRole={brushRole}
                     onBrushCell={handleBrushCell}
                     isPaintingRef={isPainting}
@@ -831,7 +906,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <td key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: '10px', fontWeight: 800, textAlign: 'center', borderBottom: '1px solid var(--border)', borderLeft: '2px solid var(--border-strong)' }}>Σ</td>,
-                  ...hours.map(h => (
+                  ...VISIBLE_HOURS.map(h => (
                     <td key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, textAlign: 'center', borderBottom: '1px solid var(--border)' }}>{h}</td>
                   )),
                 ];
@@ -856,7 +931,7 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
+                  <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: '52px' }}>
                       
                       {/* TOP ROW: GROUP NAMES */}
@@ -939,7 +1014,7 @@ export default function TimelineView() {
                     const totalGodz = Object.values(roleData).reduce((s, x) => s + (x?.godz || 0), 0);
 
                     return (
-                      <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
+                      <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                           
                           {/* RAZEM */}
@@ -976,11 +1051,11 @@ export default function TimelineView() {
               {(() => {
                 const wOs = new Set(weekDays.flatMap(d => {
                   const ds = toDateStr(d);
-                  return employees.filter(e => hours.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
+                  return employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
                 }));
                 const wGodz = weekDays.reduce((s, d) => {
                   const ds = toDateStr(d);
-                  return s + employees.reduce((ss, e) => ss + hours.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
+                  return s + employees.reduce((ss, e) => ss + COUNT_HOURS.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
                 }, 0);
 
                 return (
@@ -1004,11 +1079,11 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const dateStr = toDateStr(d);
                 const isToday = dateStr === todayStr;
-                const allOs = new Set(employees.filter(e => hours.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                const allGodz = employees.reduce((s, e) => s + hours.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                const allOs = new Set(employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                const allGodz = employees.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                 
                 return (
-                  <td key={di} colSpan={hours.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
+                  <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       
                       {/* RAZEM */}
@@ -1023,8 +1098,8 @@ export default function TimelineView() {
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
                         const gm = groups.find(g => g.g === gn)?.members || [];
-                        const gOs = new Set(gm.filter(e => hours.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                        const gGodz = gm.reduce((s, e) => s + hours.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                        const gOs = new Set(gm.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                        const gGodz = gm.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                         const isLast = idx === groupNames.length - 1;
                         
                         return [
