@@ -35,6 +35,7 @@ public static class Program
         {
             client.Timeout = TimeSpan.FromSeconds(5);
         });
+        builder.Services.AddHttpClient();
         builder.Services.AddSingleton<ITunnelTelemetry>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<GatewayOptions>>().Value;
@@ -148,6 +149,22 @@ public static class Program
         });
 
         // ---- Bag management (operator console) ----
+
+        app.MapGet("/api/clients", async (Microsoft.Extensions.Options.IOptions<GatewayOptions> optionsAccessor, IHttpClientFactory clientFactory) => 
+        {
+            var opts = optionsAccessor.Value.Supabase;
+            if (!opts.Enabled || string.IsNullOrWhiteSpace(opts.Url)) return Results.Ok(Array.Empty<object>());
+            
+            var client = clientFactory.CreateClient();
+            var req = new HttpRequestMessage(HttpMethod.Get, $"{opts.Url.TrimEnd('/')}/rest/v1/routes?select=id,name&order=name");
+            req.Headers.Add("apikey", opts.ServiceKey);
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ServiceKey);
+            
+            var res = await client.SendAsync(req);
+            if (!res.IsSuccessStatusCode) return Results.Ok(Array.Empty<object>());
+            
+            return Results.Ok(await res.Content.ReadFromJsonAsync<object[]>());
+        });
 
         app.MapGet("/api/bags", (BagStore bags) => Results.Ok(bags.List()));
 
