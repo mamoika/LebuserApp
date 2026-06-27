@@ -27,7 +27,7 @@ public static class Program
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
-            ContentRootPath = AppContext.BaseDirectory
+            ContentRootPath = System.IO.Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory
         });
         var startupOptions = builder.Configuration.GetSection("Gateway").Get<GatewayOptions>() ?? new GatewayOptions();
 
