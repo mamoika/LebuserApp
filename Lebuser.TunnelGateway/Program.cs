@@ -24,7 +24,11 @@ public static class Program
             return;
         }
 
-        var builder = WebApplication.CreateBuilder(args);
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            ContentRootPath = AppContext.BaseDirectory
+        });
         var startupOptions = builder.Configuration.GetSection("Gateway").Get<GatewayOptions>() ?? new GatewayOptions();
 
         builder.WebHost.UseUrls(startupOptions.ListenUrl);
