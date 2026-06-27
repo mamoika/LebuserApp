@@ -15,7 +15,7 @@ $project = Join-Path $here "Lebuser.TunnelGateway.csproj"
 $output = Join-Path $here "bin\$Configuration\net10.0-windows\$Runtime\publish"
 
 Write-Host "Publishing LEBUSER WinWash ($Configuration / $Runtime)..." -ForegroundColor Cyan
-dotnet publish $project -c $Configuration -r $Runtime --self-contained -p:DebugType=none -p:DebugSymbols=false --nologo
+dotnet publish $project -c $Configuration -r $Runtime --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false --nologo
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)." }
 
 Write-Host ""
