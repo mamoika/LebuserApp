@@ -77,6 +77,8 @@
     "workSchedule": "Grafik pracy",
     "timeline": "Oś czasu",
     "costs": "Koszty",
+    "tunnel": "Tunel",
+    "wash": "Pralnia",
     "adminPanel": "Panel Admina"
   },
   "header": {
@@ -95,6 +97,8 @@
     "grafik": { "title": "Grafik pracy", "subtitle": "Grafik pracowników" },
     "timeline": { "title": "Oś czasu", "subtitle": "Przegląd w czasie" },
     "costs": { "title": "Koszty", "subtitle": "Koszty i rozliczenia" },
+    "tunnel": { "title": "Tunel", "subtitle": "Status gatewaya live" },
+    "wash": { "title": "Pralnia", "subtitle": "Zarządzanie workami live" },
     "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" }
   },
   "schedule": {

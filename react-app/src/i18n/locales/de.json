@@ -77,6 +77,8 @@
     "workSchedule": "Arbeitsplan",
     "timeline": "Zeitleiste",
     "costs": "Kosten",
+    "tunnel": "Tunnel",
+    "wash": "Wäscherei",
     "adminPanel": "Admin-Panel"
   },
   "header": {
@@ -95,6 +97,8 @@
     "grafik": { "title": "Arbeitsplan", "subtitle": "Mitarbeiterplan" },
     "timeline": { "title": "Zeitleiste", "subtitle": "Zeitlicher Überblick" },
     "costs": { "title": "Kosten", "subtitle": "Kosten und Abrechnungen" },
+    "tunnel": { "title": "Tunnel", "subtitle": "Live Gateway Status" },
+    "wash": { "title": "Wäscherei", "subtitle": "Live-Verwaltung der Wäschesäcke" },
     "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" }
   },
   "schedule": {

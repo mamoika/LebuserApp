@@ -23,6 +23,8 @@ export default function Navigation() {
     navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
     navItems.push({ to: '/timeline', icon: '⏱', label: t('nav.timeline') });
     navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
+    navItems.push({ to: '/tunnel', icon: 'T', label: t('nav.tunnel') });
+    navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
   }
 
   if (isAdmin) {

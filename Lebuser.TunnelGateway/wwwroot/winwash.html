@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LEBUSER WinWash - Panel Operatora</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+      color-scheme: light;
+      --bg-top: #f0f4f8;
+      --bg-bottom: #e2e8f0;
+      --panel: rgba(255, 255, 255, 0.95);
+      --panel-glass: rgba(255, 255, 255, 0.85);
+      --line: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --blue: #0a84ff;
+      --blue-hover: #0070e0;
+      --green: #10b981;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --violet: #8b5cf6;
+      --shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.1);
+      --radius: 12px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      color: var(--text);
+      backdrop-filter: blur(10px);
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    input {
+      font-family: inherit;
+      outline: none;
+    }
+
+    .shell {
+      width: min(1560px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 20px 0 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #0f172a, #334155);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-strip {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(241, 245, 249, 0.8);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--orange);
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+    }
+
+    .dot.online {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 400px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel-glass);
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.5);
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e293b;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Form Styles */
+    .form-group {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .input-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-row label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-row input {
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      background: #f8fafc;
+      transition: var(--transition);
+    }
+
+    .input-row input:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+    }
+
+    .btn-primary {
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(10, 132, 255, 0.4);
+    }
+
+    .btn-primary:active {
+      transform: translateY(1px);
+    }
+
+    .btn-action {
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: var(--bg-top);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .btn-action:hover {
+      background: #fff;
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--green);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-success:hover {
+      background: var(--green);
+      color: #fff;
+    }
+
+    /* Management List */
+    .bag-list {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .m-bag {
+      padding: 12px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: var(--transition);
+    }
+
+    .m-bag:hover {
+      box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+      border-color: #cbd5e1;
+    }
+
+    .m-bag-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .m-bag-title {
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .m-bag-code {
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--slate-600, #475569);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .m-bag-details {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .m-bag-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .status-queued { background: rgba(245, 158, 11, 0.15); color: var(--orange); }
+    .status-entry { background: rgba(10, 132, 255, 0.15); color: var(--blue); }
+    .status-wash { background: rgba(139, 92, 246, 0.15); color: var(--violet); }
+    .status-done { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .status-error { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+    /* Machine Tunnel Visuals (From original) */
+    .machine { overflow: hidden; }
+
+    .stage-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(90px, 1fr));
+      gap: 10px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.4);
+    }
+
+    .stage {
+      min-height: 60px;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 6px;
+      height: 100%;
+      background: var(--stage-color);
+    }
+
+    .stage-name {
+      padding-left: 8px;
+      font-size: 14px;
+      font-weight: 900;
+      color: #1e293b;
+    }
+
+    .stage-meta {
+      padding-left: 8px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .tunnel-body {
+      position: relative;
+      min-height: 400px;
+      padding: 24px 20px;
+      background:
+        linear-gradient(90deg, rgba(10,132,255,0.04), transparent 28%, rgba(16,185,129,0.04) 50%, transparent 74%, rgba(245,158,11,0.04)),
+        #f8fafc;
+    }
+
+    .lane {
+      position: relative;
+      height: 100px;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      background:
+        repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.1) 0 16px, transparent 16px 32px),
+        linear-gradient(180deg, #ffffff, #f1f5f9);
+      overflow: hidden;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
+    }
+
+    .lane:last-child { margin-bottom: 0; }
+
+    .lane::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 4px;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, transparent, rgba(10,132,255,0.6), rgba(16,185,129,0.6), rgba(245,158,11,0.6), transparent);
+    }
+
+    .lane-label {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      z-index: 2;
+      background: rgba(255,255,255,0.8);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .moving {
+      position: absolute;
+      top: 50%;
+      width: 100px;
+      min-height: 52px;
+      transform: translateY(-50%);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      animation: moveBag 12s linear infinite;
+      overflow: hidden;
+      backdrop-filter: blur(4px);
+    }
+
+    .moving strong {
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .moving span {
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0.95;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @keyframes moveBag {
+      from { left: -120px; }
+      to { left: calc(100% + 20px); }
+    }
+
+    /* Metrics Row */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      padding: 16px 20px;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      transition: var(--transition);
+    }
+
+    .metric:hover {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.04);
+      transform: translateY(-2px);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      color: #0f172a;
+    }
+
+    .metric-sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Events Log */
+    .events {
+      padding: 12px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .event {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+    }
+
+    .event-main {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .event-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .event-time {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      background: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    /* Notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: var(--text);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease-out forwards;
+      max-width: 350px;
+    }
+
+    .toast.error { background: var(--red); }
+    .toast.success { background: var(--green); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="toast-container" id="toasts"></div>
+
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="mark">LW</div>
+        <div>
+          <h1>LEBUSER WinWash</h1>
+          <div class="sub">Panel Operatora (Zarządzanie workami)</div>
+        </div>
+      </div>
+      <div class="status-strip">
+        <span class="pill"><span id="onlineDot" class="dot"></span><span id="onlineText">Sprawdzam gateway</span></span>
+        <span class="pill" id="transportText">Transport: -</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <!-- Form Panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Wprowadź nowy worek</div>
+          </div>
+          <form id="addBagForm" class="form-group" onsubmit="handleAddBag(event)">
+            <div class="input-row">
+              <label>Kod Worka</label>
+              <input type="text" id="fCode" placeholder="np. A-102 (zostaw puste dla auto)" autocomplete="off" />
+            </div>
+            <div class="input-row">
+              <label>Klient / Hotel</label>
+              <input type="text" id="fHotel" placeholder="Nazwa hotelu" required autocomplete="off" />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div class="input-row">
+                <label>Nr Programu</label>
+                <input type="number" id="fProgram" value="1" min="1" max="999" required />
+              </div>
+              <div class="input-row">
+                <label>Nr Toru</label>
+                <input type="number" id="fTrack" value="1" min="1" max="3" required />
+              </div>
+            </div>
+            <div class="input-row">
+              <label>Zgłaszający</label>
+              <input type="text" id="fUser" placeholder="Imię operatora" value="Operator" required />
+            </div>
+            <button type="submit" class="btn-primary" id="btnSubmit" style="margin-top: 8px;">Dodaj Worek</button>
+          </form>
+        </div>
+
+        <!-- Management Panel -->
+        <div class="panel" style="flex: 1;">
+          <div class="panel-head">
+            <div class="panel-title">Zarządzanie Workami</div>
+            <span class="pill" style="font-size: 11px; min-height: 24px;" id="dbBagsCount">0</span>
+          </div>
+          <div class="bag-list" id="dbBagsList">
+            <!-- Dynamic bags from /api/bags -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <div class="main-content">
+        <!-- Visual Tunnel -->
+        <section class="panel machine">
+          <div class="panel-head">
+            <div class="panel-title">Podgląd Tunelu Pralniczego</div>
+            <div class="status-strip">
+              <span class="pill" id="modeText" style="font-size: 11px; min-height: 24px;">DRY RUN</span>
+            </div>
+          </div>
+          <div class="stage-row" id="stages"></div>
+          <div class="tunnel-body" id="lanes"></div>
+        </section>
+
+        <!-- Metrics Row -->
+        <div class="panel">
+          <div class="metrics-row">
+            <div class="metric">
+              <div class="metric-label">Ostatni wjazd</div>
+              <div class="metric-value" id="lastBag">-</div>
+              <div class="metric-sub" id="lastHotel">czekam</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Stan Portu / Adresu</div>
+              <div class="metric-value" id="portName">-</div>
+              <div class="metric-sub" id="errorText">brak błędu</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Ostatnie Pchnięcie</div>
+              <div class="metric-value" id="activeCount">-</div>
+              <div class="metric-sub" id="checkedText">brak</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Events -->
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Log zdarzeń Gatewaya</div>
+          </div>
+          <div class="events" id="eventsLog"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const colors = ['#0a84ff', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+    const stages = [
+      ['Wejście', 'skan'],
+      ['Pranie', 'program'],
+      ['Płukanie', 'kontrola'],
+      ['Suszenie', 'ciepło'],
+      ['Pakowanie', 'wyjście']
+    ];
+
+    let tunnelBags = [];
+    let dbBags = [];
+
+    function byId(id) { return document.getElementById(id); }
+    function fmtTime(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function showToast(message, type = 'info') {
+      const c = byId('toasts');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = message;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // --- RENDERING VISUALS ---
+
+    function renderStages() {
+      byId('stages').innerHTML = stages.map((stage, index) => `
+        <div class="stage" style="--stage-color:${colors[index]}">
+          <div class="stage-name">${stage[0]}</div>
+          <div class="stage-meta">${stage[1]}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderLanes(events) {
+      const lanes = [1, 2, 3].map((lane, laneIndex) => {
+        const laneEvents = events.filter((event) => Number(event.track_number || event.TrackNumber) === lane && event.accepted !== false);
+        const items = laneEvents.slice(0, 3);
+        const bags = items.map((event, index) => `
+          <div class="moving" style="background:${colors[(laneIndex + index) % colors.length]}; animation-delay:-${laneIndex * 1.5 + index * 2.5}s; animation-duration:${10 + laneIndex + index}s">
+            <strong>${event.bag_id || event.Code || 'BAG'}</strong>
+            <span>${event.hotel_name || event.HotelName || 'Hotel'}</span>
+          </div>
+        `).join('');
+        return `<div class="lane"><div class="lane-label">TOR ${lane}</div>${bags}</div>`;
+      }).join('');
+      byId('lanes').innerHTML = lanes;
+    }
+
+    function renderEventsLog(events) {
+      byId('eventsLog').innerHTML = events.slice(0, 10).map(event => `
+        <div class="event">
+          <div>
+            <div class="event-main">${event.hotel_name || 'System'} - Worek: ${event.bag_id || '-'}</div>
+            <div class="event-sub">P${event.program_number || '-'} / Tor ${event.track_number || '-'} &bull; ${event.message || 'Akcja'}</div>
+          </div>
+          <div class="event-time">${fmtTime(event.created_at)}</div>
+        </div>
+      `).join('');
+    }
+
+    // --- RENDERING MANAGEMENT UI ---
+
+    function renderDbBags() {
+      byId('dbBagsCount').textContent = dbBags.length;
+      
+      if (dbBags.length === 0) {
+        byId('dbBagsList').innerHTML = `<div style="text-align:center; padding: 20px; color: var(--muted); font-size: 13px; font-weight: 600;">Brak worków w bazie. Dodaj nowy.</div>`;
+        return;
+      }
+
+      byId('dbBagsList').innerHTML = dbBags.map((bag, idx) => {
+        const color = colors[bag.TrackNumber % colors.length];
+        const statusClass = `status-${(bag.Status || 'queued').toLowerCase()}`;
+        
+        return `
+          <div class="m-bag">
+            <div class="m-bag-header">
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="m-bag-code" style="background: ${color}">${bag.Code || '---'}</span>
+                <span class="m-bag-title">${bag.HotelName || 'Nieznany Hotel'}</span>
+              </div>
+              <span class="status-badge ${statusClass}">${bag.Status || 'QUEUED'}</span>
+            </div>
+            <div class="m-bag-details">
+              <span>Program: ${bag.ProgramNumber}</span>
+              <span>Tor: ${bag.TrackNumber}</span>
+            </div>
+            <div class="m-bag-actions">
+              ${(bag.Status === 'queued' || bag.Status === 'error') ? `
+                <button type="button" class="btn-action btn-success" onclick="sendBag('${bag.Id}')">Wyślij do Tunelu</button>
+              ` : ''}
+              ${(bag.Status !== 'queued' && bag.Status !== 'done') ? `
+                <button type="button" class="btn-action" onclick="advanceBag('${bag.Id}')">Popchnij dalej</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- API CALLS ---
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        if (!res.ok) throw new Error('status fail');
+        const s = await res.json();
+        byId('onlineDot').classList.toggle('online', !!s.connected);
+        byId('onlineText').textContent = s.connected ? 'Gateway Online' : 'Gateway Offline';
+        byId('transportText').textContent = `Transport: ${s.transport || '-'}`;
+        byId('checkedText').textContent = fmtTime(s.checkedAt);
+        byId('modeText').textContent = s.dryRun ? 'DRY RUN' : 'LIVE';
+        byId('portName').textContent = s.portName || '-';
+        byId('errorText').textContent = s.lastError || 'brak błędów';
+      } catch {
+        byId('onlineDot').classList.remove('online');
+        byId('onlineText').textContent = 'Brak połączenia z API';
+      }
+    }
+
+    async function loadTunnelEvents() {
+      try {
+        const res = await fetch('/api/tunnel/commands', { cache: 'no-store' });
+        if (!res.ok) throw new Error('commands fail');
+        const rows = await res.json();
+        
+        tunnelBags = rows.map(r => {
+          const c = r.command || r.Command || {};
+          const rec = r.receipt || r.Receipt || {};
+          return {
+            bag_id: c.bagId || c.BagId,
+            hotel_name: c.hotelName || c.HotelName,
+            program_number: c.programNumber || c.ProgramNumber,
+            track_number: c.trackNumber || c.TrackNumber,
+            accepted: rec.accepted ?? rec.Accepted ?? true,
+            created_at: rec.timestamp || rec.Timestamp,
+            message: rec.message || rec.Message
+          };
+        }).reverse();
+
+        renderLanes(tunnelBags);
+        renderEventsLog(tunnelBags);
+
+        const accepted = tunnelBags.filter(b => b.accepted !== false);
+        byId('activeCount').textContent = accepted.length;
+        if (accepted.length > 0) {
+          byId('lastBag').textContent = accepted[0].bag_id || '-';
+          byId('lastHotel').textContent = accepted[0].hotel_name || '-';
+        }
+      } catch (e) {
+        console.error('Events load error:', e);
+      }
+    }
+
+    async function loadDbBags() {
+      try {
+        const res = await fetch('/api/bags', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          // Sort by date descending
+          dbBags = data.sort((a,b) => new Date(b.CreatedAt || 0) - new Date(a.CreatedAt || 0));
+          renderDbBags();
+        }
+      } catch (e) {
+        console.error('Bags load error:', e);
+      }
+    }
+
+    async function handleAddBag(e) {
+      e.preventDefault();
+      const btn = byId('btnSubmit');
+      btn.disabled = true;
+      btn.textContent = "Dodawanie...";
+
+      const code = byId('fCode').value.trim();
+      const payload = {
+        Code: code || `B-${Math.floor(Math.random()*1000)}`,
+        HotelName: byId('fHotel').value.trim(),
+        ProgramNumber: parseInt(byId('fProgram').value, 10),
+        TrackNumber: parseInt(byId('fTrack').value, 10),
+        RequestedBy: byId('fUser').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/bags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast('Worek dodany pomyślnie!', 'success');
+          byId('fCode').value = '';
+          byId('fHotel').value = '';
+          await loadDbBags();
+        } else {
+          showToast('Błąd dodawania worka.', 'error');
+        }
+      } catch (err) {
+        showToast('Błąd sieci.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Dodaj Worek";
+      }
+    }
+
+    async function sendBag(id) {
+      try {
+        const res = await fetch(`/api/bags/${id}/send`, { method: 'POST' });
+        if (res.ok) {
+          showToast('Worek wysłany do tunelu (PLC).', 'success');
+          loadDbBags();
+          loadTunnelEvents();
+        } else {
+          showToast('Wysyłka odrzucona przez Gateway.', 'error');
+        }
+      } catch {
+        showToast('Błąd połączenia.', 'error');
+      }
+    }
+
+    async function advanceBag(id) {
+      try {
+        const res = await fetch(`/api/bags/${id}/advance`, { method: 'POST' });
+        if (res.ok) {
+          showToast('Zaktualizowano status worka.', 'success');
+          loadDbBags();
+        }
+      } catch {
+        showToast('Błąd połączenia.', 'error');
+      }
+    }
+
+    // Init
+    renderStages();
+    loadStatus();
+    loadTunnelEvents();
+    loadDbBags();
+
+    setInterval(loadStatus, 2000);
+    setInterval(loadTunnelEvents, 2500);
+    setInterval(loadDbBags, 2500);
+
+  </script>
+</body>
+</html>

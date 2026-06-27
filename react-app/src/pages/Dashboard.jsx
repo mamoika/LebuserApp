@@ -15,6 +15,8 @@ import HistoryView from '../components/HistoryView';
 import GrafikView from '../components/GrafikView';
 import TimelineView from '../components/TimelineView';
 import CostsView from '../components/CostsView';
+import TunnelView from '../components/TunnelView';
+import WashView from '../components/WashView';
 import ToastContainer from '../components/ToastContainer';
 
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
@@ -29,6 +31,8 @@ const PAGE_KEYS = {
   '/grafik': 'grafik',
   '/timeline': 'timeline',
   '/costs': 'costs',
+  '/tunnel': 'tunnel',
+  '/wash': 'wash',
   '/admin': 'admin',
 };
 
@@ -168,6 +172,8 @@ export default function Dashboard() {
           <Route path="/timeline" element={<TimelineView />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
+          <Route path="/tunnel" element={canViewAdminData ? <TunnelView /> : <Navigate to="/" replace />} />
+          <Route path="/wash" element={canViewAdminData ? <WashView /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
       </main>
