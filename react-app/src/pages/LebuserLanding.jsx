@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import logoImg from '../assets/logo-icon.png';
 
 /**
- * Testowa strona główna w stylu Apple / Glassmorphism — marka LEBUSER.
+ * Testowa strona główna w stylu Microsoft Edge Copilot — marka LEBUSER.
+ * Jasne tło, płynący gradient (turkus→niebieski→fiolet→róż), sticky nav,
+ * karty z miękkim cieniem, bento i gradientowy pasek CTA.
  * Firma: Lebuser, siedziba ul. Owcza 10, Gorzów Wielkopolski.
  * Dwujęzyczna (PL / DE) — język sterowany globalnym i18n aplikacji.
  * Renderowana pod osobnym przyciskiem "Lebuser" (tylko dla admina) — NIE jest
@@ -220,478 +222,534 @@ export default function LebuserLanding() {
     <div className="lw-root">
       <style>{css}</style>
 
-      {/* Tła / blobs */}
-      <div className="lw-bg" aria-hidden="true">
-        <span className="lw-blob lw-blob-1" />
-        <span className="lw-blob lw-blob-2" />
-        <span className="lw-blob lw-blob-3" />
-        <span className="lw-grid-overlay" />
-      </div>
-
-      {/* Powrót do aplikacji */}
-      <Link to="/" className="lw-back">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4M7.5 4l-4 4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        {c.back}
-      </Link>
-
-      {/* Przełącznik języka */}
-      <div className="lw-lang" role="group" aria-label="Language">
-        <button type="button" className={lang === 'pl' ? 'is-active' : ''} onClick={() => setLang('pl')}>PL</button>
-        <button type="button" className={lang === 'de' ? 'is-active' : ''} onClick={() => setLang('de')}>DE</button>
-      </div>
-
-      <div className="lw-container">
-        {/* Hero */}
-        <header className="lw-hero">
-          <img src={logoImg} alt="LEBUSER Textilservice" className="lw-logo lw-reveal" />
-          <span className="lw-pill lw-reveal" style={{ animationDelay: '0.04s' }}>
-            {c.pill}
-          </span>
-          <h1 className="lw-h1 lw-reveal" style={{ animationDelay: '0.08s' }}>
-            {c.h1[0]}<br />{c.h1[1]}
-          </h1>
-          <p className="lw-lead lw-reveal" style={{ animationDelay: '0.12s' }}>
-            {c.lead}
-          </p>
-          <div className="lw-cta lw-reveal" style={{ animationDelay: '0.16s' }}>
-            <a className="lw-btn lw-btn-primary" href={`mailto:${EMAIL}`}>
-              {c.ctaOffer} <Arrow />
-            </a>
-            <a className="lw-btn lw-btn-ghost" href="#uslugi">{c.ctaServices}</a>
-          </div>
-
-          {/* Fale — motyw z logo */}
-          <svg className="lw-waves" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
-            <path className="lw-w1" d="M0,42 C200,92 400,2 600,42 C800,82 1000,12 1200,52 L1200,120 L0,120 Z" />
-            <path className="lw-w2" d="M0,72 C200,32 400,102 600,62 C800,22 1000,92 1200,57 L1200,120 L0,120 Z" />
-          </svg>
-        </header>
-
-        {/* Statystyki */}
-        <section className="lw-stats lw-reveal">
-          {c.stats.map((s) => (
-            <div className="lw-card lw-stat" key={s.label}>
-              <div className="lw-stat-value">{s.value}</div>
-              <div className="lw-stat-label">{s.label}</div>
+      {/* NAV */}
+      <header className="lw-nav">
+        <div className="lw-wrap lw-nav-inner">
+          <Link to="/" className="lw-nav-logo" aria-label="LEBUSER">
+            <img src={logoImg} alt="LEBUSER Textilservice" />
+          </Link>
+          <nav className="lw-nav-actions">
+            <div className="lw-lang" role="group" aria-label="Language">
+              <button type="button" className={lang === 'pl' ? 'is-active' : ''} onClick={() => setLang('pl')}>PL</button>
+              <button type="button" className={lang === 'de' ? 'is-active' : ''} onClick={() => setLang('de')}>DE</button>
             </div>
-          ))}
+            <Link to="/" className="lw-navlink">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4M7.5 4l-4 4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span>{c.back}</span>
+            </Link>
+            <a className="lw-btn lw-btn-primary lw-btn-sm" href={`mailto:${EMAIL}`}>{c.ctaOffer}</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        {/* HERO */}
+        <section className="lw-hero">
+          <div className="lw-hero-glow" aria-hidden="true" />
+          <div className="lw-wrap lw-hero-inner">
+            <span className="lw-pill lw-reveal">
+              <span className="lw-pill-dot" aria-hidden="true" />{c.pill}
+            </span>
+            <h1 className="lw-h1 lw-reveal" style={{ animationDelay: '0.06s' }}>
+              {c.h1[0]}<br /><span className="lw-grad-text">{c.h1[1]}</span>
+            </h1>
+            <p className="lw-lead lw-reveal" style={{ animationDelay: '0.12s' }}>
+              {c.lead}
+            </p>
+            <div className="lw-cta lw-reveal" style={{ animationDelay: '0.18s' }}>
+              <a className="lw-btn lw-btn-primary" href={`mailto:${EMAIL}`}>
+                {c.ctaOffer} <Arrow />
+              </a>
+              <a className="lw-btn lw-btn-ghost" href="#uslugi">{c.ctaServices}</a>
+            </div>
+          </div>
+
+          {/* Showcase — statystyki na karcie nad gradientem */}
+          <div className="lw-wrap">
+            <div className="lw-showcase lw-reveal" style={{ animationDelay: '0.24s' }}>
+              {c.stats.map((s) => (
+                <div className="lw-stat" key={s.label}>
+                  <div className="lw-stat-value">{s.value}</div>
+                  <div className="lw-stat-label">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
-        {/* Usługi */}
+        {/* USŁUGI */}
         <section id="uslugi" className="lw-section">
-          <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">{c.servicesHead.eyebrow}</span>
-            <h2 className="lw-h2">{c.servicesHead.title}</h2>
-            <p className="lw-sub">{c.servicesHead.sub}</p>
-          </div>
-          <div className="lw-grid">
-            {c.services.map((srv, i) => (
-              <article
-                className="lw-card lw-service lw-reveal"
-                key={srv.title}
-                style={{ animationDelay: `${0.05 * i}s` }}
-              >
-                <div className="lw-service-icon" aria-hidden="true">{srv.icon}</div>
-                <h3 className="lw-service-title">{srv.title}</h3>
-                <p className="lw-service-desc">{srv.desc}</p>
-              </article>
-            ))}
+          <div className="lw-wrap">
+            <div className="lw-head lw-reveal">
+              <span className="lw-eyebrow">{c.servicesHead.eyebrow}</span>
+              <h2 className="lw-h2">{c.servicesHead.title}</h2>
+              <p className="lw-sub">{c.servicesHead.sub}</p>
+            </div>
+            <div className="lw-bento">
+              {c.services.map((srv, i) => (
+                <article className="lw-card lw-service lw-reveal" key={srv.title} style={{ animationDelay: `${0.05 * i}s` }}>
+                  <div className="lw-service-icon" aria-hidden="true">{srv.icon}</div>
+                  <h3 className="lw-service-title">{srv.title}</h3>
+                  <p className="lw-service-desc">{srv.desc}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Oferta */}
-        <section className="lw-section">
-          <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">{c.offerHead.eyebrow}</span>
-            <h2 className="lw-h2">{c.offerHead.title}</h2>
-            <p className="lw-sub">{c.offerHead.sub}</p>
+        {/* OFERTA */}
+        <section className="lw-section lw-section--soft">
+          <div className="lw-wrap">
+            <div className="lw-head lw-reveal">
+              <span className="lw-eyebrow">{c.offerHead.eyebrow}</span>
+              <h2 className="lw-h2">{c.offerHead.title}</h2>
+              <p className="lw-sub">{c.offerHead.sub}</p>
+            </div>
+            <div className="lw-offer-grid">
+              {c.offer.map((g, i) => (
+                <article className="lw-card lw-offer-card lw-reveal" key={g.group} style={{ animationDelay: `${0.05 * i}s` }}>
+                  <h3 className="lw-offer-title">{g.group}</h3>
+                  <ul className="lw-offer-list">
+                    {g.items.map(([name, unit]) => (
+                      <li key={name}><span>{name}</span><span className="lw-unit">{unit}</span></li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="lw-offer-grid">
-            {c.offer.map((g, i) => (
-              <article className="lw-card lw-offer-card lw-reveal" key={g.group} style={{ animationDelay: `${0.05 * i}s` }}>
-                <h3 className="lw-offer-title">{g.group}</h3>
-                <ul className="lw-offer-list">
-                  {g.items.map(([name, unit]) => (
-                    <li key={name}><span>{name}</span><span className="lw-unit">{unit}</span></li>
-                  ))}
+        </section>
+
+        {/* BRANŻE */}
+        <section className="lw-section">
+          <div className="lw-wrap">
+            <div className="lw-head lw-reveal">
+              <span className="lw-eyebrow">{c.audienceHead.eyebrow}</span>
+              <h2 className="lw-h2">{c.audienceHead.title}</h2>
+            </div>
+            <div className="lw-tags lw-reveal">
+              {c.audience.map((a) => <span className="lw-tag" key={a}>{a}</span>)}
+            </div>
+          </div>
+        </section>
+
+        {/* REFERENCJE */}
+        <section className="lw-section lw-section--soft">
+          <div className="lw-wrap">
+            <div className="lw-head lw-reveal">
+              <span className="lw-eyebrow">{c.refHead.eyebrow}</span>
+              <h2 className="lw-h2">{c.refHead.title}</h2>
+              <p className="lw-sub">{c.refHead.sub}</p>
+            </div>
+            <div className="lw-ref-grid">
+              {c.references.map((r, i) => (
+                <article className="lw-card lw-ref lw-reveal" key={r.name} style={{ animationDelay: `${0.04 * i}s` }}>
+                  <div className="lw-ref-name">{r.name}</div>
+                  <div className="lw-ref-type">{r.type}</div>
+                </article>
+              ))}
+            </div>
+            <div className="lw-tags lw-reveal" style={{ marginTop: '24px' }}>
+              {c.refTrust.map((t) => <span className="lw-tag lw-tag--check" key={t}><span aria-hidden="true">✓</span>{t}</span>)}
+            </div>
+          </div>
+        </section>
+
+        {/* DLACZEGO LEBUSER */}
+        <section className="lw-section">
+          <div className="lw-wrap">
+            <div className="lw-about lw-reveal">
+              <div className="lw-about-text">
+                <span className="lw-eyebrow">{c.aboutEyebrow}</span>
+                <h2 className="lw-h2 lw-h2--left">{c.aboutTitle}</h2>
+                <p className="lw-about-p">{c.aboutText}</p>
+                <ul className="lw-list">
+                  {c.benefits.map((b) => <li key={b}>{b}</li>)}
                 </ul>
-              </article>
-            ))}
+              </div>
+              <aside className="lw-about-visual" aria-hidden="true">
+                <span className="lw-about-glow" />
+                <img src={logoImg} alt="" className="lw-about-logo" />
+                <span className="lw-about-badge">od 1876</span>
+              </aside>
+            </div>
           </div>
         </section>
 
-        {/* Branże */}
-        <section className="lw-section">
-          <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">{c.audienceHead.eyebrow}</span>
-            <h2 className="lw-h2">{c.audienceHead.title}</h2>
-          </div>
-          <div className="lw-tags lw-reveal">
-            {c.audience.map((a) => <span className="lw-tag" key={a}>{a}</span>)}
-          </div>
-        </section>
-
-        {/* Referencje */}
-        <section className="lw-section">
-          <div className="lw-head lw-reveal">
-            <span className="lw-eyebrow">{c.refHead.eyebrow}</span>
-            <h2 className="lw-h2">{c.refHead.title}</h2>
-            <p className="lw-sub">{c.refHead.sub}</p>
-          </div>
-          <div className="lw-ref-grid">
-            {c.references.map((r, i) => (
-              <article className="lw-card lw-ref lw-reveal" key={r.name} style={{ animationDelay: `${0.04 * i}s` }}>
-                <div className="lw-ref-name">{r.name}</div>
-                <div className="lw-ref-type">{r.type}</div>
-              </article>
-            ))}
-          </div>
-          <div className="lw-tags lw-reveal">
-            {c.refTrust.map((t) => <span className="lw-tag" key={t}><span aria-hidden="true">✓ </span>{t}</span>)}
+        {/* KONTAKT — pasek CTA */}
+        <section className="lw-cta-band">
+          <div className="lw-wrap">
+            <div className="lw-cta-band-inner lw-reveal">
+              <span className="lw-cta-band-glow" aria-hidden="true" />
+              <div className="lw-cta-band-text">
+                <span className="lw-eyebrow lw-eyebrow--on-dark">{c.contactEyebrow}</span>
+                <h2 className="lw-cta-band-title">{c.contactTitle}</h2>
+                <ul className="lw-contact-list">
+                  <li><span className="lw-ci" aria-hidden="true">📍</span> {c.contactAddress}</li>
+                  <li><span className="lw-ci" aria-hidden="true">📞</span> <a href={`tel:${PHONE_HREF}`}>{PHONE}</a></li>
+                  <li><span className="lw-ci" aria-hidden="true">✉️</span> <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
+                </ul>
+              </div>
+              <div className="lw-cta-band-actions">
+                <a className="lw-btn lw-btn-light" href={`mailto:${EMAIL}`}>{c.ctaWrite} <Arrow /></a>
+                <a className="lw-btn lw-btn-outline-light" href={`tel:${PHONE_HREF}`}>{c.ctaCall}</a>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Dlaczego my */}
-        <section className="lw-card lw-about lw-reveal">
-          <span className="lw-eyebrow">{c.aboutEyebrow}</span>
-          <h2 className="lw-h2" style={{ textAlign: 'left', margin: '8px 0 14px' }}>
-            {c.aboutTitle}
-          </h2>
-          <p>{c.aboutText}</p>
-          <ul className="lw-list">
-            {c.benefits.map((b) => <li key={b}>{b}</li>)}
-          </ul>
-        </section>
-
-        {/* Kontakt */}
-        <section className="lw-card lw-contact lw-reveal">
-          <div className="lw-contact-info">
-            <span className="lw-eyebrow">{c.contactEyebrow}</span>
-            <h2 className="lw-h2" style={{ textAlign: 'left', margin: '8px 0 16px' }}>
-              {c.contactTitle}
-            </h2>
-            <ul className="lw-contact-list">
-              <li><span className="lw-ci" aria-hidden="true">📍</span> {c.contactAddress}</li>
-              <li><span className="lw-ci" aria-hidden="true">📞</span> <a href={`tel:${PHONE_HREF}`}>{PHONE}</a></li>
-              <li><span className="lw-ci" aria-hidden="true">✉️</span> <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
-            </ul>
-          </div>
-          <div className="lw-contact-actions">
-            <a className="lw-btn lw-btn-primary" href={`mailto:${EMAIL}`}>{c.ctaWrite} <Arrow /></a>
-            <a className="lw-btn lw-btn-ghost" href={`tel:${PHONE_HREF}`}>{c.ctaCall}</a>
-          </div>
-        </section>
-
+        {/* FOOTER */}
         <footer className="lw-footer">
-          <div className="lw-footer-legal">{LEGAL_NAME} · {LEGAL_ADDR}</div>
-          <div className="lw-footer-reg">NIP {REG.nip} · REGON {REG.regon} · KRS {REG.krs}</div>
-          <div className="lw-footer-links">
-            <a href="#" onClick={(e) => e.preventDefault()}>{c.privacy}</a>
-            {lang === 'de' && (
-              <>
-                <span aria-hidden="true">·</span>
-                <a href="#" onClick={(e) => e.preventDefault()}>{c.imprint}</a>
-              </>
-            )}
+          <div className="lw-wrap">
+            <div className="lw-footer-legal">{LEGAL_NAME} · {LEGAL_ADDR}</div>
+            <div className="lw-footer-reg">NIP {REG.nip} · REGON {REG.regon} · KRS {REG.krs}</div>
+            <div className="lw-footer-links">
+              <a href="#" onClick={(e) => e.preventDefault()}>{c.privacy}</a>
+              {lang === 'de' && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <a href="#" onClick={(e) => e.preventDefault()}>{c.imprint}</a>
+                </>
+              )}
+            </div>
+            <div className="lw-footer-copy">© {new Date().getFullYear()} {LEGAL_NAME} — {c.footerNote}</div>
           </div>
-          <div className="lw-footer-copy">© {new Date().getFullYear()} {LEGAL_NAME} — {c.footerNote}</div>
         </footer>
-      </div>
+      </main>
     </div>
   );
 }
 
 const css = `
 .lw-root {
-  --lb-deep: #063b52;
-  --lb-primary: #0a5e84;
-  --lb-mid: #1488ab;
-  --lb-aqua: #36b6c4;
-  --lb-ink: #0a2c3b;
-  --lb-card-shadow: 0 1px 2px rgba(6,59,82,0.06), 0 12px 32px rgba(6,59,82,0.10);
-  --lb-card-shadow-hi: 0 1px 2px rgba(6,59,82,0.08), 0 26px 60px rgba(6,59,82,0.20);
+  --ink: #0a2c3b;
+  --ink-2: #3c5764;
+  --ink-3: #6a828d;
+  --line: rgba(10,44,59,0.10);
+  --bg: #ffffff;
+  --soft: #eef5f8;
+  --card: #ffffff;
+  --brand-deep: #063b52;
+  --brand: #0a5e84;
+  --brand-2: #1488ab;
+  --aqua: #36b6c4;
+  --grad: linear-gradient(105deg, #063b52 0%, #0a5e84 38%, #1488ab 72%, #36b6c4 100%);
+  --grad-soft: linear-gradient(135deg, rgba(10,94,132,0.14), rgba(20,136,171,0.14) 55%, rgba(54,182,196,0.16));
+  --sh-sm: 0 1px 2px rgba(6,59,82,0.06), 0 6px 16px rgba(6,59,82,0.06);
+  --sh-md: 0 2px 4px rgba(6,59,82,0.05), 0 18px 40px rgba(6,59,82,0.10);
+  --sh-lg: 0 30px 80px rgba(6,59,82,0.20);
 
   position: relative;
   min-height: 100vh;
   margin: 0;
-  padding: clamp(64px, 8vw, 96px) clamp(16px, 4vw, 48px) 48px;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-  color: var(--lb-ink);
-  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background:
-    radial-gradient(110% 110% at 0% -10%, #e2f3f8 0%, transparent 50%),
-    radial-gradient(110% 110% at 100% 0%, #dbeff7 0%, transparent 52%),
-    linear-gradient(168deg, #f1f8fb 0%, #e4eff4 60%, #dfeaf1 100%);
+  text-rendering: optimizeLegibility;
 }
-.lw-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.lw-blob {
-  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.48;
-  animation: lw-float 20s ease-in-out infinite;
-}
-.lw-blob-1 { width: 400px; height: 400px; top: -100px; left: -80px; background: #5fb6d6; }
-.lw-blob-2 { width: 460px; height: 460px; top: 90px; right: -120px; background: #4fd0cf; animation-delay: -7s; }
-.lw-blob-3 { width: 340px; height: 340px; bottom: -100px; left: 30%; background: #86c9e8; animation-delay: -13s; }
-.lw-grid-overlay {
-  position: absolute; inset: 0; opacity: 0.4;
-  background-image:
-    linear-gradient(rgba(10,94,132,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(10,94,132,0.04) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 70%);
-  mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 70%);
-}
-@keyframes lw-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(24px, -30px) scale(1.08); }
-}
-
-.lw-container { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
-
-/* Powrót do aplikacji */
-.lw-back {
-  position: fixed; top: 20px; left: 20px; z-index: 20;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 650;
-  color: var(--lb-primary); text-decoration: none;
-  background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9);
-  backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
-  box-shadow: 0 8px 22px rgba(6,59,82,0.14);
-  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, background 0.2s ease;
-}
-.lw-back svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
-.lw-back:hover { transform: translateY(-2px); background: rgba(255,255,255,0.9); box-shadow: 0 12px 28px rgba(6,59,82,0.2); }
-.lw-back:hover svg { transform: translateX(-3px); }
-
-/* Przełącznik języka */
-.lw-lang {
-  position: fixed; top: 20px; right: 20px; z-index: 20;
-  display: inline-flex; align-items: center; gap: 2px; padding: 4px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9);
-  backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
-  box-shadow: 0 8px 22px rgba(6,59,82,0.14);
-}
-.lw-lang button {
-  border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 750;
-  padding: 7px 14px; border-radius: 999px; color: var(--lb-primary); background: transparent;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-.lw-lang button.is-active {
-  color: #fff; background: linear-gradient(135deg, var(--lb-primary), var(--lb-aqua));
-  box-shadow: 0 4px 12px rgba(10,94,132,0.3);
-}
-
-.lw-card {
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(24px) saturate(185%);
-  -webkit-backdrop-filter: blur(24px) saturate(185%);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 26px;
-  box-shadow: var(--lb-card-shadow), inset 0 1px 0 rgba(255,255,255,0.65);
-}
-
-/* HERO */
-.lw-hero { position: relative; text-align: center; padding: 12px 0 72px; }
-.lw-logo { height: clamp(40px, 6vw, 56px); width: auto; margin: 0 auto 22px; display: block; }
-.lw-pill {
-  display: inline-block; padding: 7px 16px; border-radius: 999px;
-  background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9);
-  backdrop-filter: blur(12px); font-size: 12.5px; font-weight: 700;
-  color: var(--lb-primary); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 22px;
-  box-shadow: 0 6px 18px rgba(10,94,132,0.12);
-}
-.lw-h1 {
-  font-size: clamp(36px, 6.2vw, 62px); line-height: 1.04; letter-spacing: -0.025em;
-  font-weight: 800; margin: 0 0 18px;
-  background: linear-gradient(118deg, var(--lb-deep) 0%, var(--lb-primary) 52%, var(--lb-aqua) 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-.lw-lead {
-  max-width: 640px; margin: 0 auto 30px; font-size: clamp(16px, 2.1vw, 19px);
-  line-height: 1.58; color: rgba(10,44,59,0.82);
-}
-.lw-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.lw-root * { box-sizing: border-box; }
+.lw-wrap { width: 100%; max-width: 1140px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
 
 /* Dostępność: widoczny focus dla nawigacji klawiaturą (WCAG / EAA) */
 .lw-root a:focus-visible,
 .lw-root button:focus-visible {
-  outline: 3px solid var(--lb-primary);
+  outline: 3px solid #0a5e84;
   outline-offset: 3px;
   border-radius: 12px;
 }
 
-.lw-waves {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: -1px;
-  width: 100vw; height: 120px; display: block; pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 25%, transparent 96%);
-  mask-image: linear-gradient(to bottom, #000 25%, transparent 96%);
+/* NAV */
+.lw-nav {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--line);
 }
-.lw-waves .lw-w1 { fill: var(--lb-aqua); opacity: 0.22; }
-.lw-waves .lw-w2 { fill: var(--lb-primary); opacity: 0.34; }
+.lw-nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+.lw-nav-logo { display: inline-flex; align-items: center; }
+.lw-nav-logo img { height: 24px; width: auto; display: block; }
+.lw-nav-actions { display: flex; align-items: center; gap: 10px; }
+.lw-navlink {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 12px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  color: var(--ink-2); text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.lw-navlink svg { width: 15px; height: 15px; }
+.lw-navlink:hover { background: rgba(12,24,48,0.05); color: var(--ink); }
+
+/* Przełącznik języka */
+.lw-lang {
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  border-radius: 999px; background: rgba(12,24,48,0.05); border: 1px solid var(--line);
+}
+.lw-lang button {
+  border: none; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 6px 12px; border-radius: 999px; color: var(--ink-2); background: transparent;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.lw-lang button.is-active {
+  color: #fff; background: var(--grad); box-shadow: 0 4px 12px rgba(10,94,132,0.32);
+}
 
 /* BUTTONS */
 .lw-btn {
   display: inline-flex; align-items: center; gap: 9px; justify-content: center;
-  padding: 14px 26px; border-radius: 16px; font-size: 15px; font-weight: 650;
-  text-decoration: none; cursor: pointer; border: 1px solid transparent;
-  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, background 0.2s ease;
+  padding: 14px 24px; border-radius: 999px; font-size: 15px; font-weight: 650;
+  font-family: inherit; text-decoration: none; cursor: pointer; border: 1px solid transparent;
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .lw-arrow { width: 16px; height: 16px; transition: transform 0.2s ease; }
 .lw-btn:hover { transform: translateY(-2px); }
 .lw-btn:hover .lw-arrow { transform: translateX(3px); }
-.lw-btn-primary {
-  color: #fff;
-  background: linear-gradient(180deg, #1d86ac 0%, #0f6791 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.18),
-    0 4px 12px rgba(10,94,132,0.20);
-}
-.lw-btn-primary:hover {
-  background: linear-gradient(180deg, #2191b8 0%, #14739f 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.20),
-    0 7px 18px rgba(10,94,132,0.28);
-}
-.lw-btn-ghost {
-  color: var(--lb-primary); background: rgba(255,255,255,0.66);
-  border-color: rgba(255,255,255,0.9); backdrop-filter: blur(12px);
-}
-.lw-btn-ghost:hover { background: rgba(255,255,255,0.85); }
+.lw-btn-sm { padding: 9px 18px; font-size: 14px; }
+.lw-btn-primary { color: #fff; background: linear-gradient(180deg, #0e6c97 0%, #0a5680 100%); box-shadow: 0 6px 18px rgba(10,94,132,0.28); }
+.lw-btn-primary:hover { background: linear-gradient(180deg, #1280a8 0%, #0c6190 100%); box-shadow: 0 10px 26px rgba(10,94,132,0.36); }
+.lw-btn-ghost { color: var(--ink); background: #fff; border-color: var(--line); box-shadow: var(--sh-sm); }
+.lw-btn-ghost:hover { border-color: rgba(12,24,48,0.20); }
+.lw-btn-light { color: #0a2c3b; background: #fff; box-shadow: 0 8px 24px rgba(6,59,82,0.22); }
+.lw-btn-light:hover { background: #eef5f8; }
+.lw-btn-outline-light { color: #fff; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.40); backdrop-filter: blur(6px); }
+.lw-btn-outline-light:hover { background: rgba(255,255,255,0.20); }
 
-/* STATS */
-.lw-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 64px;
+/* HERO */
+.lw-hero {
+  position: relative; overflow: hidden;
+  padding: clamp(48px, 8vw, 96px) 0 clamp(80px, 10vw, 130px);
 }
-.lw-stat { position: relative; padding: 24px 16px; text-align: center; overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.lw-stat::before {
-  content: ''; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; border-radius: 0 0 4px 4px;
-  background: linear-gradient(90deg, var(--lb-primary), var(--lb-aqua));
+.lw-hero-glow {
+  position: absolute; top: -140px; left: 50%; transform: translateX(-50%);
+  width: min(1100px, 130vw); height: 680px; z-index: 0; pointer-events: none; opacity: 0.85;
+  background:
+    radial-gradient(38% 56% at 22% 42%, rgba(54,182,196,0.50), transparent 70%),
+    radial-gradient(40% 56% at 46% 30%, rgba(20,136,171,0.50), transparent 70%),
+    radial-gradient(42% 58% at 68% 50%, rgba(10,94,132,0.45), transparent 70%),
+    radial-gradient(34% 52% at 86% 42%, rgba(95,182,214,0.45), transparent 70%);
+  filter: blur(58px);
+  animation: lw-drift 18s ease-in-out infinite;
 }
-.lw-stat:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
-.lw-stat-value { font-size: clamp(19px, 2.6vw, 27px); font-weight: 800; color: var(--lb-deep); letter-spacing: -0.01em; }
-.lw-stat-label { font-size: 12.5px; color: rgba(10,44,59,0.74); margin-top: 5px; }
+.lw-hero-inner { position: relative; z-index: 1; text-align: center; }
+.lw-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 16px 7px 12px; border-radius: 999px;
+  background: #fff; border: 1px solid var(--line); box-shadow: var(--sh-sm);
+  font-size: 13px; font-weight: 650; color: var(--ink-2);
+}
+.lw-pill-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grad); flex-shrink: 0; }
+.lw-h1 {
+  font-size: clamp(38px, 6.6vw, 68px); line-height: 1.04; letter-spacing: -0.03em;
+  font-weight: 800; margin: 22px 0 18px; color: var(--ink);
+}
+.lw-grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lw-lead {
+  max-width: 640px; margin: 0 auto 30px; font-size: clamp(16px, 2.1vw, 19px);
+  line-height: 1.58; color: var(--ink-2);
+}
+.lw-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
-/* SECTION HEAD */
-.lw-section { margin-bottom: 64px; }
-.lw-head { text-align: center; max-width: 620px; margin: 0 auto 30px; }
+/* SHOWCASE / STATS */
+.lw-showcase {
+  position: relative; z-index: 1; margin-top: clamp(40px, 6vw, 64px);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: #fff; border: 1px solid var(--line); border-radius: 24px;
+  box-shadow: var(--sh-lg); overflow: hidden;
+}
+.lw-stat { position: relative; padding: 28px 22px; text-align: center; }
+.lw-stat + .lw-stat { border-left: 1px solid var(--line); }
+.lw-stat-value {
+  font-size: clamp(20px, 2.7vw, 28px); font-weight: 800; letter-spacing: -0.01em;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lw-stat-label { font-size: 13px; color: var(--ink-3); margin-top: 6px; }
+
+/* SECTIONS */
+.lw-section { padding: clamp(56px, 8vw, 96px) 0; }
+.lw-section--soft { background: var(--soft); }
+.lw-head { text-align: center; max-width: 640px; margin: 0 auto clamp(34px, 4vw, 46px); }
 .lw-eyebrow {
-  display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1.6px;
-  color: var(--lb-primary); margin-bottom: 10px;
+  display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-bottom: 12px;
 }
-.lw-h2 { font-size: clamp(25px, 3.6vw, 36px); font-weight: 800; letter-spacing: -0.02em; margin: 0; color: var(--lb-ink); }
-.lw-sub { margin: 12px 0 0; font-size: 16px; line-height: 1.55; color: rgba(10,44,59,0.78); }
+.lw-h2 { font-size: clamp(27px, 3.8vw, 40px); font-weight: 800; letter-spacing: -0.025em; margin: 0; color: var(--ink); line-height: 1.1; }
+.lw-h2--left { text-align: left; margin: 10px 0 16px; }
+.lw-sub { margin: 14px 0 0; font-size: 16.5px; line-height: 1.55; color: var(--ink-2); }
+
+/* CARD base */
+.lw-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+  box-shadow: var(--sh-sm);
+  transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
 
 /* SERVICES */
-.lw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.lw-service { position: relative; padding: 28px 24px; transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease; }
-.lw-service:hover { transform: translateY(-5px); box-shadow: var(--lb-card-shadow-hi); border-color: rgba(54,182,196,0.55); }
+.lw-bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.lw-service { padding: 28px 26px; }
+.lw-service:hover { transform: translateY(-5px); box-shadow: var(--sh-md); border-color: rgba(20,136,171,0.45); }
 .lw-service-icon {
-  width: 56px; height: 56px; border-radius: 17px; display: flex; align-items: center;
-  justify-content: center; font-size: 27px; margin-bottom: 16px;
-  background: linear-gradient(135deg, rgba(10,94,132,0.16), rgba(54,182,196,0.18));
-  border: 1px solid rgba(255,255,255,0.8);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+  width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center;
+  justify-content: center; font-size: 26px; margin-bottom: 16px;
+  background: var(--grad-soft); border: 1px solid var(--line);
 }
-.lw-service-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: var(--lb-ink); }
-.lw-service-desc { font-size: 14.5px; line-height: 1.56; color: rgba(10,44,59,0.8); margin: 0; }
+.lw-service-title { font-size: 18.5px; font-weight: 700; margin: 0 0 8px; color: var(--ink); letter-spacing: -0.01em; }
+.lw-service-desc { font-size: 14.5px; line-height: 1.58; color: var(--ink-2); margin: 0; }
 
 /* OFERTA */
 .lw-offer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
-.lw-offer-card { padding: 26px 28px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.lw-offer-card:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
-.lw-offer-title { font-size: 16px; font-weight: 750; color: var(--lb-primary); margin: 0 0 14px; letter-spacing: -0.01em; }
+.lw-offer-card { padding: 28px 30px; }
+.lw-offer-card:hover { transform: translateY(-3px); box-shadow: var(--sh-md); }
+.lw-offer-title { font-size: 16.5px; font-weight: 750; color: var(--ink); margin: 0 0 16px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+.lw-offer-title::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--grad); flex-shrink: 0; }
 .lw-offer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
 .lw-offer-list li {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  font-size: 14.5px; color: rgba(10,44,59,0.8);
-  border-bottom: 1px solid rgba(10,94,132,0.08); padding-bottom: 11px;
+  font-size: 14.5px; color: var(--ink-2);
+  border-bottom: 1px solid var(--line); padding-bottom: 11px;
 }
 .lw-offer-list li:last-child { border-bottom: none; padding-bottom: 0; }
 .lw-unit {
   flex-shrink: 0; font-size: 11px; font-weight: 750; letter-spacing: 0.3px; text-transform: uppercase;
-  color: var(--lb-primary); background: rgba(10,94,132,0.12); border-radius: 999px; padding: 3px 10px;
+  color: var(--brand); background: rgba(20,136,171,0.12); border-radius: 999px; padding: 3px 10px;
+}
+
+/* TAGS */
+.lw-tags { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 820px; margin: 0 auto; }
+.lw-tag {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--ink);
+  background: #fff; border: 1px solid var(--line); box-shadow: var(--sh-sm);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.lw-tag:hover { transform: translateY(-2px); border-color: rgba(20,136,171,0.45); }
+.lw-tag--check span {
+  color: #fff; background: var(--grad); width: 16px; height: 16px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800;
 }
 
 /* REFERENCJE */
-.lw-ref-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
-.lw-ref { padding: 24px 20px; text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.lw-ref:hover { transform: translateY(-3px); box-shadow: var(--lb-card-shadow-hi); }
-.lw-ref-name { font-size: 16px; font-weight: 750; color: var(--lb-ink); letter-spacing: -0.01em; }
-.lw-ref-type { font-size: 12.5px; color: rgba(10,44,59,0.74); margin-top: 4px; }
-
-/* TAGS */
-.lw-tags { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 760px; margin: 0 auto; }
-.lw-tag {
-  padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 650; color: var(--lb-ink);
-  background: rgba(255,255,255,0.64); border: 1px solid rgba(255,255,255,0.85);
-  backdrop-filter: blur(12px); box-shadow: 0 6px 16px rgba(6,59,82,0.07);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
-}
-.lw-tag:hover { transform: translateY(-2px); color: var(--lb-primary); box-shadow: 0 10px 22px rgba(6,59,82,0.12); }
+.lw-ref-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.lw-ref { padding: 26px 22px; text-align: center; }
+.lw-ref:hover { transform: translateY(-3px); box-shadow: var(--sh-md); }
+.lw-ref-name { font-size: 16.5px; font-weight: 750; color: var(--ink); letter-spacing: -0.01em; }
+.lw-ref-type { font-size: 12.5px; color: var(--ink-3); margin-top: 5px; }
 
 /* ABOUT */
-.lw-about { padding: 38px 36px; margin-bottom: 24px; }
-.lw-about p { font-size: 16px; line-height: 1.62; color: rgba(10,44,59,0.84); margin: 0; max-width: 760px; }
-.lw-list { margin: 22px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 28px; }
-.lw-list li { position: relative; padding-left: 30px; font-size: 15px; color: rgba(10,44,59,0.84); line-height: 1.45; }
+.lw-about { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: clamp(28px, 5vw, 56px); align-items: center; }
+.lw-about-p { font-size: 16.5px; line-height: 1.62; color: var(--ink-2); margin: 0; max-width: 560px; }
+.lw-list { margin: 24px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px 24px; }
+.lw-list li { position: relative; padding-left: 30px; font-size: 15px; color: var(--ink-2); line-height: 1.45; }
 .lw-list li::before {
-  content: '✓'; position: absolute; left: 0; top: -1px; width: 20px; height: 20px; border-radius: 7px;
+  content: '✓'; position: absolute; left: 0; top: -1px; width: 21px; height: 21px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff;
-  background: linear-gradient(135deg, var(--lb-primary), var(--lb-aqua));
+  background: var(--grad);
+}
+.lw-about-visual {
+  position: relative; aspect-ratio: 1 / 1; border-radius: 28px; overflow: hidden;
+  background: linear-gradient(160deg, #063b52, #0a4a68);
+  border: 1px solid var(--line); box-shadow: var(--sh-lg);
+  display: flex; align-items: center; justify-content: center;
+}
+.lw-about-glow {
+  position: absolute; inset: -30%;
+  background:
+    radial-gradient(40% 40% at 30% 30%, rgba(54,182,196,0.55), transparent 70%),
+    radial-gradient(40% 40% at 70% 65%, rgba(10,94,132,0.55), transparent 70%),
+    radial-gradient(45% 45% at 60% 40%, rgba(20,136,171,0.55), transparent 70%);
+  filter: blur(30px); animation: lw-drift2 16s ease-in-out infinite;
+}
+.lw-about-logo { position: relative; width: 62%; filter: brightness(0) invert(1); opacity: 0.96; }
+.lw-about-badge {
+  position: absolute; bottom: 18px; right: 18px; padding: 8px 14px; border-radius: 999px;
+  background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.30);
+  backdrop-filter: blur(8px); color: #fff; font-size: 13px; font-weight: 750; letter-spacing: 0.4px;
 }
 
-/* CONTACT */
-.lw-contact {
-  padding: 36px 36px; margin-bottom: 32px; display: flex; align-items: center;
-  justify-content: space-between; gap: 28px; flex-wrap: wrap;
+/* CTA BAND (kontakt) */
+.lw-cta-band { padding: clamp(40px, 5vw, 64px) 0; }
+.lw-cta-band-inner {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #063b52 0%, #0a5e84 55%, #1488ab 100%);
+  border-radius: 28px; padding: clamp(32px, 4vw, 52px); box-shadow: var(--sh-lg);
 }
-.lw-contact-info { flex: 1 1 320px; }
+.lw-cta-band-glow {
+  position: absolute; inset: 0; opacity: 0.9; pointer-events: none;
+  background:
+    radial-gradient(40% 80% at 85% 20%, rgba(54,182,196,0.42), transparent 60%),
+    radial-gradient(40% 80% at 70% 90%, rgba(20,136,171,0.45), transparent 60%),
+    radial-gradient(30% 70% at 100% 60%, rgba(95,182,214,0.40), transparent 60%);
+}
+.lw-cta-band-text { position: relative; z-index: 1; flex: 1 1 360px; }
+.lw-eyebrow--on-dark { color: #fff; -webkit-text-fill-color: #fff; background: none; }
+.lw-cta-band-title { font-size: clamp(24px, 3.4vw, 36px); font-weight: 800; letter-spacing: -0.02em; color: #fff; margin: 8px 0 18px; line-height: 1.12; }
 .lw-contact-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.lw-contact-list li { display: flex; align-items: center; gap: 12px; font-size: 15.5px; color: rgba(10,44,59,0.82); }
-.lw-contact-list a { color: var(--lb-primary); text-decoration: none; font-weight: 650; }
+.lw-contact-list li { display: flex; align-items: center; gap: 12px; font-size: 15.5px; color: rgba(255,255,255,0.90); }
+.lw-contact-list a { color: #fff; text-decoration: none; font-weight: 650; }
 .lw-contact-list a:hover { text-decoration: underline; }
 .lw-ci {
-  width: 34px; height: 34px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center;
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center;
   justify-content: center; font-size: 16px;
-  background: linear-gradient(135deg, rgba(10,94,132,0.14), rgba(54,182,196,0.16));
-  border: 1px solid rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.20);
 }
-.lw-contact-actions { display: flex; flex-direction: column; gap: 12px; }
+.lw-cta-band-actions { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
 
-.lw-footer { text-align: center; padding-top: 8px; display: grid; gap: 6px; }
-.lw-footer-legal { font-size: 13.5px; font-weight: 650; color: rgba(10,44,59,0.8); }
-.lw-footer-reg { font-size: 12.5px; color: rgba(10,44,59,0.68); }
-.lw-footer-links { display: flex; gap: 10px; justify-content: center; align-items: center; font-size: 13px; }
-.lw-footer-links a { color: var(--lb-primary); text-decoration: none; font-weight: 650; }
+/* FOOTER */
+.lw-footer { padding: 40px 0 56px; border-top: 1px solid var(--line); text-align: center; }
+.lw-footer .lw-wrap { display: grid; gap: 6px; }
+.lw-footer-legal { font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
+.lw-footer-reg { font-size: 12.5px; color: var(--ink-3); }
+.lw-footer-links { display: flex; gap: 10px; justify-content: center; align-items: center; font-size: 13px; margin-top: 4px; }
+.lw-footer-links a { color: var(--brand); text-decoration: none; font-weight: 650; }
 .lw-footer-links a:hover { text-decoration: underline; }
-.lw-footer-links span { color: rgba(10,44,59,0.4); }
-.lw-footer-copy { font-size: 12px; color: rgba(10,44,59,0.62); margin-top: 4px; }
+.lw-footer-links span { color: var(--ink-3); }
+.lw-footer-copy { font-size: 12px; color: var(--ink-3); margin-top: 6px; }
 
-/* REVEAL */
+/* REVEAL + drift */
 .lw-reveal { animation: lw-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes lw-rise {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-@media (max-width: 860px) {
-  .lw-stats { grid-template-columns: repeat(2, 1fr); }
-  .lw-grid { grid-template-columns: repeat(2, 1fr); }
-  .lw-offer-grid { grid-template-columns: 1fr; }
-  .lw-ref-grid { grid-template-columns: repeat(2, 1fr); }
+@keyframes lw-drift {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
+  50% { transform: translateX(-50%) translateY(18px) scale(1.06); }
 }
-@media (max-width: 560px) {
-  .lw-grid { grid-template-columns: 1fr; }
-  .lw-list { grid-template-columns: 1fr; }
+@keyframes lw-drift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(10px, -12px) scale(1.08); }
+}
+
+/* RESPONSIVE */
+@media (max-width: 980px) {
+  .lw-about { grid-template-columns: 1fr; }
+  .lw-about-visual { width: 100%; max-width: 420px; margin: 0 auto; }
+}
+@media (max-width: 860px) {
+  .lw-bento { grid-template-columns: repeat(2, 1fr); }
+  .lw-ref-grid { grid-template-columns: repeat(2, 1fr); }
+  .lw-offer-grid { grid-template-columns: 1fr; }
+  .lw-showcase { grid-template-columns: repeat(2, 1fr); }
+  .lw-stat:nth-child(3) { border-left: none; }
+  .lw-stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+@media (max-width: 600px) {
+  .lw-navlink span { display: none; }
+  .lw-bento { grid-template-columns: 1fr; }
   .lw-ref-grid { grid-template-columns: 1fr; }
-  .lw-contact { flex-direction: column; align-items: stretch; }
-  .lw-contact-actions { flex-direction: row; }
-  .lw-contact-actions .lw-btn { flex: 1; }
-  .lw-back { font-size: 13px; padding: 9px 13px; }
+  .lw-list { grid-template-columns: 1fr; }
+  .lw-cta-band-inner { flex-direction: column; align-items: stretch; }
+  .lw-cta-band-actions { flex-direction: row; }
+  .lw-cta-band-actions .lw-btn { flex: 1; }
+}
+@media (max-width: 440px) {
+  .lw-showcase { grid-template-columns: 1fr; }
+  .lw-stat + .lw-stat { border-left: none; border-top: 1px solid var(--line); }
+  .lw-nav .lw-btn-sm { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lw-reveal, .lw-blob { animation: none; }
+  .lw-reveal, .lw-hero-glow, .lw-about-glow { animation: none; }
 }
 `;

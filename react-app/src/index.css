@@ -2398,6 +2398,583 @@ button.add-route-btn:active {
 }
 .map-action-btn:hover{background:var(--bg-secondary)}
 
+.tunnel-shell {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.tunnel-status-strip {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+}
+.tunnel-status-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  padding:13px 14px;
+  border-radius:var(--radius-lg);
+  background:var(--bg-card-solid);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);
+  color:var(--text-secondary);
+}
+.tunnel-status-item svg {
+  color:var(--accent);
+  flex-shrink:0;
+}
+.tunnel-status-item span {
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+  font-weight:750;
+}
+.tunnel-status-item strong {
+  color:var(--text-primary);
+  font-size:16px;
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+}
+.tunnel-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(320px,0.9fr);
+  gap:14px;
+  align-items:start;
+}
+.tunnel-tool-panel,
+.tunnel-next-section {
+  background:var(--bg-card-solid);
+  border:1px solid var(--border);
+  border-radius:var(--radius-xl);
+  padding:16px;
+  box-shadow:var(--shadow-sm);
+}
+.tunnel-section-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.tunnel-section-head h2 {
+  font-size:17px;
+  line-height:1.15;
+  color:var(--text-primary);
+  font-weight:850;
+  margin:0;
+}
+.tunnel-kicker {
+  color:var(--text-tertiary);
+  font-size:10px;
+  line-height:1.2;
+  font-weight:850;
+  letter-spacing:0.6px;
+  text-transform:uppercase;
+  margin-bottom:3px;
+}
+.tunnel-icon-btn {
+  width:36px;
+  height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--bg-secondary);
+  color:var(--text-secondary);
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease, transform .12s ease;
+  flex-shrink:0;
+}
+.tunnel-icon-btn:hover {
+  background:var(--accent-light);
+  color:var(--accent);
+}
+.tunnel-icon-btn:active {
+  transform:scale(0.96);
+}
+.tunnel-form-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.tunnel-field {
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.tunnel-field > span,
+.tunnel-count-field > span {
+  color:var(--text-tertiary);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:0.45px;
+  text-transform:uppercase;
+  margin:0 0 6px 2px;
+}
+.tunnel-field .ap-input {
+  min-height:46px;
+  margin-bottom:0;
+  font-size:14px;
+  border-radius:12px;
+  color:var(--text-primary);
+}
+.tunnel-inline-control {
+  display:grid;
+  grid-template-columns:minmax(76px,0.45fr) minmax(122px,1fr);
+  gap:8px;
+}
+.tunnel-inline-control .driver-tool-btn {
+  min-height:46px;
+  justify-content:center;
+}
+.tunnel-primary-btn {
+  width:100%;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin-top:14px;
+  border:none;
+  border-radius:12px;
+  background:var(--accent);
+  color:#fff;
+  font-family:var(--font);
+  font-size:14px;
+  font-weight:850;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(0,122,255,0.2);
+  transition:filter .15s ease, transform .12s ease, opacity .15s ease;
+}
+.tunnel-primary-btn:hover {
+  filter:brightness(0.96);
+}
+.tunnel-primary-btn:active {
+  transform:scale(0.99);
+}
+.tunnel-primary-btn:disabled {
+  cursor:not-allowed;
+  opacity:0.45;
+  box-shadow:none;
+}
+.tunnel-plc-panel {
+  background:linear-gradient(180deg, rgba(50,173,230,0.07), var(--bg-card-solid) 52%);
+}
+.tunnel-plc-panel .tunnel-section-head svg {
+  color:var(--accent-teal);
+}
+.tunnel-plc-grid,
+.tunnel-contract-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.tunnel-plc-grid div,
+.tunnel-contract-grid div {
+  min-width:0;
+  padding:11px 12px;
+  border-radius:11px;
+  background:rgba(255,255,255,0.72);
+  border:1px solid rgba(209,213,219,0.45);
+}
+.tunnel-plc-grid span,
+.tunnel-contract-grid span {
+  display:block;
+  color:var(--text-tertiary);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:0.4px;
+  line-height:1.2;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.tunnel-plc-grid strong,
+.tunnel-contract-grid strong {
+  display:block;
+  min-width:0;
+  margin-top:4px;
+  color:var(--text-primary);
+  font-size:13px;
+  font-weight:850;
+  line-height:1.2;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.tunnel-board-section,
+.tunnel-jobs-section {
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.tunnel-mini-stat {
+  flex-shrink:0;
+  padding:7px 10px;
+  border-radius:9px;
+  background:var(--accent-light);
+  color:var(--accent);
+  font-size:12px;
+  font-weight:850;
+}
+.tunnel-track-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.tunnel-track-card {
+  min-width:0;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border);
+  border-top:4px solid var(--track-color);
+  background:var(--bg-card-solid);
+  box-shadow:var(--shadow-sm);
+  overflow:hidden;
+}
+.tunnel-track-header {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:12px 12px 10px;
+  border-bottom:1px solid rgba(209,213,219,0.42);
+}
+.tunnel-track-header strong {
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--text-primary);
+  font-size:13px;
+  font-weight:850;
+}
+.tunnel-track-header > span:last-child {
+  min-width:24px;
+  height:24px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
+  font-size:12px;
+  font-weight:850;
+}
+.tunnel-track-badge {
+  width:30px;
+  height:24px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  background:var(--track-color);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+  flex-shrink:0;
+}
+.tunnel-track-list {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:156px;
+  padding:10px;
+}
+.tunnel-empty-row,
+.tunnel-empty-list {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:70px;
+  border:1.5px dashed var(--border-strong);
+  border-radius:12px;
+  color:var(--text-tertiary);
+  font-size:12px;
+  font-weight:750;
+  text-align:center;
+}
+.tunnel-task-row {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  min-width:0;
+  padding:10px;
+  border-radius:11px;
+  background:var(--bg-tertiary);
+  border:1px solid transparent;
+}
+.tunnel-task-row.status-error {
+  border-color:rgba(255,59,48,0.24);
+  background:rgba(255,59,48,0.08);
+}
+.tunnel-task-main {
+  flex:1;
+  min-width:0;
+}
+.tunnel-task-title {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.tunnel-task-title strong {
+  color:var(--text-primary);
+  font-size:13px;
+  font-weight:900;
+}
+.tunnel-task-main span,
+.tunnel-task-main small {
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.tunnel-task-main span {
+  color:var(--text-secondary);
+  font-size:12px;
+  font-weight:750;
+  margin-top:2px;
+}
+.tunnel-task-main small {
+  color:var(--text-tertiary);
+  font-size:11px;
+  line-height:1.35;
+  margin-top:2px;
+}
+.tunnel-urgent {
+  padding:2px 6px;
+  border-radius:7px;
+  background:rgba(255,59,48,0.10);
+  color:var(--accent-red) !important;
+  font-size:10px !important;
+  font-weight:850 !important;
+  line-height:1.2;
+  flex-shrink:0;
+}
+.tunnel-status-pill {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  min-height:24px;
+  padding:4px 8px;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:850;
+  white-space:nowrap;
+  line-height:1;
+  flex-shrink:0;
+}
+.tunnel-status-pill.status-queued {
+  color:#8A6200;
+  background:rgba(255,149,0,0.12);
+}
+.tunnel-status-pill.status-sent {
+  color:#0055CC;
+  background:rgba(0,122,255,0.12);
+}
+.tunnel-status-pill.status-inTunnel {
+  color:#1A7A37;
+  background:rgba(52,199,89,0.12);
+}
+.tunnel-status-pill.status-error {
+  color:var(--accent-red);
+  background:rgba(255,59,48,0.12);
+}
+.tunnel-status-pill.status-done {
+  color:#5D3A9B;
+  background:rgba(175,82,222,0.12);
+}
+.tunnel-jobs-list {
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+}
+.tunnel-job-card {
+  display:grid;
+  grid-template-columns:minmax(260px,1.2fr) minmax(230px,0.9fr) auto;
+  gap:12px;
+  align-items:center;
+  min-width:0;
+  padding:12px;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border);
+  background:var(--bg-card-solid);
+  box-shadow:var(--shadow-sm);
+}
+.tunnel-job-card.status-done {
+  opacity:0.72;
+}
+.tunnel-job-card.status-error {
+  border-color:rgba(255,59,48,0.22);
+}
+.tunnel-job-main {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.tunnel-job-main div {
+  min-width:0;
+}
+.tunnel-job-main strong,
+.tunnel-job-main small {
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.tunnel-job-main strong {
+  color:var(--text-primary);
+  font-size:14px;
+  font-weight:850;
+  line-height:1.2;
+}
+.tunnel-job-main small {
+  color:var(--text-tertiary);
+  font-size:12px;
+  margin-top:3px;
+}
+.tunnel-job-bag {
+  min-width:76px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:var(--bg-tertiary);
+  color:var(--text-primary);
+  border:1px solid var(--border);
+  font-size:12px;
+  font-weight:900;
+  flex-shrink:0;
+}
+.tunnel-job-meta {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+  min-width:0;
+  color:var(--text-tertiary);
+  font-size:12px;
+  font-weight:750;
+}
+.tunnel-job-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.tunnel-action-btn {
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:9px;
+  border:1px solid var(--border);
+  background:var(--bg-secondary);
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .15s ease, transform .12s ease, color .15s ease;
+}
+.tunnel-action-btn:hover {
+  background:var(--bg-tertiary);
+  color:var(--text-primary);
+}
+.tunnel-action-btn:disabled {
+  cursor:wait;
+  opacity:0.58;
+  transform:none;
+}
+.tunnel-action-btn:active {
+  transform:scale(0.97);
+}
+.tunnel-action-btn.is-danger {
+  color:var(--accent-red);
+  border-color:rgba(255,59,48,0.2);
+  background:rgba(255,59,48,0.08);
+}
+.tunnel-action-btn.is-success {
+  color:#1A7A37;
+  border-color:rgba(52,199,89,0.22);
+  background:rgba(52,199,89,0.10);
+}
+.tunnel-next-section {
+  background:linear-gradient(180deg, rgba(175,82,222,0.06), var(--bg-card-solid) 48%);
+}
+
+@media(max-width:1180px){
+  .tunnel-status-strip {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .tunnel-layout {
+    grid-template-columns:1fr;
+  }
+  .tunnel-track-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .tunnel-job-card {
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+  .tunnel-job-actions {
+    justify-content:flex-start;
+  }
+}
+
+@media(max-width:760px){
+  .tunnel-status-strip,
+  .tunnel-track-grid {
+    grid-template-columns:1fr;
+  }
+  .tunnel-form-grid,
+  .tunnel-plc-grid,
+  .tunnel-contract-grid {
+    grid-template-columns:1fr;
+  }
+  .tunnel-tool-panel,
+  .tunnel-next-section {
+    padding:14px;
+  }
+  .tunnel-section-head {
+    align-items:flex-start;
+  }
+  .tunnel-inline-control {
+    grid-template-columns:1fr;
+  }
+  .tunnel-job-main {
+    align-items:flex-start;
+  }
+  .tunnel-job-main strong,
+  .tunnel-job-main small {
+    white-space:normal;
+  }
+  .tunnel-job-meta {
+    align-items:flex-start;
+  }
+  .tunnel-action-btn {
+    flex:1 1 130px;
+  }
+  .tunnel-jobs-section .driver-tool-btn {
+    width:auto;
+  }
+}
+
 @media(max-width:720px){
   body{padding:12px 12px 32px}
   .app-header{align-items:flex-start}
