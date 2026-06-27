@@ -89,9 +89,7 @@ export default function MapView() {
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [initialized, setInitialized] = useState(false);
   const [userPos, setUserPos] = useState(null);
-  const [darkMode, setDarkMode] = useState(
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     if (routes.length > 0 && !initialized) {
@@ -247,18 +245,6 @@ export default function MapView() {
               [BASE_LAT, BASE_LNG],
               ...routeClients.map(c => [c.lat, c.lng]),
             ];
-
-            const openFullRouteInMaps = (e) => {
-              e.stopPropagation();
-              const origin = `${BASE_LAT},${BASE_LNG}`;
-              const dest = routeClients[routeClients.length - 1];
-              const destination = `${dest.lat},${dest.lng}`;
-              const wps = routeClients.slice(0, -1).map(c => `${c.lat},${c.lng}`).join('|');
-              
-              let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-              if (wps) url += `&waypoints=${wps}`;
-              window.open(url, '_blank');
-            };
 
             return (
               <span key={route.id}>

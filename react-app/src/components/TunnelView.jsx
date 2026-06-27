@@ -1,764 +1,537 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Clock3, Radio, RefreshCw, Send, Server, XCircle } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  BadgeCheck,
+  Cable,
+  CircleCheck,
+  Clock3,
+  Factory,
+  Package,
+  PackageCheck,
+  Plus,
+  RotateCcw,
+  ScanBarcode,
+  Send,
+  Settings2,
+  Trash2,
+  TriangleAlert,
+  WashingMachine,
+} from 'lucide-react';
+import { useAppData } from '../hooks/useAppData';
+import { useAuth } from '../context/AuthContext';
+import { isTunnelGatewayEnabled, sendTunnelCommand } from '../lib/tunnelGateway';
+import { toastError, toastSuccess, toastWarn } from '../lib/toast';
+import DataError from './DataError';
 
-const cardStyle = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border)',
-  borderRadius: '8px',
-  boxShadow: 'var(--shadow-sm)',
-};
+const STORAGE_KEY = 'lebuser:tunnel:v1';
+const DEFAULT_BAG_COUNT = 12;
+const ACTIVE_STATUSES = new Set(['queued', 'sent', 'inTunnel', 'error']);
 
-const mutedStyle = {
-  color: 'var(--text-tertiary)',
-  fontSize: '12px',
-  fontWeight: 600,
-};
-
-const demoEvents = [
-  {
-    id: 'demo-1',
-    accepted: true,
-    bag_id: 'A-142',
-    command_id: 'QUEUE-142',
-    created_at: new Date(Date.now() - 45000).toISOString(),
-    dry_run: true,
-    event_type: 'command_sent',
-    gateway_id: 'main-tunnel',
-    hotel_name: 'Hotel Baltic',
-    message: 'Worek skierowany na tor 2.',
-    payload: { RequestedBy: 'Operator' },
-    program_number: 12,
-    track_number: 2,
-    transport: 'dry-run',
-  },
-  {
-    id: 'demo-2',
-    accepted: true,
-    bag_id: 'B-087',
-    command_id: 'QUEUE-087',
-    created_at: new Date(Date.now() - 120000).toISOString(),
-    dry_run: true,
-    event_type: 'command_sent',
-    gateway_id: 'main-tunnel',
-    hotel_name: 'Villa Morska',
-    message: 'Program 8 czeka na wolna stacje.',
-    payload: { RequestedBy: 'Operator' },
-    program_number: 8,
-    track_number: 1,
-    transport: 'dry-run',
-  },
-  {
-    id: 'demo-3',
-    accepted: true,
-    bag_id: 'C-231',
-    command_id: 'QUEUE-231',
-    created_at: new Date(Date.now() - 260000).toISOString(),
-    dry_run: true,
-    event_type: 'command_sent',
-    gateway_id: 'main-tunnel',
-    hotel_name: 'Grand Leba',
-    message: 'Tunel potwierdzil przyjecie komendy.',
-    payload: { RequestedBy: 'Operator' },
-    program_number: 21,
-    track_number: 3,
-    transport: 'dry-run',
-  },
+const PROGRAMS = [
+  { id: 'p1', number: 1 },
+  { id: 'p2', number: 2 },
+  { id: 'p3', number: 3 },
+  { id: 'p4', number: 4 },
+  { id: 'p5', number: 5 },
 ];
 
-const tunnelStages = [
-  { id: 'in', label: 'Wejscie', meta: 'skan' },
-  { id: 'wash', label: 'Pranie', meta: 'program' },
-  { id: 'rinse', label: 'Plukanie', meta: 'kontrola' },
-  { id: 'dry', label: 'Suszenie', meta: 'cieplo' },
-  { id: 'pack', label: 'Pakowanie', meta: 'wyjscie' },
+const TRACKS = [
+  { id: 't1', number: 1, color: '#007AFF' },
+  { id: 't2', number: 2, color: '#34C759' },
+  { id: 't3', number: 3, color: '#FF9500' },
+  { id: 't4', number: 4, color: '#AF52DE' },
 ];
 
-const stageColors = ['#0A84FF', '#34C759', '#FF9500', '#AF52DE', '#FF3B30'];
+const STATUS_META = {
+  queued: { icon: Clock3, rank: 1 },
+  sent: { icon: Send, rank: 2 },
+  inTunnel: { icon: WashingMachine, rank: 3 },
+  error: { icon: TriangleAlert, rank: 4 },
+  done: { icon: CircleCheck, rank: 5 },
+};
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('pl-PL', {
+function buildBagId(index) {
+  return `BAG-${String(index).padStart(3, '0')}`;
+}
+
+function seedBags(count = DEFAULT_BAG_COUNT) {
+  return Array.from({ length: count }, (_, index) => buildBagId(index + 1));
+}
+
+function readStoredTunnel() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      bags: Array.isArray(parsed.bags) ? parsed.bags.filter(Boolean).map(String) : [],
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function dateKey(value) {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function nextBagId(existingBags) {
+  const used = new Set(existingBags);
+  let index = existingBags.length + 1;
+  while (used.has(buildBagId(index))) index += 1;
+  return buildBagId(index);
+}
+
+export default function TunnelView() {
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const { clients, loading, error, refetch } = useAppData();
+  const [stored] = useState(() => readStoredTunnel());
+
+  const [bags, setBags] = useState(() => stored?.bags?.length ? stored.bags : seedBags());
+  const [tasks, setTasks] = useState(() => stored?.tasks || []);
+  const [bagTarget, setBagTarget] = useState(() => String(Math.max(stored?.bags?.length || DEFAULT_BAG_COUNT, DEFAULT_BAG_COUNT)));
+  const [selectedBagId, setSelectedBagId] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedProgramId, setSelectedProgramId] = useState(PROGRAMS[0].id);
+  const [selectedTrackId, setSelectedTrackId] = useState(TRACKS[0].id);
+  const [priority, setPriority] = useState('normal');
+  const [sendingTaskId, setSendingTaskId] = useState(null);
+
+  const formatter = useMemo(() => new Intl.DateTimeFormat(i18n.language || 'pl', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
-  });
-}
+  }), [i18n.language]);
 
-function formatAgo(value) {
-  if (!value) return '-';
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s temu`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m temu`;
-  const hours = Math.round(minutes / 60);
-  return `${hours}h temu`;
-}
+  const hotelOptions = useMemo(() => {
+    const names = new Set((clients || []).map(client => String(client.name || '').trim()).filter(Boolean));
+    return [...names].sort((a, b) => a.localeCompare(b, i18n.language || 'pl'));
+  }, [clients, i18n.language]);
 
-function StatusPill({ ok, children }) {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '6px',
-      minHeight: '26px',
-      padding: '4px 9px',
-      borderRadius: '999px',
-      background: ok ? 'rgba(52, 199, 89, 0.12)' : 'rgba(255, 59, 48, 0.12)',
-      color: ok ? 'var(--accent-green)' : 'var(--accent-red)',
-      fontSize: '12px',
-      fontWeight: 800,
-      lineHeight: 1,
-      whiteSpace: 'nowrap',
-    }}>
-      {ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-      {children}
-    </span>
+  const activeBagIds = useMemo(() => new Set(
+    tasks.filter(task => ACTIVE_STATUSES.has(task.status)).map(task => task.bagId)
+  ), [tasks]);
+
+  const availableBags = useMemo(
+    () => bags.filter(bagId => !activeBagIds.has(bagId)),
+    [bags, activeBagIds]
   );
-}
 
-function MetricCard({ icon, label, value, sub }) {
-  return (
-    <div style={{ ...cardStyle, padding: '14px', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-        <div style={{
-          width: '34px',
-          height: '34px',
-          borderRadius: '8px',
-          background: 'var(--bg-secondary)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--accent)',
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ ...mutedStyle, minWidth: 0 }}>{label}</div>
-      </div>
-      <div style={{
-        color: 'var(--text-primary)',
-        fontSize: '18px',
-        fontWeight: 800,
-        minWidth: 0,
-        overflowWrap: 'anywhere',
-      }}>
-        {value}
-      </div>
-      {sub && <div style={{ ...mutedStyle, marginTop: '4px', overflowWrap: 'anywhere' }}>{sub}</div>}
-    </div>
-  );
-}
+  const selectedProgram = PROGRAMS.find(program => program.id === selectedProgramId) || PROGRAMS[0];
+  const selectedTrack = TRACKS.find(track => track.id === selectedTrackId) || TRACKS[0];
+  const canQueue = !!selectedBagId && !!selectedClient.trim() && !!selectedProgram && !!selectedTrack;
+  const today = dateKey(new Date());
 
-function EventRow({ event }) {
-  const payload = event.payload || {};
-  const requestedBy = payload.RequestedBy || payload.requestedBy || payload.requested_by || '';
+  const activeTasks = tasks.filter(task => ACTIVE_STATUSES.has(task.status));
+  const doneToday = tasks.filter(task => task.status === 'done' && dateKey(task.updatedAt || task.createdAt) === today).length;
+  const queuedCount = tasks.filter(task => task.status === 'queued').length;
+  const inTunnelCount = tasks.filter(task => task.status === 'inTunnel').length;
 
-  return (
-    <div style={{
-      ...cardStyle,
-      padding: '12px',
-      display: 'grid',
-      gridTemplateColumns: 'minmax(0, 1.2fr) minmax(96px, 0.45fr) minmax(96px, 0.45fr)',
-      gap: '12px',
-      alignItems: 'center',
-    }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', minWidth: 0 }}>
-          <Send size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
-          <strong style={{ fontSize: '14px', overflowWrap: 'anywhere' }}>
-            {event.hotel_name || 'Bez hotelu'}
-          </strong>
-        </div>
-        <div style={{ ...mutedStyle, overflowWrap: 'anywhere' }}>
-          Worek {event.bag_id || '-'} - komenda {event.command_id || '-'}
-          {requestedBy ? ` - ${requestedBy}` : ''}
-        </div>
-        {event.message && (
-          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '6px', overflowWrap: 'anywhere' }}>
-            {event.message}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <span style={{ ...mutedStyle, color: 'var(--text-secondary)' }}>P{event.program_number || '-'}</span>
-        <span style={{ ...mutedStyle, color: 'var(--text-secondary)' }}>Tor {event.track_number || '-'}</span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'flex-end', flexDirection: 'column', gap: '6px', textAlign: 'right' }}>
-        <StatusPill ok={event.accepted !== false}>{event.accepted === false ? 'Odrzucone' : 'Przyjete'}</StatusPill>
-        <span style={mutedStyle}>{formatDateTime(event.created_at)}</span>
-      </div>
-    </div>
-  );
-}
-
-function WinWashVisual({ status, events, isOnline, realtimeOk }) {
-  const visualEvents = events.length > 0 ? events.slice(0, 5) : demoEvents;
-  const activeCount = visualEvents.filter(event => event.accepted !== false).length;
-  const queueCount = Math.max(0, visualEvents.length - activeCount);
-  const latest = visualEvents[0] || null;
-  const lanes = [1, 2, 3];
-
-  return (
-    <section className="ww-panel">
-      <style>{`
-        .ww-panel {
-          display: grid;
-          grid-template-columns: minmax(180px, 0.75fr) minmax(360px, 1.7fr) minmax(180px, 0.75fr);
-          gap: 14px;
-          padding: 14px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(245,247,250,0.98));
-          box-shadow: var(--shadow-sm);
-          overflow: hidden;
-        }
-        .dark .ww-panel {
-          background: linear-gradient(180deg, rgba(24,27,32,0.96), rgba(17,19,23,0.98));
-        }
-        .ww-side {
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .ww-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          min-width: 0;
-        }
-        .ww-title {
-          color: var(--text-primary);
-          font-size: 15px;
-          font-weight: 850;
-          letter-spacing: 0;
-          overflow-wrap: anywhere;
-        }
-        .ww-chip {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 24px;
-          padding: 3px 8px;
-          border-radius: 999px;
-          border: 1px solid var(--border);
-          background: var(--bg-card);
-          color: var(--text-secondary);
-          font-size: 11px;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-        .ww-queue {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          min-width: 0;
-        }
-        .ww-bag {
-          display: grid;
-          grid-template-columns: 34px minmax(0, 1fr);
-          gap: 9px;
-          align-items: center;
-          padding: 9px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: var(--bg-card);
-          min-width: 0;
-        }
-        .ww-bag-code {
-          width: 34px;
-          height: 34px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-          font-size: 11px;
-          font-weight: 900;
-        }
-        .ww-bag-main {
-          color: var(--text-primary);
-          font-size: 13px;
-          font-weight: 800;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .ww-bag-sub {
-          margin-top: 2px;
-          color: var(--text-tertiary);
-          font-size: 11px;
-          font-weight: 700;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .ww-tunnel {
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .ww-machine {
-          position: relative;
-          min-height: 318px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background:
-            linear-gradient(90deg, rgba(10,132,255,0.08), transparent 24%, rgba(52,199,89,0.08) 48%, transparent 72%, rgba(255,149,0,0.08)),
-            var(--bg-card);
-          overflow: hidden;
-        }
-        .ww-machine-head {
-          display: grid;
-          grid-template-columns: repeat(5, minmax(70px, 1fr));
-          gap: 8px;
-          padding: 12px 12px 4px;
-          position: relative;
-          z-index: 2;
-        }
-        .ww-stage {
-          min-width: 0;
-          padding: 8px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: rgba(255,255,255,0.78);
-        }
-        .dark .ww-stage {
-          background: rgba(20,22,26,0.78);
-        }
-        .ww-stage-label {
-          color: var(--text-primary);
-          font-size: 12px;
-          font-weight: 850;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .ww-stage-meta {
-          margin-top: 2px;
-          color: var(--text-tertiary);
-          font-size: 10px;
-          font-weight: 750;
-          text-transform: uppercase;
-        }
-        .ww-lanes {
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          top: 106px;
-          bottom: 18px;
-          display: grid;
-          grid-template-rows: repeat(3, 1fr);
-          gap: 16px;
-        }
-        .ww-lane {
-          position: relative;
-          min-height: 50px;
-          border-radius: 8px;
-          border: 1px solid var(--border);
-          background:
-            repeating-linear-gradient(90deg, rgba(120,120,120,0.14) 0 10px, transparent 10px 22px),
-            linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.05));
-          overflow: hidden;
-        }
-        .ww-lane::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: 50%;
-          height: 3px;
-          transform: translateY(-50%);
-          background: linear-gradient(90deg, transparent, rgba(10,132,255,0.45), rgba(52,199,89,0.45), transparent);
-        }
-        .ww-lane-label {
-          position: absolute;
-          left: 8px;
-          top: 8px;
-          z-index: 2;
-          color: var(--text-tertiary);
-          font-size: 11px;
-          font-weight: 900;
-        }
-        .ww-moving-bag {
-          position: absolute;
-          top: 50%;
-          width: 78px;
-          min-height: 36px;
-          padding: 6px 8px;
-          border-radius: 8px;
-          transform: translateY(-50%);
-          color: #fff;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.18);
-          animation: wwMove 8.5s linear infinite;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          overflow: hidden;
-        }
-        .ww-moving-bag strong {
-          font-size: 11px;
-          line-height: 1.1;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .ww-moving-bag span {
-          margin-top: 2px;
-          font-size: 10px;
-          font-weight: 750;
-          opacity: 0.88;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        @keyframes wwMove {
-          from { left: -92px; }
-          to { left: calc(100% + 16px); }
-        }
-        .ww-live-stack {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        .ww-tile {
-          padding: 11px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: var(--bg-card);
-          min-width: 0;
-        }
-        .ww-tile-label {
-          color: var(--text-tertiary);
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-        }
-        .ww-tile-value {
-          margin-top: 6px;
-          color: var(--text-primary);
-          font-size: 18px;
-          font-weight: 900;
-          overflow-wrap: anywhere;
-        }
-        .ww-tile-sub {
-          margin-top: 3px;
-          color: var(--text-secondary);
-          font-size: 12px;
-          font-weight: 700;
-          overflow-wrap: anywhere;
-        }
-        @media (max-width: 980px) {
-          .ww-panel {
-            grid-template-columns: 1fr;
-          }
-          .ww-machine {
-            min-height: 300px;
-          }
-        }
-        @media (max-width: 640px) {
-          .ww-machine-head {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .ww-lanes {
-            top: 196px;
-            gap: 10px;
-          }
-          .ww-machine {
-            min-height: 390px;
-          }
-          .ww-moving-bag {
-            width: 70px;
-          }
-        }
-      `}</style>
-
-      <div className="ww-side">
-        <div className="ww-title-row">
-          <div className="ww-title">Kolejka workow</div>
-          <span className="ww-chip">{visualEvents.length}</span>
-        </div>
-        <div className="ww-queue">
-          {visualEvents.slice(0, 4).map((event, index) => (
-            <div className="ww-bag" key={`queue-${event.id}`}>
-              <div className="ww-bag-code" style={{ background: stageColors[index % stageColors.length] }}>
-                {event.bag_id?.slice(-3) || `0${index + 1}`}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div className="ww-bag-main">{event.hotel_name || 'Bez hotelu'}</div>
-                <div className="ww-bag-sub">P{event.program_number || '-'} / tor {event.track_number || '-'}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="ww-tunnel">
-        <div className="ww-title-row">
-          <div className="ww-title">LEBUSER WinWash</div>
-          <span className="ww-chip">{status?.dry_run ? 'DRY RUN' : 'LIVE'}</span>
-        </div>
-        <div className="ww-machine" aria-label="Wizualny podglad tunelu">
-          <div className="ww-machine-head">
-            {tunnelStages.map((stage, index) => (
-              <div className="ww-stage" key={stage.id}>
-                <div className="ww-stage-label">{stage.label}</div>
-                <div className="ww-stage-meta" style={{ color: stageColors[index] }}>{stage.meta}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="ww-lanes">
-            {lanes.map((lane, laneIndex) => {
-              const laneEvents = visualEvents.filter((event, index) => Number(event.track_number || (index % 3) + 1) === lane);
-              const renderEvents = laneEvents.length > 0 ? laneEvents : visualEvents.slice(laneIndex, laneIndex + 1);
-
-              return (
-                <div className="ww-lane" key={lane}>
-                  <div className="ww-lane-label">TOR {lane}</div>
-                  {renderEvents.slice(0, 2).map((event, index) => (
-                    <div
-                      className="ww-moving-bag"
-                      key={`${lane}-${event.id}-${index}`}
-                      style={{
-                        animationDelay: `${-(laneIndex * 1.8 + index * 3.2)}s`,
-                        animationDuration: `${8 + laneIndex + index}s`,
-                        background: stageColors[(laneIndex + index) % stageColors.length],
-                      }}
-                    >
-                      <strong>{event.bag_id || 'BAG'}</strong>
-                      <span>{event.hotel_name || 'Hotel'}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="ww-side">
-        <div className="ww-title-row">
-          <div className="ww-title">Stan tunelu</div>
-          <span className="ww-chip">{realtimeOk ? 'RT' : 'SYNC'}</span>
-        </div>
-        <div className="ww-live-stack">
-          <div className="ww-tile">
-            <div className="ww-tile-label">Status</div>
-            <div className="ww-tile-value" style={{ color: isOnline ? 'var(--accent-green)' : 'var(--accent-orange)' }}>
-              {isOnline ? 'Online' : 'Podglad'}
-            </div>
-            <div className="ww-tile-sub">{status?.transport || 'tryb wizualny'}</div>
-          </div>
-          <div className="ww-tile">
-            <div className="ww-tile-label">Aktywne</div>
-            <div className="ww-tile-value">{activeCount}</div>
-            <div className="ww-tile-sub">worki w obiegu</div>
-          </div>
-          <div className="ww-tile">
-            <div className="ww-tile-label">Ostatni worek</div>
-            <div className="ww-tile-value">{latest?.bag_id || '-'}</div>
-            <div className="ww-tile-sub">{latest?.hotel_name || 'czekam na zdarzenia'}</div>
-          </div>
-          <div className="ww-tile">
-            <div className="ww-tile-label">Kolejka</div>
-            <div className="ww-tile-value">{queueCount}</div>
-            <div className="ww-tile-sub">do wyslania</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export default function TunnelView() {
-  const [status, setStatus] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [realtimeState, setRealtimeState] = useState('CONNECTING');
-
-  const loadTunnel = useCallback(async ({ silent = false } = {}) => {
-    if (silent) setRefreshing(true);
-    else setLoading(true);
-    setError('');
-
-    const [
-      { data: statusRow, error: statusError },
-      { data: eventRows, error: eventsError },
-    ] = await Promise.all([
-      supabase
-        .from('tunnel_gateway_status')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('tunnel_events')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ]);
-
-    if (statusError || eventsError) {
-      setError(statusError?.message || eventsError?.message || 'Nie udalo sie pobrac danych tunelu.');
-    } else {
-      setStatus(statusRow || null);
-      setEvents(eventRows || []);
-    }
-
-    setLoading(false);
-    setRefreshing(false);
-  }, []);
+  const visibleTasks = useMemo(() => [...tasks].sort((a, b) => {
+    const rankA = STATUS_META[a.status]?.rank || 99;
+    const rankB = STATUS_META[b.status]?.rank || 99;
+    if (rankA !== rankB) return rankA - rankB;
+    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  }), [tasks]);
 
   useEffect(() => {
-    loadTunnel();
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ bags, tasks }));
+  }, [bags, tasks]);
 
-    const channel = supabase.channel('tunnel-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tunnel_gateway_status' }, payload => {
-        if (payload.new) setStatus(payload.new);
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tunnel_events' }, payload => {
-        if (!payload.new) return;
-        setEvents(current => [payload.new, ...current].slice(0, 50));
-      })
-      .subscribe(nextState => setRealtimeState(nextState));
+  useEffect(() => {
+    if (!selectedBagId || !availableBags.includes(selectedBagId)) {
+      setSelectedBagId(availableBags[0] || '');
+    }
+  }, [availableBags, selectedBagId]);
 
-    return () => {
-      supabase.removeChannel(channel);
+  useEffect(() => {
+    if (!selectedClient && hotelOptions.length > 0) setSelectedClient(hotelOptions[0]);
+  }, [hotelOptions, selectedClient]);
+
+  const addBag = () => {
+    setBags(prev => [...prev, nextBagId(prev)]);
+    setBagTarget(prev => String(Math.max(Number(prev) || 0, bags.length + 1)));
+  };
+
+  const ensureBagCount = () => {
+    const target = Math.max(1, Math.min(999, Number(bagTarget) || bags.length));
+    setBags(prev => {
+      if (target <= prev.length) return prev;
+      const next = [...prev];
+      while (next.length < target) next.push(nextBagId(next));
+      return next;
+    });
+  };
+
+  const queueTask = () => {
+    if (!canQueue) return;
+    const now = new Date().toISOString();
+    const task = {
+      id: `${Date.now()}-${selectedBagId}`,
+      bagId: selectedBagId,
+      clientName: selectedClient.trim(),
+      programId: selectedProgramId,
+      trackId: selectedTrackId,
+      priority,
+      status: 'queued',
+      operator: user?.name || user?.username || '',
+      createdAt: now,
+      updatedAt: now,
     };
-  }, [loadTunnel]);
+    setTasks(prev => [task, ...prev]);
+    setPriority('normal');
+  };
 
-  const statusTime = status?.updated_at || status?.checked_at;
-  const isFresh = useMemo(() => {
-    if (!statusTime) return false;
-    return Date.now() - new Date(statusTime).getTime() < 20000;
-  }, [statusTime]);
-  const isOnline = !!status?.connected && isFresh;
-  const realtimeOk = realtimeState === 'SUBSCRIBED';
+  const updateTaskStatus = (taskId, status) => {
+    setTasks(prev => prev.map(task => (
+      task.id === taskId ? { ...task, status, updatedAt: new Date().toISOString() } : task
+    )));
+  };
 
-  if (loading) {
-    return (
-      <div className="loader" style={{ minHeight: '240px' }}>
-        Ladowanie tunelu...
-      </div>
-    );
-  }
+  const removeTask = (taskId) => {
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
+  const resetTunnel = () => {
+    setTasks(prev => prev.filter(task => task.status !== 'done'));
+  };
+
+  const taskProgram = (task) => PROGRAMS.find(program => program.id === task.programId) || PROGRAMS[0];
+  const taskTrack = (task) => TRACKS.find(track => track.id === task.trackId) || TRACKS[0];
+  const statusLabel = (status) => t(`tunnel.status.${status}`);
+  const operatorName = user?.name || user?.username || '';
+
+  const sendTask = async (task) => {
+    const program = taskProgram(task);
+    const track = taskTrack(task);
+    setSendingTaskId(task.id);
+
+    try {
+      if (isTunnelGatewayEnabled()) {
+        await sendTunnelCommand({
+          commandId: task.id,
+          bagId: task.bagId,
+          hotelName: task.clientName,
+          programNumber: program.number,
+          trackNumber: track.number,
+          priority: task.priority,
+          requestedBy: operatorName,
+        });
+        toastSuccess(t('tunnel.gatewaySent'));
+      } else {
+        toastWarn(t('tunnel.gatewayDisabled'));
+      }
+      updateTaskStatus(task.id, 'sent');
+    } catch (err) {
+      toastError(`${t('tunnel.gatewayError')} ${err.message}`);
+      updateTaskStatus(task.id, 'error');
+    } finally {
+      setSendingTaskId(null);
+    }
+  };
+
+  if (loading) return <div className="loader">{t('tunnel.loadingData')}</div>;
+  if (error) return <DataError onRetry={refetch} />;
 
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <StatusPill ok={isOnline}>{isOnline ? 'Gateway online' : 'Gateway offline'}</StatusPill>
-          <StatusPill ok={realtimeOk}>{realtimeOk ? 'Realtime aktywny' : 'Realtime laczy'}</StatusPill>
-          {status?.dry_run && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: '26px',
-              padding: '4px 9px',
-              borderRadius: '999px',
-              background: 'rgba(255, 149, 0, 0.13)',
-              color: 'var(--accent-orange)',
-              fontSize: '12px',
-              fontWeight: 800,
-            }}>
-              Dry run
-            </span>
-          )}
+    <div className="tunnel-shell">
+      <div className="tunnel-status-strip">
+        <div className="tunnel-status-item">
+          <Factory size={18} />
+          <span>{t('tunnel.plc')}</span>
+          <strong>{t('tunnel.plcProject')}</strong>
         </div>
-
-        <button
-          type="button"
-          className="driver-btn"
-          onClick={() => loadTunnel({ silent: true })}
-          disabled={refreshing}
-          title="Odswiez status"
-        >
-          <RefreshCw size={14} />
-          {refreshing ? 'Odswiezam...' : 'Odswiez'}
-        </button>
+        <div className="tunnel-status-item">
+          <Package size={18} />
+          <span>{t('tunnel.bags')}</span>
+          <strong>{bags.length}</strong>
+        </div>
+        <div className="tunnel-status-item">
+          <PackageCheck size={18} />
+          <span>{t('tunnel.available')}</span>
+          <strong>{availableBags.length}</strong>
+        </div>
+        <div className="tunnel-status-item">
+          <WashingMachine size={18} />
+          <span>{t('tunnel.inTunnel')}</span>
+          <strong>{inTunnelCount}</strong>
+        </div>
+        <div className="tunnel-status-item">
+          <BadgeCheck size={18} />
+          <span>{t('tunnel.doneToday')}</span>
+          <strong>{doneToday}</strong>
+        </div>
       </div>
 
-      {error && (
-        <div style={{
-          ...cardStyle,
-          padding: '12px',
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'flex-start',
-          color: 'var(--accent-red)',
-          background: 'rgba(255, 59, 48, 0.08)',
-        }}>
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '13px', fontWeight: 700, overflowWrap: 'anywhere' }}>{error}</div>
-        </div>
-      )}
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '12px',
-      }}>
-        <MetricCard
-          icon={<Server size={18} />}
-          label="Gateway"
-          value={status?.gateway_id || 'Brak danych'}
-          sub={status ? `ostatnio ${formatAgo(statusTime)}` : 'czekam na pierwszy status'}
-        />
-        <MetricCard
-          icon={<Radio size={18} />}
-          label="Transport"
-          value={status?.transport || '-'}
-          sub={status?.port_name ? `port ${status.port_name}` : 'bez portu'}
-        />
-        <MetricCard
-          icon={<Activity size={18} />}
-          label="Polaczenie"
-          value={status?.connected ? 'Aktywne' : 'Nieaktywne'}
-          sub={status?.last_error || 'brak bledu'}
-        />
-        <MetricCard
-          icon={<Clock3 size={18} />}
-          label="Ostatni check"
-          value={formatDateTime(status?.checked_at)}
-          sub={status?.updated_at ? `zapis ${formatDateTime(status.updated_at)}` : ''}
-        />
-      </div>
-
-      <WinWashVisual
-        status={status}
-        events={events}
-        isOnline={isOnline}
-        realtimeOk={realtimeOk}
-      />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '18px', letterSpacing: 0 }}>
-            Ostatnie zdarzenia
-          </h2>
-          <span style={mutedStyle}>{events.length} wpisow</span>
-        </div>
-
-        {events.length === 0 ? (
-          <div style={{ ...cardStyle, padding: '22px', color: 'var(--text-secondary)', fontWeight: 700, textAlign: 'center' }}>
-            Brak zdarzen z gatewaya.
+      <section className="tunnel-layout">
+        <div className="tunnel-tool-panel">
+          <div className="tunnel-section-head">
+            <div>
+              <div className="tunnel-kicker">{t('tunnel.order')}</div>
+              <h2>{t('tunnel.newJob')}</h2>
+            </div>
+            <button type="button" className="tunnel-icon-btn" onClick={addBag} title={t('tunnel.addBag')}>
+              <Plus size={17} />
+            </button>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {events.map(event => <EventRow key={event.id} event={event} />)}
+
+          <div className="tunnel-form-grid">
+            <label className="tunnel-field">
+              <span>{t('tunnel.bagId')}</span>
+              <select className="ap-input" value={selectedBagId} onChange={e => setSelectedBagId(e.target.value)}>
+                {availableBags.length === 0 && <option value="">{t('tunnel.noBags')}</option>}
+                {availableBags.map(bagId => <option key={bagId} value={bagId}>{bagId}</option>)}
+              </select>
+            </label>
+
+            <label className="tunnel-field">
+              <span>{t('tunnel.hotel')}</span>
+              <input
+                className="ap-input"
+                list="tunnel-hotels"
+                value={selectedClient}
+                onChange={e => setSelectedClient(e.target.value)}
+                placeholder={t('tunnel.hotelPlaceholder')}
+              />
+              <datalist id="tunnel-hotels">
+                {hotelOptions.map(name => <option key={name} value={name} />)}
+              </datalist>
+            </label>
+
+            <label className="tunnel-field">
+              <span>{t('tunnel.program')}</span>
+              <select className="ap-input" value={selectedProgramId} onChange={e => setSelectedProgramId(e.target.value)}>
+                {PROGRAMS.map(program => (
+                  <option key={program.id} value={program.id}>
+                    {program.number}. {t(`tunnel.programs.${program.id}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="tunnel-field">
+              <span>{t('tunnel.track')}</span>
+              <select className="ap-input" value={selectedTrackId} onChange={e => setSelectedTrackId(e.target.value)}>
+                {TRACKS.map(track => (
+                  <option key={track.id} value={track.id}>
+                    {track.number}. {t('tunnel.trackName', { number: track.number })}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="tunnel-field">
+              <span>{t('tunnel.priority')}</span>
+              <select className="ap-input" value={priority} onChange={e => setPriority(e.target.value)}>
+                <option value="normal">{t('tunnel.normal')}</option>
+                <option value="urgent">{t('tunnel.urgent')}</option>
+              </select>
+            </label>
+
+            <div className="tunnel-field tunnel-count-field">
+              <span>{t('tunnel.bagCount')}</span>
+              <div className="tunnel-inline-control">
+                <input
+                  className="ap-input"
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={bagTarget}
+                  onChange={e => setBagTarget(e.target.value)}
+                />
+                <button type="button" className="driver-tool-btn" onClick={ensureBagCount}>
+                  <ScanBarcode size={15} />
+                  {t('tunnel.generate')}
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    </section>
+
+          <button type="button" className="tunnel-primary-btn" onClick={queueTask} disabled={!canQueue}>
+            <Plus size={17} />
+            {t('tunnel.queueBag')}
+          </button>
+        </div>
+
+        <div className="tunnel-tool-panel tunnel-plc-panel">
+          <div className="tunnel-section-head">
+            <div>
+              <div className="tunnel-kicker">{t('tunnel.gateway')}</div>
+              <h2>{t('tunnel.signal')}</h2>
+            </div>
+            <Cable size={22} />
+          </div>
+
+          <div className="tunnel-plc-grid">
+            <div><span>bag_id</span><strong>{selectedBagId || '-'}</strong></div>
+            <div><span>hotel</span><strong>{selectedClient.trim() || '-'}</strong></div>
+            <div><span>program_number</span><strong>{selectedProgram?.number || '-'}</strong></div>
+            <div><span>track_number</span><strong>{selectedTrack?.number || '-'}</strong></div>
+            <div><span>send_request</span><strong>{canQueue ? '1' : '0'}</strong></div>
+            <div><span>priority</span><strong>{priority === 'urgent' ? '1' : '0'}</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="tunnel-board-section">
+        <div className="tunnel-section-head">
+          <div>
+            <div className="tunnel-kicker">{t('tunnel.queue')}</div>
+            <h2>{t('tunnel.tracks')}</h2>
+          </div>
+          <div className="tunnel-mini-stat">{queuedCount} {t('tunnel.waiting')}</div>
+        </div>
+
+        <div className="tunnel-track-grid">
+          {TRACKS.map(track => {
+            const trackTasks = activeTasks
+              .filter(task => task.trackId === track.id)
+              .sort((a, b) => (STATUS_META[a.status]?.rank || 99) - (STATUS_META[b.status]?.rank || 99));
+            return (
+              <article className="tunnel-track-card" key={track.id} style={{ '--track-color': track.color }}>
+                <div className="tunnel-track-header">
+                  <span className="tunnel-track-badge">T{track.number}</span>
+                  <strong>{t('tunnel.trackName', { number: track.number })}</strong>
+                  <span>{trackTasks.length}</span>
+                </div>
+                <div className="tunnel-track-list">
+                  {trackTasks.length === 0 && <div className="tunnel-empty-row">{t('tunnel.trackFree')}</div>}
+                  {trackTasks.map(task => {
+                    const StatusIcon = STATUS_META[task.status]?.icon || Clock3;
+                    const program = taskProgram(task);
+                    return (
+                      <div className={`tunnel-task-row status-${task.status}`} key={task.id}>
+                        <div className="tunnel-task-main">
+                          <div className="tunnel-task-title">
+                            <strong>{task.bagId}</strong>
+                            {task.priority === 'urgent' && <span className="tunnel-urgent">{t('tunnel.urgentShort')}</span>}
+                          </div>
+                          <span>{task.clientName}</span>
+                          <small>P{program.number} · {t(`tunnel.programs.${program.id}`)}</small>
+                        </div>
+                        <span className={`tunnel-status-pill status-${task.status}`}>
+                          <StatusIcon size={13} />
+                          {statusLabel(task.status)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="tunnel-jobs-section">
+        <div className="tunnel-section-head">
+          <div>
+            <div className="tunnel-kicker">{t('tunnel.jobs')}</div>
+            <h2>{t('tunnel.allJobs')}</h2>
+          </div>
+          <button type="button" className="driver-tool-btn" onClick={resetTunnel} disabled={!tasks.some(task => task.status === 'done')}>
+            <RotateCcw size={15} />
+            {t('tunnel.clearDone')}
+          </button>
+        </div>
+
+        <div className="tunnel-jobs-list">
+          {visibleTasks.length === 0 && <div className="tunnel-empty-list">{t('tunnel.emptyQueue')}</div>}
+          {visibleTasks.map(task => {
+            const program = taskProgram(task);
+            const track = taskTrack(task);
+            const StatusIcon = STATUS_META[task.status]?.icon || Clock3;
+            return (
+              <article className={`tunnel-job-card status-${task.status}`} key={task.id}>
+                <div className="tunnel-job-main">
+                  <span className="tunnel-job-bag">{task.bagId}</span>
+                  <div>
+                    <strong>{task.clientName}</strong>
+                    <small>
+                      P{program.number} · {t(`tunnel.programs.${program.id}`)} · {t('tunnel.trackName', { number: track.number })}
+                    </small>
+                  </div>
+                </div>
+
+                <div className="tunnel-job-meta">
+                  <span className={`tunnel-status-pill status-${task.status}`}>
+                    <StatusIcon size={13} />
+                    {statusLabel(task.status)}
+                  </span>
+                  <span>{formatter.format(new Date(task.updatedAt || task.createdAt))}</span>
+                  {task.operator && <span>{task.operator}</span>}
+                </div>
+
+                <div className="tunnel-job-actions">
+                  {task.status === 'queued' && (
+                    <button
+                      type="button"
+                      className="tunnel-action-btn"
+                      onClick={() => sendTask(task)}
+                      disabled={sendingTaskId === task.id}
+                    >
+                      <Send size={14} />
+                      {sendingTaskId === task.id ? t('tunnel.sending') : t('tunnel.send')}
+                    </button>
+                  )}
+                  {task.status === 'sent' && (
+                    <button type="button" className="tunnel-action-btn" onClick={() => updateTaskStatus(task.id, 'inTunnel')}>
+                      <WashingMachine size={14} />
+                      {t('tunnel.markInTunnel')}
+                    </button>
+                  )}
+                  {['queued', 'sent', 'inTunnel'].includes(task.status) && (
+                    <button type="button" className="tunnel-action-btn is-danger" onClick={() => updateTaskStatus(task.id, 'error')}>
+                      <TriangleAlert size={14} />
+                      {t('tunnel.markError')}
+                    </button>
+                  )}
+                  {['inTunnel', 'error'].includes(task.status) && (
+                    <button type="button" className="tunnel-action-btn is-success" onClick={() => updateTaskStatus(task.id, 'done')}>
+                      <CircleCheck size={14} />
+                      {t('tunnel.finish')}
+                    </button>
+                  )}
+                  {task.status === 'error' && (
+                    <button type="button" className="tunnel-action-btn" onClick={() => updateTaskStatus(task.id, 'queued')}>
+                      <RotateCcw size={14} />
+                      {t('tunnel.retry')}
+                    </button>
+                  )}
+                  {task.status === 'done' && (
+                    <button type="button" className="tunnel-icon-btn" onClick={() => removeTask(task.id)} title={t('common.delete')}>
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="tunnel-next-section">
+        <div className="tunnel-section-head">
+          <div>
+            <div className="tunnel-kicker">{t('tunnel.integration')}</div>
+            <h2>{t('tunnel.plcContract')}</h2>
+          </div>
+          <Settings2 size={20} />
+        </div>
+        <div className="tunnel-contract-grid">
+          <div><span>write.program_number</span><strong>INT</strong></div>
+          <div><span>write.track_number</span><strong>INT</strong></div>
+          <div><span>write.send_request</span><strong>BOOL</strong></div>
+          <div><span>read.ack</span><strong>BOOL</strong></div>
+          <div><span>read.busy</span><strong>BOOL</strong></div>
+          <div><span>read.error_code</span><strong>INT</strong></div>
+        </div>
+      </section>
+    </div>
   );
 }

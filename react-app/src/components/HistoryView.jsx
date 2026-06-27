@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { routeBadgeStyle, STATUS_COLORS } from '../lib/visualSystem';
 import { getEntryLogs } from '../lib/logsRpc';
+import { getHistoryEntries } from '../lib/historyRpc';
 import { dayNamesShort, weekdayFull, currentLocale } from '../lib/dateUtils';
 import { printSavedLaundryReceipt } from './modals/EntryModals';
 
@@ -103,7 +103,7 @@ function EntryChangeLog({ entryId }) {
 export default function HistoryView() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, user } = useAuth();
+  const { isAdmin, user, sessionToken } = useAuth();
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,29 +117,25 @@ export default function HistoryView() {
   const PAGE_SIZE = 7; // dni na stronę
 
   useEffect(() => {
+    let cancelled = false;
     const fetchEntries = async () => {
       setLoading(true);
-      let q = supabase.from('entries').select('*').order('added_at', { ascending: false }).limit(1500);
-
-      // Kierowca widzi tylko swoje trasy
-      if (isDriver && user?.routes) {
-        const ids = user.routes.split(',').map(s => parseInt(s.trim())).filter(Boolean);
-        if (ids.length > 0) q = q.in('route_id', ids);
-      }
-
-      const { data, error: entriesError } = await q;
-      if (entriesError) {
+      try {
+        const data = await getHistoryEntries(sessionToken, { limit: 1500 });
+        if (cancelled) return;
+        setError(null);
+        setEntries(data || []);
+      } catch (entriesError) {
+        if (cancelled) return;
         setError(entriesError.message);
         setEntries([]);
-        setLoading(false);
-        return;
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setError(null);
-      setEntries(data || []);
-      setLoading(false);
     };
     fetchEntries();
-  }, [isDriver, user?.routes]);
+    return () => { cancelled = true; };
+  }, [sessionToken]);
 
   // Filtrowanie
   const filtered = entries.filter(e => {

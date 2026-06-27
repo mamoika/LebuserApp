@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
@@ -6,23 +6,28 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AlertTriangle, Eye, LogOut, Undo2 } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
-import ScheduleView from '../components/ScheduleView';
-import DriverRouteView from '../components/DriverRouteView';
-import ClientsRoutesView from '../components/ClientsRoutesView';
-import AdminDashboard from '../components/AdminDashboard';
-import MapView from '../components/MapView';
-import HistoryView from '../components/HistoryView';
-import GrafikView from '../components/GrafikView';
-import TimelineView from '../components/TimelineView';
-import CostsView from '../components/CostsView';
-import TunnelView from '../components/TunnelView';
-import WashView from '../components/WashView';
+
 import ToastContainer from '../components/ToastContainer';
+
+// Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki, np. mapa i
+// eksport Excela, pobierają się dopiero przy wejściu na dany widok.
+const ScheduleView = lazy(() => import('../components/ScheduleView'));
+const TunnelView = lazy(() => import('../components/TunnelView'));
+const DriverRouteView = lazy(() => import('../components/DriverRouteView'));
+const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
+const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
+const MapView = lazy(() => import('../components/MapView'));
+const HistoryView = lazy(() => import('../components/HistoryView'));
+const GrafikView = lazy(() => import('../components/GrafikView'));
+const TimelineView = lazy(() => import('../components/TimelineView'));
+const CostsView = lazy(() => import('../components/CostsView'));
+const WashView = lazy(() => import('../components/WashView'));
 
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
 const PAGE_KEYS = {
   '/': 'home',
   '/schedule': 'home',
+  '/tunnel': 'tunnel',
   '/route': 'route',
   '/routes': 'routes',
   '/clients': 'clients',
@@ -160,6 +165,7 @@ export default function Dashboard() {
 
       {/* Kontent główny */}
       <main>
+        <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading', 'Ładowanie…')}</div>}>
         <Routes>
           <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
           <Route path="/schedule" element={<ScheduleView />} />
@@ -176,6 +182,7 @@ export default function Dashboard() {
           <Route path="/wash" element={canViewAdminData ? <WashView /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
+        </Suspense>
       </main>
       {needsPrivacyNotice && <PrivacyNoticeModal />}
       <ToastContainer />

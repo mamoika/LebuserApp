@@ -1,13 +1,27 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
+// Strona Lebuser ładowana leniwie — admin-only, nie obciąża głównego bundla.
+const LebuserLanding = lazy(() => import('./pages/LebuserLanding'));
+
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+const AdminRoute = ({ children }) => {
+  const { user, isAdmin } = useAuth();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
   }
   return children;
 };
@@ -103,6 +117,13 @@ function App() {
             </PublicRoute>
           } />
           <Route path="/register" element={<Navigate to="/login" replace />} />
+          <Route path="/lebuser" element={
+            <AdminRoute>
+              <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+                <LebuserLanding />
+              </Suspense>
+            </AdminRoute>
+          } />
           <Route path="/*" element={
             <ProtectedRoute>
               <Dashboard />

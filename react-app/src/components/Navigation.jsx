@@ -15,6 +15,7 @@ export default function Navigation() {
     { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
     { to: '/schedule', icon: '📅', label: t('nav.schedule') },
+    { to: '/tunnel', icon: '🏭', label: t('nav.tunnel') },
     { to: '/history', icon: '📋', label: t('nav.history') }
   );
 
@@ -29,6 +30,7 @@ export default function Navigation() {
 
   if (isAdmin) {
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
+    navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
   }
 
   return (

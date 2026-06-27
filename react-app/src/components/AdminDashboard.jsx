@@ -16,9 +16,12 @@ const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0
 const roleLabel = (t, role) => ({
   viewer: t('admin.roleViewer'),
   admin_viewer: t('admin.roleAdminViewer'),
+  admin_viewer_driver: t('admin.roleAdminViewerDriver'),
   driver: t('admin.roleDriver'),
   admin: t('admin.roleAdmin'),
 }[role] || role);
+
+const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_viewer_driver';
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
@@ -123,6 +126,7 @@ function AddUserModal({ onClose, onSave }) {
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
             <option value="viewer">{t('admin.roleViewer')}</option>
             <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
+            <option value="admin_viewer_driver">{t('admin.roleAdminViewerDriver')}</option>
             <option value="driver">{t('admin.roleDriver')}</option>
             <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
@@ -191,11 +195,12 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
           <select className="ap-input" value={role} onChange={e => setRole(e.target.value)} style={{ marginBottom: '12px' }}>
             <option value="viewer">{t('admin.roleViewer')}</option>
             <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
+            <option value="admin_viewer_driver">{t('admin.roleAdminViewerDriver')}</option>
             <option value="driver">{t('admin.roleDriver')}</option>
             <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
 
-          {role === 'driver' && (
+          {canAssignDriverSettings(role) && (
             <>
               <div style={LABEL_STYLE}>{t('admin.assignedRoutes')}</div>
               <RoutesPicker value={routes} onChange={setRoutes} />

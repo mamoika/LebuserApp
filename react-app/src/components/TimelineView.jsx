@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -33,7 +34,49 @@ const STATUS_STYLE = {
   'I':   { bg: '#ede9fe', color: '#6d28d9' },
 };
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 5);
+const VISIBLE_START = 5;
+const VISIBLE_END = 22; // exclusive: widoczne na osi godziny 5–21 (stała, niezależna od danych)
+const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NN', 'END', 'I']);
+const range = (start, end) => Array.from({ length: Math.max(0, end - start) }, (_, i) => start + i);
+const VISIBLE_HOURS = range(VISIBLE_START, VISIBLE_END); // 5..21 — siatka zawsze standardowa
+const COUNT_HOURS = range(0, 24); // 0..23 — do liczenia sum (łapie też godziny doby spoza osi)
+
+// Czy zmiana to pełna doba / dyżur (przechodzi przez północ lub trwa ~24h).
+function isFullDayDuty(endH, duration) {
+  return endH > 24 || roundHours(duration) >= 23.5;
+}
+
+// Komórki zmiany wypadające poza widoczną osią 5–21 (do panelu „+Xh"), w kolejności
+// chronologicznej: wieczór dnia startu (22, 23…), potem poranek po północy.
+function getOverflowCells(startH, endH) {
+  const cells = [];
+  const dayEnd = Math.min(endH, 24);
+  const isShownInGrid = (h) => h >= VISIBLE_START && h < VISIBLE_END
+    && Math.min(h + 1, dayEnd) > Math.max(h, startH);
+  const addRange = (from, to) => {
+    for (let h = Math.floor(from); h < to; h++) {
+      const cs = Math.max(from, h);
+      const ce = Math.min(to, h + 1);
+      if (ce > cs && !isShownInGrid(h)) cells.push({ h, fillFrom: cs - h, fillTo: ce - h });
+    }
+  };
+  if (startH < VISIBLE_START) addRange(startH, Math.min(dayEnd, VISIBLE_START)); // wczesny ranek dnia startu
+  if (dayEnd > VISIBLE_END) addRange(Math.max(startH, VISIBLE_END), dayEnd);      // wieczór dnia startu
+  if (endH > 24) addRange(0, endH - 24);                                          // poranek po północy
+  return cells;
+}
+
+function getOverflowEndMarker(startH, endH) {
+  if (endH <= 24) return null;
+  const end = endH - 24;
+  const h = Math.floor(end);
+  const fillTo = end - h;
+  if (fillTo <= 0) return null;
+  const dayEnd = Math.min(endH, 24);
+  const shownInGrid = h >= VISIBLE_START && h < VISIBLE_END
+    && Math.min(h + 1, dayEnd) > Math.max(h, startH);
+  return shownInGrid ? { h, fillTo } : null;
+}
 
 function getMondayOfWeek(date) {
   const d = new Date(date);
@@ -46,17 +89,145 @@ function getMondayOfWeek(date) {
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function fmtDate(d) { return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`; }
 function toDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function parseHour(str) {
+function parseHourValue(str) {
   if (!str) return 0;
   const s = String(str).trim();
-  if (s.includes(':')) { const p = s.split(':'); return parseInt(p[0]) + (parseInt(p[1]) || 0) / 60; }
-  return parseFloat(s.replace(',', '.')) || 0;
+  if (!s) return 0;
+  if (s.includes(':')) {
+    const p = s.split(':');
+    const h = parseInt(p[0], 10);
+    const m = parseInt(p[1], 10) || 0;
+    return Number.isFinite(h) ? h + m / 60 : null;
+  }
+  const n = parseFloat(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+function parseHour(str) {
+  return parseHourValue(str) ?? 0;
 }
 function getWeekNum(d) {
   const date = new Date(d); date.setHours(0,0,0,0);
   date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
   const w1 = new Date(date.getFullYear(), 0, 4);
   return 1 + Math.round(((date - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+}
+
+function roundHours(value) {
+  return Math.round((Number(value) || 0) * 10) / 10;
+}
+
+function fmtHours(value) {
+  const n = roundHours(value);
+  return Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
+}
+
+function fmtHourLabel(value) {
+  const rounded = roundHours(value);
+  const dayOffset = Math.floor(rounded / 24);
+  const normalized = ((rounded % 24) + 24) % 24;
+  const base = fmtHours(normalized);
+  return dayOffset > 0 ? `${base}+${dayOffset}` : base;
+}
+
+function fmtClockLabel(value) {
+  const normalized = ((value % 24) + 24) % 24;
+  const totalMinutes = Math.round(normalized * 60);
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return m ? `${h}:${String(m).padStart(2, '0')}` : String(h);
+}
+
+function getShiftDuration(startH, endH) {
+  if (!Number.isFinite(startH) || !Number.isFinite(endH)) return 0;
+  return roundHours(endH >= startH ? endH - startH : 24 - startH + endH);
+}
+
+function getVisibleShiftSegments(startH, endH) {
+  // Tylko część zmiany przypadająca na dzień startu, bez zawijania nocy przez północ —
+  // dzięki temu pasmo zaczyna się o realnej godzinie startu (np. 7:20), a nie od 5:00.
+  const os = Math.max(startH, VISIBLE_START);
+  const oe = Math.min(endH, VISIBLE_END, 24);
+  return oe > os ? [{ start: os, end: oe }] : [];
+}
+
+function getCellShiftFill(h, startH, endH) {
+  const cellStart = h;
+  const cellEnd = h + 1;
+  let fillFrom = 1;
+  let fillTo = 0;
+
+  getVisibleShiftSegments(startH, endH).forEach((seg) => {
+    const os = Math.max(cellStart, seg.start);
+    const oe = Math.min(cellEnd, seg.end);
+    if (oe <= os) return;
+    fillFrom = Math.min(fillFrom, os - cellStart);
+    fillTo = Math.max(fillTo, oe - cellStart);
+  });
+
+  return fillTo > fillFrom ? { fillFrom, fillTo } : null;
+}
+
+function parseScheduleShift(value, emp) {
+  const rawValue = String(value || '').trim().toUpperCase();
+  const defaultStart = parseHour(emp.default_start);
+  const defaultEndRaw = parseHour(emp.default_end);
+  const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+  const isWorking = !!rawValue && !ABSENCE_STATUSES.has(rawValue);
+
+  if (!isWorking) {
+    return {
+      start: defaultStart,
+      end: defaultEnd,
+      duration: 0,
+      working: false,
+      status: rawValue,
+      confirmed: false,
+      fullDay: false,
+      rawValue,
+    };
+  }
+
+  let finalStart = defaultStart;
+  let finalEnd = defaultEnd;
+  let duration = getShiftDuration(defaultStart, defaultEnd);
+
+  if (rawValue.includes('-')) {
+    const [a, b] = rawValue.split('-');
+    const st = parseHourValue(a);
+    const en = parseHourValue(b);
+    if (st !== null && en !== null) {
+      finalStart = st;
+      finalEnd = en <= st ? en + 24 : en;
+      duration = roundHours(finalEnd - finalStart);
+    }
+  } else if (rawValue.includes('+')) {
+    const [a, b] = rawValue.split('+');
+    const st = parseHourValue(a);
+    const dur = parseHourValue(b);
+    if (st !== null && dur !== null) {
+      finalStart = st;
+      finalEnd = st + dur;
+      duration = roundHours(dur);
+    }
+  } else {
+    const dur = parseHourValue(rawValue);
+    if (dur !== null) {
+      finalStart = defaultStart;
+      finalEnd = defaultStart + dur;
+      duration = roundHours(dur);
+    }
+  }
+
+  return {
+    start: finalStart,
+    end: finalEnd,
+    duration,
+    working: true,
+    status: null,
+    confirmed: true,
+    fullDay: isFullDayDuty(finalEnd, duration),
+    rawValue,
+  };
 }
 
 function getCellBackground(h, startH, endH, working, role, confirmed) {
@@ -68,25 +239,9 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
   const emptyColor = 'transparent';
 
-  const cellStart = h;
-  const cellEnd = h + 1;
-  let fillFrom;
-  let fillTo;
-
-  if (startH <= endH) {
-    if (cellEnd <= startH || cellStart >= endH) return { background: 'transparent', color: 'transparent' };
-    const os = Math.max(cellStart, startH);
-    const oe = Math.min(cellEnd, endH);
-    const ov = oe - os;
-    fillFrom = os - cellStart; fillTo = fillFrom + ov;
-  } else {
-    const inNight = cellStart >= startH || cellEnd <= endH;
-    if (!inNight) return { background: 'transparent', color: 'transparent' };
-    const os = cellStart >= startH ? Math.max(cellStart, startH) : cellStart;
-    const oe = cellEnd <= endH ? Math.min(cellEnd, endH) : cellEnd;
-    const ov = Math.max(0, oe - os);
-    fillFrom = os - cellStart; fillTo = fillFrom + ov;
-  }
+  const fill = getCellShiftFill(h, startH, endH);
+  if (!fill) return { background: 'transparent', color: 'transparent' };
+  const { fillFrom, fillTo } = fill;
 
   if (fillTo <= 0) return { background: 'transparent', color: 'transparent' };
   
@@ -104,8 +259,7 @@ function getCellBackground(h, startH, endH, working, role, confirmed) {
 }
 
 function isHourInShift(h, startH, endH) {
-  if (startH <= endH) return h >= Math.floor(startH) && h < Math.ceil(endH);
-  return h >= Math.floor(startH) || h < Math.ceil(endH);
+  return !!getCellShiftFill(h, startH, endH);
 }
 
 // Zmiana danej osoby w danym dniu (godziny, czy pracuje, potwierdzona, status nieobecności)
@@ -113,12 +267,16 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
   const sched = scheduleMap[`${emp.id}_${dateStr}`];
   const dow = new Date(dateStr + 'T00:00:00').getDay();
   const isWe = dow === 0 || dow === 6;
-  const startH = sched ? sched.start : parseHour(emp.default_start);
-  const endH = sched ? sched.end : parseHour(emp.default_end);
+  const defaultStart = parseHour(emp.default_start);
+  const defaultEndRaw = parseHour(emp.default_end);
+  const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+  const startH = sched ? sched.start : defaultStart;
+  const endH = sched ? sched.end : defaultEnd;
   const working = sched ? sched.working : !isWe;
   const confirmed = sched ? sched.confirmed : false;
   const dayStatus = sched?.status || null;
-  return { startH, endH, working, confirmed, dayStatus };
+  const duration = sched?.duration ?? getShiftDuration(startH, endH);
+  return { startH, endH, duration, working, confirmed, dayStatus, fullDay: sched?.fullDay || false };
 }
 
 // Zmemoizowany komponent wiersza
@@ -127,55 +285,83 @@ const TimelineRow = React.memo(({
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   const { t } = useTranslation();
+  // Panel godzin doby spoza osi 5–21 ("+Xh"): { dateStr, range, overflowHours, rect } | null
+  const [duty, setDuty] = useState(null);
+
+  useEffect(() => {
+    if (!duty) return;
+    const close = () => setDuty(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [duty]);
+
   const cells = weekDays.map((d, di) => {
     const isWe = d.getDay() === 0 || d.getDay() === 6;
     const dateStr = toDateStr(d);
     const sched = scheduleMap[`${emp.id}_${dateStr}`];
-    const startH = sched ? sched.start : parseHour(emp.default_start);
-    const endH = sched ? sched.end : parseHour(emp.default_end);
+    const defaultStart = parseHour(emp.default_start);
+    const defaultEndRaw = parseHour(emp.default_end);
+    const defaultEnd = defaultEndRaw < defaultStart ? defaultEndRaw + 24 : defaultEndRaw;
+    const startH = sched ? sched.start : defaultStart;
+    const endH = sched ? sched.end : defaultEnd;
     // Dwie 15-min przerwy: start+3h i start+6h
-    const breakCell1 = Math.floor(startH + 3);
-    const breakCell2 = Math.floor(startH + 6);
+    const breakCell1 = ((Math.floor(startH + 3) % 24) + 24) % 24;
+    const breakCell2 = ((Math.floor(startH + 6) % 24) + 24) % 24;
     const holiday = isHoliday(d);
     const working = sched ? sched.working : false;
     const confirmed = sched ? sched.confirmed : false;
     // Brak wpisu = domyślna wartość grafiku: weekend/święto → 'W' (wolne), powszedni → 'I' (Planowany)
     const dayStatus = sched ? sched.status : ((isWe || holiday) ? 'W' : 'I');
     const statusSt = dayStatus ? STATUS_STYLE[dayStatus] : null;
-    const schedHours = working ? Math.round((endH >= startH ? endH - startH : 24 - startH + endH) * 10) / 10 : 0;
+    const duration = sched?.duration ?? getShiftDuration(startH, endH);
+    const schedHours = working ? fmtHours(duration) : '';
+    const fullDay = working && !dayStatus && (sched?.fullDay ?? isFullDayDuty(endH, duration));
+    const dutyRange = `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`;
+    const dutyTitle = fullDay
+      ? t('timeline.dutyTitle', { range: dutyRange, hours: fmtHours(duration) })
+      : undefined;
+    // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
+    const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
+    const overflowEndMarker = working && !dayStatus ? getOverflowEndMarker(startH, endH) : null;
+    const overflowH = overflowCells.length;
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
     return (
       <React.Fragment key={di}>
-        <td className="tl-sum-col"
+        <td className={`tl-sum-col ${fullDay ? 'tl-duty-sum' : ''}`}
           onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
-          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : undefined}
+          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : dutyTitle}
           style={{
-            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : working ? 'var(--accent-green-light)' : '#f5f5f7',
-            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : working ? 'var(--accent-green)' : '#ccc',
+            background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : fullDay ? '#ffedd5' : working ? 'var(--accent-green-light)' : '#f5f5f7',
+            color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : fullDay ? '#c2410c' : working ? 'var(--accent-green)' : '#ccc',
             cursor: canCopyHere ? 'copy' : 'default',
             outline: isCopySource ? '2px solid var(--accent)' : 'none',
-            boxShadow: copyMode && copySource && canCopyHere && !isCopySource ? 'inset 0 0 0 1px var(--accent)' : 'none',
+            boxShadow: copyMode && copySource && canCopyHere && !isCopySource
+              ? 'inset 0 0 0 1px var(--accent)'
+              : fullDay && !isCopySource
+                ? 'inset 0 0 0 2px rgba(249, 115, 22, 0.35)'
+                : 'none',
           }}>
           {dayStatus || (working ? schedHours : '')}
         </td>
-        {HOURS.map(h => {
+        {VISIBLE_HOURS.map(h => {
           const key = `${emp.id}_${dateStr}_${h}`;
           const role = entries[key];
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
             : getCellBackground(h, startH, endH, working, role, confirmed);
 
-          let isShiftHour = false;
-          if (startH <= endH) {
-            isShiftHour = h >= Math.floor(startH) && h < Math.ceil(endH);
-          } else {
-            isShiftHour = h >= Math.floor(startH) || h < Math.ceil(endH);
-          }
+          const isShiftHour = isHourInShift(h, startH, endH);
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
-          const isBreakHour = working && !dayStatus && isShiftHour && (h === breakCell1 || h === breakCell2);
+          const isBreakHour = working && !dayStatus && !fullDay && isShiftHour && (h === breakCell1 || h === breakCell2);
+          // Znacznik "+Xh" w ostatniej widocznej godzinie (21), jeśli zmiana ma godziny poza osią.
+          const showBadge = h === VISIBLE_END - 1 && overflowCells.length > 0;
 
           return (
             <td key={h}
@@ -195,9 +381,30 @@ const TimelineRow = React.memo(({
               }}
               style={{ cursor: isBrushable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default' }}
             >
-              <div className="tl-cell-inner" style={cellStyle}>
+              <div
+                className="tl-cell-inner"
+                style={{ ...cellStyle, overflow: showBadge ? 'visible' : undefined }}
+                title={dutyTitle}
+              >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
-                {!dayStatus && (role || '')}
+                {!dayStatus && isShiftHour && (role || '')}
+                {showBadge && (
+                  <button
+                    type="button"
+                    className={`tl-duty-badge ${duty?.dateStr === dateStr ? 'open' : ''}`}
+                    title={dutyTitle || t('timeline.dutyShowHours')}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setDuty(prev => (prev && prev.dateStr === dateStr)
+                        ? null
+                        : { dateStr, count: overflowH, cells: overflowCells, endMarker: overflowEndMarker, endH, rect: r });
+                    }}
+                  >
+                    +{overflowH}h
+                  </button>
+                )}
               </div>
             </td>
           );
@@ -205,6 +412,8 @@ const TimelineRow = React.memo(({
       </React.Fragment>
     );
   });
+
+  const dutyPanelCols = duty ? duty.cells.length + (duty.endMarker ? 1 : 0) : 0;
 
   return (
     <tr style={{ background: rowBg, height: '30px' }}>
@@ -219,6 +428,72 @@ const TimelineRow = React.memo(({
         </div>
       </td>
       {cells}
+      {duty && createPortal(
+        <div className="tl-duty-pop-backdrop" onMouseDown={() => setDuty(null)}>
+          <div
+            className="tl-duty-pop"
+            style={{
+              top: Math.min(duty.rect.bottom + 6, window.innerHeight - 96),
+              left: Math.max(8, Math.min(duty.rect.right - 40, window.innerWidth - 12 - (dutyPanelCols * 40 + 24))),
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="tl-duty-pop-head">
+              <span><i className="ti ti-moon" aria-hidden="true" /> +{duty.count} · {t('timeline.dutyPanel')}</span>
+              <button type="button" onClick={() => setDuty(null)} aria-label={t('common.close')}>×</button>
+            </div>
+            <div className="tl-duty-pop-cells">
+              {duty.cells.map(({ h, fillFrom, fillTo }) => {
+                const role = entries[`${emp.id}_${duty.dateStr}_${h}`];
+                const rInfo = role ? ROLES[role] : null;
+                const base = rInfo ? rInfo.bg : 'rgba(0,122,255,0.12)';
+                const full = fillFrom <= 0 && fillTo >= 1;
+                const pF = Math.round(fillFrom * 100);
+                const pT = Math.round(fillTo * 100);
+                const paintable = isAdmin && brushRole;
+                return (
+                  <div key={h} className="tl-duty-pop-col">
+                    <span className="tl-duty-pop-hl">{h}</span>
+                    <div
+                      className="tl-duty-pop-cell"
+                      title={full ? undefined : `${h}:00–${h}:${String(Math.round(fillTo * 60)).padStart(2, '0')}`}
+                      style={{
+                        background: full
+                          ? base
+                          : `linear-gradient(to right, transparent ${pF}%, ${base} ${pF}%, ${base} ${pT}%, transparent ${pT}%)`,
+                        color: rInfo ? rInfo.fc : 'transparent',
+                        cursor: paintable ? (brushRole === '__erase__' ? 'cell' : 'crosshair') : 'default',
+                      }}
+                      onMouseDown={() => {
+                        if (!paintable) return;
+                        isPaintingRef.current = true;
+                        onBrushCell(emp.id, duty.dateStr, h, null, true, true, true);
+                      }}
+                      onMouseEnter={() => {
+                        if (!isPaintingRef.current || !paintable) return;
+                        onBrushCell(emp.id, duty.dateStr, h, null, true, true, true);
+                      }}
+                    >{role || ''}</div>
+                  </div>
+                );
+              })}
+              {duty.endMarker && (
+                <div key={`end-${duty.endMarker.h}`} className="tl-duty-pop-col tl-duty-pop-end-col">
+                  <span className="tl-duty-pop-hl">{fmtClockLabel(duty.endH)}</span>
+                  <div
+                    className="tl-duty-pop-cell tl-duty-pop-end"
+                    title={fmtClockLabel(duty.endH)}
+                    style={{
+                      background: `linear-gradient(to right, rgba(0,122,255,0.12) 0%, rgba(0,122,255,0.12) ${Math.round(duty.endMarker.fillTo * 100)}%, transparent ${Math.round(duty.endMarker.fillTo * 100)}%)`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </tr>
   );
 }, (prev, next) => {
@@ -230,7 +505,7 @@ const TimelineRow = React.memo(({
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
-    for (let h of HOURS) {
+    for (let h of COUNT_HOURS) {
       const key = `${next.emp.id}_${dateStr}_${h}`;
       if (prev.entries[key] !== next.entries[key]) return false;
     }
@@ -291,25 +566,7 @@ export default function TimelineView() {
       const dayDate = allWeekDays.find(d => d.getDate() === e.day && d.getMonth() === monday.getMonth());
       if (!dayDate) return;
       const ds = toDateStr(dayDate);
-      const v = String(e.value || '').toUpperCase();
-      // 'I' (Planowany/na zleceniu) = jeszcze nie pracuje → nie liczony, nie malowalny, ale oznaczony
-      const isWorking = v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'END' && v !== 'I';
-      let finalStart = parseHour(emp.default_start), finalEnd = parseHour(emp.default_end);
-      if (isWorking && v) {
-        if (v.includes('-')) {
-          const [a, b] = v.split('-');
-          const st = parseFloat(a.replace(',', '.')), en = parseFloat(b.replace(',', '.'));
-          if (!isNaN(st) && !isNaN(en)) { finalStart = st; finalEnd = en; }
-        } else if (v.includes('+')) {
-          const [a, b] = v.split('+');
-          const st = parseFloat(a.replace(',', '.')), dur = parseFloat(b.replace(',', '.'));
-          if (!isNaN(st) && !isNaN(dur)) { finalStart = st; finalEnd = (st + dur) % 24; }
-        } else if (!isNaN(parseFloat(v.replace(',', '.')))) {
-          const dur = parseFloat(v.replace(',', '.'));
-          if (!isNaN(dur)) finalEnd = (finalStart + dur) % 24;
-        }
-      }
-      sm[`${e.employee_id}_${ds}`] = { start: finalStart, end: finalEnd, working: isWorking, status: isWorking ? null : v, confirmed: isWorking && v !== 'I' };
+      sm[`${e.employee_id}_${ds}`] = parseScheduleShift(e.value, emp);
     });
     setScheduleMap(sm);
     setLoading(false);
@@ -407,7 +664,7 @@ export default function TimelineView() {
 
     // godziny ze źródła, które mieszczą się w zmianie docelowej
     const toWrite = [];
-    for (const h of HOURS) {
+    for (const h of COUNT_HOURS) {
       const role = entries[`${srcEmpId}_${srcDateStr}_${h}`];
       if (!role) continue;
       if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
@@ -468,7 +725,7 @@ export default function TimelineView() {
     Object.entries(ROLES).forEach(([role]) => { result[role] = {}; });
     groups.forEach(({ g, members }) => {
       members.forEach(emp => {
-        HOURS.forEach(h => {
+        COUNT_HOURS.forEach(h => {
           const role = entries[`${emp.id}_${dateStr}_${h}`];
           if (!role) return;
           if (!result[role]) result[role] = {};
@@ -594,7 +851,7 @@ export default function TimelineView() {
 
       {/* Tabela połączona */}
       <div className="tl-container" ref={containerRef}>
-        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (HOURS.length * HOUR_W + 29)}px` }}>
+        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px` }}>
           <thead>
             <tr>
               <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
@@ -607,7 +864,7 @@ export default function TimelineView() {
                 const isWe = dw === 0 || dw === 6;
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <th key={di} colSpan={HOURS.length + 1} className="tl-th-day" style={{
+                  <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
                     background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
                     color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
                   }}>
@@ -622,7 +879,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <th key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-quaternary)', fontSize: '8px', fontWeight: 700, textAlign: 'center', borderBottom: '2px solid var(--border)', borderLeft: '2px solid var(--border-strong)', padding: '2px 0' }}>Σ</th>,
-                  ...HOURS.map(h => (
+                  ...VISIBLE_HOURS.map(h => (
                     <th key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)', color: isWe ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>{h}</th>
                   )),
                 ];
@@ -642,12 +899,11 @@ export default function TimelineView() {
                     </div>
                   </div>
                 </td>
-                <td colSpan={weekDays.length * (HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
+                <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
               </tr>
               {members.map((emp) => {
-                const isDark = document.documentElement.style.getPropertyValue('color-scheme') === 'dark';
-                const rowBg = isDark ? '#1C1C1E' : '#ffffff';
-                
+                const rowBg = '#ffffff';
+
                 return (
                   <TimelineRow
                     key={emp.id}
@@ -677,7 +933,7 @@ export default function TimelineView() {
                 const isToday = toDateStr(d) === todayStr;
                 return [
                   <td key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: '10px', fontWeight: 800, textAlign: 'center', borderBottom: '1px solid var(--border)', borderLeft: '2px solid var(--border-strong)' }}>Σ</td>,
-                  ...HOURS.map(h => (
+                  ...VISIBLE_HOURS.map(h => (
                     <td key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, textAlign: 'center', borderBottom: '1px solid var(--border)' }}>{h}</td>
                   )),
                 ];
@@ -702,7 +958,7 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const isToday = toDateStr(d) === todayStr;
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
+                  <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'var(--accent-light)' : 'var(--bg-card-solid)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: '52px' }}>
                       
                       {/* TOP ROW: GROUP NAMES */}
@@ -785,7 +1041,7 @@ export default function TimelineView() {
                     const totalGodz = Object.values(roleData).reduce((s, x) => s + (x?.godz || 0), 0);
 
                     return (
-                      <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
+                      <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.03)' : 'transparent' }}>
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                           
                           {/* RAZEM */}
@@ -822,11 +1078,11 @@ export default function TimelineView() {
               {(() => {
                 const wOs = new Set(weekDays.flatMap(d => {
                   const ds = toDateStr(d);
-                  return employees.filter(e => HOURS.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
+                  return employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
                 }));
                 const wGodz = weekDays.reduce((s, d) => {
                   const ds = toDateStr(d);
-                  return s + employees.reduce((ss, e) => ss + HOURS.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
+                  return s + employees.reduce((ss, e) => ss + COUNT_HOURS.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
                 }, 0);
 
                 return (
@@ -850,11 +1106,11 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const dateStr = toDateStr(d);
                 const isToday = dateStr === todayStr;
-                const allOs = new Set(employees.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                const allGodz = employees.reduce((s, e) => s + HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                const allOs = new Set(employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                const allGodz = employees.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                 
                 return (
-                  <td key={di} colSpan={HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
+                  <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       
                       {/* RAZEM */}
@@ -869,8 +1125,8 @@ export default function TimelineView() {
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
                         const gm = groups.find(g => g.g === gn)?.members || [];
-                        const gOs = new Set(gm.filter(e => HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                        const gGodz = gm.reduce((s, e) => s + HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                        const gOs = new Set(gm.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
+                        const gGodz = gm.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
                         const isLast = idx === groupNames.length - 1;
                         
                         return [

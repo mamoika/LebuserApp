@@ -5,8 +5,8 @@ node_modules/
 dist/
 dist-ssr/
 build/
-bin/
-obj/
+**/bin/
+**/obj/
 
 # Logs
 logs/
