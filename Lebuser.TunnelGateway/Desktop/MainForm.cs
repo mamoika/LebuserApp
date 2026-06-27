@@ -53,8 +53,8 @@ public sealed class MainForm : Form
         };
         bagsTab.Controls.Add(new BagManagerPanel(apiBase));
 
-        _tabs.TabPages.Add(tunnelTab);
         _tabs.TabPages.Add(bagsTab);
+        _tabs.TabPages.Add(tunnelTab);
 
         Controls.Add(_tabs);
 
