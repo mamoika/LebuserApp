@@ -800,28 +800,34 @@
       }
 
       byId('dbBagsList').innerHTML = dbBags.map((bag, idx) => {
-        const color = colors[bag.TrackNumber % colors.length];
-        const statusClass = `status-${(bag.Status || 'queued').toLowerCase()}`;
+        const trackNumber = bag.trackNumber || bag.TrackNumber || 1;
+        const color = colors[trackNumber % colors.length];
+        const status = bag.status || bag.Status || 'queued';
+        const statusClass = `status-${status.toLowerCase()}`;
+        const code = bag.code || bag.Code || '---';
+        const hotelName = bag.hotelName || bag.HotelName || 'Nieznany Hotel';
+        const programNumber = bag.programNumber || bag.ProgramNumber || '-';
+        const id = bag.id || bag.Id;
         
         return `
           <div class="m-bag">
             <div class="m-bag-header">
               <div style="display: flex; gap: 10px; align-items: center;">
-                <span class="m-bag-code" style="background: ${color}">${bag.Code || '---'}</span>
-                <span class="m-bag-title">${bag.HotelName || 'Nieznany Hotel'}</span>
+                <span class="m-bag-code" style="background: ${color}">${code}</span>
+                <span class="m-bag-title">${hotelName}</span>
               </div>
-              <span class="status-badge ${statusClass}">${bag.Status || 'QUEUED'}</span>
+              <span class="status-badge ${statusClass}">${status.toUpperCase()}</span>
             </div>
             <div class="m-bag-details">
-              <span>Program: ${bag.ProgramNumber}</span>
-              <span>Tor: ${bag.TrackNumber}</span>
+              <span>Program: ${programNumber}</span>
+              <span>Tor: ${trackNumber}</span>
             </div>
             <div class="m-bag-actions">
-              ${(bag.Status === 'queued' || bag.Status === 'error') ? `
-                <button type="button" class="btn-action btn-success" onclick="sendBag('${bag.Id}')">Wyślij do Tunelu</button>
+              ${(status.toLowerCase() === 'queued' || status.toLowerCase() === 'error') ? `
+                <button type="button" class="btn-action btn-success" onclick="sendBag('${id}')">Wyślij do Tunelu</button>
               ` : ''}
-              ${(bag.Status !== 'queued' && bag.Status !== 'done') ? `
-                <button type="button" class="btn-action" onclick="advanceBag('${bag.Id}')">Popchnij dalej</button>
+              ${(status.toLowerCase() !== 'queued' && status.toLowerCase() !== 'done') ? `
+                <button type="button" class="btn-action" onclick="advanceBag('${id}')">Popchnij dalej</button>
               ` : ''}
             </div>
           </div>
@@ -889,7 +895,7 @@
         if (res.ok) {
           const data = await res.json();
           // Sort by date descending
-          dbBags = data.sort((a,b) => new Date(b.CreatedAt || 0) - new Date(a.CreatedAt || 0));
+          dbBags = data.sort((a,b) => new Date(b.createdAt || b.CreatedAt || 0) - new Date(a.createdAt || a.CreatedAt || 0));
           renderDbBags();
         }
       } catch (e) {
