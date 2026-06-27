@@ -157,8 +157,8 @@ public static class Program
             
             var client = clientFactory.CreateClient();
             var req = new HttpRequestMessage(HttpMethod.Get, $"{opts.Url.TrimEnd('/')}/rest/v1/routes?select=id,name&order=name");
-            req.Headers.Add("apikey", opts.ServiceKey);
-            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ServiceKey);
+            req.Headers.Add("apikey", opts.ServiceRoleKey);
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ServiceRoleKey);
             
             var res = await client.SendAsync(req);
             if (!res.IsSuccessStatusCode) return Results.Ok(Array.Empty<object>());
