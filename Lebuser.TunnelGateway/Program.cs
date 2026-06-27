@@ -174,7 +174,7 @@ public static class Program
             if (!opts.Enabled || string.IsNullOrWhiteSpace(opts.Url)) return Results.Ok(Array.Empty<object>());
             
             var client = clientFactory.CreateClient();
-            var req = new HttpRequestMessage(HttpMethod.Get, $"{opts.Url.TrimEnd('/')}/rest/v1/routes?select=id,name&order=name");
+            var req = new HttpRequestMessage(HttpMethod.Get, $"{opts.Url.TrimEnd('/')}/rest/v1/clients?select=id,name&order=name");
             req.Headers.Add("apikey", opts.ServiceRoleKey);
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ServiceRoleKey);
             
