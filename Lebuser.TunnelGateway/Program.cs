@@ -80,8 +80,7 @@ public static class Program
 
         var app = builder.Build();
 
-        app.UseDefaultFiles();
-        app.UseStaticFiles();
+        app.MapGet("/", () => Results.Redirect("/winwash.html"));
         app.UseCors("LebuserBrowser");
         app.Use(async (context, next) =>
         {
@@ -125,6 +124,21 @@ public static class Program
         app.MapGet("/api/tunnel/commands", (GatewayState state) => Results.Ok(state.Recent()));
 
         app.MapGet("/winwash", () => Results.Redirect("/winwash.html"));
+
+        app.MapGet("/winwash.html", async context =>
+        {
+            var assembly = typeof(Program).Assembly;
+            using var stream = assembly.GetManifestResourceStream("Lebuser.TunnelGateway.wwwroot.winwash.html");
+            if (stream != null)
+            {
+                context.Response.ContentType = "text/html; charset=utf-8";
+                await stream.CopyToAsync(context.Response.Body);
+            }
+            else
+            {
+                context.Response.StatusCode = 404;
+            }
+        });
 
         app.MapPost("/api/tunnel/send", async (
             TunnelCommand command,

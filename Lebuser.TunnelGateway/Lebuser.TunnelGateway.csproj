@@ -16,4 +16,8 @@
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\winwash.html" />
+  </ItemGroup>
 </Project>
