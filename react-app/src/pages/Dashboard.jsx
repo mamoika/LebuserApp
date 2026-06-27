@@ -12,7 +12,6 @@ import ToastContainer from '../components/ToastContainer';
 // Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki, np. mapa i
 // eksport Excela, pobierają się dopiero przy wejściu na dany widok.
 const ScheduleView = lazy(() => import('../components/ScheduleView'));
-const TunnelView = lazy(() => import('../components/TunnelView'));
 const DriverRouteView = lazy(() => import('../components/DriverRouteView'));
 const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
 const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
@@ -36,7 +35,6 @@ const PAGE_KEYS = {
   '/grafik': 'grafik',
   '/timeline': 'timeline',
   '/costs': 'costs',
-  '/tunnel': 'tunnel',
   '/wash': 'wash',
   '/admin': 'admin',
 };
@@ -178,7 +176,6 @@ export default function Dashboard() {
           <Route path="/timeline" element={<TimelineView />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
-          <Route path="/tunnel" element={canViewAdminData ? <TunnelView /> : <Navigate to="/" replace />} />
           <Route path="/wash" element={canViewAdminData ? <WashView /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>

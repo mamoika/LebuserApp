@@ -15,7 +15,6 @@ export default function Navigation() {
     { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
     { to: '/schedule', icon: '📅', label: t('nav.schedule') },
-    { to: '/tunnel', icon: '🏭', label: t('nav.tunnel') },
     { to: '/history', icon: '📋', label: t('nav.history') }
   );
 
@@ -24,7 +23,6 @@ export default function Navigation() {
     navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
     navItems.push({ to: '/timeline', icon: '⏱', label: t('nav.timeline') });
     navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
-    navItems.push({ to: '/tunnel', icon: 'T', label: t('nav.tunnel') });
     navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
   }
 
