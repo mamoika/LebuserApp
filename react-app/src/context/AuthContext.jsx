@@ -226,8 +226,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Wróć do konta admina
-  const stopImpersonating = () => {
+  const stopImpersonating = async () => {
     if (!adminBackup) return { error: i18n.t('auth.noSavedAdminSession') };
+    const impersonatedToken = user?.session_token;
+    if (impersonatedToken && impersonatedToken !== adminBackup.session_token) {
+      try {
+        await supabase.rpc('logout_user', { p_session_token: impersonatedToken });
+      } catch {
+        // Local admin restore should not be blocked by a transient revoke failure.
+      }
+    }
     if (!adminBackup.session_token) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(BACKUP_KEY);
@@ -243,15 +251,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = useCallback(() => {
-    const token = user?.session_token;
-    if (token) {
+    const tokens = [user?.session_token, adminBackup?.session_token].filter(Boolean);
+    [...new Set(tokens)].forEach((token) => {
       supabase.rpc('logout_user', { p_session_token: token });
-    }
+    });
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(BACKUP_KEY);
     setUser(null);
     setAdminBackup(null);
-  }, [user?.session_token]);
+  }, [adminBackup?.session_token, user?.session_token]);
 
   const role = user?.role ?? null;
   const isAdmin = role === 'admin';

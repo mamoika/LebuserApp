@@ -30,7 +30,7 @@ export function upsertDailyCosts(sessionToken, rows) {
   });
 }
 
-export function pruneUserSessions(sessionToken, keepActive = 3) {
+export function pruneUserSessions(sessionToken, keepActive = 10) {
   return callAdminRpc(sessionToken, 'admin_prune_user_sessions', {
     p_keep_active: keepActive,
   });

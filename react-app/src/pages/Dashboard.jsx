@@ -97,8 +97,8 @@ export default function Dashboard() {
   const location = useLocation();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
 
-  const handleStopImpersonating = () => {
-    const result = stopImpersonating();
+  const handleStopImpersonating = async () => {
+    const result = await stopImpersonating();
     window.location.href = result?.needsLogin ? '/login' : '/admin';
   };
 

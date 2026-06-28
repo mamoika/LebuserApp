@@ -9,12 +9,16 @@ session is created.
 Policy:
 
 - Revoke expired sessions.
-- Keep at most 3 active sessions per user.
+- Keep at most 10 regular active sessions per user.
 - New sessions still expire after 30 days.
+- Admin "login as user" sessions are marked separately with
+  `impersonated_by_user_id`, expire after at most 8 hours, and do not count
+  against the user's regular session limit.
 
 Implementation:
 
 - Migration: `db/migrations/session_pruning.sql`
+- Update migration: `db/migrations/zz_session_limit_10_impersonation.sql`
 - Admin overview/action migration: `db/migrations/admin_sessions_rpc.sql`
 - Internal helper: `public.prune_user_sessions(p_user_id, p_keep_active)`
 - Login/session creation path: `public.create_user_session(p_user_id)` calls
@@ -26,5 +30,7 @@ Operational note:
 
 - `prune_user_sessions` and `create_user_session` are internal
   `SECURITY DEFINER` functions and are not executable by browser roles.
-- If a user logs in from a fourth device/browser, their oldest active session is
+- If a user logs in from an eleventh device/browser, their oldest regular active session is
   revoked automatically.
+- When an admin exits impersonation, the short-lived impersonation session is
+  revoked immediately by the frontend.

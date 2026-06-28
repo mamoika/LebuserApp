@@ -30,6 +30,7 @@ const roleLabel = (t, role) => ({
 }[role] || role);
 
 const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_viewer_driver';
+const SESSION_KEEP_ACTIVE = 10;
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
@@ -811,7 +812,7 @@ function SessionsSection() {
   const handlePrune = async () => {
     setPruning(true);
     try {
-      const data = await pruneUserSessions(sessionToken, 3);
+      const data = await pruneUserSessions(sessionToken, SESSION_KEEP_ACTIVE);
       const pruned = data?.pruned || {};
       const count = Number(pruned.expired_revoked || 0) + Number(pruned.old_active_revoked || 0);
       toastSuccess(t('admin.sessionsPruned', { count }));
@@ -838,9 +839,10 @@ function SessionsSection() {
 
   const summaryItems = [
     { label: t('admin.activeSessions'), value: overview?.active_total ?? 0 },
+    { label: t('admin.impersonationSessions'), value: overview?.impersonation_active_total ?? 0 },
     { label: t('admin.revokedSessions'), value: overview?.revoked_total ?? 0 },
     { label: t('admin.noPasswordUsers'), value: overview?.no_password_total ?? 0 },
-    { label: t('admin.sessionLimit'), value: overview?.keep_active_per_user ?? 3 },
+    { label: t('admin.sessionLimit'), value: overview?.keep_active_per_user ?? SESSION_KEEP_ACTIVE },
   ];
 
   return (
@@ -888,7 +890,7 @@ function SessionsSection() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {activeUsers.map(u => {
             const active = Number(u.active_sessions || 0);
-            const overLimit = active > Number(overview?.keep_active_per_user || 3);
+            const overLimit = active > Number(overview?.keep_active_per_user || SESSION_KEEP_ACTIVE);
             return (
               <div key={u.id} style={{ background: 'var(--bg-card)', border: `1px solid ${overLimit ? 'rgba(255,59,48,0.35)' : 'var(--border)'}`, borderRadius: '14px', padding: '13px 15px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>

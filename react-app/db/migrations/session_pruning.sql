@@ -3,14 +3,14 @@
 --
 --  Prevent unbounded active session growth by pruning sessions at login:
 --    - revoke expired sessions,
---    - keep at most 3 active sessions per user.
+--    - keep at most 10 active sessions per user.
 --
 --  Idempotent. Run in Supabase SQL Editor or through psql as postgres.
 -- ============================================================
 
 create or replace function public.prune_user_sessions(
   p_user_id uuid default null,
-  p_keep_active integer default 3
+  p_keep_active integer default 10
 )
 returns json
 language plpgsql
@@ -18,7 +18,7 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  v_keep integer := greatest(coalesce(p_keep_active, 3), 1);
+  v_keep integer := greatest(coalesce(p_keep_active, 10), 1);
   v_expired integer := 0;
   v_old_active integer := 0;
 begin
@@ -72,7 +72,7 @@ declare
   v_token text;
   v_expires_at timestamptz;
 begin
-  perform public.prune_user_sessions(p_user_id, 3);
+  perform public.prune_user_sessions(p_user_id, 10);
 
   v_token := gen_random_uuid()::text || '.' || encode(gen_random_bytes(32), 'hex');
   v_expires_at := now() + interval '30 days';
@@ -80,7 +80,7 @@ begin
   insert into public.user_sessions(user_id, token_hash, expires_at)
   values (p_user_id, public.session_hash(v_token), v_expires_at);
 
-  perform public.prune_user_sessions(p_user_id, 3);
+  perform public.prune_user_sessions(p_user_id, 10);
 
   session_token := v_token;
   expires_at := v_expires_at;
@@ -91,4 +91,4 @@ $$;
 revoke all on function public.create_user_session(uuid) from public, anon, authenticated;
 
 -- Apply the same policy immediately for any sessions already present.
-select public.prune_user_sessions(null, 3);
+select public.prune_user_sessions(null, 10);
