@@ -70,6 +70,11 @@ Other session counts:
 - Expired but unrevoked sessions: 0
 - Revoked sessions: 39
 
+Remediation update:
+
+- Old/duplicate active sessions were revoked after this review. See
+  `SESSION_REVOCATION_2026-06-28.md`.
+
 Findings:
 
 - Three app accounts are unclaimed/no-password: `henryk`, `patryk`, `oksana`.
