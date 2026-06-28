@@ -1529,6 +1529,11 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 .seg-btn:hover {
   color: var(--text-primary);
 }
+.seg-btn.active:not(.type-P):not(.type-O):not(.type-R) {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
 .seg-btn.active.type-P {
   background: var(--accent-light);
   color: var(--accent);

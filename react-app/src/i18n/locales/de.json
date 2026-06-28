@@ -17,7 +17,8 @@
     "error": "Fehler",
     "saving": "Wird gespeichert…",
     "loadFailed": "Daten konnten nicht geladen werden.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "refresh": "Aktualisieren"
   },
   "language": {
     "label": "Sprache",
@@ -527,6 +528,7 @@
     "groups": "Gruppen",
     "employees": "Mitarbeiter",
     "logs": "Logs",
+    "sessions": "Sitzungen",
     "usersWithCount": "Benutzer ({{count}})",
     "newUserBtn": "+ Neuer Benutzer",
     "routes": "Routen",
@@ -534,7 +536,23 @@
     "rodoConfirmed": "bestätigt {{version}}",
     "rodoMissing": "keine Bestätigung",
     "active": "Aktiv",
-    "noPassword": "Kein Passwort"
+    "noPassword": "Kein Passwort",
+    "loadingSessions": "Sitzungen werden geladen…",
+    "sessionOverview": "Aktive Sitzungen",
+    "sessionOverviewHint": "Limit: 3 aktive Sitzungen pro Benutzer; ältere werden beim Login automatisch widerrufen.",
+    "activeSessions": "Aktiv",
+    "revokedSessions": "Widerrufen",
+    "noPasswordUsers": "Ohne Passwort",
+    "sessionLimit": "Limit / Benutzer",
+    "pruneSessions": "Bereinigen",
+    "pruningSessions": "Bereinigung…",
+    "sessionsPruned": "{{count}} Sitzungen bereinigt",
+    "errPruneSessions": "Fehler beim Bereinigen der Sitzungen:",
+    "noActiveSessions": "Keine aktiven Sitzungen.",
+    "neverSeen": "keine Daten",
+    "sessionsCount": "{{count}} Sitz.",
+    "lastSeen": "Zuletzt gesehen",
+    "expiresAt": "Läuft ab"
   },
   "costs": {
     "tabOverview": "Übersicht",

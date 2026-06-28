@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RefreshCw, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
-import { upsertAppSetting } from '../lib/adminRpc';
+import { pruneUserSessions, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
   getAdminGroupEmployeeCount,
   getAdminGroups,
   getAdminRouteOptions,
+  getAdminSessionOverview,
   getAdminUsersData,
 } from '../lib/readRpc';
 import { currentLocale, monthNames } from '../lib/dateUtils';
@@ -783,6 +785,141 @@ function LogsSection() {
   );
 }
 
+function SessionsSection() {
+  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pruning, setPruning] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminSessionOverview(sessionToken);
+      setOverview(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handlePrune = async () => {
+    setPruning(true);
+    try {
+      const data = await pruneUserSessions(sessionToken, 3);
+      const pruned = data?.pruned || {};
+      const count = Number(pruned.expired_revoked || 0) + Number(pruned.old_active_revoked || 0);
+      toastSuccess(t('admin.sessionsPruned', { count }));
+      await load();
+    } catch (err) {
+      toastError(t('admin.errPruneSessions') + ' ' + err.message);
+    } finally {
+      setPruning(false);
+    }
+  };
+
+  const fmt = (iso) => {
+    if (!iso) return t('admin.neverSeen');
+    const d = new Date(iso);
+    return d.toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit' })
+      + ' ' + d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingSessions')}</div>;
+  if (error) return <DataError onRetry={load} error={error} />;
+
+  const users = overview?.users || [];
+  const activeUsers = users.filter(u => Number(u.active_sessions || 0) > 0);
+
+  const summaryItems = [
+    { label: t('admin.activeSessions'), value: overview?.active_total ?? 0 },
+    { label: t('admin.revokedSessions'), value: overview?.revoked_total ?? 0 },
+    { label: t('admin.noPasswordUsers'), value: overview?.no_password_total ?? 0 },
+    { label: t('admin.sessionLimit'), value: overview?.keep_active_per_user ?? 3 },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' }}>
+        <div>
+          <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.sessionOverview')}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+            {t('admin.sessionOverviewHint')}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={load}
+            title={t('common.refresh')}
+            style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+          >
+            <RefreshCw size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={handlePrune}
+            disabled={pruning}
+            style={{ height: '38px', borderRadius: '10px', border: 'none', background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 13px', fontSize: '13px', fontWeight: 700, cursor: pruning ? 'default' : 'pointer', opacity: pruning ? 0.7 : 1 }}
+          >
+            <ShieldCheck size={16} />
+            {pruning ? t('admin.pruningSessions') : t('admin.pruneSessions')}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginBottom: '14px' }}>
+        {summaryItems.map(item => (
+          <div key={item.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 14px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{item.label}</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {activeUsers.length === 0 ? (
+        <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noActiveSessions')}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {activeUsers.map(u => {
+            const active = Number(u.active_sessions || 0);
+            const overLimit = active > Number(overview?.keep_active_per_user || 3);
+            return (
+              <div key={u.id} style={{ background: 'var(--bg-card)', border: `1px solid ${overLimit ? 'rgba(255,59,48,0.35)' : 'var(--border)'}`, borderRadius: '14px', padding: '13px 15px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{u.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      @{u.username} · {roleLabel(t, u.role)}
+                      {!u.has_password && ` · ${t('admin.noPassword')}`}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, padding: '4px 9px', borderRadius: '999px', background: overLimit ? 'rgba(255,59,48,0.12)' : 'rgba(52,199,89,0.12)', color: overLimit ? '#FF3B30' : '#25A244', flexShrink: 0 }}>
+                    {t('admin.sessionsCount', { count: active })}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginTop: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.lastSeen')}:</span> {fmt(u.last_seen_at || u.newest_active_at)}
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.expiresAt')}:</span> {fmt(u.latest_expires_at)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const { impersonate, isAdmin, sessionToken } = useAuth();
@@ -792,7 +929,7 @@ export default function AdminDashboard() {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
-  const [tab, setTab] = useState('users'); // 'users' | 'employees' | 'logs'
+  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions'
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -886,11 +1023,13 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
         <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
+        <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
       </div>
 
       {tab === 'logs' && <LogsSection />}
       {tab === 'employees' && <EmployeesSection />}
       {tab === 'groups' && <GroupsSection />}
+      {tab === 'sessions' && <SessionsSection />}
 
       {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>

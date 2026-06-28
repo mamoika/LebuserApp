@@ -17,7 +17,8 @@
     "error": "Błąd",
     "saving": "Zapisywanie…",
     "loadFailed": "Nie udało się załadować danych.",
-    "retry": "Spróbuj ponownie"
+    "retry": "Spróbuj ponownie",
+    "refresh": "Odśwież"
   },
   "language": {
     "label": "Język",
@@ -537,6 +538,7 @@
     "groups": "Grupy",
     "employees": "Pracownicy",
     "logs": "Logi",
+    "sessions": "Sesje",
     "usersWithCount": "Użytkownicy ({{count}})",
     "newUserBtn": "+ Nowy użytkownik",
     "routes": "Trasy",
@@ -544,7 +546,23 @@
     "rodoConfirmed": "potwierdzone {{version}}",
     "rodoMissing": "brak potwierdzenia",
     "active": "Aktywny",
-    "noPassword": "Brak hasła"
+    "noPassword": "Brak hasła",
+    "loadingSessions": "Ładowanie sesji…",
+    "sessionOverview": "Aktywne sesje",
+    "sessionOverviewHint": "Limit: 3 aktywne sesje na użytkownika; starsze są automatycznie revokowane przy logowaniu.",
+    "activeSessions": "Aktywne",
+    "revokedSessions": "Revokowane",
+    "noPasswordUsers": "Bez hasła",
+    "sessionLimit": "Limit / user",
+    "pruneSessions": "Wyczyść",
+    "pruningSessions": "Czyszczenie…",
+    "sessionsPruned": "Wyczyszczono {{count}} sesji",
+    "errPruneSessions": "Błąd czyszczenia sesji:",
+    "noActiveSessions": "Brak aktywnych sesji.",
+    "neverSeen": "brak danych",
+    "sessionsCount": "{{count}} ses.",
+    "lastSeen": "Ostatnio widziany",
+    "expiresAt": "Wygasa"
   },
   "costs": {
     "tabOverview": "Przegląd",

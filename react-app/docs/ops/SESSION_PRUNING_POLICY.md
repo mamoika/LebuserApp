@@ -15,9 +15,12 @@ Policy:
 Implementation:
 
 - Migration: `db/migrations/session_pruning.sql`
+- Admin overview/action migration: `db/migrations/admin_sessions_rpc.sql`
 - Internal helper: `public.prune_user_sessions(p_user_id, p_keep_active)`
 - Login/session creation path: `public.create_user_session(p_user_id)` calls
   the pruning helper before and after inserting a new session.
+- Admin panel: `Admin -> Sesje` shows active-session counts and can trigger a
+  manual prune without exposing session tokens or token hashes.
 
 Operational note:
 

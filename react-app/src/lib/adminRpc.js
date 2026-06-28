@@ -29,3 +29,9 @@ export function upsertDailyCosts(sessionToken, rows) {
     p_rows: rows,
   });
 }
+
+export function pruneUserSessions(sessionToken, keepActive = 3) {
+  return callAdminRpc(sessionToken, 'admin_prune_user_sessions', {
+    p_keep_active: keepActive,
+  });
+}
