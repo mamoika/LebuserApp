@@ -560,6 +560,8 @@
     "currentSession": "Diese Sitzung",
     "currentSessionCannotRevoke": "Aktuelle Sitzung kann nicht entfernt werden",
     "impersonatedBy": "Admin",
+    "device": "Gerät",
+    "unknownDevice": "unbekanntes Gerät",
     "createdAt": "Erstellt",
     "lastSeen": "Zuletzt gesehen",
     "expiresAt": "Läuft ab",

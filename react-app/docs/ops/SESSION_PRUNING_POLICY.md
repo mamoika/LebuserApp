@@ -21,6 +21,7 @@ Implementation:
 - Update migration: `db/migrations/zz_session_limit_10_impersonation.sql`
 - Admin overview/action migration: `db/migrations/admin_sessions_rpc.sql`
 - Admin per-session controls: `db/migrations/zz_admin_session_controls_rpc.sql`
+- Session device labels: `db/migrations/zz_session_device_info.sql`
 - Internal helper: `public.prune_user_sessions(p_user_id, p_keep_active)`
 - Login/session creation path: `public.create_user_session(p_user_id)` calls
   the pruning helper before and after inserting a new session.
@@ -29,6 +30,9 @@ Implementation:
 - `Admin -> Sesje` also lists active sessions per user and can revoke one
   selected session by session row id. Token hashes are never returned to the
   browser.
+- Sessions store a short browser-provided `device_label` such as
+  `Desktop / Chrome / macOS`. This is for admin readability only; no persistent
+  device fingerprint is generated.
 
 Operational note:
 

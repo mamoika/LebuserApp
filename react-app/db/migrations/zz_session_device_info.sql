@@ -1,14 +1,47 @@
 -- ============================================================
---  Admin controls for individual active sessions.
+--  Device labels for custom sessions.
 --
---  Exposes per-session metadata without token hashes and lets an admin revoke
---  a single active session. The current admin session cannot revoke itself.
+--  Stores a short browser-provided device label for admin visibility without
+--  exposing tokens or token hashes in the UI.
 -- ============================================================
 
 alter table public.user_sessions
-  add column if not exists impersonated_by_user_id uuid references public.users(id) on delete cascade,
   add column if not exists device_label text,
   add column if not exists user_agent text;
+
+create or replace function public.set_session_client_info(
+  p_session_token text,
+  p_device_label text default null,
+  p_user_agent text default null
+)
+returns json
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_updated integer := 0;
+  v_device_label text := nullif(trim(coalesce(p_device_label, '')), '');
+  v_user_agent text := nullif(trim(coalesce(p_user_agent, '')), '');
+begin
+  update public.user_sessions s
+  set
+    device_label = left(v_device_label, 160),
+    user_agent = left(v_user_agent, 512)
+  where s.token_hash = public.session_hash(p_session_token)
+    and s.revoked_at is null
+    and s.expires_at > now();
+  get diagnostics v_updated = row_count;
+
+  if v_updated = 0 then
+    return json_build_object('error', 'Invalid or expired session');
+  end if;
+
+  return json_build_object('ok', true);
+end;
+$$;
+
+grant execute on function public.set_session_client_info(text, text, text) to anon, authenticated;
 
 create or replace function public.admin_get_session_details(p_session_token text)
 returns json
@@ -59,56 +92,4 @@ begin
 end;
 $$;
 
-create or replace function public.admin_revoke_user_session(
-  p_session_token text,
-  p_user_session_id uuid
-)
-returns json
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  v_target record;
-begin
-  perform public.require_admin(p_session_token);
-
-  select
-    s.id,
-    s.user_id,
-    u.username,
-    u.name,
-    (s.token_hash = public.session_hash(p_session_token)) as is_current_session
-  into v_target
-  from public.user_sessions s
-  join public.users u on u.id = s.user_id
-  where s.id = p_user_session_id
-    and s.revoked_at is null
-    and s.expires_at > now()
-  limit 1;
-
-  if v_target.id is null then
-    return json_build_object('error', 'Sesja nie istnieje albo nie jest już aktywna');
-  end if;
-
-  if v_target.is_current_session then
-    return json_build_object('error', 'Nie można usunąć aktualnej sesji admina');
-  end if;
-
-  update public.user_sessions
-  set revoked_at = now()
-  where id = v_target.id
-    and revoked_at is null;
-
-  return json_build_object(
-    'ok', true,
-    'revoked_session_id', v_target.id,
-    'user_id', v_target.user_id,
-    'username', v_target.username,
-    'name', v_target.name
-  );
-end;
-$$;
-
 grant execute on function public.admin_get_session_details(text) to anon, authenticated;
-grant execute on function public.admin_revoke_user_session(text, uuid) to anon, authenticated;

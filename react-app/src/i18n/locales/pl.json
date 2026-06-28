@@ -570,6 +570,8 @@
     "currentSession": "Ta sesja",
     "currentSessionCannotRevoke": "Nie można usunąć aktualnej sesji",
     "impersonatedBy": "Admin",
+    "device": "Urządzenie",
+    "unknownDevice": "nieznane urządzenie",
     "createdAt": "Utworzona",
     "lastSeen": "Ostatnio widziany",
     "expiresAt": "Wygasa",

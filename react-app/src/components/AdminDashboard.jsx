@@ -980,6 +980,7 @@ function SessionsSection() {
                             </button>
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.device')}:</span> {session.device_label || t('admin.unknownDevice')}</span>
                             <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.createdAt')}:</span> {fmt(session.created_at)}</span>
                             <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.lastSeen')}:</span> {fmt(session.last_seen_at || session.created_at)}</span>
                             <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.expiresAt')}:</span> {fmt(session.expires_at)}</span>

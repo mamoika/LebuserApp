@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { supabase } from '../lib/supabaseClient';
 import i18n, { SUPPORTED_LANGUAGES } from '../i18n';
 import { setSentryUser, clearSentryUser } from '../lib/sentry';
+import { getSessionDeviceInfo } from '../lib/deviceInfo';
 
 const applyLanguage = (lang) => {
   if (lang && SUPPORTED_LANGUAGES.includes(lang) && i18n.language !== lang) {
@@ -61,6 +62,20 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   }, []);
 
+  const attachDeviceInfo = useCallback(async (sessionToken) => {
+    if (!sessionToken) return;
+    try {
+      const { device_label, user_agent } = getSessionDeviceInfo();
+      await supabase.rpc('set_session_client_info', {
+        p_session_token: sessionToken,
+        p_device_label: device_label,
+        p_user_agent: user_agent,
+      });
+    } catch {
+      // Device metadata is helpful for admins, but should never block login.
+    }
+  }, []);
+
   const clearSession = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(BACKUP_KEY);
@@ -97,6 +112,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     refreshUserProfile();
   }, [refreshUserProfile]);
+
+  useEffect(() => {
+    if (user?.session_token) {
+      attachDeviceInfo(user.session_token);
+    }
+  }, [attachDeviceInfo, user?.session_token]);
 
   useEffect(() => {
     if (!user?.session_expires_at) return undefined;
@@ -150,6 +171,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
+    await attachDeviceInfo(data.session_token);
     storeUser(userData);
     applyLanguage(data.language);
     return { ok: true };
@@ -181,6 +203,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
+    await attachDeviceInfo(data.session_token);
     storeUser(targetUser);
     applyLanguage(data.language);
     return { ok: true };
