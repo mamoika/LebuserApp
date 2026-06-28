@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, ShieldCheck } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
-import { pruneUserSessions, upsertAppSetting } from '../lib/adminRpc';
+import { pruneUserSessions, revokeUserSession, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
   getAdminGroupEmployeeCount,
   getAdminGroups,
   getAdminRouteOptions,
+  getAdminSessionDetails,
   getAdminSessionOverview,
   getAdminUsersData,
 } from '../lib/readRpc';
@@ -792,13 +793,17 @@ function SessionsSection() {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pruning, setPruning] = useState(false);
+  const [revokingId, setRevokingId] = useState(null);
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAdminSessionOverview(sessionToken);
-      setOverview(data);
+      const [summary, details] = await Promise.all([
+        getAdminSessionOverview(sessionToken),
+        getAdminSessionDetails(sessionToken),
+      ]);
+      setOverview({ ...summary, sessions: details?.sessions || [] });
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -824,6 +829,23 @@ function SessionsSection() {
     }
   };
 
+  const handleRevoke = async (session) => {
+    if (session.is_current_session) return;
+    const label = session.name ? `${session.name} (@${session.username})` : `@${session.username}`;
+    if (!window.confirm(t('admin.confirmRevokeSession', { name: label }))) return;
+
+    setRevokingId(session.id);
+    try {
+      await revokeUserSession(sessionToken, session.id);
+      toastSuccess(t('admin.sessionRevoked'));
+      await load();
+    } catch (err) {
+      toastError(t('admin.errRevokeSession') + ' ' + err.message);
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
   const fmt = (iso) => {
     if (!iso) return t('admin.neverSeen');
     const d = new Date(iso);
@@ -835,7 +857,13 @@ function SessionsSection() {
   if (error) return <DataError onRetry={load} error={error} />;
 
   const users = overview?.users || [];
-  const activeUsers = users.filter(u => Number(u.active_sessions || 0) > 0);
+  const sessions = overview?.sessions || [];
+  const sessionsByUser = sessions.reduce((acc, session) => {
+    const rows = acc.get(session.user_id) || [];
+    rows.push(session);
+    acc.set(session.user_id, rows);
+    return acc;
+  }, new Map());
 
   const summaryItems = [
     { label: t('admin.activeSessions'), value: overview?.active_total ?? 0 },
@@ -875,7 +903,7 @@ function SessionsSection() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginBottom: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '14px' }}>
         {summaryItems.map(item => (
           <div key={item.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 14px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{item.label}</div>
@@ -884,13 +912,17 @@ function SessionsSection() {
         ))}
       </div>
 
-      {activeUsers.length === 0 ? (
+      {users.length === 0 ? (
         <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noActiveSessions')}</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {activeUsers.map(u => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {users.map(u => {
             const active = Number(u.active_sessions || 0);
             const overLimit = active > Number(overview?.keep_active_per_user || SESSION_KEEP_ACTIVE);
+            const userSessions = sessionsByUser.get(u.id) || [];
+            const impersonationCount = userSessions.filter(s => s.is_impersonation).length;
+            const badgeBg = overLimit ? 'rgba(255,59,48,0.12)' : userSessions.length > 0 ? 'rgba(52,199,89,0.12)' : 'var(--bg-secondary)';
+            const badgeColor = overLimit ? '#FF3B30' : userSessions.length > 0 ? '#25A244' : 'var(--text-tertiary)';
             return (
               <div key={u.id} style={{ background: 'var(--bg-card)', border: `1px solid ${overLimit ? 'rgba(255,59,48,0.35)' : 'var(--border)'}`, borderRadius: '14px', padding: '13px 15px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
@@ -901,18 +933,62 @@ function SessionsSection() {
                       {!u.has_password && ` · ${t('admin.noPassword')}`}
                     </div>
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: 800, padding: '4px 9px', borderRadius: '999px', background: overLimit ? 'rgba(255,59,48,0.12)' : 'rgba(52,199,89,0.12)', color: overLimit ? '#FF3B30' : '#25A244', flexShrink: 0 }}>
-                    {t('admin.sessionsCount', { count: active })}
+                  <div style={{ fontSize: '12px', fontWeight: 800, padding: '4px 9px', borderRadius: '999px', background: badgeBg, color: badgeColor, flexShrink: 0 }}>
+                    {active > 0 ? t('admin.sessionsCount', { count: active }) : t('admin.noSessionsShort')}
+                    {impersonationCount > 0 && ` · ${t('admin.adminSessionsShort', { count: impersonationCount })}`}
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginTop: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  <div>
-                    <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.lastSeen')}:</span> {fmt(u.last_seen_at || u.newest_active_at)}
+
+                {userSessions.length === 0 ? (
+                  <div style={{ color: 'var(--text-tertiary)', fontSize: '12px', marginTop: '10px' }}>{t('admin.noUserActiveSessions')}</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginTop: '11px' }}>
+                    {userSessions.map(session => {
+                      const isRevoking = revokingId === session.id;
+                      const typeLabel = session.is_current_session
+                        ? t('admin.currentSession')
+                        : session.is_impersonation ? t('admin.impersonationSession') : t('admin.regularSession');
+                      const typeColor = session.is_current_session
+                        ? '#007AFF'
+                        : session.is_impersonation ? '#5856D6' : '#25A244';
+                      return (
+                        <div key={session.id} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 11px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap', minWidth: 0 }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, padding: '3px 7px', borderRadius: '999px', background: `${typeColor}18`, color: typeColor }}>
+                                {typeLabel}
+                              </span>
+                              {session.is_impersonation && (
+                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                                  {t('admin.impersonatedBy')}: {session.impersonated_by_name || session.impersonated_by_username || '—'}
+                                </span>
+                              )}
+                              {session.is_current_session && (
+                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                                  {t('admin.currentSessionCannotRevoke')}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRevoke(session)}
+                              disabled={session.is_current_session || isRevoking}
+                              title={session.is_current_session ? t('admin.currentSessionCannotRevoke') : t('admin.revokeSession')}
+                              style={{ width: '32px', height: '32px', borderRadius: '9px', border: 'none', background: session.is_current_session ? 'rgba(0,0,0,0.05)' : 'rgba(255,59,48,0.1)', color: session.is_current_session ? 'var(--text-tertiary)' : '#FF3B30', display: 'grid', placeItems: 'center', cursor: session.is_current_session || isRevoking ? 'default' : 'pointer', opacity: isRevoking ? 0.7 : 1, flexShrink: 0 }}
+                            >
+                              {isRevoking ? '…' : <Trash2 size={15} />}
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.createdAt')}:</span> {fmt(session.created_at)}</span>
+                            <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.lastSeen')}:</span> {fmt(session.last_seen_at || session.created_at)}</span>
+                            <span><span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.expiresAt')}:</span> {fmt(session.expires_at)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>{t('admin.expiresAt')}:</span> {fmt(u.latest_expires_at)}
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}

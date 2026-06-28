@@ -35,3 +35,9 @@ export function pruneUserSessions(sessionToken, keepActive = 10) {
     p_keep_active: keepActive,
   });
 }
+
+export function revokeUserSession(sessionToken, sessionId) {
+  return callAdminRpc(sessionToken, 'admin_revoke_user_session', {
+    p_user_session_id: sessionId,
+  });
+}

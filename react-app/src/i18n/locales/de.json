@@ -552,8 +552,21 @@
     "noActiveSessions": "Keine aktiven Sitzungen.",
     "neverSeen": "keine Daten",
     "sessionsCount": "{{count}} Sitz.",
+    "adminSessionsShort": "{{count}} Admin",
+    "noSessionsShort": "0 Sitz.",
+    "noUserActiveSessions": "Keine aktiven Sitzungen dieses Benutzers.",
+    "regularSession": "Normal",
+    "impersonationSession": "Admin als Benutzer",
+    "currentSession": "Diese Sitzung",
+    "currentSessionCannotRevoke": "Aktuelle Sitzung kann nicht entfernt werden",
+    "impersonatedBy": "Admin",
+    "createdAt": "Erstellt",
     "lastSeen": "Zuletzt gesehen",
-    "expiresAt": "Läuft ab"
+    "expiresAt": "Läuft ab",
+    "revokeSession": "Sitzung entfernen",
+    "sessionRevoked": "Sitzung entfernt",
+    "errRevokeSession": "Fehler beim Entfernen der Sitzung:",
+    "confirmRevokeSession": "Aktive Sitzung von {{name}} entfernen?"
   },
   "costs": {
     "tabOverview": "Übersicht",

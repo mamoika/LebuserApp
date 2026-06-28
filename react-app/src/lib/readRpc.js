@@ -48,6 +48,12 @@ export function getAdminSessionOverview(sessionToken) {
   });
 }
 
+export function getAdminSessionDetails(sessionToken) {
+  return callReadRpc('admin_get_session_details', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getAdminRouteOptions(sessionToken) {
   return callReadRpc('get_admin_route_options', {
     p_session_token: sessionToken,

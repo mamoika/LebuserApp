@@ -562,8 +562,21 @@
     "noActiveSessions": "Brak aktywnych sesji.",
     "neverSeen": "brak danych",
     "sessionsCount": "{{count}} ses.",
+    "adminSessionsShort": "{{count}} admin",
+    "noSessionsShort": "0 ses.",
+    "noUserActiveSessions": "Brak aktywnych sesji tego użytkownika.",
+    "regularSession": "Zwykła",
+    "impersonationSession": "Admin jako user",
+    "currentSession": "Ta sesja",
+    "currentSessionCannotRevoke": "Nie można usunąć aktualnej sesji",
+    "impersonatedBy": "Admin",
+    "createdAt": "Utworzona",
     "lastSeen": "Ostatnio widziany",
-    "expiresAt": "Wygasa"
+    "expiresAt": "Wygasa",
+    "revokeSession": "Usuń sesję",
+    "sessionRevoked": "Sesja usunięta",
+    "errRevokeSession": "Błąd usuwania sesji:",
+    "confirmRevokeSession": "Usunąć aktywną sesję użytkownika {{name}}?"
   },
   "costs": {
     "tabOverview": "Przegląd",
