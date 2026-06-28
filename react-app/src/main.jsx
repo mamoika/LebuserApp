@@ -4,9 +4,12 @@ import App from './App.jsx'
 import './index.css'
 import i18n from './i18n'
 import { initSentry, captureError } from './lib/sentry'
+import { setupChunkReload } from './lib/chunkReload'
 
 // Inicjalizacja monitoringu błędów. No-op bez VITE_SENTRY_DSN.
 initSentry()
+// Po deployu stare lazy-chunki znikają z CDN — cichy auto-reload zamiast crasha.
+setupChunkReload()
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
