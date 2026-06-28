@@ -41,6 +41,7 @@ Both were already marked as no-password/unclaimed in the access review.
 
 - Decide whether unclaimed accounts should be removed, deactivated or claimed
   with a controlled first-password flow.
-- Add repeatable session pruning so active sessions do not build up again.
+- Repeatable session pruning was added in `SESSION_PRUNING_POLICY.md` and
+  `db/migrations/session_pruning.sql`.
 - Consider lowering the custom session lifetime if 30 days is more than the
   business needs.
