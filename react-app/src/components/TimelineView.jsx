@@ -121,14 +121,6 @@ function fmtHours(value) {
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
 }
 
-function fmtHourLabel(value) {
-  const rounded = roundHours(value);
-  const dayOffset = Math.floor(rounded / 24);
-  const normalized = ((rounded % 24) + 24) % 24;
-  const base = fmtHours(normalized);
-  return dayOffset > 0 ? `${base}+${dayOffset}` : base;
-}
-
 function fmtClockLabel(value) {
   const normalized = ((value % 24) + 24) % 24;
   const totalMinutes = Math.round(normalized * 60);
@@ -320,14 +312,12 @@ const TimelineRow = React.memo(({
     const duration = sched?.duration ?? getShiftDuration(startH, endH);
     const schedHours = working ? fmtHours(duration) : '';
     const fullDay = working && !dayStatus && (sched?.fullDay ?? isFullDayDuty(endH, duration));
-    const dutyRange = `${fmtHourLabel(startH)}–${fmtHourLabel(endH)}`;
-    const dutyTitle = fullDay
-      ? t('timeline.dutyTitle', { range: dutyRange, hours: fmtHours(duration) })
-      : undefined;
     // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
     const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
     const overflowEndMarker = working && !dayStatus ? getOverflowEndMarker(startH, endH) : null;
-    const overflowH = overflowCells.length;
+    // Realne godziny poza osią = suma wypełnień komórek (np. 1+1+1+0,5 = 3,5),
+    // a nie liczba dotkniętych komórek (która zaokrąglała 3,5 h w górę do 4).
+    const overflowH = roundHours(overflowCells.reduce((s, c) => s + (c.fillTo - c.fillFrom), 0));
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
@@ -335,7 +325,7 @@ const TimelineRow = React.memo(({
       <React.Fragment key={di}>
         <td className={`tl-sum-col ${fullDay ? 'tl-duty-sum' : ''}`}
           onClick={canCopyHere ? () => onCopyClick(emp.id, dateStr) : undefined}
-          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : dutyTitle}
+          title={canCopyHere ? (copySource ? t('timeline.pasteHere') : t('timeline.copyThisDay')) : undefined}
           style={{
             background: isCopySource ? 'var(--accent)' : dayStatus ? (statusSt?.bg || '#f5f5f7') : fullDay ? '#ffedd5' : working ? 'var(--accent-green-light)' : '#f5f5f7',
             color: isCopySource ? '#fff' : dayStatus ? (statusSt?.color || '#ccc') : fullDay ? '#c2410c' : working ? 'var(--accent-green)' : '#ccc',
@@ -384,7 +374,6 @@ const TimelineRow = React.memo(({
               <div
                 className="tl-cell-inner"
                 style={{ ...cellStyle, overflow: showBadge ? 'visible' : undefined }}
-                title={dutyTitle}
               >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
                 {!dayStatus && isShiftHour && (role || '')}
@@ -392,7 +381,6 @@ const TimelineRow = React.memo(({
                   <button
                     type="button"
                     className={`tl-duty-badge ${duty?.dateStr === dateStr ? 'open' : ''}`}
-                    title={dutyTitle || t('timeline.dutyShowHours')}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -402,7 +390,7 @@ const TimelineRow = React.memo(({
                         : { dateStr, count: overflowH, cells: overflowCells, endMarker: overflowEndMarker, endH, rect: r });
                     }}
                   >
-                    +{overflowH}h
+                    +{fmtHours(overflowH)}h
                   </button>
                 )}
               </div>
@@ -439,7 +427,7 @@ const TimelineRow = React.memo(({
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="tl-duty-pop-head">
-              <span><i className="ti ti-moon" aria-hidden="true" /> +{duty.count} · {t('timeline.dutyPanel')}</span>
+              <span><i className="ti ti-moon" aria-hidden="true" /> +{fmtHours(duty.count)} · {t('timeline.dutyPanel')}</span>
               <button type="button" onClick={() => setDuty(null)} aria-label={t('common.close')}>×</button>
             </div>
             <div className="tl-duty-pop-cells">

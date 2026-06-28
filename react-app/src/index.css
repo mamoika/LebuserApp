@@ -4701,7 +4701,9 @@ select.ap-input {
   right: 1px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 6;
+  /* Pod przyklejoną kolumną nazwisk (.tl-sticky-col z-index:6) i nagłówkami,
+     żeby badge przy przewijaniu chował się w tle, a nie wjeżdżał na nazwisko. */
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 2px;
