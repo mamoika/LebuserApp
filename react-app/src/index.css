@@ -5087,3 +5087,20 @@ select.ap-input {
 }
 .route-alert.warn { background: rgba(255,149,0,0.09); color: #B45309; border-color: rgba(255,149,0,0.25); }
 .route-alert.info { background: var(--accent-light); color: var(--accent); border-color: rgba(0,122,255,0.2); }
+
+/* ── Informacja RODO: przycisk w nagłówku (desktop), stopka na dole (telefon) ── */
+.rodo-footer { display: none; }
+.rodo-footer-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-tertiary); font-size: 13px; font-weight: 700;
+  text-decoration: none; padding: 10px 14px; border-radius: var(--radius-md);
+}
+.rodo-footer-link:hover { color: var(--accent); }
+@media(max-width:600px), (max-device-width:600px){
+  .app-header-actions .rodo-link-header { display: none; }
+  .rodo-footer {
+    display: flex; justify-content: center;
+    margin-top: 16px; padding: 16px 16px 28px;
+    border-top: 1px solid var(--border);
+  }
+}

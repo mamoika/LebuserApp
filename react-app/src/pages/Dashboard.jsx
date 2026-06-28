@@ -157,7 +157,7 @@ export default function Dashboard() {
             </span>
             <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
           </div>
-          <Link to="/rodo" className="driver-btn" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
+          <Link to="/rodo" className="driver-btn rodo-link-header" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
             <ShieldCheck size={14} /> {t('header.rodo')}
           </Link>
           <LanguageSwitcher size="sm" />
@@ -191,6 +191,11 @@ export default function Dashboard() {
         </Routes>
         </Suspense>
       </main>
+      <footer className="rodo-footer">
+        <Link to="/rodo" className="rodo-footer-link">
+          <ShieldCheck size={14} /> {t('pages.rodo.title')}
+        </Link>
+      </footer>
       {needsPrivacyNotice && <PrivacyNoticeModal />}
       <ToastContainer />
     </div>
