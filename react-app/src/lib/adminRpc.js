@@ -1,11 +1,12 @@
 import { supabase } from './supabaseClient';
+import { throwRpcError } from './rpcError';
 
 export async function callAdminRpc(sessionToken, fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, {
     p_session_token: sessionToken,
     ...args,
   });
-  if (error) throw error;
+  if (error) throwRpcError(error, `${fn} failed`);
   if (data?.error) throw new Error(data.error);
   return data;
 }

@@ -1,8 +1,9 @@
 import { supabase } from './supabaseClient';
+import { throwRpcError } from './rpcError';
 
 async function callReadRpc(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw error;
+  if (error) throwRpcError(error, `${fn} failed`);
   if (data?.error) throw new Error(data.error);
   return data;
 }

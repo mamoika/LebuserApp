@@ -5,6 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
+import { captureError } from '../lib/sentry';
 import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
 import { formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn } from '../lib/vehicles';
@@ -315,35 +316,46 @@ export default function DriverRouteView({ manageMode = false }) {
     let cancelled = false;
     const load = async () => {
       setTripLoading(true);
-      const [trips, settings] = await Promise.all([
-        loadTrips(),
-        getDriverAppSettings(sessionToken),
-      ]);
-      if (cancelled) return;
-      const carsSetting = settings?.driver_cars || {};
-      const resolved = settings?.km_resolved_ids || [];
-      setKmResolvedIds(Array.isArray(resolved) ? resolved : []);
-      const ownTrips = trips || [];
-      const ownToday = ownTrips.filter(t => t.driver_id === user?.id && t.trip_date === today);
-      
-      // Znajdź dowolną aktywną trasę tego kierowcy, bez względu na to, którego dnia się zaczęła.
-      // Jeśli brak aktywnej, sprawdź czy jest już zakończona dzisiejsza trasa.
-      const activeTrip = ownTrips.find(t => t.driver_id === user?.id && t.status === 'active') || null;
-      const startedTrip = activeTrip || ownToday.find(t => t.status === 'finished') || null;
-      
-      const plannedOwn = ownToday.find(t => t.status === 'planned') || null;
-      setTrip(startedTrip);
-      setPlannedTrip(plannedOwn);
-      const car = carsSetting?.[user?.id] || null;
-      setDefaultCar(car);
-      if (startedTrip) setSelectedCar(startedTrip.car);
-      else if (plannedOwn) { setSelectedCar(plannedOwn.car || car || VEHICLES[0].key); setSelectedRoutes(parseRouteIds(plannedOwn.routes)); }
-      else if (car) setSelectedCar(car);
-      setTripLoading(false);
+      try {
+        const [trips, settings] = await Promise.all([
+          loadTrips(),
+          getDriverAppSettings(sessionToken),
+        ]);
+        if (cancelled) return;
+        const carsSetting = settings?.driver_cars || {};
+        const resolved = settings?.km_resolved_ids || [];
+        setKmResolvedIds(Array.isArray(resolved) ? resolved : []);
+        const ownTrips = trips || [];
+        const ownToday = ownTrips.filter(t => t.driver_id === user?.id && t.trip_date === today);
+        
+        // Znajdź dowolną aktywną trasę tego kierowcy, bez względu na to, którego dnia się zaczęła.
+        // Jeśli brak aktywnej, sprawdź czy jest już zakończona dzisiejsza trasa.
+        const activeTrip = ownTrips.find(t => t.driver_id === user?.id && t.status === 'active') || null;
+        const startedTrip = activeTrip || ownToday.find(t => t.status === 'finished') || null;
+        
+        const plannedOwn = ownToday.find(t => t.status === 'planned') || null;
+        setTrip(startedTrip);
+        setPlannedTrip(plannedOwn);
+        const car = carsSetting?.[user?.id] || null;
+        setDefaultCar(car);
+        if (startedTrip) setSelectedCar(startedTrip.car);
+        else if (plannedOwn) { setSelectedCar(plannedOwn.car || car || VEHICLES[0].key); setSelectedRoutes(parseRouteIds(plannedOwn.routes)); }
+        else if (car) setSelectedCar(car);
+      } catch (error) {
+        if (cancelled) return;
+        captureError(error, {
+          feature: 'DriverRouteView.initialLoad',
+          role: user?.role || 'unknown',
+          manageMode,
+        });
+        toastError('Błąd ładowania trasy: ' + (error?.message || 'nieznany błąd'));
+      } finally {
+        if (!cancelled) setTripLoading(false);
+      }
     };
     if (user?.id && sessionToken) load();
     return () => { cancelled = true; };
-  }, [user?.id, today, sessionToken, loadTrips]);
+  }, [user?.id, user?.role, today, sessionToken, loadTrips, manageMode]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);
