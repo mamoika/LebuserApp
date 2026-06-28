@@ -2,13 +2,15 @@
 
 Start here:
 
-1. `RODO_READINESS.md` - overall readiness plan.
-2. `PRIVACY_NOTICE_TEMPLATE.md` - privacy notice template for users/employees.
+1. `RODO_READINESS.md` - operational status, owners, cadence and evidence.
+2. `PRIVACY_NOTICE_TEMPLATE.md` - privacy notice ready for controller review.
 3. `RECORD_OF_PROCESSING.md` - record of processing activities.
-4. `PROCESSORS_AND_TRANSFERS.md` - provider/DPA/transfer checklist.
+4. `PROCESSORS_AND_TRANSFERS.md` - provider/DPA/transfer register.
 5. `DATA_BREACH_PROCEDURE.md` - breach response procedure.
-6. `RETENTION_POLICY.md` - draft retention periods.
-7. `ACCESS_CONTROL_CHECKLIST.md` - monthly admin-access review.
+6. `BREACH_REGISTER.md` - breach register template.
+7. `RETENTION_POLICY.md` - retention periods and automation backlog.
+8. `ACCESS_CONTROL_CHECKLIST.md` - monthly admin-access review.
 
-These documents are operational templates. They must be filled with company
-details and reviewed before being treated as final legal/compliance documents.
+These documents are operational drafts. They are stronger than empty templates,
+but company details, legal bases, provider DPA status and retention periods
+still need owner/legal approval before the pack is treated as formally adopted.

@@ -1,67 +1,75 @@
-# LEBUSER App - RODO/EU Readiness Plan
+# LEBUSER App - RODO Operations Readiness
 
-Date: 2026-06-05
+Status: operational pack prepared on 2026-06-28; controller identified
+(LEBUSER TEXTILSERVICE Sp. z o.o., KRS 0000648492) and RODO contact set
+(info@lebuser.pl). Proposed legal bases still require legal approval before
+formal adoption.
 
-This folder is a working compliance pack for operating the app in Poland/EU.
-It is not legal advice. Fill the placeholders with company-specific data and
-have the final version reviewed by the person responsible for data protection.
+This folder is an operational compliance pack for running LEBUSER in Poland/EU.
+It is not legal advice. The documents below are intended to be adopted by the
+data controller, kept with company records, and reviewed after product or
+provider changes.
 
-## Current Status
+## Decision Log
 
-The app stores logistics and work-organization data in Supabase and uses a
-custom session-token login flow. Direct browser writes to the most sensitive
-operational tables have been moved behind session-token RPC functions and
-direct write grants have been revoked in the live database.
+| Item | Status | Owner | Evidence / File |
+| --- | --- | --- | --- |
+| Data controller identified | Done (LEBUSER TEXTILSERVICE Sp. z o.o., KRS 0000648492) | Business owner | `PRIVACY_NOTICE_TEMPLATE.md` |
+| Privacy notice text prepared | Prepared, pending approval | Business owner / RODO owner | `PRIVACY_NOTICE_TEMPLATE.md` |
+| Privacy notice acknowledgement in app | Implemented | Technical owner | `privacy_notice_v1`, admin status view |
+| Record of processing activities | Prepared, legal bases proposed (pending approval) | RODO owner | `RECORD_OF_PROCESSING.md` |
+| Retention policy | Prepared, pending business approval | Business owner / RODO owner | `RETENTION_POLICY.md` |
+| Breach procedure | Prepared, pending adoption | RODO owner / technical owner | `DATA_BREACH_PROCEDURE.md` |
+| Breach register | Prepared | RODO owner | `BREACH_REGISTER.md` |
+| Processor/subprocessor register | Prepared, provider confirmations pending | Business owner | `PROCESSORS_AND_TRANSFERS.md` |
+| Access review | Initial review done 2026-06-28 | Technical owner | `../ops/ACCESS_REVIEW_2026-06-28.md` |
+| Backup restore test | Done 2026-06-28 | Technical owner | `../ops/BACKUP_RESTORE_TEST.md` |
+| Session governance | Implemented | Technical owner | `../ops/SESSION_PRUNING_POLICY.md` |
 
-Direct browser reads still remain and are the next main technical hardening
-phase before the app should be treated as fully hardened for production.
+## Must Confirm Before Treating As Adopted
 
-## Must-Have Before Regular EU/Poland Use
+1. Controller identity (from KRS 0000648492 - verify against the official eKRS
+   extract before formal adoption):
+   - legal name: LEBUSER TEXTILSERVICE Sp. z o.o. - confirmed,
+   - registered address: ul. Owcza 10, 66-400 Gorzów Wielkopolski - confirmed,
+   - NIP 9271945131, REGON 365910038, KRS 0000648492 - confirmed,
+   - RODO contact: info@lebuser.pl (no phone) - set,
+   - person responsible for the app/project: Rusłan Mamoika.
 
-1. Identify the data controller.
-   - Company name:
-   - Address:
-   - Contact email:
-   - NIP/KRS, if applicable:
+2. Legal bases:
+   - confirm article 6 basis for each processing activity,
+   - confirm whether employee data requires extra labour-law references,
+   - confirm if any location-related function requires a DPIA.
 
-2. Complete the privacy notice.
-   - Use `PRIVACY_NOTICE_TEMPLATE.md`.
-   - Provide it to employees/users before or at first use.
+3. Provider paperwork:
+   - Supabase DPA/data processing terms,
+   - hosting/Vercel terms and admin access,
+   - GitHub organization/account access and 2FA,
+   - Sentry or any other monitoring provider if enabled,
+   - backup/export location and retention.
 
-3. Complete the record of processing activities.
-   - Use `RECORD_OF_PROCESSING.md`.
-   - Keep it updated when app modules or data categories change.
+4. Retention approval:
+   - approve retention periods,
+   - decide what is anonymized vs deleted,
+   - add scheduled cleanup/anonymization where approved.
 
-4. Confirm processors and contracts.
-   - Use `PROCESSORS_AND_TRANSFERS.md`.
-   - Supabase, hosting, GitHub and backup providers must have DPA/data
-     processing terms accepted.
+## Operating Cadence
 
-5. Adopt breach handling.
-   - Use `DATA_BREACH_PROCEDURE.md`.
-   - Maintain an internal breach register even for incidents not reported to
-     UODO.
+| Frequency | Task | Evidence |
+| --- | --- | --- |
+| Monthly | Review admin users, provider accounts, GitHub Apps, env vars | `ACCESS_CONTROL_CHECKLIST.md` |
+| Monthly | Review active sessions and revoke stale/unneeded ones | Admin -> Sesje |
+| Quarterly | Review processor list and transfer mechanisms | `PROCESSORS_AND_TRANSFERS.md` |
+| Quarterly | Review retention exceptions and old operational records | `RETENTION_POLICY.md` |
+| After every provider/security change | Update provider register and access review | `PROCESSORS_AND_TRANSFERS.md`, `../ops/ACCESS_REVIEW_*.md` |
+| After every privacy notice change | Increment `PRIVACY_NOTICE_VERSION` and redeploy | `src/context/AuthContext.jsx` |
+| After every suspected incident | Open breach register entry within 24h | `BREACH_REGISTER.md` |
 
-6. Adopt retention rules.
-   - Use `RETENTION_POLICY.md`.
-   - Convert the policy into app/database cleanup once the business approves
-     retention periods.
+## Higher-Risk Area: Location
 
-7. Lock down administrator access.
-   - 2FA on Supabase, GitHub, hosting and email accounts.
-   - Named accounts only; no shared admin account.
-   - Remove access for people who no longer need it.
-
-8. Complete read hardening.
-   - Replace direct table reads with session-token RPCs.
-   - Revoke `select` grants from browser roles after the RPC read path is
-     tested.
-
-## Higher-Risk Area: GPS/Location
-
-The app has map coordinates for clients and a user geolocation button. If live
-driver tracking or employee location history is added, treat it as a separate
-privacy-risk item. Before enabling live tracking, define:
+The app stores client/pickup locations and may use browser geolocation for
+navigation. Do not add live employee tracking or location history without a
+separate privacy decision. Before enabling any live tracking, document:
 
 - exact purpose,
 - legal basis,
@@ -69,13 +77,15 @@ privacy-risk item. Before enabling live tracking, define:
 - whether location is stored or only displayed,
 - retention period,
 - employee notice wording,
-- whether DPIA is needed.
+- whether DPIA is required.
 
 ## Evidence To Keep
 
 - Dates of SQL migrations run in Supabase.
 - Security smoke-test notes.
-- Screenshots or exports of provider DPA/settings.
-- List of admin users and access reviews.
-- Breach register, even if empty.
-- Versions of privacy notice and retention policy.
+- Backup/restore test reports.
+- Provider DPA/settings screenshots or exports.
+- Admin access reviews.
+- Breach register entries, including "not reportable" decisions.
+- Privacy notice versions and acknowledgement status.
+- Retention-policy approvals and cleanup/anonymization runs.

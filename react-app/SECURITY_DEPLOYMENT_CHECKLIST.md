@@ -135,16 +135,25 @@ trigger with a polling/manual refresh fallback.
 
 ## Phase 5: RODO/EU Operations
 
-Complete the operational documents in `docs/compliance`:
+The operational compliance pack in `docs/compliance` is prepared (operational
+drafts, not empty templates). Start from `docs/compliance/RODO_READINESS.md`
+for current status, owners and operating cadence.
 
-- `PRIVACY_NOTICE_TEMPLATE.md`
-- `RECORD_OF_PROCESSING.md`
-- `DATA_BREACH_PROCEDURE.md`
-- `PROCESSORS_AND_TRANSFERS.md`
-- `RETENTION_POLICY.md`
-- `ACCESS_CONTROL_CHECKLIST.md`
+Before the pack can be treated as formally adopted, confirm the open items from
+its "Must Confirm Before Treating As Adopted" section:
+
+- controller identity and legal bases (`PRIVACY_NOTICE_TEMPLATE.md`,
+  `RECORD_OF_PROCESSING.md`),
+- provider DPA/processing terms (`PROCESSORS_AND_TRANSFERS.md`),
+- approved retention periods (`RETENTION_POLICY.md`).
 
 Then add database/app automation for the approved retention periods.
+
+Ongoing controls already defined in the pack:
+
+- monthly admin-access review (`ACCESS_CONTROL_CHECKLIST.md`),
+- breach logging within 24h of a suspected incident
+  (`DATA_BREACH_PROCEDURE.md`, `BREACH_REGISTER.md`).
 
 ## Phase 6: Privacy Notice Acknowledgement
 

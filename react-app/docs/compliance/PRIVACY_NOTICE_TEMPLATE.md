@@ -1,72 +1,101 @@
-# Privacy Notice / Klauzula Informacyjna RODO
+# Klauzula Informacyjna RODO - LEBUSER App
 
-Status: template - fill before use.
+Status: ready for controller review. Version to publish in the app/company
+records: `privacy_notice_v1`.
 
-## Administrator Danych
+## 1. Administrator Danych
 
 Administratorem danych osobowych jest:
 
-- Nazwa firmy:
-- Adres:
-- Email kontaktowy:
-- Telefon, opcjonalnie:
+- Nazwa firmy: LEBUSER TEXTILSERVICE Sp. z o.o.
+- Adres: ul. Owcza 10, 66-400 Gorzów Wielkopolski, woj. lubuskie
+- KRS: 0000648492, NIP: 9271945131, REGON: 365910038
+- Email kontaktowy: info@lebuser.pl
+- Osoba odpowiedzialna za aplikację i sprawy danych w projekcie: Rusłan Mamoika
 
-## Jakie Dane Są Przetwarzane
+## 2. Kogo Dotyczy Informacja
+
+Informacja dotyczy użytkowników aplikacji LEBUSER, w szczególności:
+
+- administratorów i osób zarządzających operacjami,
+- kierowców i pracowników korzystających z aplikacji,
+- osób, których dane pojawiają się w grafiku, kosztach lub historii działań,
+- kontaktów klientów B2B, jeżeli ich dane są wpisywane do aplikacji.
+
+## 3. Kategorie Danych
 
 Aplikacja może przetwarzać:
 
-- dane kont użytkowników: login, imię i nazwisko, rola, przypisane trasy,
-- dane pracowników/kierowców: przypisania, grafik, role, aktywność w systemie,
-- dane klientów/punktów odbioru: nazwa klienta, adres lub lokalizacja GPS,
+- dane konta: login, imię i nazwisko, rola, język, status hasła,
+- dane uprawnień: role, przypisane trasy, domyślne auto, aktywność konta,
+- dane sesji i bezpieczeństwa: daty sesji, etykieta urządzenia, hash tokenu,
+  data ostatniej aktywności, status revokowania,
+- dane operacyjne: wpisy odbioru/dostawy, statusy, wagi, kosze, dokumenty
+  przyjęcia, przekazania tras,
+- dane tras: kierowca, auto, licznik, data, status, planowany start,
+- dane klientów/punktów: nazwa, adres lub lokalizacja GPS punktu,
   przypisana trasa, notatki operacyjne,
-- dane operacyjne: wpisy odbioru/dostawy, waga, kosze, terminy, statusy,
-- dane tras: auto, kierowca, data, status, licznik, przekazania trasy,
-- logi systemowe: kto wykonał akcję, kiedy, czego dotyczyła.
+- dane grafików i pracowników: grupa, aktywność w miesiącu, godziny/zmiany,
+  rodzaj umowy, plan pracy,
+- dane kosztowe: wpisy kosztów operacyjnych, stawki, zużycia mediów,
+- logi działań: kto wykonał akcję, kiedy, czego dotyczyła.
 
-## Cele Przetwarzania
+Hasła i tokeny sesji nie są przechowywane w postaci jawnej. W bazie
+przechowywane są hashe.
+
+## 4. Cele Przetwarzania
 
 Dane są przetwarzane w celu:
 
 - planowania i realizacji odbiorów oraz dostaw,
 - organizacji pracy kierowców i pracowników,
-- rozliczania kosztów operacyjnych,
-- prowadzenia historii działań i wyjaśniania błędów,
-- zapewnienia bezpieczeństwa aplikacji i kontroli dostępu.
+- prowadzenia historii tras i operacji,
+- rozliczania kosztów wewnętrznych,
+- obsługi klientów i punktów odbioru/dostawy,
+- kontroli dostępu, bezpieczeństwa aplikacji i audytu działań,
+- obsługi błędów technicznych i utrzymania ciągłości działania.
 
-## Podstawy Prawne
+## 5. Podstawy Prawne
 
-Uzupełnić po decyzji firmy/prawnika. Typowe podstawy do rozważenia:
+Do potwierdzenia przez administratora danych. Typowe podstawy do rozważenia:
 
-- art. 6 ust. 1 lit. b RODO - realizacja umowy,
-- art. 6 ust. 1 lit. c RODO - obowiązek prawny,
+- art. 6 ust. 1 lit. b RODO - wykonanie umowy lub działania przed jej
+  zawarciem, jeżeli dane dotyczą współpracowników/kontrahentów,
+- art. 6 ust. 1 lit. c RODO - obowiązek prawny, jeżeli dane są potrzebne do
+  dokumentacji pracowniczej, księgowej lub podatkowej,
 - art. 6 ust. 1 lit. f RODO - prawnie uzasadniony interes administratora,
-  np. organizacja pracy, bezpieczeństwo, dochodzenie roszczeń.
+  np. organizacja pracy, bezpieczeństwo systemu, dochodzenie roszczeń,
+  wykrywanie błędów i nadużyć.
 
-## Odbiorcy Danych
+Jeżeli administrator przetwarza dane pracowników, podstawy i zakres należy
+uzgodnić z dokumentacją kadrową i przepisami prawa pracy.
 
-Dane mogą być przetwarzane przez dostawców technicznych działających na
-polecenie administratora, w szczególności:
+## 6. Odbiorcy I Podmioty Przetwarzające
 
-- Supabase - baza danych i backend,
-- hosting aplikacji,
-- GitHub - repozytorium kodu,
-- dostawcy backupu/monitoringu, jeżeli są używani.
+Dane mogą być dostępne dla:
 
-Aktualną listę należy prowadzić w `PROCESSORS_AND_TRANSFERS.md`.
+- uprawnionych użytkowników aplikacji zgodnie z rolą,
+- administratorów systemu,
+- dostawców technicznych działających na polecenie administratora.
 
-## Transfer Poza EOG
+Aktualna lista dostawców i status umów powierzenia jest prowadzona w
+`PROCESSORS_AND_TRANSFERS.md`.
 
-Uzupełnić po sprawdzeniu regionu Supabase i dostawców. Jeżeli dane mogą być
-przekazywane poza Europejski Obszar Gospodarczy, trzeba wskazać zabezpieczenia,
-np. decyzję adekwatności albo standardowe klauzule umowne.
+## 7. Transfer Poza EOG
 
-## Okres Przechowywania
+Administrator powinien potwierdzić regiony i mechanizmy transferu dla każdego
+dostawcy. Jeżeli dostawca albo jego podprocesor przetwarza dane poza EOG,
+należy wskazać podstawę transferu, np. decyzję adekwatności albo standardowe
+klauzule umowne.
 
-Okresy retencji określa `RETENTION_POLICY.md`. Dane nie powinny być trzymane
-dłużej niż potrzebne do celu biznesowego, rozliczeń, bezpieczeństwa lub
-obrony roszczeń.
+## 8. Okres Przechowywania
 
-## Prawa Osób
+Okresy retencji określa `RETENTION_POLICY.md`. Co do zasady dane są
+przechowywane tylko tak długo, jak jest to potrzebne do realizacji procesów
+logistycznych, obowiązków prawnych, bezpieczeństwa, rozliczeń albo obrony
+roszczeń.
+
+## 9. Prawa Osób
 
 Osoba, której dane dotyczą, ma prawo:
 
@@ -78,15 +107,21 @@ Osoba, której dane dotyczą, ma prawo:
 - przenoszenia danych, gdy ma zastosowanie,
 - wniesienia skargi do Prezesa UODO.
 
-## Kontakt W Sprawach Danych
+Żądania należy kierować na adres: info@lebuser.pl.
 
-W sprawach danych osobowych należy kontaktować się:
+## 10. Zautomatyzowane Decyzje
 
-- Email:
-- Osoba odpowiedzialna:
+Aplikacja nie podejmuje zautomatyzowanych decyzji wywołujących skutki prawne
+wobec osób ani podobnie istotnie na nie wpływających. Jeśli w przyszłości
+pojawią się oceny, scoring lub profilowanie, ten punkt trzeba zaktualizować.
 
-## Zautomatyzowane Decyzje
+## 11. Potwierdzenie W Aplikacji
 
-Aplikacja nie powinna podejmować zautomatyzowanych decyzji wywołujących skutki
-prawne wobec osób. Jeśli w przyszłości pojawią się oceny/profilowanie,
-ten punkt trzeba zaktualizować.
+Aplikacja wyświetla użytkownikom skróconą informację RODO po zalogowaniu i
+zapisuje potwierdzenie wersji `privacy_notice_v1`. Przy istotnej zmianie tej
+klauzuli należy:
+
+1. zaktualizować treść,
+2. zmienić `PRIVACY_NOTICE_VERSION` w `src/context/AuthContext.jsx`,
+3. wdrożyć aplikację,
+4. zachować datę wdrożenia i treść wersji w dokumentacji firmy.
