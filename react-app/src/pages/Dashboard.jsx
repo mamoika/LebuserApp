@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { AlertTriangle, Eye, LogOut, Undo2 } from 'lucide-react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AlertTriangle, Eye, LogOut, ShieldCheck, Undo2 } from 'lucide-react';
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
+import RodoNotice from './RodoNotice';
 
 import ToastContainer from '../components/ToastContainer';
 
@@ -37,6 +38,7 @@ const PAGE_KEYS = {
   '/costs': 'costs',
   '/wash': 'wash',
   '/admin': 'admin',
+  '/rodo': 'rodo',
 };
 
 function PrivacyNoticeModal() {
@@ -72,6 +74,10 @@ function PrivacyNoticeModal() {
             <p style={{ margin: 0 }}>{t('privacy.p3')}</p>
             <p style={{ margin: 0 }}>{t('privacy.p4')}</p>
           </div>
+
+          <a href="/rodo" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '12px', fontSize: '13px', fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+            <ShieldCheck size={14} /> {t('privacy.full')}
+          </a>
 
           {error && <div className="ap-error" style={{ marginTop: '14px' }}>{error}</div>}
 
@@ -151,6 +157,9 @@ export default function Dashboard() {
             </span>
             <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
           </div>
+          <Link to="/rodo" className="driver-btn" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
+            <ShieldCheck size={14} /> {t('header.rodo')}
+          </Link>
           <LanguageSwitcher size="sm" />
           <button onClick={signOut} className="driver-btn">
             <LogOut size={14} /> {t('header.signOut')}
@@ -177,6 +186,7 @@ export default function Dashboard() {
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
           <Route path="/wash" element={canViewAdminData ? <WashView /> : <Navigate to="/" replace />} />
+          <Route path="/rodo" element={<RodoNotice />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
         </Suspense>

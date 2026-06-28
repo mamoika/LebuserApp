@@ -84,6 +84,7 @@
     "adminPanel": "Panel Admina"
   },
   "header": {
+    "rodo": "RODO",
     "signOut": "Wyloguj",
     "impersonatingAs": "Przeglądasz jako:",
     "impersonateNoPassword": "Brak hasła — user nie zalogował się jeszcze",
@@ -102,7 +103,8 @@
     "costs": { "title": "Koszty", "subtitle": "Koszty i rozliczenia" },
     "tunnel": { "title": "Tunel", "subtitle": "Status gatewaya live" },
     "wash": { "title": "Pralnia", "subtitle": "Zarządzanie workami live" },
-    "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" }
+    "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" },
+    "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" }
   },
   "schedule": {
     "loadingData": "Ładowanie danych…",
@@ -463,6 +465,7 @@
     "trip_end": "Koniec trasy"
   },
   "admin": {
+    "rodoFullLink": "Pełna klauzula RODO",
     "loadingRoutes": "Ładowanie tras…",
     "newUser": "Nowy użytkownik",
     "editUser": "Edytuj użytkownika",
@@ -696,6 +699,111 @@
     "p3": "Dane są używane do realizacji procesów logistycznych, rozliczeń wewnętrznych, kontroli dostępu, audytu działań i ochrony systemu. Szczegółowa klauzula i rejestr czynności są prowadzone w dokumentacji firmy.",
     "p4": "Potwierdzenie oznacza, że zapoznałeś/zapoznałaś się z tą informacją. Nie jest to zgoda marketingowa ani zgoda na dowolne przetwarzanie danych.",
     "confirm": "Potwierdzam zapoznanie się",
-    "signOut": "Wyloguj"
+    "signOut": "Wyloguj",
+    "full": "Przeczytaj pełną klauzulę"
+  },
+  "rodoFull": {
+    "intro": "Poniżej znajduje się pełna klauzula informacyjna dotycząca przetwarzania danych osobowych w aplikacji LEBUSER.",
+    "controllerTitle": "Administrator danych",
+    "controllerLines": [
+      "LEBUSER TEXTILSERVICE Sp. z o.o.",
+      "ul. Owcza 10, 66-400 Gorzów Wielkopolski",
+      "KRS 0000648492 · NIP 9271945131 · REGON 365910038"
+    ],
+    "contactLabel": "Kontakt w sprawach danych",
+    "contactEmail": "info@lebuser.pl",
+    "sections": [
+      {
+        "title": "Kogo dotyczy informacja",
+        "intro": "Informacja dotyczy użytkowników aplikacji LEBUSER, w szczególności:",
+        "bullets": [
+          "administratorów i osób zarządzających operacjami,",
+          "kierowców i pracowników korzystających z aplikacji,",
+          "osób, których dane pojawiają się w grafiku, kosztach lub historii działań,",
+          "kontaktów klientów B2B, jeżeli ich dane są wpisywane do aplikacji."
+        ]
+      },
+      {
+        "title": "Kategorie danych",
+        "intro": "Aplikacja może przetwarzać:",
+        "bullets": [
+          "dane konta: login, imię i nazwisko, rola, język, status hasła,",
+          "dane uprawnień: role, przypisane trasy, domyślne auto, aktywność konta,",
+          "dane sesji i bezpieczeństwa: daty sesji, etykieta urządzenia, skrót tokenu, data ostatniej aktywności, status wylogowania,",
+          "dane operacyjne: wpisy odbioru/dostawy, statusy, wagi, kosze, dokumenty przyjęcia,",
+          "dane tras: kierowca, auto, licznik, data, status, planowany start,",
+          "dane klientów/punktów: nazwa, adres lub lokalizacja GPS punktu, notatki operacyjne,",
+          "dane grafików i pracowników: grupa, aktywność w miesiącu, godziny/zmiany, rodzaj umowy,",
+          "dane kosztowe: wpisy kosztów operacyjnych, stawki, zużycia mediów,",
+          "logi działań: kto wykonał akcję, kiedy i czego dotyczyła."
+        ],
+        "footer": "Hasła i tokeny sesji nie są przechowywane jawnie — w bazie zapisujemy wyłącznie ich skróty (hashe)."
+      },
+      {
+        "title": "Cele przetwarzania",
+        "intro": "Dane przetwarzamy w celu:",
+        "bullets": [
+          "planowania i realizacji odbiorów oraz dostaw,",
+          "organizacji pracy kierowców i pracowników,",
+          "prowadzenia historii tras i operacji,",
+          "rozliczania kosztów wewnętrznych,",
+          "obsługi klientów i punktów odbioru/dostawy,",
+          "kontroli dostępu, bezpieczeństwa aplikacji i audytu działań,",
+          "obsługi błędów technicznych i utrzymania ciągłości działania."
+        ]
+      },
+      {
+        "title": "Podstawy prawne",
+        "intro": "Dane przetwarzamy na podstawie:",
+        "bullets": [
+          "art. 6 ust. 1 lit. b RODO — wykonanie umowy lub działania przed jej zawarciem,",
+          "art. 6 ust. 1 lit. c RODO — obowiązek prawny (dokumentacja pracownicza, księgowa, podatkowa),",
+          "art. 6 ust. 1 lit. f RODO — prawnie uzasadniony interes: organizacja pracy, bezpieczeństwo systemu, audyt i dochodzenie roszczeń."
+        ]
+      },
+      {
+        "title": "Odbiorcy i podmioty przetwarzające",
+        "paragraphs": [
+          "Dane mogą być dostępne dla uprawnionych użytkowników zgodnie z ich rolą, administratorów systemu oraz dostawców technicznych działających na nasze polecenie (np. hosting, baza danych, monitoring błędów). Aktualna lista dostawców i status umów powierzenia są prowadzone w dokumentacji firmy."
+        ]
+      },
+      {
+        "title": "Przekazywanie poza EOG",
+        "paragraphs": [
+          "Jeżeli dostawca techniczny lub jego podprocesor przetwarza dane poza Europejskim Obszarem Gospodarczym, odbywa się to na podstawie odpowiednich zabezpieczeń, np. decyzji o adekwatności albo standardowych klauzul umownych."
+        ]
+      },
+      {
+        "title": "Okres przechowywania",
+        "paragraphs": [
+          "Dane przechowujemy tylko tak długo, jak jest to potrzebne do realizacji procesów logistycznych, spełnienia obowiązków prawnych, zapewnienia bezpieczeństwa, rozliczeń lub obrony przed roszczeniami. Szczegółowe okresy określa polityka retencji firmy."
+        ]
+      },
+      {
+        "title": "Twoje prawa",
+        "intro": "Przysługuje Ci prawo do:",
+        "bullets": [
+          "dostępu do swoich danych,",
+          "sprostowania danych,",
+          "usunięcia danych, jeżeli nie ma podstawy do dalszego przetwarzania,",
+          "ograniczenia przetwarzania,",
+          "sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie,",
+          "przenoszenia danych, gdy ma to zastosowanie."
+        ],
+        "footer": "Żądania kieruj na adres info@lebuser.pl. Masz również prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych (UODO)."
+      },
+      {
+        "title": "Zautomatyzowane decyzje",
+        "paragraphs": [
+          "Aplikacja nie podejmuje wobec Ciebie zautomatyzowanych decyzji wywołujących skutki prawne ani w podobny sposób istotnie na Ciebie wpływających. Nie prowadzimy profilowania."
+        ]
+      },
+      {
+        "title": "Potwierdzenie w aplikacji",
+        "paragraphs": [
+          "Po zalogowaniu aplikacja wyświetla skróconą informację RODO i zapisuje potwierdzenie zapoznania się z jej bieżącą wersją. Potwierdzenie nie jest zgodą marketingową ani zgodą na dowolne przetwarzanie danych."
+        ]
+      }
+    ]
   }
 }

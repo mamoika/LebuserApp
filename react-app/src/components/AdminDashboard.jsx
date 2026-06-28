@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
@@ -1125,6 +1126,10 @@ export default function AdminDashboard() {
           {t('admin.newUserBtn')}
         </button>
       </div>
+
+      <Link to="/rodo" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, marginBottom: '14px' }}>
+        <ShieldCheck size={13} /> {t('admin.rodoFullLink')}
+      </Link>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {users.map(u => (

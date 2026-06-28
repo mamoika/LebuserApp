@@ -84,6 +84,7 @@
     "adminPanel": "Admin-Panel"
   },
   "header": {
+    "rodo": "DSGVO",
     "signOut": "Abmelden",
     "impersonatingAs": "Sie sehen als:",
     "impersonateNoPassword": "Kein Passwort — Benutzer hat sich noch nicht angemeldet",
@@ -102,7 +103,8 @@
     "costs": { "title": "Kosten", "subtitle": "Kosten und Abrechnungen" },
     "tunnel": { "title": "Tunnel", "subtitle": "Live Gateway Status" },
     "wash": { "title": "Wäscherei", "subtitle": "Live-Verwaltung der Wäschesäcke" },
-    "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" }
+    "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" },
+    "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" }
   },
   "schedule": {
     "loadingData": "Daten werden geladen…",
@@ -453,6 +455,7 @@
     "trip_end": "Routenende"
   },
   "admin": {
+    "rodoFullLink": "Vollständige DSGVO-Klausel",
     "loadingRoutes": "Routen werden geladen…",
     "newUser": "Neuer Benutzer",
     "editUser": "Benutzer bearbeiten",
@@ -686,6 +689,111 @@
     "p3": "Die Daten werden zur Durchführung logistischer Prozesse, für interne Abrechnungen, die Zugriffskontrolle, die Prüfung von Aktivitäten und den Schutz des Systems verwendet. Die ausführliche Datenschutzklausel und das Verarbeitungsverzeichnis werden in der Unternehmensdokumentation geführt.",
     "p4": "Die Bestätigung bedeutet, dass Sie diesen Hinweis zur Kenntnis genommen haben. Es handelt sich weder um eine Marketing-Einwilligung noch um eine Einwilligung in eine beliebige Datenverarbeitung.",
     "confirm": "Ich bestätige die Kenntnisnahme",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "full": "Vollständige Klausel lesen"
+  },
+  "rodoFull": {
+    "intro": "Nachfolgend finden Sie den vollständigen Datenschutzhinweis zur Verarbeitung personenbezogener Daten in der LEBUSER-Anwendung.",
+    "controllerTitle": "Verantwortlicher",
+    "controllerLines": [
+      "LEBUSER TEXTILSERVICE Sp. z o.o.",
+      "ul. Owcza 10, 66-400 Gorzów Wielkopolski, Polen",
+      "KRS 0000648492 · NIP 9271945131 · REGON 365910038"
+    ],
+    "contactLabel": "Kontakt in Datenschutzfragen",
+    "contactEmail": "info@lebuser.pl",
+    "sections": [
+      {
+        "title": "Wen betrifft dieser Hinweis",
+        "intro": "Der Hinweis betrifft Nutzer der LEBUSER-Anwendung, insbesondere:",
+        "bullets": [
+          "Administratoren und Personen, die den Betrieb verwalten,",
+          "Fahrer und Mitarbeiter, die die Anwendung nutzen,",
+          "Personen, deren Daten im Dienstplan, in den Kosten oder im Aktivitätsverlauf erscheinen,",
+          "B2B-Kundenkontakte, sofern ihre Daten in der Anwendung erfasst werden."
+        ]
+      },
+      {
+        "title": "Datenkategorien",
+        "intro": "Die Anwendung kann verarbeiten:",
+        "bullets": [
+          "Kontodaten: Login, Vor- und Nachname, Rolle, Sprache, Passwortstatus,",
+          "Berechtigungsdaten: Rollen, zugewiesene Routen, Standardfahrzeug, Kontoaktivität,",
+          "Sitzungs- und Sicherheitsdaten: Sitzungsdaten, Gerätekennzeichnung, Token-Hash, letzte Aktivität, Abmeldestatus,",
+          "Betriebsdaten: Abhol-/Liefereinträge, Status, Gewichte, Behälter, Annahmedokumente,",
+          "Routendaten: Fahrer, Fahrzeug, Kilometerstand, Datum, Status, geplanter Start,",
+          "Kunden-/Standortdaten: Name, Adresse oder GPS-Standort, Betriebsnotizen,",
+          "Dienstplan- und Mitarbeiterdaten: Gruppe, monatliche Aktivität, Stunden/Schichten, Vertragsart,",
+          "Kostendaten: Einträge zu Betriebskosten, Tarife, Medienverbrauch,",
+          "Aktivitätsprotokolle: wer wann welche Aktion ausgeführt hat."
+        ],
+        "footer": "Passwörter und Sitzungstokens werden nicht im Klartext gespeichert — in der Datenbank werden ausschließlich deren Hashes abgelegt."
+      },
+      {
+        "title": "Zwecke der Verarbeitung",
+        "intro": "Wir verarbeiten Daten zu folgenden Zwecken:",
+        "bullets": [
+          "Planung und Durchführung von Abholungen und Lieferungen,",
+          "Organisation der Arbeit von Fahrern und Mitarbeitern,",
+          "Führung des Verlaufs von Routen und Vorgängen,",
+          "interne Kostenabrechnung,",
+          "Betreuung von Kunden und Abhol-/Lieferstandorten,",
+          "Zugriffskontrolle, Anwendungssicherheit und Prüfung von Aktivitäten,",
+          "Behandlung technischer Fehler und Aufrechterhaltung des Betriebs."
+        ]
+      },
+      {
+        "title": "Rechtsgrundlagen",
+        "intro": "Wir verarbeiten Daten auf folgender Grundlage:",
+        "bullets": [
+          "Art. 6 Abs. 1 lit. b DSGVO — Erfüllung eines Vertrags oder vorvertragliche Maßnahmen,",
+          "Art. 6 Abs. 1 lit. c DSGVO — rechtliche Verpflichtung (Personal-, Buchhaltungs- und Steuerunterlagen),",
+          "Art. 6 Abs. 1 lit. f DSGVO — berechtigtes Interesse: Arbeitsorganisation, Systemsicherheit, Prüfung und Geltendmachung von Ansprüchen."
+        ]
+      },
+      {
+        "title": "Empfänger und Auftragsverarbeiter",
+        "paragraphs": [
+          "Die Daten können berechtigten Nutzern gemäß ihrer Rolle, Systemadministratoren sowie technischen Dienstleistern zugänglich sein, die in unserem Auftrag handeln (z. B. Hosting, Datenbank, Fehlerüberwachung). Die aktuelle Liste der Dienstleister und der Status der Auftragsverarbeitungsverträge werden in der Unternehmensdokumentation geführt."
+        ]
+      },
+      {
+        "title": "Übermittlung außerhalb des EWR",
+        "paragraphs": [
+          "Sofern ein technischer Dienstleister oder dessen Unterauftragsverarbeiter Daten außerhalb des Europäischen Wirtschaftsraums verarbeitet, erfolgt dies auf Grundlage geeigneter Garantien, z. B. eines Angemessenheitsbeschlusses oder von Standardvertragsklauseln."
+        ]
+      },
+      {
+        "title": "Speicherdauer",
+        "paragraphs": [
+          "Wir speichern Daten nur so lange, wie es für die Durchführung logistischer Prozesse, die Erfüllung rechtlicher Pflichten, die Sicherheit, Abrechnungen oder die Abwehr von Ansprüchen erforderlich ist. Die genauen Fristen legt die Aufbewahrungsrichtlinie des Unternehmens fest."
+        ]
+      },
+      {
+        "title": "Ihre Rechte",
+        "intro": "Sie haben das Recht auf:",
+        "bullets": [
+          "Auskunft über Ihre Daten,",
+          "Berichtigung der Daten,",
+          "Löschung der Daten, sofern keine Grundlage für eine weitere Verarbeitung besteht,",
+          "Einschränkung der Verarbeitung,",
+          "Widerspruch gegen eine auf berechtigtem Interesse beruhende Verarbeitung,",
+          "Datenübertragbarkeit, soweit anwendbar."
+        ],
+        "footer": "Anfragen richten Sie bitte an info@lebuser.pl. Sie haben zudem das Recht, eine Beschwerde bei der polnischen Datenschutzbehörde (UODO) einzureichen."
+      },
+      {
+        "title": "Automatisierte Entscheidungen",
+        "paragraphs": [
+          "Die Anwendung trifft Ihnen gegenüber keine automatisierten Entscheidungen mit rechtlicher Wirkung oder ähnlich erheblicher Beeinträchtigung. Es findet kein Profiling statt."
+        ]
+      },
+      {
+        "title": "Bestätigung in der Anwendung",
+        "paragraphs": [
+          "Nach der Anmeldung zeigt die Anwendung einen kurzen Datenschutzhinweis an und speichert die Bestätigung der Kenntnisnahme der aktuellen Version. Die Bestätigung ist weder eine Marketing-Einwilligung noch eine Einwilligung in eine beliebige Datenverarbeitung."
+        ]
+      }
+    ]
   }
 }
