@@ -540,7 +540,11 @@ export default function TimelineView() {
     const dw = d.getDay();
     if (dw !== 0 && dw !== 6) return true;
     const ds = toDateStr(d);
-    return Object.keys(entries).some(k => k.includes(`_${ds}_`));
+    // Weekend widoczny, gdy ktoś ma malowanie godzinowe (entries) LUB przepracowaną
+    // zmianę z grafiku (scheduleMap) tego dnia — np. sobotnia zmiana nocna 23:00.
+    const hasTimeline = Object.keys(entries).some(k => k.includes(`_${ds}_`));
+    const hasWorkShift = Object.keys(scheduleMap).some(k => k.endsWith(`_${ds}`) && scheduleMap[k]?.working);
+    return hasTimeline || hasWorkShift;
   });
 
   const fetchData = useCallback(async () => {
