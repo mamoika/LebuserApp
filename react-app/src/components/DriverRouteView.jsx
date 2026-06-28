@@ -7,8 +7,9 @@ import { logAction } from '../lib/logger';
 import { toastError, toastSuccess } from '../lib/toast';
 import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
 import { formatWeekKey } from '../lib/dateUtils';
-import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn, DRIVER_CARS_KEY } from '../lib/vehicles';
+import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
+import { getBlockingPickedLaundry, getDriverAppSettings, getDriverTripsData } from '../lib/readRpc';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 /* ── helpery dat ── */
@@ -179,7 +180,7 @@ function nextWorkDateAfter(dateStr) {
 }
 
 export default function DriverRouteView({ manageMode = false }) {
-  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
+  const { user, isAdmin, sessionToken } = useAuth();
   const { entries: rawEntries, allRoutes, clients, loading, error, refetch } = useAppData();
 
   const [trip, setTrip] = useState(null);
@@ -287,45 +288,40 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   const loadTrips = useCallback(async () => {
-    // Auto-start tras zaplanowanych, którym minął planowany start — idempotentne.
-    // Dzięki temu po wejściu kierowcy/admina do apki trasa jest już rozpoczęta.
-    if (sessionToken) {
-      try { await supabase.rpc('auto_start_due_trips', { p_session_token: sessionToken }); } catch { /* nieblokujące */ }
-    }
-    let q = supabase.from('driver_trips').select('*').order('started_at', { ascending: false }).limit(60);
-    // Nie-admin widzi własne trasy + pulę „do przejęcia" (handover) + trasy
-    // aktywne (status.eq.active) — te ostatnie potrzebne, by wiedzieć, które
-    // auto jest już zajęte przez innego kierowcę i zablokować jego wybór.
-    if (!canViewAdminData) q = q.or(`driver_id.eq.${user?.id},status.eq.handover,status.eq.active`);
-    const [{ data, error }, { data: costs }] = await Promise.all([
-      q,
-      supabase.from('daily_costs')
-        .select('entry_date, fiat_end, isuzu_end, merc_end, iveco_end')
-        .order('entry_date', { ascending: false })
-        .limit(180),
-    ]);
-    if (error) {
-      toastError('Błąd pobierania tras: ' + error.message);
+    if (!sessionToken) {
       setAllTrips([]);
+      setDailyCosts([]);
       return [];
     }
-    const trips = data || [];
-    setAllTrips(trips);
-    setDailyCosts(costs || []);
-    return trips;
-  }, [canViewAdminData, user?.id, sessionToken]);
+    // Auto-start tras zaplanowanych, którym minął planowany start — idempotentne.
+    // Dzięki temu po wejściu kierowcy/admina do apki trasa jest już rozpoczęta.
+    try { await supabase.rpc('auto_start_due_trips', { p_session_token: sessionToken }); } catch { /* nieblokujące */ }
+
+    try {
+      const data = await getDriverTripsData(sessionToken);
+      const trips = data?.trips || [];
+      setAllTrips(trips);
+      setDailyCosts(data?.daily_costs || []);
+      return trips;
+    } catch (error) {
+      toastError('Błąd pobierania tras: ' + error.message);
+      setAllTrips([]);
+      setDailyCosts([]);
+      return [];
+    }
+  }, [sessionToken]);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setTripLoading(true);
-      const [trips, { data: settings }] = await Promise.all([
+      const [trips, settings] = await Promise.all([
         loadTrips(),
-        supabase.from('app_settings').select('key, value').in('key', [DRIVER_CARS_KEY, KM_RESOLVED_KEY]),
+        getDriverAppSettings(sessionToken),
       ]);
       if (cancelled) return;
-      const carsSetting = (settings || []).find(s => s.key === DRIVER_CARS_KEY)?.value;
-      const resolved = (settings || []).find(s => s.key === KM_RESOLVED_KEY)?.value;
+      const carsSetting = settings?.driver_cars || {};
+      const resolved = settings?.km_resolved_ids || [];
       setKmResolvedIds(Array.isArray(resolved) ? resolved : []);
       const ownTrips = trips || [];
       const ownToday = ownTrips.filter(t => t.driver_id === user?.id && t.trip_date === today);
@@ -345,9 +341,9 @@ export default function DriverRouteView({ manageMode = false }) {
       else if (car) setSelectedCar(car);
       setTripLoading(false);
     };
-    if (user?.id) load();
+    if (user?.id && sessionToken) load();
     return () => { cancelled = true; };
-  }, [user?.id, today, canViewAdminData, loadTrips]);
+  }, [user?.id, today, sessionToken, loadTrips]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);
@@ -1116,15 +1112,8 @@ export default function DriverRouteView({ manageMode = false }) {
     if (!trip) return [];
     const routeIds = parseRouteIds(trip.routes);
     const extras = new Set(parseExtraClients(trip.extra_clients));
-    const { data, error } = await supabase
-      .from('entries')
-      .select('*')
-      .is('deleted_at', null)
-      .eq('done', true)
-      .eq('picked_by', user.name)
-      .or('delivered.is.false,delivered.is.null');
-    if (error) throw error;
-    const blocking = (data || []).filter(e => {
+    const data = await getBlockingPickedLaundry(sessionToken);
+    const blocking = (data?.entries || []).filter(e => {
       if (pickupDateStr(e) !== trip.trip_date) return false;
       return routeIds.size === 0 || routeIds.has(e.route_id) || extras.has(e.client_name);
     });

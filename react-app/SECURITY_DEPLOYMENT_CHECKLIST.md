@@ -102,6 +102,37 @@ After deploying the frontend that uses it, verify:
 Do not revoke `select` on `driver_trips` yet: `DriverRouteView` still has
 remaining direct reads that must be migrated first.
 
+Final remaining read-hardening migration:
+
+1. `db/migrations/remaining_read_rpc.sql`
+
+After deploying the frontend that uses it, verify:
+
+- Admin panel users load, edit, reset password and save default driver car.
+- Admin panel groups load, create, edit and delete with employee-count guard.
+- Admin panel employees load by month, add existing employees, save employees
+  and remove employees from a month.
+- Work schedule loads, saves cells, exports and prints.
+- Timeline loads, paints cells and copies day assignments.
+- Costs load current month, history and performance thresholds; admin saves
+  costs, rates and thresholds.
+- Clients/routes can still block deletion when a client has history.
+- Driver route view loads active/planned/history trips, default car, KM
+  resolved state and the blocking picked-laundry guard.
+- Wash/WinWash view loads tunnel bags through `get_tunnel_bags`.
+- Schedule, map, clients/routes, history and logs still load through the
+  earlier read RPCs.
+- Realtime refreshes still work for schedule/driver route views, or the team
+  accepts manual refresh as a fallback before revoking direct reads.
+
+Then run:
+
+1. `db/migrations/revoke_remaining_direct_reads.sql`
+
+Repeat the same smoke test. If a realtime subscription stops firing after
+`select` is revoked, keep the RPC data path and replace the affected realtime
+trigger with a polling/manual refresh fallback.
+
 ## Phase 5: RODO/EU Operations
 
 Complete the operational documents in `docs/compliance`:

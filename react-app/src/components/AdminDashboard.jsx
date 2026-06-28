@@ -3,10 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
-import { loadMonthRoster } from '../lib/roster';
 import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
 import { upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
+import {
+  getAdminEmployeesData,
+  getAdminGroupEmployeeCount,
+  getAdminGroups,
+  getAdminRouteOptions,
+  getAdminUsersData,
+} from '../lib/readRpc';
 import { currentLocale, monthNames } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
 import DataError from './DataError';
@@ -26,13 +32,15 @@ const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_v
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
   const { t } = useTranslation();
+  const { sessionToken } = useAuth();
   const [allRoutes, setAllRoutes] = useState([]);
 
   useEffect(() => {
-    supabase.from('routes').select('id,name').order('sort_order').then(({ data }) => {
-      if (data) setAllRoutes(data);
-    });
-  }, []);
+    if (!sessionToken) return;
+    getAdminRouteOptions(sessionToken)
+      .then(data => setAllRoutes(data?.routes || []))
+      .catch(err => toastError(t('common.error') + ': ' + err.message));
+  }, [sessionToken, t]);
 
   // value = string "1,3,5"
   const selected = new Set(
@@ -336,13 +344,19 @@ function GroupsSection() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
 
-  const fetch = async () => {
-    const { data } = await supabase.from('groups').select('*').order('sort_order').order('name');
-    setGroups(data || []);
-    setLoading(false);
-  };
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminGroups(sessionToken);
+      setGroups(data?.groups || []);
+    } catch (err) {
+      toastError(t('common.error') + ': ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, t]);
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetch(); }, [fetch]);
 
   const handleSave = async ({ id, name, color, sort_order }) => {
     const args = {
@@ -367,8 +381,8 @@ function GroupsSection() {
   };
 
   const handleDelete = async (id, groupName) => {
-    const { count, error } = await supabase.from('employees').select('id', { count: 'exact', head: true }).eq('group_name', groupName);
-    if (error) return { error: error.message };
+    const countData = await getAdminGroupEmployeeCount(sessionToken, groupName);
+    const count = countData?.count || 0;
     if (count > 0) return { error: t('admin.groupHasEmployees', { count }) };
     
     const { data, error: deleteErr } = await supabase.rpc('admin_delete_group', {
@@ -521,21 +535,20 @@ function EmployeesSection() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: empData }, { data: grpData }, rosterData] = await withRetry(() => Promise.all([
-        supabase.from('employees').select('*').order('sort_order').order('name'),
-        supabase.from('groups').select('*').order('sort_order'),
-        loadMonthRoster(cur.year, cur.month, { includeInactive: true })
-      ]), { label: 'pracownicy' });
-      setAllEmployees(empData || []);
-      setGroups(grpData || []);
-      setRoster(rosterData || []);
+      const data = await withRetry(
+        () => getAdminEmployeesData(sessionToken, cur.year, cur.month),
+        { label: 'pracownicy' }
+      );
+      setAllEmployees(data?.employees || []);
+      setGroups(data?.groups || []);
+      setRoster(data?.roster || []);
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [cur.year, cur.month]);
+  }, [cur.year, cur.month, sessionToken]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -772,7 +785,7 @@ function LogsSection() {
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
-  const { impersonate, isAdmin, sessionToken, signOut } = useAuth();
+  const { impersonate, isAdmin, sessionToken } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -788,24 +801,16 @@ export default function AdminDashboard() {
     }
     setLoading(true);
     try {
-      const [{ data, error }, { data: carsRow }] = await withRetry(() => Promise.all([
-        supabase.rpc('get_all_users', { p_session_token: sessionToken }),
-        supabase.from('app_settings').select('value').eq('key', DRIVER_CARS_KEY).maybeSingle(),
-      ]), { label: 'użytkownicy' });
-      if (error?.message === 'Invalid or expired session') {
-        signOut();
-        return;
-      }
-      if (error) throw new Error(error.message);
-      setUsers(data || []);
-      setDriverCars(carsRow?.value || {});
+      const data = await withRetry(() => getAdminUsersData(sessionToken), { label: 'użytkownicy' });
+      setUsers(data?.users || []);
+      setDriverCars(data?.driver_cars || {});
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, sessionToken, signOut]);
+  }, [isAdmin, sessionToken]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 

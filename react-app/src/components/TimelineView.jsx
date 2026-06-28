@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
-import { loadMonthRoster } from '../lib/roster';
+import { getTimelineWeek } from '../lib/readRpc';
 import { isHoliday } from '../utils/holidays';
 import { dayNamesSunSat } from '../lib/dateUtils';
 
@@ -517,7 +517,7 @@ const TimelineRow = React.memo(({
 
 export default function TimelineView() {
   const { t } = useTranslation();
-  const { user, isAdmin, sessionToken } = useAuth();
+  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
   const [monday, setMonday] = useState(() => getMondayOfWeek(new Date()));
@@ -544,33 +544,46 @@ export default function TimelineView() {
   });
 
   const fetchData = useCallback(async () => {
+    if (!canViewAdminData || !sessionToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const dateFrom = toDateStr(monday);
     const dateTo = toDateStr(addDays(monday, 6));
 
-    const [emps, { data: tl }, { data: sched }, { data: grps }] = await Promise.all([
-      loadMonthRoster(monday.getFullYear(), monday.getMonth() + 1),
-      supabase.from('timeline_entries').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-      supabase.from('schedule_entries').select('employee_id,day,value').eq('year', monday.getFullYear()).eq('month', monday.getMonth() + 1),
-      supabase.from('groups').select('*').order('sort_order').order('name')
-    ]);
-    setEmployees(emps || []);
-    setGroupData(grps || []);
-    const map = {};
-    (tl || []).forEach(e => { map[`${e.employee_id}_${e.entry_date}_${e.hour}`] = e.role; });
-    setEntries(map);
-    const sm = {};
-    (sched || []).forEach(e => {
-      const emp = (emps || []).find(x => x.id === e.employee_id);
-      if (!emp) return;
-      const dayDate = allWeekDays.find(d => d.getDate() === e.day && d.getMonth() === monday.getMonth());
-      if (!dayDate) return;
-      const ds = toDateStr(dayDate);
-      sm[`${e.employee_id}_${ds}`] = parseScheduleShift(e.value, emp);
-    });
-    setScheduleMap(sm);
-    setLoading(false);
-  }, [allWeekDays, monday]);
+    try {
+      const data = await getTimelineWeek(
+        sessionToken,
+        dateFrom,
+        dateTo,
+        monday.getFullYear(),
+        monday.getMonth() + 1
+      );
+      const emps = data?.roster || [];
+      const tl = data?.timeline_entries || [];
+      const sched = data?.schedule_entries || [];
+      setEmployees(emps);
+      setGroupData(data?.groups || []);
+      const map = {};
+      tl.forEach(e => { map[`${e.employee_id}_${e.entry_date}_${e.hour}`] = e.role; });
+      setEntries(map);
+      const sm = {};
+      sched.forEach(e => {
+        const emp = emps.find(x => x.id === e.employee_id);
+        if (!emp) return;
+        const dayDate = allWeekDays.find(d => d.getDate() === e.day && d.getMonth() === monday.getMonth());
+        if (!dayDate) return;
+        const ds = toDateStr(dayDate);
+        sm[`${e.employee_id}_${ds}`] = parseScheduleShift(e.value, emp);
+      });
+      setScheduleMap(sm);
+    } catch (err) {
+      toastError(t('common.error') + ': ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [allWeekDays, canViewAdminData, sessionToken, monday, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -738,6 +751,7 @@ export default function TimelineView() {
     return result;
   }, [entries, groups]);
 
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
   if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
   const NAME_W = 160;

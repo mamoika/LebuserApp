@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
+import { getClientUsageStatus } from '../lib/readRpc';
 
 // Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
 const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
@@ -612,14 +613,8 @@ export default function ClientsRoutesView() {
 
   const handleDeleteClient = async (client) => {
     try {
-      const { data: usedEntry, error: usedErr } = await supabase
-        .from('entries')
-        .select('id')
-        .eq('client_name', client.name)
-        .limit(1)
-        .maybeSingle();
-      if (usedErr) throw usedErr;
-      if (usedEntry) {
+      const usage = await getClientUsageStatus(sessionToken, client.name);
+      if (usage?.used) {
         toastWarn(t('clients.clientHasHistory'));
         return;
       }

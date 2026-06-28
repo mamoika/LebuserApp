@@ -123,37 +123,37 @@ After the write-hardening SQL run, live verification showed:
   so driver trip assignment labels load through
   `get_schedule_driver_trips(p_session_token, p_limit)` instead of a direct
   browser `select` on `driver_trips`.
+- Added remaining read-hardening RPC migration:
+  `db/migrations/remaining_read_rpc.sql`. Updated the remaining frontend
+  reads in admin users/groups/employees, work schedule, timeline, costs,
+  driver route runtime data, WinWash bag status and client delete checks to
+  use session-token RPCs.
+- Replaced `get_app_data` in `remaining_read_rpc.sql` with a role-scoped
+  version: regular drivers receive route/client/entry/receipt data limited to
+  assigned or active-trip-related work instead of the full operational dataset.
+- Replaced `get_schedule_driver_trips` in `remaining_read_rpc.sql` so regular
+  drivers receive their own trip rows while admin-like roles retain the full
+  schedule label data.
+- A source scan now shows no direct browser `supabase.from(...).select(...)`
+  calls in `src`; table reads are routed through RPCs. The final revoke step is
+  `db/migrations/revoke_remaining_direct_reads.sql` after deployment and smoke
+  testing.
 
 ## Remaining Hardening Plan
 
-1. Continue moving sensitive reads behind RPC
+1. Deploy and smoke-test final read hardening
 
-   `logs`, the shared `useAppData` load, `HistoryView` entry history, and
-   `ScheduleView` driver-trip labels have been moved first. Continue with
-   broader direct table reads using functions such as:
-
-   - `get_driver_day(p_session_token, p_date)`
-   - `get_costs_month(p_session_token, p_month_key)`
+   Run `db/migrations/remaining_read_rpc.sql`, deploy the matching frontend,
+   and smoke-test the app. The frontend source no longer performs direct table
+   reads, but the live database should not revoke `select` until the deployed
+   app is verified.
 
 2. Revoke table read access from anon/authenticated
 
-   After the frontend uses read RPCs, run a breaking hardening migration:
+   After the frontend uses read RPCs in production, run:
 
    ```sql
-   revoke select on table
-     public.clients,
-     public.routes,
-     public.entries,
-     public.logs,
-     public.driver_trips,
-     public.daily_costs,
-     public.cost_settings,
-     public.app_settings,
-     public.employees,
-     public.schedule_entries,
-     public.timeline_entries,
-     public.employee_months
-   from anon, authenticated;
+   db/migrations/revoke_remaining_direct_reads.sql
    ```
 
 3. Tighten password onboarding

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
+import { getCostsHistory, getCostsMonth, getPerformanceProgi } from '../lib/readRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
@@ -49,53 +49,6 @@ function scheduleDayHours(value) {
   }
   if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
   return parseFloat(v.replace(',', '.')) || 0;
-}
-
-// Pobiera WSZYSTKIE wiersze osi czasu w zakresie dat, stronicując po 1000
-// (PostgREST domyślnie obcina odpowiedź do 1000 — bez tego dni „za progiem"
-// miały zaniżone godziny i zawyżone kg/h). Stały porządek = poprawne strony.
-async function fetchAllTimelineEntries(dateFrom, dateTo) {
-  const pageSize = 1000;
-  let from = 0;
-  const all = [];
-  for (;;) {
-    const { data, error } = await supabase
-      .from('timeline_entries')
-      .select('entry_date, role, employee_id, hour')
-      .gte('entry_date', dateFrom).lte('entry_date', dateTo)
-      .order('entry_date', { ascending: true })
-      .order('employee_id', { ascending: true })
-      .order('hour', { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    all.push(...(data || []));
-    if (!data || data.length < pageSize) break;
-    from += pageSize;
-  }
-  return all;
-}
-
-// Jak wyżej, ale dla grafiku całego roku (historia) — też potrafi przekroczyć
-// 1000 wierszy, co zaniżałoby godziny pracy w podsumowaniu miesięcy.
-async function fetchAllScheduleYear(year) {
-  const pageSize = 1000;
-  let from = 0;
-  const all = [];
-  for (;;) {
-    const { data, error } = await supabase
-      .from('schedule_entries')
-      .select('year, month, value')
-      .eq('year', year)
-      .order('month', { ascending: true })
-      .order('employee_id', { ascending: true })
-      .order('day', { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    all.push(...(data || []));
-    if (!data || data.length < pageSize) break;
-    from += pageSize;
-  }
-  return all;
 }
 
 const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
@@ -303,41 +256,22 @@ export default function CostsView() {
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
-    const dateTo = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
 
     try {
-      // timeline_entries potrafi mieć >1000 wierszy/miesiąc (PostgREST domyślnie
-      // obcina do 1000) — pobieramy stronami, żeby wydajność liczyła pełne godziny.
-      const timelinePromise = fetchAllTimelineEntries(dateFrom, dateTo);
-      const [
-        { data: sets },
-        { data: costs },
-        { data: prevRows },
-        { data: emps }
-      ] = await Promise.all([
-        supabase.from('cost_settings').select('*').eq('month_key', monthKey).maybeSingle(),
-        supabase.from('daily_costs').select('*').gte('entry_date', dateFrom).lte('entry_date', dateTo),
-        supabase.from('daily_costs').select('*').lt('entry_date', dateFrom).order('entry_date', { ascending: false }).limit(150),
-        supabase.from('employees').select('id, group_name, default_start')
-      ]);
-      const timeline = await timelinePromise;
-
-    // Grafik miesiąca — do ustalenia godziny startu każdej osoby w danym dniu (dla przerw)
-    const { data: sched } = await supabase
-      .from('schedule_entries')
-      .select('employee_id, day, value')
-      .eq('year', year).eq('month', month);
+      const monthData = await getCostsMonth(sessionToken, monthKey);
+      const sets = monthData?.settings || null;
+      const prevSet = monthData?.previous_settings || null;
+      const costs = monthData?.daily_costs || [];
+      const prevRows = monthData?.previous_daily_costs || [];
+      const emps = monthData?.employees || [];
+      const sched = monthData?.schedule_entries || [];
+      const timeline = monthData?.timeline_entries || [];
 
     // Stawki: jeśli miesiąc nie ma własnych, dziedzicz z ostatniego ZAPISANEGO wcześniejszego miesiąca.
     // Domyślne z kodu tylko gdy nie ma żadnej historii.
     if (sets) {
       setSettings(sets);
     } else {
-      const { data: prevSet } = await supabase
-        .from('cost_settings').select('*')
-        .lt('month_key', monthKey).order('month_key', { ascending: false }).limit(1).maybeSingle();
       if (prevSet) {
         // odrzucamy id (i znacznik czasu), żeby zapis utworzył NOWY wiersz dla tego miesiąca, nie nadpisał poprzedni
         const { id, updated_at, ...rates } = prevSet; // eslint-disable-line no-unused-vars
@@ -411,7 +345,7 @@ export default function CostsView() {
     } finally {
       setLoading(false);
     }
-  }, [currentDate, monthKey, canViewAdminData]);
+  }, [currentDate, monthKey, canViewAdminData, sessionToken]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -421,28 +355,24 @@ export default function CostsView() {
     if (!canViewAdminData) return;
     let alive = true;
     const y = currentDate.getFullYear(), m = currentDate.getMonth() + 1;
-    const winFrom = toDateStr(new Date(y - 1, 11, 1));  // 1 grudnia poprz. roku — zapas na carryover liczników do stycznia
-    const curStart = `${monthKey}-01`;                  // tylko miesiące przed bieżącym
     (async () => {
-      const schedPromise = fetchAllScheduleYear(y);
-      const [{ data: costs }, { data: setsRows }] = await Promise.all([
-        supabase.from('daily_costs')
-          .select('entry_date, fiat_end, isuzu_end, merc_end, iveco_end, elec_end, gas_prod_end, gas_heat_end, water_end, other_costs, ton_zd1, ton_zd2, ton_pralki')
-          .gte('entry_date', winFrom).lt('entry_date', curStart).order('entry_date', { ascending: true }),
-        supabase.from('cost_settings').select('*').order('month_key', { ascending: true }),
-      ]);
-      const sched = await schedPromise;
-      const laborByMonth = {};
-      (sched || []).forEach(e => { const k = `${e.year}-${String(e.month).padStart(2, '0')}`; laborByMonth[k] = (laborByMonth[k] || 0) + scheduleDayHours(e.value); });
-      const ctx = { costsAsc: costs || [], settsAsc: setsRows || [], laborByMonth };
-      const months = [];
-      for (let mm = 1; mm <= m - 1; mm++) {
-        months.push(aggregateMonth(y, mm, ctx));
+      try {
+        const data = await getCostsHistory(sessionToken, y, monthKey);
+        const sched = data?.schedule_entries || [];
+        const laborByMonth = {};
+        sched.forEach(e => { const k = `${e.year}-${String(e.month).padStart(2, '0')}`; laborByMonth[k] = (laborByMonth[k] || 0) + scheduleDayHours(e.value); });
+        const ctx = { costsAsc: data?.daily_costs || [], settsAsc: data?.settings || [], laborByMonth };
+        const months = [];
+        for (let mm = 1; mm <= m - 1; mm++) {
+          months.push(aggregateMonth(y, mm, ctx));
+        }
+        if (alive) setHistory(months);
+      } catch (err) {
+        if (alive) toastError(t('common.error') + ': ' + err.message);
       }
-      if (alive) setHistory(months);
     })();
     return () => { alive = false; };
-  }, [canViewAdminData, monthKey, currentDate]);
+  }, [canViewAdminData, monthKey, currentDate, sessionToken, t]);
 
   // Progi wydajności są PER MIESIĄC — wczytaj progi tego miesiąca z app_settings.
   // Brak własnych → odziedzicz z ostatniego wcześniejszego miesiąca (jak stawki); inaczej domyślne.
@@ -451,22 +381,20 @@ export default function CostsView() {
     let alive = true;
     setProgi(loadProgiCache(monthKey)); // natychmiast z cache tego miesiąca
     (async () => {
-      const { data: own } = await supabase.from('app_settings').select('value').eq('key', progiDbKey(monthKey)).maybeSingle();
-      let p = own?.value ? normalizeProgi(own.value) : null;
-      if (!p) {
-        const { data: prev } = await supabase.from('app_settings').select('value')
-          .like('key', `${PROGI_DB_PREFIX}%`).lt('key', progiDbKey(monthKey))
-          .order('key', { ascending: false }).limit(1).maybeSingle();
-        p = prev?.value ? normalizeProgi(prev.value) : null;
-      }
-      if (alive) {
-        const next = p || PROGI_DEFAULT;
-        setProgi(next);
-        try { localStorage.setItem(progiLsKey(monthKey), JSON.stringify(next)); } catch { /* ignore */ }
+      try {
+        const data = await getPerformanceProgi(sessionToken, monthKey);
+        const p = data?.progi ? normalizeProgi(data.progi) : null;
+        if (alive) {
+          const next = p || PROGI_DEFAULT;
+          setProgi(next);
+          try { localStorage.setItem(progiLsKey(monthKey), JSON.stringify(next)); } catch { /* ignore */ }
+        }
+      } catch (err) {
+        if (alive) toastError(t('common.error') + ': ' + err.message);
       }
     })();
     return () => { alive = false; };
-  }, [canViewAdminData, monthKey]);
+  }, [canViewAdminData, monthKey, sessionToken, t]);
 
   // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
   const flushSave = useCallback(async () => {

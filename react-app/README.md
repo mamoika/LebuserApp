@@ -29,5 +29,7 @@ npm run build
 
 The current security model uses the Supabase anon key in the browser plus
 custom session-token RPCs. Direct browser writes for the hardened operational
-tables have been moved behind RPCs. Direct reads remain the next major
-hardening phase.
+tables have been moved behind RPCs. The frontend source now routes table reads
+through session-token RPCs; deploy `db/migrations/remaining_read_rpc.sql`,
+smoke-test, then run `db/migrations/revoke_remaining_direct_reads.sql` to
+remove direct browser `select` grants in production.

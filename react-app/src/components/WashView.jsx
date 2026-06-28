@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useTranslation } from 'react-i18next';
 import { RefreshCw, Play, CheckCircle2, Box, Flame, Droplet, Archive, AlertCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { getTunnelBags } from '../lib/readRpc';
 
 const STAGE_COLORS = {
   queued: { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A', label: 'Oczekuje', icon: Box },
@@ -16,9 +17,26 @@ const STAGE_COLORS = {
 };
 
 export default function WashView() {
-  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchBags = useCallback(async () => {
+    if (!sessionToken) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await getTunnelBags(sessionToken);
+      setBags(data?.bags || []);
+    } catch (error) {
+      console.error('fetch tunnel bags failed', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken]);
 
   useEffect(() => {
     fetchBags();
@@ -38,19 +56,7 @@ export default function WashView() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  const fetchBags = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('tunnel_bags')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200);
-    
-    if (data) setBags(data);
-    setLoading(false);
-  };
+  }, [fetchBags]);
 
   const activeBags = useMemo(() => bags.filter(b => !['done', 'cancelled', 'error'].includes(b.status)), [bags]);
   const completedToday = useMemo(() => {
@@ -120,7 +126,7 @@ export default function WashView() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '4px', background: 'var(--bg-secondary)', zIndex: 0, borderRadius: '4px' }} />
           
-          {pipelineStages.map((stage, idx) => {
+          {pipelineStages.map((stage) => {
             const count = getCountByStage(stage.id);
             const active = count > 0;
             return (

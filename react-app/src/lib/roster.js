@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { getMonthRoster } from './readRpc';
 
 function sortRoster(list) {
   return [...list].sort((a, b) =>
@@ -7,17 +7,13 @@ function sortRoster(list) {
 }
 
 // Zwraca roster danego miesiąca. Snapshot miesiąca jest tworzony po stronie bazy,
-// bez bezpośredniego prawa zapisu do employee_months z przeglądarki.
-export async function loadMonthRoster(year, month, { includeInactive = false } = {}) {
-  const { data, error } = await supabase.rpc('get_month_roster', {
-    p_year: year,
-    p_month: month,
-    p_include_inactive: includeInactive,
-  });
-
-  if (error) {
+// bez bezpośredniego prawa zapisu ani odczytu employee_months z przeglądarki.
+export async function loadMonthRoster(sessionToken, year, month, { includeInactive = false } = {}) {
+  try {
+    const rows = await getMonthRoster(sessionToken, year, month, { includeInactive });
+    return sortRoster(rows || []);
+  } catch (error) {
     console.error('loadMonthRoster failed', error);
     return [];
   }
-  return sortRoster(data || []);
 }

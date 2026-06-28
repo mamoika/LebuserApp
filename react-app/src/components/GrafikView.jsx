@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
-import { loadMonthRoster } from '../lib/roster';
+import { getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
@@ -180,7 +180,7 @@ function formatDiff(diff) {
 
 export default function GrafikView() {
   const { t } = useTranslation();
-  const { user, isAdmin, sessionToken } = useAuth();
+  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const MONTH_NAMES = monthNames();
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
@@ -211,19 +211,24 @@ export default function GrafikView() {
   const norm = workingDays * 8;
 
   const fetchData = useCallback(async () => {
+    if (!canViewAdminData || !sessionToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const [emps, { data: sched }, { data: grps }] = await Promise.all([
-      loadMonthRoster(year, month),
-      supabase.from('schedule_entries').select('*').eq('year', year).eq('month', month),
-      supabase.from('groups').select('*').order('sort_order').order('name')
-    ]);
-    setEmployees(emps || []);
-    setGroupData(grps || []);
-    const map = {};
-    (sched || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
-    setEntries(map);
-    setLoading(false);
-  }, [year, month]);
+    try {
+      const data = await getWorkScheduleMonth(sessionToken, year, month);
+      setEmployees(data?.roster || []);
+      setGroupData(data?.groups || []);
+      const map = {};
+      (data?.schedule_entries || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
+      setEntries(map);
+    } catch (err) {
+      toastError(t('common.error') + ': ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [canViewAdminData, sessionToken, year, month, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -363,6 +368,7 @@ export default function GrafikView() {
     window.print();
   };
 
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
   if (loading) return <div className="loader">{t('grafik.loading')}</div>;
 
   const btnStyle = { 
