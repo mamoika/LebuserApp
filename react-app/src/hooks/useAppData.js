@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { getAppData } from '../lib/appDataRpc';
+import { captureError } from '../lib/sentry';
 
 // Ile czekamy na odpowiedź bazy, zanim uznamy zapytanie za zawieszone.
 const FETCH_TIMEOUT_MS = 15000;
@@ -124,6 +125,11 @@ export function useAppData() {
     if (mountedRef.current && lastErr) {
       setError(lastErr.message);
       setLoading(false);
+    }
+    // Zgłoś do Sentry ciche awarie ładowania danych (pomijając wygaśnięcie
+    // sesji, które jest normalne) — to one psują ekran kierowcy/admina bez śladu.
+    if (lastErr && !isSessionError(lastErr)) {
+      captureError(lastErr, { feature: 'useAppData', retries: MAX_RETRIES });
     }
   }, [sessionToken]);
 

@@ -47,6 +47,24 @@ For each provider, record:
 - Admin users:
 - Notes:
 
+## Sentry (frontend error monitoring)
+
+- Purpose: frontend error monitoring (uncaught errors, promise rejections,
+  React render crashes, failed data loads).
+- Data categories: error reports and stack traces; technical context
+  (browser, OS, URL); app-internal user identifier (account id, login, role)
+  attached to events. No names/emails. Session Replay is OFF.
+- PII minimization: `sendDefaultPii: false` (no IP address, cookies, or
+  request headers sent); no screen/DOM recording.
+- Region/data location: choose EU data residency when creating the project
+  (DSN host `*.ingest.de.sentry.io`).
+- DPA accepted:
+- Transfer mechanism if outside EEA (only if US region chosen):
+- Sub-processors reviewed:
+- 2FA enabled on owner/admin accounts:
+- Activation: only when `VITE_SENTRY_DSN` is set at build time.
+- Notes:
+
 ## Other Providers
 
 Add email, monitoring, analytics, backup, accounting or support tools if they

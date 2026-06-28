@@ -25,4 +25,12 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // Pliki konfiguracyjne wykonują się w Node — udostępnij globalsy Node
+    // (np. process.env do warunkowego uploadu source map w vite.config.js).
+    files: ['vite.config.js', 'eslint.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

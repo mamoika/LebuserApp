@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import i18n, { SUPPORTED_LANGUAGES } from '../i18n';
+import { setSentryUser, clearSentryUser } from '../lib/sentry';
 
 const applyLanguage = (lang) => {
   if (lang && SUPPORTED_LANGUAGES.includes(lang) && i18n.language !== lang) {
@@ -47,6 +48,13 @@ export const AuthProvider = ({ children }) => {
     applyLanguage(user?.language);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Powiąż błędy w Sentry z zalogowanym użytkownikiem (id konta, login, rola)
+  // — żeby od razu wiedzieć, czy coś pękło u kierowcy, czy u admina.
+  useEffect(() => {
+    if (user?.id) setSentryUser({ id: user.id, username: user.username, role: user.role });
+    else clearSentryUser();
+  }, [user?.id, user?.username, user?.role]);
 
   const storeUser = useCallback((userData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));

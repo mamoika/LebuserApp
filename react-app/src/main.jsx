@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 import i18n from './i18n'
+import { initSentry, captureError } from './lib/sentry'
+
+// Inicjalizacja monitoringu błędów. No-op bez VITE_SENTRY_DSN.
+initSentry()
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,6 +15,10 @@ class ErrorBoundary extends React.Component {
   }
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    // React połyka błędy renderu z window.onerror — zgłaszamy je ręcznie.
+    captureError(error, { componentStack: info?.componentStack });
   }
   render() {
     if (this.state.hasError) {
