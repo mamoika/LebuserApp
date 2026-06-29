@@ -233,6 +233,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const today = ymd(new Date());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
+  const assignedRouteIds = parseRouteIds(user?.routes);
 
   // Kolejność i numeracja przystanków — taka sama jak w „Klienci i Trasy":
   // trasy wg sort_order (allRoutes już posortowane), klienci wg sort_order
@@ -415,7 +416,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const activeRouteIds = trip ? parseRouteIds(trip.routes) : selectedRoutes;
   const extraClients = parseExtraClients(trip?.extra_clients);
   const extraSet = new Set(extraClients);
-  const includeEntry = e => activeRouteIds.size === 0 || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
+  const includeEntry = e => (trip && activeRouteIds.size === 0) || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
   const includeCleanEntryForCurrentTrip = e => {
     if (!includeEntry(e)) return false;
     // Po odebraniu z pralni punkt należy już do kierowcy z picked_by.
@@ -707,6 +708,10 @@ export default function DriverRouteView({ manageMode = false }) {
 
   /* ── akcje ── */
   const startTrip = async () => {
+    if (selectedRoutes.size === 0) {
+      toastError('Wybierz przynajmniej jedną trasę');
+      return;
+    }
     // Blokada: auto już na aktywnej trasie innego kierowcy.
     const occupiedBy = carsInUse.get(selectedCar);
     if (occupiedBy) {
@@ -2547,10 +2552,11 @@ export default function DriverRouteView({ manageMode = false }) {
             })}
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Trasy na dziś (możesz dodać/odjąć)</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Trasy na dziś</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {allRoutes.map((r, i) => {
               const active = selectedRoutes.has(r.id);
+              const assigned = assignedRouteIds.has(r.id);
               const rColor = getRouteColorByDisplay(i + 1);
               return (
                 <button key={r.id} onClick={() => toggleRoute(r.id)} style={{
@@ -2558,7 +2564,10 @@ export default function DriverRouteView({ manageMode = false }) {
                   border: `2px solid ${active ? rColor : 'var(--border)'}`,
                   background: active ? `${rColor}14` : 'var(--bg-card)',
                   color: active ? rColor : 'var(--text-secondary)',
-                }}>T{i + 1} {r.name}</button>
+                }}>
+                  T{i + 1} {r.name}
+                  {assigned && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 800, opacity: 0.75 }}>domyślna</span>}
+                </button>
               );
             })}
           </div>
@@ -2569,7 +2578,7 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {previewStops.length === 0 && (
-                <div className="driver-empty-row">Brak czystego do rozwiezienia na wybranych trasach</div>
+                <div className="driver-empty-row">{selectedRoutes.size === 0 ? 'Nie wybrano tras' : 'Brak czystego do rozwiezienia na wybranych trasach'}</div>
               )}
               {previewStops.map(stop => {
                 const pickupEntries = stop.pendingClean || [];
@@ -2615,9 +2624,9 @@ export default function DriverRouteView({ manageMode = false }) {
             </div>
           </div>
 
-          <button onClick={startTrip} disabled={busy} style={{
-            width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-            background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '15px',
+          <button onClick={startTrip} disabled={busy || selectedRoutes.size === 0} style={{
+            width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: selectedRoutes.size === 0 ? 'not-allowed' : 'pointer',
+            background: selectedRoutes.size === 0 ? 'var(--text-quaternary)' : 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '15px',
           }}>▶ Rozpocznij trasę</button>
         </div>
       ) : (
