@@ -462,6 +462,44 @@ export default function WashView() {
     }
   };
 
+  const handlePackMulti = async (group, trolleyNos) => {
+    if (!trolleyNos || trolleyNos.length === 0) {
+      throw new Error('Nie wybrano wózków');
+    }
+    
+    // Validate all trolleys first
+    for (const trolleyNo of trolleyNos) {
+      if (!trolleyNumbers.includes(trolleyNo)) {
+        throw new Error(`Wózek ${trolleyNo} nie istnieje`);
+      }
+      const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
+      if (activeCycle) {
+        throw new Error(`Wózek ${trolleyNo} jest zajęty przez: ${activeCycle.client_name}`);
+      }
+    }
+
+    const baseKg = Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10;
+    const totalBase = baseKg * (trolleyNos.length - 1);
+    const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
+
+    try {
+      setBusyKey(`pack:${group.key}`);
+      for (let i = 0; i < trolleyNos.length; i++) {
+        const kgValue = (i === trolleyNos.length - 1) ? lastKg : baseKg;
+        await packLaundryTrolley(sessionToken, group.washedIds, trolleyNos[i], kgValue, user?.name);
+      }
+      toastSuccess(`${group.clientName}: spakowano do ${trolleyNos.length} wózków`);
+      await Promise.all([refetch(), fetchWorkflow()]);
+      setPackingGroup(null);
+    } catch (err) {
+      toastError(err.message || 'Błąd podczas pakowania wózków');
+      // Refetch anyway in case partial packing happened
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } finally {
+      setBusyKey('');
+    }
+  };
+
   const handleReturnTrolley = (cycle) => {
     runAction(`return:${cycle.id}`, async () => {
       await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
