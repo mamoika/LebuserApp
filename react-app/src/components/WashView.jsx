@@ -723,6 +723,7 @@ export default function WashView() {
           group={laundryGroups.find(g => g.key === packingGroup.key) || packingGroup}
           onClose={() => setPackingGroup(null)}
           onPack={handlePack}
+          onPackMulti={handlePackMulti}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}
         />

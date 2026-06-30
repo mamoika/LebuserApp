@@ -6,27 +6,21 @@ export default function PackingModal({
   group,
   onClose,
   onPack,
+  onPackMulti,
   trolleyNumbers,
   activeTrolleyByNo,
 }) {
-  const [kg, setKg] = useState(group?.remainingKg > 0 ? String(group.remainingKg) : '');
+  const [scannedTrolleys, setScannedTrolleys] = useState([]);
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
   const [manualTrolley, setManualTrolley] = useState('');
 
   // Zaznacz całą zawartość pola input po otwarciu, żeby od razu móc wpisać nową wagę
-  useEffect(() => {
-    const input = document.getElementById('packing-kg-input');
-    if (input) {
-      input.focus();
-      input.select();
-    }
-  }, []);
+
 
   useBarcodeScanner({
     enabled: true,
-    onScan: async (scannedCode) => {
-      // Oczekujemy kodu np. TRL-5
+    onScan: (scannedCode) => {
       const match = scannedCode.match(/^TRL-(\d+)$/i);
       if (!match) {
         setError(`Nieznany kod: ${scannedCode}. Zeskanuj wózek (np. TRL-5).`);
@@ -45,77 +39,59 @@ export default function PackingModal({
         setError(`Wózek ${trolleyNo} jest zajęty przez: ${activeCycle.client_name}`);
         return;
       }
-      
-      const kgValue = Number.parseFloat(String(kg).replace(',', '.'));
-      if (!Number.isFinite(kgValue) || kgValue <= 0) {
-        setError('Wpisz poprawną wagę (kg) przed zeskanowaniem wózka.');
-        return;
-      }
-      
-      if (kgValue > group.remainingKg + 0.05) {
-        setError(`Za dużo. Zostało ${group.remainingKg} kg.`);
-        return;
-      }
 
-      setError('');
-      setIsPacking(true);
-      try {
-        await onPack(group, trolleyNo, kgValue);
-        // Po pomyślnym spakowaniu modal można np. nie zamykać,
-        // a WasView odświeży group.remainingKg.
-        // Wyczyszczenie wagi jeśli spakowano wszystko:
-        // Ale WasView zmieni propsy, co zaktualizuje remainingKg, 
-        // a jeśli remainingKg <= 0 to WasView samo zamknie modal (lub użytkownik).
-      } catch (err) {
-        setError(err.message || 'Błąd podczas pakowania');
-      } finally {
-        setIsPacking(false);
+      if (scannedTrolleys.includes(trolleyNo)) {
+        setError(`Wózek ${trolleyNo} został już dodany do listy.`);
+        return;
       }
+      
+      setError('');
+      setScannedTrolleys(prev => [...prev, trolleyNo]);
     }
   });
 
-  const handleManualPack = async () => {
+  const handleManualAdd = () => {
     if (!manualTrolley) {
       setError('Wybierz wózek z listy.');
       return;
     }
     
-    const kgValue = Number.parseFloat(String(kg).replace(',', '.'));
-    if (!Number.isFinite(kgValue) || kgValue <= 0) {
-      setError('Wpisz poprawną wagę (kg).');
+    if (scannedTrolleys.includes(manualTrolley)) {
+      setError(`Wózek ${manualTrolley} został już dodany do listy.`);
       return;
     }
-    
-    if (kgValue > group.remainingKg + 0.05) {
-      setError(`Za dużo. Zostało ${group.remainingKg} kg.`);
+
+    setError('');
+    setScannedTrolleys(prev => [...prev, manualTrolley]);
+    setManualTrolley('');
+  };
+
+  const handleConfirmPack = async () => {
+    if (scannedTrolleys.length === 0) {
+      setError('Nie dodano żadnych wózków do spakowania.');
       return;
     }
 
     setError('');
     setIsPacking(true);
     try {
-      await onPack(group, manualTrolley, kgValue);
-      setManualTrolley('');
+      if (onPackMulti) {
+        await onPackMulti(group, scannedTrolleys);
+      } else {
+        // Fallback for safety
+        await onPack(group, scannedTrolleys[0], group.remainingKg);
+      }
+      // onClose is not needed here as WashView handles closing on finish
     } catch (err) {
       setError(err.message || 'Błąd podczas pakowania');
-    } finally {
       setIsPacking(false);
     }
   };
 
-  // Kiedy group się zaktualizuje z zewnątrz (bo zapakowano), odśwież proponowaną wagę
+  // Auto-close if all packed
   useEffect(() => {
-    if (group?.remainingKg > 0) {
-      setKg(String(group.remainingKg));
-      setError('');
-      // Znowu focus
-      const input = document.getElementById('packing-kg-input');
-      if (input) {
-        input.focus();
-        input.select();
-      }
-    } else if (group?.remainingKg <= 0) {
-      onClose(); // Zamknij automatycznie jeśli wszystko spakowano
+    if (group?.remainingKg <= 0) {
+      onClose();
     }
   }, [group?.remainingKg, onClose]);
 
@@ -142,36 +118,11 @@ export default function PackingModal({
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontWeight: 600, fontSize: '15px' }}>Podaj wagę dla najbliższego wózka (kg)</span>
-              <input
-                id="packing-kg-input"
-                type="number"
-                min="0.1"
-                step="0.1"
-                max={group.remainingKg}
-                value={kg}
-                onChange={(e) => setKg(e.target.value)}
-                disabled={isPacking}
-                style={{
-                  fontSize: '2rem',
-                  padding: '10px 15px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)',
-                  textAlign: 'center',
-                  width: '200px',
-                  margin: '0 auto',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)'
-                }}
-              />
-            </label>
-
             <div style={{
               background: 'var(--bg-secondary)',
               border: '2px dashed var(--border)',
               borderRadius: '12px',
-              padding: '30px',
+              padding: '20px',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
@@ -179,15 +130,14 @@ export default function PackingModal({
               gap: '10px'
             }}>
               <ScanBarcode size={48} color="var(--text-tertiary)" />
-              <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '17px' }}>Zeskanuj kod wózka</h3>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '17px' }}>Zeskanuj kody wózków</h3>
               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
-                System automatycznie przypisze podaną wagę i wózek do tego klienta.
+                Zeskanuj wszystkie wózki dla tego prania.
               </p>
-              {isPacking && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Pakowanie...</span>}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>Lub wybierz wózek ręcznie (opcja testowa):</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '5px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>Dodaj wózek ręcznie (opcja):</span>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <select
                   className="ap-input"
@@ -199,7 +149,7 @@ export default function PackingModal({
                   <option value="">Wybierz wózek...</option>
                   {trolleyNumbers.map(no => {
                     const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
-                    const disabled = Boolean(activeCycle);
+                    const disabled = Boolean(activeCycle) || scannedTrolleys.includes(no);
                     return (
                       <option key={no} value={no} disabled={disabled}>
                         {no}{activeCycle ? ` · zajęty: ${activeCycle.client_name}` : ' · wolny'}
@@ -209,14 +159,46 @@ export default function PackingModal({
                 </select>
                 <button
                   type="button"
-                  className="ap-btn ap-btn-primary"
-                  onClick={handleManualPack}
+                  className="ap-btn ap-btn-secondary"
+                  onClick={handleManualAdd}
                   disabled={isPacking || !manualTrolley}
                 >
-                  {isPacking ? 'Pakuję...' : 'Zapisz'}
+                  Dodaj
                 </button>
               </div>
             </div>
+            
+            {scannedTrolleys.length > 0 && (
+              <div style={{ padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                  Dodane wózki ({scannedTrolleys.length}):
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {scannedTrolleys.map(no => (
+                    <div key={no} style={{ background: 'var(--bg-primary)', padding: '6px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 600, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {no}
+                      <button 
+                        type="button"
+                        style={{ background: 'transparent', border: 'none', padding: 0, margin: 0, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}
+                        onClick={() => setScannedTrolleys(prev => prev.filter(t => t !== no))}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="ap-btn ap-btn-primary"
+              style={{ width: '100%', padding: '15px', fontSize: '16px', marginTop: '10px' }}
+              onClick={handleConfirmPack}
+              disabled={isPacking || scannedTrolleys.length === 0}
+            >
+              {isPacking ? 'Pakowanie...' : `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków`}
+            </button>
           </div>
         </div>
       </div>
