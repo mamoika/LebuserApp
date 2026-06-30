@@ -1,218 +1,591 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Archive,
+  CheckCircle2,
+  Clock3,
+  PackageCheck,
+  RefreshCw,
+  RotateCcw,
+  Truck,
+  WashingMachine,
+} from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { RefreshCw, Play, CheckCircle2, Box, Flame, Droplet, Archive, AlertCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getTunnelBags } from '../lib/readRpc';
+import { useAppData } from '../hooks/useAppData';
+import { getLaundryWorkflow, markLaundryWashed, packLaundryTrolley, returnLaundryTrolley } from '../lib/laundryRpc';
+import { toastError, toastSuccess } from '../lib/toast';
+import DataError from './DataError';
 
-const STAGE_COLORS = {
-  queued: { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A', label: 'Oczekuje', icon: Box },
-  entry: { bg: '#DBEAFE', text: '#2563EB', border: '#BFDBFE', label: 'Wejście', icon: Play },
-  wash: { bg: '#E0E7FF', text: '#4F46E5', border: '#C7D2FE', label: 'Pranie', icon: Droplet },
-  rinse: { bg: '#E0E7FF', text: '#4F46E5', border: '#C7D2FE', label: 'Płukanie', icon: Droplet },
-  dry: { bg: '#FFEDD5', text: '#EA580C', border: '#FED7AA', label: 'Suszenie', icon: Flame },
-  pack: { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4', label: 'Pakowanie', icon: Archive },
-  done: { bg: '#D1FAE5', text: '#059669', border: '#A7F3D0', label: 'Zakończony', icon: CheckCircle2 },
-  error: { bg: '#FEE2E2', text: '#DC2626', border: '#FECACA', label: 'Błąd', icon: AlertCircle },
-  cancelled: { bg: '#F3F4F6', text: '#4B5563', border: '#E5E7EB', label: 'Anulowany', icon: XCircle }
-};
+function ymd(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateOnly(value) {
+  if (!value) return null;
+  return ymd(new Date(value));
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  });
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function addDays(dateStr, days) {
+  const dt = new Date(`${dateStr}T00:00:00`);
+  dt.setDate(dt.getDate() + days);
+  return ymd(dt);
+}
+
+function parseMonday(weekKey) {
+  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function formatWeekKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function addDaysToWeekKey(weekKey, days) {
+  const dt = parseMonday(weekKey);
+  if (!dt) return weekKey;
+  dt.setDate(dt.getDate() + days);
+  return formatWeekKey(dt);
+}
+
+function dayWeekToTime(day, weekKey) {
+  const dt = parseMonday(weekKey);
+  if (!dt) return 0;
+  dt.setDate(dt.getDate() + (Number(day) - 1));
+  return dt.getTime();
+}
+
+function slotToDate(slot) {
+  if (!slot) return null;
+  const [weekKey, day] = slot.split('|');
+  const dt = parseMonday(weekKey);
+  if (!dt) return null;
+  dt.setDate(dt.getDate() + (Number(day) - 1));
+  return ymd(dt);
+}
+
+function washSlotOf(entry, scheduleByRoute) {
+  const arrDay = Number(entry.arr_day);
+  const arrWeek = entry.week_key;
+  const depDay = Number(entry.pick_day);
+  const depWeek = entry.pick_week_key;
+  const isDaily = (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
+
+  if (!depDay || !depWeek) {
+    if (!arrDay || !arrWeek) return null;
+    if (isDaily) return `${arrWeek}|${arrDay}`;
+    if (arrDay < 5) return `${arrWeek}|${arrDay + 1}`;
+    return `${addDaysToWeekKey(arrWeek, 7)}|1`;
+  }
+
+  let washDay;
+  let washWeek;
+  if (depDay > 1) {
+    washDay = depDay - 1;
+    washWeek = depWeek;
+  } else {
+    washDay = 5;
+    washWeek = addDaysToWeekKey(depWeek, -7);
+  }
+
+  if (!isDaily && arrDay && arrWeek) {
+    if (dayWeekToTime(washDay, washWeek) <= dayWeekToTime(arrDay, arrWeek)) {
+      washDay = depDay;
+      washWeek = depWeek;
+    }
+  }
+
+  return `${washWeek}|${washDay}`;
+}
+
+function hasPositiveWeight(entry) {
+  return (parseFloat(entry?.weight) || 0) > 0;
+}
+
+function hasWorkflowColumns(entry) {
+  return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_packed_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_trolley_no');
+}
+
+function isReadyForDriver(entry) {
+  if (entry?.done) return true;
+  if (hasWorkflowColumns(entry)) {
+    return Boolean(
+      entry.laundry_ready_at
+      || entry.laundry_packed_at
+      || ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status)
+    );
+  }
+  return Boolean(entry?.washed);
+}
+
+function entryStage(entry) {
+  if (isReadyForDriver(entry)) return 'ready';
+  if (entry?.washed) return 'washed';
+  return 'pending';
+}
+
+function stageConfig(stage) {
+  const map = {
+    pending: { label: 'Do prania', tone: 'pending', Icon: Clock3 },
+    partial: { label: 'W trakcie', tone: 'partial', Icon: WashingMachine },
+    washed: { label: 'Wyprane', tone: 'washed', Icon: CheckCircle2 },
+    ready: { label: 'Gotowe dla kierowcy', tone: 'ready', Icon: PackageCheck },
+  };
+  return map[stage] || map.pending;
+}
+
+function trolleyCycleStatus(cycle, entryById) {
+  if (cycle.returned_at || cycle.status === 'returned') {
+    return { key: 'returned', label: 'Wózek wrócił', tone: 'returned' };
+  }
+  const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
+  if (linked.length > 0 && linked.every(e => e.delivered)) {
+    return { key: 'atClient', label: 'U klienta', tone: 'client' };
+  }
+  if (linked.some(e => e.done)) {
+    return { key: 'released', label: 'Wydany kierowcy', tone: 'released' };
+  }
+  return { key: 'packed', label: 'Spakowany', tone: 'packed' };
+}
+
+function routeBadge(routeId, routeMap) {
+  const route = routeMap.get(routeId);
+  if (!route) return null;
+  return `T${route.num}`;
+}
+
+function Metric({ icon: Icon, label, value, tone }) {
+  return (
+    <div className={`laundry-metric ${tone ? `tone-${tone}` : ''}`}>
+      <div className="laundry-metric-icon"><Icon size={18} /></div>
+      <div>
+        <div className="laundry-metric-value">{value}</div>
+        <div className="laundry-metric-label">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function StagePill({ stage }) {
+  const conf = stageConfig(stage);
+  const Icon = conf.Icon;
+  return (
+    <span className={`laundry-stage-pill tone-${conf.tone}`}>
+      <Icon size={14} />
+      {conf.label}
+    </span>
+  );
+}
 
 export default function WashView() {
-  const { sessionToken } = useAuth();
-  const [bags, setBags] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { sessionToken, user, isAdmin } = useAuth();
+  const { entries, routes, clients, loading, error, refetch } = useAppData();
+  const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
+  const [trolleys, setTrolleys] = useState([]);
+  const [workflowLoading, setWorkflowLoading] = useState(true);
+  const [workflowError, setWorkflowError] = useState('');
+  const [busyKey, setBusyKey] = useState('');
+  const [packDrafts, setPackDrafts] = useState({});
 
-  const fetchBags = useCallback(async () => {
+  const canManageLaundry = isAdmin || user?.role === 'admin_viewer_driver';
+
+  const fetchWorkflow = useCallback(async () => {
     if (!sessionToken) {
-      setLoading(false);
+      setTrolleys([]);
+      setWorkflowLoading(false);
       return;
     }
-
-    setLoading(true);
+    setWorkflowLoading(true);
+    setWorkflowError('');
     try {
-      const data = await getTunnelBags(sessionToken);
-      setBags(data?.bags || []);
-    } catch (error) {
-      console.error('fetch tunnel bags failed', error);
+      const data = await getLaundryWorkflow(sessionToken);
+      setTrolleys(data?.trolleys || []);
+    } catch (err) {
+      setWorkflowError(err.message || 'Nie udało się pobrać obiegu wózków');
     } finally {
-      setLoading(false);
+      setWorkflowLoading(false);
     }
   }, [sessionToken]);
 
   useEffect(() => {
-    fetchBags();
-
-    const channel = supabase.channel('tunnel_bags_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tunnel_bags' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setBags(prev => [payload.new, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setBags(prev => prev.map(b => b.id === payload.new.id ? payload.new : b));
-        } else if (payload.eventType === 'DELETE') {
-          setBags(prev => prev.filter(b => b.id !== payload.old.id));
-        }
-      })
+    fetchWorkflow();
+    const channel = supabase.channel('laundry-workflow')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'laundry_trolley_cycles' }, fetchWorkflow)
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchBags]);
+  }, [fetchWorkflow]);
 
-  const activeBags = useMemo(() => bags.filter(b => !['done', 'cancelled', 'error'].includes(b.status)), [bags]);
-  const completedToday = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return bags.filter(b => b.status === 'done' && new Date(b.created_at) >= today).length;
-  }, [bags]);
+  const scheduleByRoute = useMemo(
+    () => new Map(routes.map(route => [route.id, route.schedule || 'other'])),
+    [routes]
+  );
 
-  const pipelineStages = [
-    { id: 'queued', label: 'Oczekujące' },
-    { id: 'entry', label: 'Tunel' },
-    { id: 'wash', label: 'Pranie' },
-    { id: 'dry', label: 'Suszenie' },
-    { id: 'pack', label: 'Pakowanie' },
-  ];
+  const routeMap = useMemo(
+    () => new Map(routes.map((route, index) => [route.id, { ...route, num: index + 1 }])),
+    [routes]
+  );
 
-  const getCountByStage = (stageId) => bags.filter(b => b.status === stageId || (stageId === 'entry' && b.status === 'rinse')).length;
+  const clientByName = useMemo(
+    () => new Map(clients.map(client => [client.name, client])),
+    [clients]
+  );
+
+  const entryById = useMemo(
+    () => new Map(entries.map(entry => [entry.id, entry])),
+    [entries]
+  );
+
+  const trolleyByEntryId = useMemo(() => {
+    const map = new Map();
+    trolleys.forEach(cycle => {
+      (cycle.entry_ids || []).forEach(id => map.set(id, cycle));
+    });
+    return map;
+  }, [trolleys]);
+
+  const laundryGroups = useMemo(() => {
+    const groups = new Map();
+
+    entries.forEach(entry => {
+      if (!entry?.id || entry.deleted_at || !hasPositiveWeight(entry) || entry.done) return;
+      const washDate = slotToDate(washSlotOf(entry, scheduleByRoute));
+      const stage = entryStage(entry);
+      const touchedToday = [
+        dateOnly(entry.washed_at),
+        dateOnly(entry.laundry_packed_at),
+        dateOnly(entry.laundry_ready_at),
+      ].includes(selectedDate);
+
+      if (washDate !== selectedDate && !touchedToday && !['washed', 'ready'].includes(stage)) return;
+
+      const client = clientByName.get(entry.client_name);
+      const routeId = client?.route_id || entry.route_id || 0;
+      const key = `${entry.client_name || '—'}|${routeId}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          clientName: entry.client_name || '—',
+          routeId,
+          entries: [],
+          washDate,
+        });
+      }
+      groups.get(key).entries.push(entry);
+    });
+
+    return [...groups.values()].map(group => {
+      const totalKg = group.entries.reduce((sum, entry) => sum + (parseFloat(entry.weight) || 0), 0);
+      const pending = group.entries.filter(entry => !entry.washed && !isReadyForDriver(entry));
+      const washed = group.entries.filter(entry => entry.washed && !isReadyForDriver(entry));
+      const ready = group.entries.filter(isReadyForDriver);
+      const stage = ready.length === group.entries.length
+        ? 'ready'
+        : pending.length > 0 && washed.length > 0
+          ? 'partial'
+          : pending.length > 0
+            ? 'pending'
+            : 'washed';
+      const cycle = group.entries
+        .map(entry => entry.laundry_trolley_cycle_id ? trolleys.find(t => t.id === entry.laundry_trolley_cycle_id) : trolleyByEntryId.get(entry.id))
+        .find(Boolean);
+      const trolleyNo = cycle?.trolley_no || group.entries.find(entry => entry.laundry_trolley_no)?.laundry_trolley_no || '';
+
+      return {
+        ...group,
+        kg: Number(totalKg.toFixed(1)),
+        stage,
+        pendingIds: pending.map(entry => entry.id),
+        washedIds: washed.map(entry => entry.id),
+        readyIds: ready.map(entry => entry.id),
+        cycle,
+        trolleyNo,
+        washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
+        packedAt: group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean).sort().at(-1),
+      };
+    }).sort((a, b) => {
+      const order = { pending: 0, partial: 1, washed: 2, ready: 3 };
+      const stageDiff = order[a.stage] - order[b.stage];
+      if (stageDiff) return stageDiff;
+      const routeDiff = (routeMap.get(a.routeId)?.num || 9999) - (routeMap.get(b.routeId)?.num || 9999);
+      if (routeDiff) return routeDiff;
+      return a.clientName.localeCompare(b.clientName, 'pl');
+    });
+  }, [clientByName, entries, routeMap, scheduleByRoute, selectedDate, trolleyByEntryId, trolleys]);
+
+  const activeTrolleys = useMemo(
+    () => trolleys.filter(cycle => !cycle.returned_at && cycle.status !== 'returned'),
+    [trolleys]
+  );
+
+  const metrics = useMemo(() => {
+    const pendingKg = laundryGroups
+      .filter(group => ['pending', 'partial'].includes(group.stage))
+      .reduce((sum, group) => sum + group.pendingIds.reduce((s, id) => s + (parseFloat(entryById.get(id)?.weight) || 0), 0), 0);
+    const washedKg = laundryGroups
+      .filter(group => group.stage === 'washed')
+      .reduce((sum, group) => sum + group.kg, 0);
+    const readyKg = laundryGroups
+      .filter(group => group.stage === 'ready')
+      .reduce((sum, group) => sum + group.kg, 0);
+    return {
+      pendingKg: Number(pendingKg.toFixed(1)),
+      washedKg: Number(washedKg.toFixed(1)),
+      readyKg: Number(readyKg.toFixed(1)),
+      activeTrolleys: activeTrolleys.length,
+    };
+  }, [activeTrolleys.length, entryById, laundryGroups]);
+
+  const runAction = async (key, action) => {
+    try {
+      setBusyKey(key);
+      await action();
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } catch (err) {
+      toastError(err.message || 'Operacja nie powiodła się');
+    } finally {
+      setBusyKey('');
+    }
+  };
+
+  const handleMarkWashed = (group) => {
+    if (!group.pendingIds.length) return;
+    runAction(`washed:${group.key}`, async () => {
+      await markLaundryWashed(sessionToken, group.pendingIds, user?.name);
+      toastSuccess(`${group.clientName}: oznaczono wyprane`);
+    });
+  };
+
+  const handlePack = (group) => {
+    const trolleyNo = (packDrafts[group.key] || group.trolleyNo || '').trim();
+    if (!trolleyNo) {
+      toastError('Wpisz numer wózka');
+      return;
+    }
+    if (group.pendingIds.length > 0) {
+      toastError('Najpierw oznacz całe pranie klienta jako wyprane');
+      return;
+    }
+    if (!group.washedIds.length) return;
+
+    runAction(`pack:${group.key}`, async () => {
+      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, user?.name);
+      setPackDrafts(prev => ({ ...prev, [group.key]: '' }));
+      toastSuccess(`${group.clientName}: spakowane do wózka ${trolleyNo}`);
+    });
+  };
+
+  const handleReturnTrolley = (cycle) => {
+    runAction(`return:${cycle.id}`, async () => {
+      await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
+      toastSuccess(`Wózek ${cycle.trolley_no} wrócił`);
+    });
+  };
+
+  const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
+
+  if (loading) return <div className="loader">Ładowanie pralni…</div>;
+  if (error) return <DataError onRetry={refetch} />;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px 40px', fontFamily: 'var(--font)' }}>
-      
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+    <div className="laundry-shell">
+      <div className="laundry-toolbar">
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-            System Pralni
-          </h1>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Podgląd worków z brudną odzieżą na żywo (synchronizacja WinForms / PLC)
-          </p>
+          <div className="laundry-kicker">Pralnia</div>
+          <h1>Plan prania i wózki</h1>
+          <p>{formatDate(selectedDate)} · pranie, pakowanie i gotowość dla kierowcy</p>
         </div>
-        <button 
-          onClick={fetchBags}
-          disabled={loading}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)',
-            background: 'var(--bg-card)', color: 'var(--text-secondary)',
-            fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <RefreshCw size={14} className={loading ? 'spin' : ''} />
-          Odśwież
-        </button>
-      </div>
-
-      {/* KPI WIDGETS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-        <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Aktywne worki</div>
-          <div style={{ fontSize: '36px', fontWeight: 800, color: '#0A84FF', lineHeight: 1 }}>{activeBags.length}</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Zakończone dziś</div>
-          <div style={{ fontSize: '36px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>{completedToday}</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Błędy</div>
-          <div style={{ fontSize: '36px', fontWeight: 800, color: '#EF4444', lineHeight: 1 }}>{bags.filter(b => b.status === 'error').length}</div>
+        <div className="laundry-toolbar-actions">
+          <div className="laundry-date-nav">
+            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>‹</button>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value || ymd(new Date()))} />
+            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>›</button>
+          </div>
+          <button className="laundry-icon-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>
+            <RefreshCw size={16} className={workflowLoading ? 'spin' : ''} />
+            Odśwież
+          </button>
         </div>
       </div>
 
-      {/* PIPELINE VISUALIZATION */}
-      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', marginBottom: '32px', padding: '24px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 20px', color: 'var(--text-primary)' }}>Przepływ w tunelu</h2>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '4px', background: 'var(--bg-secondary)', zIndex: 0, borderRadius: '4px' }} />
-          
-          {pipelineStages.map((stage) => {
-            const count = getCountByStage(stage.id);
-            const active = count > 0;
+      {workflowError && (
+        <div className="laundry-warning">
+          Nie mogę pobrać obiegu wózków. Jeśli migracja nie była jeszcze uruchomiona w Supabase, ekran pokaże listę prania, ale pakowanie będzie niedostępne. Szczegóły: {workflowError}
+        </div>
+      )}
+
+      <div className="laundry-metrics">
+        <Metric icon={WashingMachine} label="Do wyprania" value={`${metrics.pendingKg} kg`} tone="pending" />
+        <Metric icon={CheckCircle2} label="Wyprane, do pakowania" value={`${metrics.washedKg} kg`} tone="washed" />
+        <Metric icon={PackageCheck} label="Gotowe dla kierowcy" value={`${metrics.readyKg} kg`} tone="ready" />
+        <Metric icon={Archive} label="Wózki poza obiegiem wolnym" value={metrics.activeTrolleys} tone="trolley" />
+      </div>
+
+      <section className="laundry-section">
+        <div className="laundry-section-head">
+          <div>
+            <h2>Dzisiejsze pranie</h2>
+            <span>{laundryGroups.length} punktów do pilnowania</span>
+          </div>
+        </div>
+
+        <div className="laundry-work-list">
+          {laundryGroups.length === 0 && (
+            <div className="laundry-empty">
+              Brak prania na wybrany dzień.
+            </div>
+          )}
+
+          {laundryGroups.map(group => {
+            const route = routeBadge(group.routeId, routeMap);
+            const canMarkWashed = canManageLaundry && group.pendingIds.length > 0;
+            const canPack = canManageLaundry && group.pendingIds.length === 0 && group.washedIds.length > 0;
+            const busyWashed = busyKey === `washed:${group.key}`;
+            const busyPack = busyKey === `pack:${group.key}`;
+
             return (
-              <div key={stage.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, flex: 1 }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '24px', 
-                  background: active ? '#0A84FF' : '#fff',
-                  border: `4px solid ${active ? '#DBEAFE' : 'var(--border)'}`,
-                  color: active ? '#fff' : 'var(--text-tertiary)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '18px', fontWeight: 800,
-                  boxShadow: active ? '0 4px 12px rgba(10,132,255,0.3)' : 'none',
-                  transition: 'all 0.3s ease'
-                }}>
-                  {count}
+              <article key={group.key} className={`laundry-work-row stage-${group.stage}`}>
+                <div className="laundry-work-main">
+                  <div className="laundry-client-line">
+                    {route && <span className="laundry-route-badge">{route}</span>}
+                    <strong>{group.clientName}</strong>
+                    <StagePill stage={group.stage} />
+                  </div>
+                  <div className="laundry-work-meta">
+                    <span>{group.kg} kg</span>
+                    {group.washedAt && <span>wyprane {fmtTime(group.washedAt)}</span>}
+                    {group.packedAt && <span>spakowane {fmtTime(group.packedAt)}</span>}
+                    {group.trolleyNo && <span>wózek {group.trolleyNo}</span>}
+                  </div>
                 </div>
-                <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 600, color: active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                  {stage.label}
+
+                <div className="laundry-work-actions">
+                  <button
+                    type="button"
+                    className="laundry-action-btn"
+                    onClick={() => handleMarkWashed(group)}
+                    disabled={!canMarkWashed || busyWashed}
+                    title={!canManageLaundry ? 'Brak uprawnień do zapisu' : undefined}
+                  >
+                    <CheckCircle2 size={16} />
+                    {busyWashed ? 'Zapis…' : 'Wyprane'}
+                  </button>
+
+                  <label className="laundry-trolley-input">
+                    <span>Nr wózka</span>
+                    <input
+                      value={packDrafts[group.key] ?? group.trolleyNo ?? ''}
+                      onChange={e => setPackDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
+                      placeholder="np. 12"
+                      disabled={!canManageLaundry || group.stage === 'ready'}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    className="laundry-action-btn is-primary"
+                    onClick={() => handlePack(group)}
+                    disabled={!canPack || busyPack}
+                    title={group.pendingIds.length > 0 ? 'Najpierw oznacz jako wyprane' : undefined}
+                  >
+                    <PackageCheck size={16} />
+                    {busyPack ? 'Pakuję…' : 'Spakuj'}
+                  </button>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* TABLE */}
-      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: '#F8FAFC' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Lista worków (Realtime)</h2>
+      <section className="laundry-section">
+        <div className="laundry-section-head">
+          <div>
+            <h2>Harmonogram wózków</h2>
+            <span>Wózek jest zajęty, dopóki nie wróci do pralni</span>
+          </div>
         </div>
-        
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: '#fff', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ padding: '16px 24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-tertiary)' }}>Kod / Klient</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-tertiary)' }}>Maszyna</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-tertiary)' }}>Status</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-tertiary)' }}>Utworzono</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && bags.length === 0 ? (
-                <tr><td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Ładowanie danych...</td></tr>
-              ) : bags.length === 0 ? (
-                <tr><td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Brak worków w bazie.</td></tr>
-              ) : bags.map(bag => {
-                const conf = STAGE_COLORS[bag.status] || STAGE_COLORS['queued'];
-                const Icon = conf.icon;
-                
-                return (
-                  <tr key={bag.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s', ':hover': { background: '#F8FAFC' } }}>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px', marginBottom: '2px' }}>{bag.code}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{bag.hotel_name || 'Brak przypisania'}</div>
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                          Prog {bag.program_number}
-                        </div>
-                        <div style={{ background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                          Tor {bag.track_number}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ 
-                        display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        background: conf.bg, color: conf.text, border: `1px solid ${conf.border}`,
-                        padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700 
-                      }}>
-                        <Icon size={14} />
-                        {conf.label}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {new Date(bag.created_at).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+        <div className="laundry-trolley-board">
+          {trolleys.length === 0 && (
+            <div className="laundry-empty">
+              Brak aktywnych wózków.
+            </div>
+          )}
+
+          {trolleys.map(cycle => {
+            const status = trolleyCycleStatus(cycle, entryById);
+            const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
+            const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
+            const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
+            const busyReturn = busyKey === `return:${cycle.id}`;
+
+            return (
+              <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
+                <div className="laundry-trolley-top">
+                  <div>
+                    <span>Wózek</span>
+                    <strong>{cycle.trolley_no}</strong>
+                  </div>
+                  <span className={`laundry-trolley-status tone-${status.tone}`}>{status.label}</span>
+                </div>
+                <div className="laundry-trolley-client">{cycle.client_name}</div>
+                <div className="laundry-trolley-grid">
+                  <span>kg</span><strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
+                  <span>spakowano</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
+                  {driver && <><span>kierowca</span><strong>{driver}</strong></>}
+                  {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
+                  {cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
+                </div>
+                {!cycle.returned_at && canManageLaundry && (
+                  <button
+                    type="button"
+                    className="laundry-return-btn"
+                    onClick={() => handleReturnTrolley(cycle)}
+                    disabled={busyReturn}
+                  >
+                    <RotateCcw size={15} />
+                    {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
+                  </button>
+                )}
+              </article>
+            );
+          })}
         </div>
-      </div>
+      </section>
+
+      <section className="laundry-flow-note">
+        <Truck size={18} />
+        <span>Po spakowaniu hotel trafia do kierowcy jako gotowy do odbioru z pralni. Wózek zostaje przypisany do klienta aż do oznaczenia powrotu.</span>
+      </section>
     </div>
   );
 }

@@ -25,6 +25,7 @@ declare
     'employee_months',
     'groups',
     'laundry_receipts',
+    'laundry_trolley_cycles',
     'tunnel_bags'
   ];
 begin

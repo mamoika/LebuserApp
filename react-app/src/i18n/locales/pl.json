@@ -102,7 +102,7 @@
     "timeline": { "title": "Oś czasu", "subtitle": "Przegląd w czasie" },
     "costs": { "title": "Koszty", "subtitle": "Koszty i rozliczenia" },
     "tunnel": { "title": "Tunel", "subtitle": "Status gatewaya live" },
-    "wash": { "title": "Pralnia", "subtitle": "Zarządzanie workami live" },
+    "wash": { "title": "Pralnia", "subtitle": "Pranie, pakowanie i obieg wózków" },
     "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" },
     "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" }
   },

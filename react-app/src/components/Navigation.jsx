@@ -14,16 +14,20 @@ export default function Navigation() {
   navItems.push(
     { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
-    { to: '/schedule', icon: '📅', label: t('nav.schedule') },
-    { to: '/history', icon: '📋', label: t('nav.history') }
+    { to: '/schedule', icon: '📅', label: t('nav.schedule') }
   );
+
+  if (canViewAdminData) {
+    navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
+  }
+
+  navItems.push({ to: '/history', icon: '📋', label: t('nav.history') });
 
   if (canViewAdminData) {
     navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
     navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
     navItems.push({ to: '/timeline', icon: '⏱', label: t('nav.timeline') });
     navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
-    navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
   }
 
   if (isAdmin) {

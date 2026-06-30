@@ -135,6 +135,25 @@ function formatKg(value) {
   return Number(n.toFixed(1)).toLocaleString('pl-PL');
 }
 
+function hasLaundryWorkflowState(entry) {
+  return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_packed_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_trolley_no');
+}
+
+function cleanLaundryReadyForDriver(entry) {
+  if (entry?.done) return true;
+  if (hasLaundryWorkflowState(entry)) {
+    return Boolean(
+      entry.laundry_ready_at
+      || entry.laundry_packed_at
+      || ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status)
+    );
+  }
+  return Boolean(entry?.washed);
+}
+
 function parseExtraClients(value) {
   try {
     const parsed = JSON.parse(value || '[]');
@@ -233,7 +252,6 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const today = ymd(new Date());
   const routeMap = Object.fromEntries(allRoutes.map((r, i) => [r.id, { name: r.name, num: i + 1 }]));
-  const assignedRouteIds = parseRouteIds(user?.routes);
 
   // Kolejność i numeracja przystanków — taka sama jak w „Klienci i Trasy":
   // trasy wg sort_order (allRoutes już posortowane), klienci wg sort_order
@@ -419,6 +437,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const includeEntry = e => (trip && activeRouteIds.size === 0) || activeRouteIds.has(e.route_id) || extraSet.has(e.client_name);
   const includeCleanEntryForCurrentTrip = e => {
     if (!includeEntry(e)) return false;
+    if (!cleanLaundryReadyForDriver(e)) return false;
     // Po odebraniu z pralni punkt należy już do kierowcy z picked_by.
     // Dzięki temu przejęty punkt znika z pierwotnej trasy i nie psuje progresu.
     if (e.done && e.picked_by && e.picked_by !== user?.name) return false;
@@ -479,7 +498,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
-    if (pickupDateStr(e) === contextDate && !e.done && !shownClients.has(e.client_name)) {
+    if (pickupDateStr(e) === contextDate && !e.done && cleanLaundryReadyForDriver(e) && !shownClients.has(e.client_name)) {
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
     }
@@ -502,6 +521,7 @@ export default function DriverRouteView({ manageMode = false }) {
     const tripIncludesCleanEntry = (e) => {
       const includedByRoute = routeIds.size === 0 || routeIds.has(e.route_id) || extrasSet.has(e.client_name);
       if (!includedByRoute) return false;
+      if (!cleanLaundryReadyForDriver(e)) return false;
       if (e.done && e.picked_by && e.picked_by !== sourceTrip.driver_name) return false;
       return true;
     };
@@ -1835,7 +1855,9 @@ export default function DriverRouteView({ manageMode = false }) {
     entries.forEach(e => {
       if (!e.client_name || !e.route_id || onTrip.has(e.client_name)) return;
       if (e.done) return;
-      if (pickupDateStr(e) !== t.trip_date && arrivalDateStr(e) !== t.trip_date) return;
+      const isCleanPickup = pickupDateStr(e) === t.trip_date && cleanLaundryReadyForDriver(e);
+      const isDirtyArrival = arrivalDateStr(e) === t.trip_date;
+      if (!isCleanPickup && !isDirtyArrival) return;
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
     });
@@ -2556,7 +2578,6 @@ export default function DriverRouteView({ manageMode = false }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {allRoutes.map((r, i) => {
               const active = selectedRoutes.has(r.id);
-              const assigned = assignedRouteIds.has(r.id);
               const rColor = getRouteColorByDisplay(i + 1);
               return (
                 <button key={r.id} onClick={() => toggleRoute(r.id)} style={{
@@ -2564,10 +2585,7 @@ export default function DriverRouteView({ manageMode = false }) {
                   border: `2px solid ${active ? rColor : 'var(--border)'}`,
                   background: active ? `${rColor}14` : 'var(--bg-card)',
                   color: active ? rColor : 'var(--text-secondary)',
-                }}>
-                  T{i + 1} {r.name}
-                  {assigned && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 800, opacity: 0.75 }}>domyślna</span>}
-                </button>
+                }}>T{i + 1} {r.name}</button>
               );
             })}
           </div>

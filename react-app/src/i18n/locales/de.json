@@ -102,7 +102,7 @@
     "timeline": { "title": "Zeitleiste", "subtitle": "Zeitlicher Überblick" },
     "costs": { "title": "Kosten", "subtitle": "Kosten und Abrechnungen" },
     "tunnel": { "title": "Tunnel", "subtitle": "Live Gateway Status" },
-    "wash": { "title": "Wäscherei", "subtitle": "Live-Verwaltung der Wäschesäcke" },
+    "wash": { "title": "Wäscherei", "subtitle": "Waschen, Packen und Wagenumlauf" },
     "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" },
     "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" }
   },
