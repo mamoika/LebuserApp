@@ -458,8 +458,16 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   entries.filter(includeCleanEntryForCurrentTrip).forEach(e => {
-    if (pickupDateStr(e) !== contextDate) return;
-    ensureStop(e).entries.push(e);
+    const pDate = pickupDateStr(e);
+    const isToday = pDate === contextDate;
+    const isPickedByMe = e.done && e.picked_by === user?.name;
+    const isDeliveredByMe = e.delivered && e.delivered_by === user?.name;
+    const isPastBacklog = pDate < contextDate && !e.delivered;
+    const isFutureReady = pDate > contextDate && !e.delivered;
+
+    if (isToday || isPickedByMe || isDeliveredByMe || isPastBacklog || isFutureReady) {
+      ensureStop(e).entries.push(e);
+    }
   });
   entries.forEach(e => {
     if (arrivalDateStr(e) !== contextDate) return;
@@ -498,7 +506,12 @@ export default function DriverRouteView({ manageMode = false }) {
   const shownClients = new Set(stops.map(s => s.client_name));
   const candMap = new Map();
   entries.forEach(e => {
-    if (pickupDateStr(e) === contextDate && !e.done && cleanLaundryReadyForDriver(e) && !shownClients.has(e.client_name)) {
+    const pDate = pickupDateStr(e);
+    const isToday = pDate === contextDate;
+    const isPastBacklog = pDate < contextDate && !e.delivered;
+    const isFutureReady = pDate > contextDate && !e.delivered;
+
+    if ((isToday || isPastBacklog || isFutureReady) && !e.done && cleanLaundryReadyForDriver(e) && !shownClients.has(e.client_name)) {
       if (!candMap.has(e.client_name)) candMap.set(e.client_name, { route_id: e.route_id, entries: [] });
       candMap.get(e.client_name).entries.push(e);
     }
@@ -534,9 +547,17 @@ export default function DriverRouteView({ manageMode = false }) {
       return stop;
     };
     entries.forEach(e => {
-      if (pickupDateStr(e) !== sourceTrip.trip_date) return;
-      if (!tripIncludesCleanEntry(e)) return;
-      ensureTripStop(e).entries.push(e);
+      const pDate = pickupDateStr(e);
+      const isToday = pDate === sourceTrip.trip_date;
+      const isPickedByMe = e.done && e.picked_by === sourceTrip.driver_name;
+      const isDeliveredByMe = e.delivered && e.delivered_by === sourceTrip.driver_name;
+      const isPastBacklog = pDate < sourceTrip.trip_date && !e.delivered;
+      const isFutureReady = pDate > sourceTrip.trip_date && !e.delivered;
+
+      if (isToday || isPickedByMe || isDeliveredByMe || isPastBacklog || isFutureReady) {
+        if (!tripIncludesCleanEntry(e)) return;
+        ensureTripStop(e).entries.push(e);
+      }
     });
     entries.forEach(e => {
       if (arrivalDateStr(e) !== sourceTrip.trip_date) return;
@@ -2864,7 +2885,7 @@ export default function DriverRouteView({ manageMode = false }) {
                     width: '100%', padding: '13px', borderRadius: '12px', cursor: 'pointer',
                     border: '1px solid rgba(52,199,89,0.4)', background: 'var(--accent-green-light)',
                     color: '#1F7A36', fontWeight: 700, fontSize: '14px',
-                  }}>🏭 Odbiór czystego — dodaj punkt z innej trasy</button>
+                  }}>🏭 Odbiór czystego — dodaj z innej trasy / innego dnia</button>
                   {addOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
                       {candidates.map(c => (
