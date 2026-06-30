@@ -532,6 +532,7 @@
     "employees": "Mitarbeiter",
     "logs": "Logs",
     "sessions": "Sitzungen",
+    "settings": "Einstellungen",
     "usersWithCount": "Benutzer ({{count}})",
     "newUserBtn": "+ Neuer Benutzer",
     "routes": "Routen",
@@ -571,7 +572,16 @@
     "revokeSession": "Sitzung entfernen",
     "sessionRevoked": "Sitzung entfernt",
     "errRevokeSession": "Fehler beim Entfernen der Sitzung:",
-    "confirmRevokeSession": "Aktive Sitzung von {{name}} entfernen?"
+    "confirmRevokeSession": "Aktive Sitzung von {{name}} entfernen?",
+    "loadingSettings": "Einstellungen werden geladen…",
+    "laundrySettings": "Wäscherei und Wagen",
+    "trolleyCount": "Anzahl Wagen",
+    "trolleyCountHint": "Aktiv belegte Wagen: {{active}}. Diese Einstellung steuert die Nummernliste in der Wäscherei.",
+    "trolleyCountRange": "Gib eine Wagenanzahl von 1 bis 99 ein",
+    "trolleyCountBelowActive": "Du kannst nicht weniger als die aktuell belegten Wagen einstellen ({{count}})",
+    "trolleyCountSaved": "Anzahl Wagen: {{count}}",
+    "errLoadSettings": "Einstellungen konnten nicht geladen werden",
+    "errSaveSettings": "Einstellungen konnten nicht gespeichert werden"
   },
   "costs": {
     "tabOverview": "Übersicht",

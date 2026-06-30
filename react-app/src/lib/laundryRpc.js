@@ -22,11 +22,12 @@ export function markLaundryWashed(sessionToken, ids, by) {
   });
 }
 
-export function packLaundryTrolley(sessionToken, ids, trolleyNo, by) {
+export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by) {
   return callLaundryRpc('admin_pack_laundry_trolley', {
     p_session_token: sessionToken,
     p_ids: ids,
     p_trolley_no: trolleyNo,
+    p_kg: kg,
     p_by: by || null,
   });
 }

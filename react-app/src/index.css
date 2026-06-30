@@ -5430,7 +5430,7 @@ select.ap-input {
 }
 .laundry-work-actions {
   display: grid;
-  grid-template-columns: auto minmax(112px, 140px) auto;
+  grid-template-columns: auto minmax(122px, 150px) minmax(82px, 98px) auto;
   gap: 8px;
   align-items: end;
 }
@@ -5480,6 +5480,9 @@ select.ap-input {
   font-size: 14px;
   font-weight: 750;
   outline: none;
+}
+.laundry-trolley-input.is-kg input {
+  text-align: right;
 }
 .laundry-trolley-input select {
   appearance: none;

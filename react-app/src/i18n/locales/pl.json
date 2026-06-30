@@ -542,6 +542,7 @@
     "employees": "Pracownicy",
     "logs": "Logi",
     "sessions": "Sesje",
+    "settings": "Ustawienia",
     "usersWithCount": "Użytkownicy ({{count}})",
     "newUserBtn": "+ Nowy użytkownik",
     "routes": "Trasy",
@@ -581,7 +582,16 @@
     "revokeSession": "Usuń sesję",
     "sessionRevoked": "Sesja usunięta",
     "errRevokeSession": "Błąd usuwania sesji:",
-    "confirmRevokeSession": "Usunąć aktywną sesję użytkownika {{name}}?"
+    "confirmRevokeSession": "Usunąć aktywną sesję użytkownika {{name}}?",
+    "loadingSettings": "Ładowanie ustawień…",
+    "laundrySettings": "Pralnia i wózki",
+    "trolleyCount": "Liczba wózków",
+    "trolleyCountHint": "Aktywnie zajęte wózki: {{active}}. Ustawienie dotyczy listy numerów w Pralni.",
+    "trolleyCountRange": "Podaj liczbę wózków od 1 do 99",
+    "trolleyCountBelowActive": "Nie możesz ustawić mniej niż aktualnie zajęte wózki ({{count}})",
+    "trolleyCountSaved": "Liczba wózków: {{count}}",
+    "errLoadSettings": "Błąd wczytywania ustawień",
+    "errSaveSettings": "Błąd zapisu ustawień"
   },
   "costs": {
     "tabOverview": "Przegląd",

@@ -13,12 +13,10 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow, markLaundryWashed, packLaundryTrolley, returnLaundryTrolley } from '../lib/laundryRpc';
-import { upsertAppSetting } from '../lib/adminRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 
 const DEFAULT_TROLLEY_COUNT = 25;
-const TROLLEY_COUNT_KEY = 'laundry_trolley_count';
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -218,7 +216,6 @@ export default function WashView() {
   const [busyKey, setBusyKey] = useState('');
   const [packDrafts, setPackDrafts] = useState({});
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
-  const [trolleyCountDraft, setTrolleyCountDraft] = useState(String(DEFAULT_TROLLEY_COUNT));
 
   const canManageLaundry = isAdmin || user?.role === 'admin_viewer_driver';
 
@@ -235,7 +232,6 @@ export default function WashView() {
       setTrolleys(data?.trolleys || []);
       const nextCount = Math.max(1, Math.min(99, Number(data?.trolley_count) || DEFAULT_TROLLEY_COUNT));
       setTrolleyCount(nextCount);
-      setTrolleyCountDraft(String(nextCount));
     } catch (err) {
       setWorkflowError(err.message || 'Nie udało się pobrać obiegu wózków');
     } finally {
@@ -273,14 +269,6 @@ export default function WashView() {
     [entries]
   );
 
-  const trolleyByEntryId = useMemo(() => {
-    const map = new Map();
-    trolleys.forEach(cycle => {
-      (cycle.entry_ids || []).forEach(id => map.set(id, cycle));
-    });
-    return map;
-  }, [trolleys]);
-
   const laundryGroups = useMemo(() => {
     const groups = new Map();
 
@@ -314,31 +302,45 @@ export default function WashView() {
     return [...groups.values()].map(group => {
       const totalKg = group.entries.reduce((sum, entry) => sum + (parseFloat(entry.weight) || 0), 0);
       const pending = group.entries.filter(entry => !entry.washed && !isReadyForDriver(entry));
-      const washed = group.entries.filter(entry => entry.washed && !isReadyForDriver(entry));
+      const washed = group.entries.filter(entry => entry.washed || isReadyForDriver(entry));
       const ready = group.entries.filter(isReadyForDriver);
-      const stage = ready.length === group.entries.length
+      const entryIds = group.entries.map(entry => entry.id);
+      const entryIdSet = new Set(entryIds);
+      const groupCycles = trolleys.filter(cycle => (
+        cycle.client_name === group.clientName
+        && (cycle.entry_ids || []).some(id => entryIdSet.has(id))
+      ));
+      const activeCycles = groupCycles.filter(cycle => !cycle.returned_at && cycle.status !== 'returned');
+      const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
+      const remainingKg = Math.max(0, totalKg - packedKg);
+      const groupReady = remainingKg <= 0.05 || ready.length === group.entries.length;
+      const stage = groupReady
         ? 'ready'
         : pending.length > 0 && washed.length > 0
           ? 'partial'
           : pending.length > 0
             ? 'pending'
-            : 'washed';
-      const cycle = group.entries
-        .map(entry => entry.laundry_trolley_cycle_id ? trolleys.find(t => t.id === entry.laundry_trolley_cycle_id) : trolleyByEntryId.get(entry.id))
-        .find(Boolean);
-      const trolleyNo = cycle?.trolley_no || group.entries.find(entry => entry.laundry_trolley_no)?.laundry_trolley_no || '';
+            : packedKg > 0
+              ? 'partial'
+              : 'washed';
+      const trolleyNos = [...new Set(activeCycles.map(cycle => cycle.trolley_no).filter(Boolean))];
 
       return {
         ...group,
         kg: Number(totalKg.toFixed(1)),
+        packedKg: Number(Math.min(totalKg, packedKg).toFixed(1)),
+        remainingKg: Number(remainingKg.toFixed(1)),
         stage,
         pendingIds: pending.map(entry => entry.id),
-        washedIds: washed.map(entry => entry.id),
-        readyIds: ready.map(entry => entry.id),
-        cycle,
-        trolleyNo,
+        washedIds: groupReady ? [] : washed.map(entry => entry.id),
+        readyIds: groupReady ? entryIds : ready.map(entry => entry.id),
+        cycles: activeCycles,
+        trolleyNo: trolleyNos.join(', '),
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
-        packedAt: group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean).sort().at(-1),
+        packedAt: [
+          ...group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean),
+          ...activeCycles.map(cycle => cycle.packed_at).filter(Boolean),
+        ].sort().at(-1),
       };
     }).sort((a, b) => {
       const order = { pending: 0, partial: 1, washed: 2, ready: 3 };
@@ -348,7 +350,7 @@ export default function WashView() {
       if (routeDiff) return routeDiff;
       return a.clientName.localeCompare(b.clientName, 'pl');
     });
-  }, [clientByName, entries, routeMap, scheduleByRoute, selectedDate, trolleyByEntryId, trolleys]);
+  }, [clientByName, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
   const activeTrolleys = useMemo(
     () => trolleys.filter(cycle => !cycle.returned_at && cycle.status !== 'returned'),
@@ -375,8 +377,8 @@ export default function WashView() {
       .filter(group => ['pending', 'partial'].includes(group.stage))
       .reduce((sum, group) => sum + group.pendingIds.reduce((s, id) => s + (parseFloat(entryById.get(id)?.weight) || 0), 0), 0);
     const washedKg = laundryGroups
-      .filter(group => group.stage === 'washed')
-      .reduce((sum, group) => sum + group.kg, 0);
+      .filter(group => group.stage !== 'ready' && group.pendingIds.length === 0)
+      .reduce((sum, group) => sum + group.remainingKg, 0);
     const readyKg = laundryGroups
       .filter(group => group.stage === 'ready')
       .reduce((sum, group) => sum + group.kg, 0);
@@ -409,9 +411,19 @@ export default function WashView() {
   };
 
   const handlePack = (group) => {
-    const trolleyNo = (packDrafts[group.key] || group.trolleyNo || '').trim();
+    const draft = packDrafts[group.key] || {};
+    const trolleyNo = (draft.trolleyNo || '').trim();
+    const kgValue = Number.parseFloat(String(draft.kg ?? group.remainingKg).replace(',', '.'));
     if (!trolleyNo) {
       toastError('Wybierz numer wózka');
+      return;
+    }
+    if (!Number.isFinite(kgValue) || kgValue <= 0) {
+      toastError('Podaj ile kg wkładasz do tego wózka');
+      return;
+    }
+    if (kgValue > group.remainingKg + 0.05) {
+      toastError(`Do spakowania zostało ${group.remainingKg} kg`);
       return;
     }
     if (!trolleyNumbers.includes(trolleyNo)) {
@@ -419,7 +431,7 @@ export default function WashView() {
       return;
     }
     const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
-    if (activeCycle && activeCycle.client_name !== group.clientName) {
+    if (activeCycle) {
       toastError(`Wózek ${trolleyNo} jest zajęty: ${activeCycle.client_name}`);
       return;
     }
@@ -430,9 +442,13 @@ export default function WashView() {
     if (!group.washedIds.length) return;
 
     runAction(`pack:${group.key}`, async () => {
-      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, user?.name);
-      setPackDrafts(prev => ({ ...prev, [group.key]: '' }));
-      toastSuccess(`${group.clientName}: spakowane do wózka ${trolleyNo}`);
+      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, kgValue, user?.name);
+      setPackDrafts(prev => {
+        const next = { ...prev };
+        delete next[group.key];
+        return next;
+      });
+      toastSuccess(`${group.clientName}: ${kgValue} kg do wózka ${trolleyNo}`);
     });
   };
 
@@ -440,25 +456,6 @@ export default function WashView() {
     runAction(`return:${cycle.id}`, async () => {
       await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
       toastSuccess(`Wózek ${cycle.trolley_no} wrócił`);
-    });
-  };
-
-  const handleSaveTrolleyCount = () => {
-    const nextCount = Math.round(Number(trolleyCountDraft));
-    if (!Number.isFinite(nextCount) || nextCount < 1 || nextCount > 99) {
-      toastError('Podaj liczbę wózków od 1 do 99');
-      return;
-    }
-    if (nextCount < activeTrolleys.length) {
-      toastError(`Nie możesz ustawić mniej niż aktualnie zajęte wózki (${activeTrolleys.length})`);
-      return;
-    }
-
-    runAction('trolley-count', async () => {
-      await upsertAppSetting(sessionToken, TROLLEY_COUNT_KEY, nextCount);
-      setTrolleyCount(nextCount);
-      setTrolleyCountDraft(String(nextCount));
-      toastSuccess(`Liczba wózków: ${nextCount}`);
     });
   };
 
@@ -519,9 +516,11 @@ export default function WashView() {
           {laundryGroups.map(group => {
             const route = routeBadge(group.routeId, routeMap);
             const canMarkWashed = canManageLaundry && group.pendingIds.length > 0;
-            const canPack = canManageLaundry && group.pendingIds.length === 0 && group.washedIds.length > 0;
+            const canPack = canManageLaundry && group.pendingIds.length === 0 && group.washedIds.length > 0 && group.remainingKg > 0;
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
+            const draft = packDrafts[group.key] || {};
+            const draftKg = draft.kg ?? (group.remainingKg > 0 ? String(group.remainingKg) : '');
 
             return (
               <article key={group.key} className={`laundry-work-row stage-${group.stage}`}>
@@ -533,9 +532,11 @@ export default function WashView() {
                   </div>
                   <div className="laundry-work-meta">
                     <span>{group.kg} kg</span>
+                    {group.packedKg > 0 && <span>spakowane {group.packedKg}/{group.kg} kg</span>}
+                    {group.packedKg > 0 && group.remainingKg > 0 && <span>zostało {group.remainingKg} kg</span>}
                     {group.washedAt && <span>wyprane {fmtTime(group.washedAt)}</span>}
                     {group.packedAt && <span>spakowane {fmtTime(group.packedAt)}</span>}
-                    {group.trolleyNo && <span>wózek {group.trolleyNo}</span>}
+                    {group.trolleyNo && <span>wózki {group.trolleyNo}</span>}
                   </div>
                 </div>
 
@@ -554,22 +555,40 @@ export default function WashView() {
                   <label className="laundry-trolley-input">
                     <span>Nr wózka</span>
                     <select
-                      value={packDrafts[group.key] ?? group.trolleyNo ?? ''}
-                      onChange={e => setPackDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
+                      value={draft.trolleyNo || ''}
+                      onChange={e => setPackDrafts(prev => ({
+                        ...prev,
+                        [group.key]: { ...(prev[group.key] || {}), trolleyNo: e.target.value },
+                      }))}
                       disabled={!canManageLaundry || group.stage === 'ready'}
                     >
                       <option value="">Wybierz</option>
                       {trolleyNumbers.map(no => {
                         const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
-                        const isOwnCycle = activeCycle && activeCycle.client_name === group.clientName;
-                        const disabled = Boolean(activeCycle && !isOwnCycle);
+                        const disabled = Boolean(activeCycle);
                         return (
                           <option key={no} value={no} disabled={disabled}>
-                            {no}{activeCycle ? ` · ${isOwnCycle ? 'ten klient' : `zajęty: ${activeCycle.client_name}`}` : ' · wolny'}
+                            {no}{activeCycle ? ` · zajęty: ${activeCycle.client_name}` : ' · wolny'}
                           </option>
                         );
                       })}
                     </select>
+                  </label>
+
+                  <label className="laundry-trolley-input is-kg">
+                    <span>Kg</span>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      max={group.remainingKg || undefined}
+                      value={draftKg}
+                      onChange={e => setPackDrafts(prev => ({
+                        ...prev,
+                        [group.key]: { ...(prev[group.key] || {}), kg: e.target.value },
+                      }))}
+                      disabled={!canManageLaundry || group.stage === 'ready'}
+                    />
                   </label>
 
                   <button
@@ -592,36 +611,15 @@ export default function WashView() {
       <section className="laundry-section">
         <div className="laundry-section-head">
           <div>
-            <h2>Harmonogram wózków</h2>
+            <h2>Historia i harmonogram wózków</h2>
             <span>{freeTrolleyCount} wolne · {activeTrolleys.length} zajęte · razem {trolleyCount}</span>
           </div>
-          {isAdmin && (
-            <div className="laundry-trolley-count-control">
-              <label>
-                <span>Liczba wózków</span>
-                <input
-                  type="number"
-                  min={activeTrolleys.length || 1}
-                  max="99"
-                  value={trolleyCountDraft}
-                  onChange={e => setTrolleyCountDraft(e.target.value)}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleSaveTrolleyCount}
-                disabled={busyKey === 'trolley-count' || Number(trolleyCountDraft) === trolleyCount}
-              >
-                {busyKey === 'trolley-count' ? 'Zapis…' : 'Zapisz'}
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="laundry-trolley-board">
           {trolleys.length === 0 && (
             <div className="laundry-empty">
-              Brak aktywnych wózków.
+              Brak historii wózków.
             </div>
           )}
 
@@ -668,7 +666,7 @@ export default function WashView() {
 
       <section className="laundry-flow-note">
         <Truck size={18} />
-        <span>Po spakowaniu hotel trafia do kierowcy jako gotowy do odbioru z pralni. Wózek zostaje przypisany do klienta aż do oznaczenia powrotu.</span>
+        <span>Hotel trafia do kierowcy dopiero po spakowaniu całej wagi. Każdy wózek ma osobny numer, kg i historię aż do oznaczenia powrotu.</span>
       </section>
     </div>
   );

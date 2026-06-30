@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Archive, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
@@ -19,6 +19,7 @@ import {
 } from '../lib/readRpc';
 import { currentLocale, monthNames } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
+import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
@@ -33,6 +34,7 @@ const roleLabel = (t, role) => ({
 
 const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_viewer_driver';
 const SESSION_KEEP_ACTIVE = 10;
+const LAUNDRY_TROLLEY_COUNT_KEY = 'laundry_trolley_count';
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
@@ -1000,6 +1002,119 @@ function SessionsSection() {
   );
 }
 
+function SettingsSection() {
+  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [trolleyCount, setTrolleyCount] = useState(25);
+  const [draftCount, setDraftCount] = useState('25');
+  const [activeTrolleyCount, setActiveTrolleyCount] = useState(0);
+  const [error, setError] = useState('');
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getLaundryWorkflow(sessionToken);
+      const count = Math.max(1, Math.min(99, Number(data?.trolley_count) || 25));
+      const active = (data?.trolleys || []).filter(cycle => !cycle.returned_at && cycle.status !== 'returned').length;
+      setTrolleyCount(count);
+      setDraftCount(String(count));
+      setActiveTrolleyCount(active);
+    } catch (err) {
+      setError(err.message || t('admin.errLoadSettings'));
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, t]);
+
+  useEffect(() => {
+    if (sessionToken) loadSettings();
+  }, [loadSettings, sessionToken]);
+
+  const handleSaveTrolleyCount = async () => {
+    const nextCount = Math.round(Number(draftCount));
+    if (!Number.isFinite(nextCount) || nextCount < 1 || nextCount > 99) {
+      toastError(t('admin.trolleyCountRange'));
+      return;
+    }
+    if (nextCount < activeTrolleyCount) {
+      toastError(t('admin.trolleyCountBelowActive', { count: activeTrolleyCount }));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await upsertAppSetting(sessionToken, LAUNDRY_TROLLEY_COUNT_KEY, nextCount);
+      setTrolleyCount(nextCount);
+      setDraftCount(String(nextCount));
+      toastSuccess(t('admin.trolleyCountSaved', { count: nextCount }));
+      await loadSettings();
+    } catch (err) {
+      toastError(err.message || t('admin.errSaveSettings'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="loader">{t('admin.loadingSettings')}</div>;
+  if (error) return <DataError onRetry={loadSettings} error={error} />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: '14px',
+        padding: '16px',
+        boxShadow: 'var(--shadow-sm)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
+          <div style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '11px',
+            background: 'rgba(88,86,214,.11)',
+            color: 'var(--accent-indigo)',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+          }}>
+            <Archive size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('admin.laundrySettings')}</div>
+            <div style={{ marginTop: '3px', fontSize: '12px', fontWeight: 650, color: 'var(--text-tertiary)' }}>
+              {t('admin.trolleyCountHint', { active: activeTrolleyCount })}
+            </div>
+          </div>
+        </div>
+
+        <div className="laundry-trolley-count-control" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <label>
+            <span>{t('admin.trolleyCount')}</span>
+            <input
+              type="number"
+              min={Math.max(activeTrolleyCount, 1)}
+              max="99"
+              value={draftCount}
+              onChange={e => setDraftCount(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleSaveTrolleyCount}
+            disabled={saving || Number(draftCount) === trolleyCount}
+          >
+            {saving ? t('common.saving') : t('common.save')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const { impersonate, isAdmin, sessionToken } = useAuth();
@@ -1009,7 +1124,7 @@ export default function AdminDashboard() {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
-  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions'
+  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings'
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -1098,18 +1213,20 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ maxWidth: '600px' }}>
-      <div className="segmented-control" style={{ marginBottom: '16px' }}>
+      <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
         <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
         <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
+        <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 
       {tab === 'logs' && <LogsSection />}
       {tab === 'employees' && <EmployeesSection />}
       {tab === 'groups' && <GroupsSection />}
       {tab === 'sessions' && <SessionsSection />}
+      {tab === 'settings' && <SettingsSection />}
 
       {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
