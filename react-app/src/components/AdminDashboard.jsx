@@ -1169,10 +1169,10 @@ export default function AdminDashboard() {
   };
 
   const handleSaveUser = async (userId, name, role, routes, car) => {
-    const { error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
-    if (e1) { toastError(t('admin.errSaveRole') + ' ' + e1.message); return; }
-    const { error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
-    if (e2) { toastError(t('admin.errSaveRoutes') + ' ' + e2.message); return; }
+    const { data: d1, error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
+    if (e1 || d1?.error) { toastError(t('admin.errSaveRole') + ' ' + (e1?.message || d1?.error)); return; }
+    const { data: d2, error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
+    if (e2 || d2?.error) { toastError(t('admin.errSaveRoutes') + ' ' + (e2?.message || d2?.error)); return; }
     // Domyślne auto kierowcy → app_settings (jeden wiersz 'driver_cars')
     const nextCars = { ...driverCars };
     if (car) nextCars[userId] = car; else delete nextCars[userId];
