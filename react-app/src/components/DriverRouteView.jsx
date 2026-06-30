@@ -1747,8 +1747,8 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange, sub }) => (
     <div className={`driver-action-row driver-action-${tone}`}>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span className="driver-action-label">{icon} {label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <span className="driver-action-label" style={{ flex: 'none' }}>{icon} {label}</span>
         {sub && (
           <div style={{ 
             fontSize: '11px', 
@@ -2075,8 +2075,8 @@ export default function DriverRouteView({ manageMode = false }) {
                   return (
                   <>
                     <div className="driver-action-row driver-action-laundry">
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span className="driver-action-label">🏭 Odbiór z pralni</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <span className="driver-action-label" style={{ flex: 'none' }}>🏭 Odbiór z pralni</span>
                         {(() => {
                           const info = getStopPackInfo(stop);
                           if (!info) return null;
@@ -2107,7 +2107,7 @@ export default function DriverRouteView({ manageMode = false }) {
                         : (canAct ? aBtn('Odbierz z pralni', () => adminPralnia(t, stop)) : <span style={muted}>oczekuje</span>)}
                     </div>
                     <div className="driver-action-row driver-action-delivered">
-                      <span className="driver-action-label">📦 Dostarczono</span>
+                      <span className="driver-action-label" style={{ flex: 1 }}>📦 Dostarczono</span>
                       {deliveredDone
                         ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.delivered_at)}</span>{canAct && aBtn('Cofnij', () => adminUndoDeliver(stop), 'undo')}</span>
                         : (canAct && pralniaDone ? aBtn('Dostarczono', () => adminDeliver(t, stop)) : <span style={muted}>oczekuje</span>)}
@@ -2874,6 +2874,8 @@ export default function DriverRouteView({ manageMode = false }) {
                     <>
                       <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
                         sub={getStopPackInfo(stop)}
+                        actionDisabled={!pickupEntries.some(e => e.laundry_packed_at)}
+                        actionHint="Pranie nie zostało jeszcze spakowane na pralni"
                         onClick={() => {
                           const uniqueTrolleys = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))];
                           const basketsCount = uniqueTrolleys.length || 1;
