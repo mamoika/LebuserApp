@@ -237,25 +237,7 @@ export default function TrolleysDashboardModal({
           </div>
         </div>
 
-        <div className="ap-modal-footer" style={{ padding: '20px 32px', borderTop: '1px solid rgba(229, 231, 235, 0.7)', background: 'rgba(249, 250, 251, 0.8)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button 
-            className="ap-btn" 
-            onClick={onClose} 
-            style={{ 
-              padding: '10px 20px', 
-              borderRadius: '12px', 
-              fontWeight: 700, 
-              fontSize: '14px', 
-              background: 'var(--accent)', 
-              color: '#FFFFFF',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0, 122, 255, 0.25)'
-            }}
-          >
-            Zamknij panel
-          </button>
-        </div>
+
       </div>
     </div>
   );
