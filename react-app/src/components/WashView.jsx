@@ -13,6 +13,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
+import TrolleysDashboardModal from './TrolleysDashboardModal';
 import {
   cancelLaundryTrolley,
   getLaundryWorkflow,
