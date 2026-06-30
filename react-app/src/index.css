@@ -5292,6 +5292,58 @@ select.ap-input {
   font-size: 13px;
   font-weight: 650;
 }
+.laundry-trolley-count-control {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+.laundry-trolley-count-control label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .2px;
+}
+.laundry-trolley-count-control input {
+  width: 82px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card-solid);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 0 10px;
+  outline: none;
+}
+.laundry-trolley-count-control input:focus {
+  border-color: rgba(0,122,255,.45);
+  box-shadow: 0 0 0 3px rgba(0,122,255,.09);
+}
+.laundry-trolley-count-control button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(0,122,255,.2);
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.laundry-trolley-count-control button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
 .laundry-work-list {
   display: flex;
   flex-direction: column;
@@ -5552,6 +5604,13 @@ select.ap-input {
   }
   .laundry-work-row {
     grid-template-columns: 1fr;
+  }
+  .laundry-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .laundry-trolley-count-control {
+    align-self: flex-start;
   }
   .laundry-work-actions {
     grid-template-columns: 1fr;

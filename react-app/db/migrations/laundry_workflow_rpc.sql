@@ -109,6 +109,7 @@ as $$
 declare
   v_user record;
   v_trolleys json;
+  v_trolley_count integer := 25;
 begin
   select * into v_user from public.session_user(p_session_token) limit 1;
 
@@ -131,7 +132,28 @@ begin
     limit 300
   ) x;
 
-  return json_build_object('ok', true, 'trolleys', v_trolleys);
+  begin
+    select case
+      when jsonb_typeof(value) = 'number' then value::text::integer
+      when jsonb_typeof(value) = 'string' and trim(both '"' from value::text) ~ '^[0-9]+$'
+        then trim(both '"' from value::text)::integer
+      else 25
+    end
+    into v_trolley_count
+    from public.app_settings
+    where key = 'laundry_trolley_count';
+  exception
+    when others then
+      v_trolley_count := 25;
+  end;
+
+  v_trolley_count := greatest(1, least(99, coalesce(v_trolley_count, 25)));
+
+  return json_build_object(
+    'ok', true,
+    'trolleys', v_trolleys,
+    'trolley_count', v_trolley_count
+  );
 end;
 $$;
 

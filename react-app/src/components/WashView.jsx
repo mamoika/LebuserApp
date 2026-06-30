@@ -13,11 +13,12 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow, markLaundryWashed, packLaundryTrolley, returnLaundryTrolley } from '../lib/laundryRpc';
+import { upsertAppSetting } from '../lib/adminRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 
-const TROLLEY_COUNT = 25;
-const TROLLEY_NUMBERS = Array.from({ length: TROLLEY_COUNT }, (_, index) => String(index + 1));
+const DEFAULT_TROLLEY_COUNT = 25;
+const TROLLEY_COUNT_KEY = 'laundry_trolley_count';
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -216,6 +217,8 @@ export default function WashView() {
   const [workflowError, setWorkflowError] = useState('');
   const [busyKey, setBusyKey] = useState('');
   const [packDrafts, setPackDrafts] = useState({});
+  const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
+  const [trolleyCountDraft, setTrolleyCountDraft] = useState(String(DEFAULT_TROLLEY_COUNT));
 
   const canManageLaundry = isAdmin || user?.role === 'admin_viewer_driver';
 
@@ -230,6 +233,9 @@ export default function WashView() {
     try {
       const data = await getLaundryWorkflow(sessionToken);
       setTrolleys(data?.trolleys || []);
+      const nextCount = Math.max(1, Math.min(99, Number(data?.trolley_count) || DEFAULT_TROLLEY_COUNT));
+      setTrolleyCount(nextCount);
+      setTrolleyCountDraft(String(nextCount));
     } catch (err) {
       setWorkflowError(err.message || 'Nie udało się pobrać obiegu wózków');
     } finally {
@@ -349,6 +355,11 @@ export default function WashView() {
     [trolleys]
   );
 
+  const trolleyNumbers = useMemo(
+    () => Array.from({ length: trolleyCount }, (_, index) => String(index + 1)),
+    [trolleyCount]
+  );
+
   const activeTrolleyByNo = useMemo(() => {
     const map = new Map();
     activeTrolleys.forEach(cycle => {
@@ -357,7 +368,7 @@ export default function WashView() {
     return map;
   }, [activeTrolleys]);
 
-  const freeTrolleyCount = Math.max(0, TROLLEY_COUNT - activeTrolleys.length);
+  const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleys.length);
 
   const metrics = useMemo(() => {
     const pendingKg = laundryGroups
@@ -403,8 +414,8 @@ export default function WashView() {
       toastError('Wybierz numer wózka');
       return;
     }
-    if (!TROLLEY_NUMBERS.includes(trolleyNo)) {
-      toastError(`Wybierz wózek od 1 do ${TROLLEY_COUNT}`);
+    if (!trolleyNumbers.includes(trolleyNo)) {
+      toastError(`Wybierz wózek od 1 do ${trolleyCount}`);
       return;
     }
     const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
@@ -429,6 +440,25 @@ export default function WashView() {
     runAction(`return:${cycle.id}`, async () => {
       await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
       toastSuccess(`Wózek ${cycle.trolley_no} wrócił`);
+    });
+  };
+
+  const handleSaveTrolleyCount = () => {
+    const nextCount = Math.round(Number(trolleyCountDraft));
+    if (!Number.isFinite(nextCount) || nextCount < 1 || nextCount > 99) {
+      toastError('Podaj liczbę wózków od 1 do 99');
+      return;
+    }
+    if (nextCount < activeTrolleys.length) {
+      toastError(`Nie możesz ustawić mniej niż aktualnie zajęte wózki (${activeTrolleys.length})`);
+      return;
+    }
+
+    runAction('trolley-count', async () => {
+      await upsertAppSetting(sessionToken, TROLLEY_COUNT_KEY, nextCount);
+      setTrolleyCount(nextCount);
+      setTrolleyCountDraft(String(nextCount));
+      toastSuccess(`Liczba wózków: ${nextCount}`);
     });
   };
 
@@ -468,7 +498,7 @@ export default function WashView() {
         <Metric icon={WashingMachine} label="Do wyprania" value={`${metrics.pendingKg} kg`} tone="pending" />
         <Metric icon={CheckCircle2} label="Wyprane, do pakowania" value={`${metrics.washedKg} kg`} tone="washed" />
         <Metric icon={PackageCheck} label="Gotowe dla kierowcy" value={`${metrics.readyKg} kg`} tone="ready" />
-        <Metric icon={Archive} label={`Wózki zajęte / ${TROLLEY_COUNT}`} value={`${metrics.activeTrolleys}/${TROLLEY_COUNT}`} tone="trolley" />
+        <Metric icon={Archive} label={`Wózki zajęte / ${trolleyCount}`} value={`${metrics.activeTrolleys}/${trolleyCount}`} tone="trolley" />
       </div>
 
       <section className="laundry-section">
@@ -529,7 +559,7 @@ export default function WashView() {
                       disabled={!canManageLaundry || group.stage === 'ready'}
                     >
                       <option value="">Wybierz</option>
-                      {TROLLEY_NUMBERS.map(no => {
+                      {trolleyNumbers.map(no => {
                         const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
                         const isOwnCycle = activeCycle && activeCycle.client_name === group.clientName;
                         const disabled = Boolean(activeCycle && !isOwnCycle);
@@ -563,8 +593,29 @@ export default function WashView() {
         <div className="laundry-section-head">
           <div>
             <h2>Harmonogram wózków</h2>
-            <span>{freeTrolleyCount} wolne · {activeTrolleys.length} zajęte · razem {TROLLEY_COUNT}</span>
+            <span>{freeTrolleyCount} wolne · {activeTrolleys.length} zajęte · razem {trolleyCount}</span>
           </div>
+          {isAdmin && (
+            <div className="laundry-trolley-count-control">
+              <label>
+                <span>Liczba wózków</span>
+                <input
+                  type="number"
+                  min={activeTrolleys.length || 1}
+                  max="99"
+                  value={trolleyCountDraft}
+                  onChange={e => setTrolleyCountDraft(e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleSaveTrolleyCount}
+                disabled={busyKey === 'trolley-count' || Number(trolleyCountDraft) === trolleyCount}
+              >
+                {busyKey === 'trolley-count' ? 'Zapis…' : 'Zapisz'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="laundry-trolley-board">
