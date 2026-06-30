@@ -363,6 +363,46 @@ export default function ScheduleView() {
     washKgBySlot.set(slot, (washKgBySlot.get(slot) || 0) + (parseFloat(e.weight) || 0));
   });
 
+  const renderLaundryStatusDot = (entry, mode) => {
+    if (mode === 'pick') {
+      const isDone = entry.done;
+      const title = isDone ? t('schedule.pickedUp', 'Odebrane') : t('schedule.toPickUp', 'Do odebrania');
+      return (
+        <span 
+          className={`gps-dot ${isDone ? 'gps-green' : 'gps-grey'}`} 
+          title={title}
+        />
+      );
+    }
+
+    // Clean Delivery (mode === 'arr')
+    const isPacked = ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status) 
+      || entry.done 
+      || (hasLaundryWorkflowState(entry) && (entry.laundry_ready_at || entry.laundry_packed_at))
+      || (!hasLaundryWorkflowState(entry) && entry.done);
+
+    const isWashed = entry.laundry_status === 'washed' 
+      || (!hasLaundryWorkflowState(entry) && entry.washed && !entry.done);
+
+    let dotClass = 'gps-red';
+    let title = 'Do prania';
+
+    if (isPacked) {
+      dotClass = 'gps-green';
+      title = 'Zapakowana, gotowa do odbioru';
+    } else if (isWashed) {
+      dotClass = 'gps-yellow';
+      title = 'Wyprana, czeka na pakowanie';
+    }
+
+    return (
+      <span 
+        className={`gps-dot ${dotClass}`} 
+        title={title}
+      />
+    );
+  };
+
   const renderEntryTag = (entry, mode) => {
     const tagClass = entry.done ? 'tag-done' : mode === 'pick' ? 'tag-pick' : 'tag-arr';
     const routeId = routeIdForEntry(entry) || 1;
@@ -393,14 +433,11 @@ export default function ScheduleView() {
         {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
         <span className="schedule-tag-title">
           <span className="tag-name">{entry.client_name}</span>
-          {!entry.isPickupGroup && entry.washed && (
-            <span className="schedule-washed-badge" title={t('schedule.washed')}>{t('schedule.washedBadge')}</span>
-          )}
         </span>
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
         {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
         <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
-        <span style={{ opacity: 0.3, fontSize: '16px', marginLeft: 'auto', paddingLeft: '2px' }}>›</span>
+        {renderLaundryStatusDot(entry, mode)}
       </div>
     );
   };

@@ -5750,3 +5750,37 @@ select.ap-input {
 .laundry-progress-fill.is-complete {
   background: rgba(52,199,89, 1);
 }
+
+/* GPS Status Dots */
+@keyframes gpsPulse {
+  0% { transform: scale(0.92); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(0.92); opacity: 0.85; }
+}
+
+.gps-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: auto;
+  margin-right: 4px;
+  flex-shrink: 0;
+  animation: gpsPulse 2.4s infinite ease-in-out;
+}
+.gps-red {
+  background-color: #FF3B30;
+  box-shadow: 0 0 8px rgba(255, 59, 48, 0.7);
+}
+.gps-yellow {
+  background-color: #FFCC00;
+  box-shadow: 0 0 8px rgba(255, 204, 0, 0.7);
+}
+.gps-green {
+  background-color: #34C759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.7);
+}
+.gps-grey {
+  background-color: #8E8E93;
+  box-shadow: 0 0 4px rgba(142, 142, 147, 0.4);
+}
