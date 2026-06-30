@@ -12,6 +12,7 @@ export default function PackingModal({
   const [kg, setKg] = useState(group?.remainingKg > 0 ? String(group.remainingKg) : '');
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
+  const [manualTrolley, setManualTrolley] = useState('');
 
   // Zaznacz całą zawartość pola input po otwarciu, żeby od razu móc wpisać nową wagę
   useEffect(() => {
@@ -72,6 +73,35 @@ export default function PackingModal({
       }
     }
   });
+
+  const handleManualPack = async () => {
+    if (!manualTrolley) {
+      setError('Wybierz wózek z listy.');
+      return;
+    }
+    
+    const kgValue = Number.parseFloat(String(kg).replace(',', '.'));
+    if (!Number.isFinite(kgValue) || kgValue <= 0) {
+      setError('Wpisz poprawną wagę (kg).');
+      return;
+    }
+    
+    if (kgValue > group.remainingKg + 0.05) {
+      setError(`Za dużo. Zostało ${group.remainingKg} kg.`);
+      return;
+    }
+
+    setError('');
+    setIsPacking(true);
+    try {
+      await onPack(group, manualTrolley, kgValue);
+      setManualTrolley('');
+    } catch (err) {
+      setError(err.message || 'Błąd podczas pakowania');
+    } finally {
+      setIsPacking(false);
+    }
+  };
 
   // Kiedy group się zaktualizuje z zewnątrz (bo zapakowano), odśwież proponowaną wagę
   useEffect(() => {
@@ -154,6 +184,38 @@ export default function PackingModal({
                 System automatycznie przypisze podaną wagę i wózek do tego klienta.
               </p>
               {isPacking && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Pakowanie...</span>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>Lub wybierz wózek ręcznie (opcja testowa):</span>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <select
+                  className="ap-input"
+                  style={{ flex: 1 }}
+                  value={manualTrolley}
+                  onChange={(e) => setManualTrolley(e.target.value)}
+                  disabled={isPacking}
+                >
+                  <option value="">Wybierz wózek...</option>
+                  {trolleyNumbers.map(no => {
+                    const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
+                    const disabled = Boolean(activeCycle);
+                    return (
+                      <option key={no} value={no} disabled={disabled}>
+                        {no}{activeCycle ? ` · zajęty: ${activeCycle.client_name}` : ' · wolny'}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  type="button"
+                  className="ap-btn ap-btn-primary"
+                  onClick={handleManualPack}
+                  disabled={isPacking || !manualTrolley}
+                >
+                  {isPacking ? 'Pakuję...' : 'Zapisz'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
