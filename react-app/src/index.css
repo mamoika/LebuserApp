@@ -5428,9 +5428,46 @@ select.ap-input {
   border-radius: 99px;
   background: var(--bg-tertiary);
 }
+.laundry-cycle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.laundry-cycle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 4px 5px 4px 9px;
+  border-radius: 99px;
+  border: 1px solid rgba(0,122,255,.2);
+  background: rgba(0,122,255,.08);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+.laundry-cycle-chip b {
+  color: var(--text-primary);
+  font-weight: 900;
+}
+.laundry-cycle-chip button {
+  min-height: 22px;
+  border: 1px solid rgba(255,59,48,.22);
+  border-radius: 99px;
+  background: rgba(255,59,48,.09);
+  color: #C2410C;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.laundry-cycle-chip button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
 .laundry-work-actions {
   display: grid;
-  grid-template-columns: auto minmax(122px, 150px) minmax(82px, 98px) auto;
+  grid-template-columns: auto auto minmax(122px, 150px) minmax(82px, 98px) auto;
   gap: 8px;
   align-items: end;
 }
@@ -5456,6 +5493,11 @@ select.ap-input {
   border-color: rgba(0,122,255,.22);
   background: var(--accent);
   color: #fff;
+}
+.laundry-action-btn.is-danger {
+  border-color: rgba(255,59,48,.22);
+  background: rgba(255,59,48,.08);
+  color: #C2410C;
 }
 .laundry-trolley-input {
   display: flex;
@@ -5526,6 +5568,7 @@ select.ap-input {
 .laundry-trolley-card.tone-released { border-color: rgba(88,86,214,.25); }
 .laundry-trolley-card.tone-client { border-color: rgba(255,149,0,.25); }
 .laundry-trolley-card.tone-returned { opacity: .78; }
+.laundry-trolley-card.tone-canceled { opacity: .74; border-color: rgba(255,59,48,.2); }
 .laundry-trolley-top {
   display: flex;
   align-items: flex-start;
@@ -5552,6 +5595,7 @@ select.ap-input {
 .laundry-trolley-status.tone-released { background: rgba(88,86,214,.11); color: var(--accent-indigo); }
 .laundry-trolley-status.tone-client { background: rgba(255,149,0,.12); color: #B45309; }
 .laundry-trolley-status.tone-returned { background: rgba(52,199,89,.11); color: #15803D; }
+.laundry-trolley-status.tone-canceled { background: rgba(255,59,48,.09); color: #C2410C; }
 .laundry-trolley-client {
   font-size: 15px;
   font-weight: 850;
@@ -5580,6 +5624,21 @@ select.ap-input {
   border-color: rgba(52,199,89,.28);
   color: #15803D;
   background: rgba(52,199,89,.08);
+}
+.laundry-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.laundry-return-btn.is-danger {
+  border-color: rgba(255,59,48,.24);
+  color: #C2410C;
+  background: rgba(255,59,48,.08);
+}
+.laundry-return-btn.is-secondary {
+  border-color: rgba(88,86,214,.24);
+  color: var(--accent-indigo);
+  background: rgba(88,86,214,.08);
 }
 .laundry-flow-note {
   display: flex;

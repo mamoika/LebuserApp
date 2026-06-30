@@ -12,7 +12,15 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
-import { getLaundryWorkflow, markLaundryWashed, packLaundryTrolley, returnLaundryTrolley } from '../lib/laundryRpc';
+import {
+  cancelLaundryTrolley,
+  getLaundryWorkflow,
+  markLaundryWashed,
+  packLaundryTrolley,
+  returnLaundryTrolley,
+  undoReturnLaundryTrolley,
+  unmarkLaundryWashed,
+} from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 
@@ -164,6 +172,9 @@ function stageConfig(stage) {
 }
 
 function trolleyCycleStatus(cycle, entryById) {
+  if (cycle.status === 'canceled') {
+    return { key: 'canceled', label: 'Cofnięto pakowanie', tone: 'canceled' };
+  }
   if (cycle.returned_at || cycle.status === 'returned') {
     return { key: 'returned', label: 'Wózek wrócił', tone: 'returned' };
   }
@@ -310,7 +321,7 @@ export default function WashView() {
         cycle.client_name === group.clientName
         && (cycle.entry_ids || []).some(id => entryIdSet.has(id))
       ));
-      const activeCycles = groupCycles.filter(cycle => !cycle.returned_at && cycle.status !== 'returned');
+      const activeCycles = groupCycles.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status));
       const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
       const remainingKg = Math.max(0, totalKg - packedKg);
       const groupReady = remainingKg <= 0.05 || ready.length === group.entries.length;
@@ -353,7 +364,7 @@ export default function WashView() {
   }, [clientByName, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
   const activeTrolleys = useMemo(
-    () => trolleys.filter(cycle => !cycle.returned_at && cycle.status !== 'returned'),
+    () => trolleys.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status)),
     [trolleys]
   );
 
@@ -410,6 +421,15 @@ export default function WashView() {
     });
   };
 
+  const handleUnmarkWashed = (group) => {
+    const ids = group.entries.map(entry => entry.id).filter(Boolean);
+    if (!ids.length) return;
+    runAction(`unwashed:${group.key}`, async () => {
+      await unmarkLaundryWashed(sessionToken, ids, user?.name);
+      toastSuccess(`${group.clientName}: cofnięto wypranie`);
+    });
+  };
+
   const handlePack = (group) => {
     const draft = packDrafts[group.key] || {};
     const trolleyNo = (draft.trolleyNo || '').trim();
@@ -456,6 +476,20 @@ export default function WashView() {
     runAction(`return:${cycle.id}`, async () => {
       await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
       toastSuccess(`Wózek ${cycle.trolley_no} wrócił`);
+    });
+  };
+
+  const handleCancelTrolley = (cycle) => {
+    runAction(`cancel:${cycle.id}`, async () => {
+      await cancelLaundryTrolley(sessionToken, cycle.id, user?.name);
+      toastSuccess(`Cofnięto pakowanie wózka ${cycle.trolley_no}`);
+    });
+  };
+
+  const handleUndoReturnTrolley = (cycle) => {
+    runAction(`undo-return:${cycle.id}`, async () => {
+      await undoReturnLaundryTrolley(sessionToken, cycle.id, user?.name);
+      toastSuccess(`Cofnięto powrót wózka ${cycle.trolley_no}`);
     });
   };
 
@@ -516,8 +550,10 @@ export default function WashView() {
           {laundryGroups.map(group => {
             const route = routeBadge(group.routeId, routeMap);
             const canMarkWashed = canManageLaundry && group.pendingIds.length > 0;
+            const canUnmarkWashed = canManageLaundry && (group.cycles.length > 0 || group.entries.some(entry => entry.washed || isReadyForDriver(entry)));
             const canPack = canManageLaundry && group.pendingIds.length === 0 && group.washedIds.length > 0 && group.remainingKg > 0;
             const busyWashed = busyKey === `washed:${group.key}`;
+            const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
             const draft = packDrafts[group.key] || {};
             const draftKg = draft.kg ?? (group.remainingKg > 0 ? String(group.remainingKg) : '');
@@ -538,6 +574,28 @@ export default function WashView() {
                     {group.packedAt && <span>spakowane {fmtTime(group.packedAt)}</span>}
                     {group.trolleyNo && <span>wózki {group.trolleyNo}</span>}
                   </div>
+                  {group.cycles.length > 0 && (
+                    <div className="laundry-cycle-chips">
+                      {group.cycles.map(cycle => {
+                        const busyCancel = busyKey === `cancel:${cycle.id}`;
+                        return (
+                          <span key={cycle.id} className="laundry-cycle-chip">
+                            <strong>wózek {cycle.trolley_no}</strong>
+                            <b>{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
+                            {canManageLaundry && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelTrolley(cycle)}
+                                disabled={busyCancel}
+                              >
+                                {busyCancel ? 'cofam…' : 'cofnij'}
+                              </button>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="laundry-work-actions">
@@ -550,6 +608,17 @@ export default function WashView() {
                   >
                     <CheckCircle2 size={16} />
                     {busyWashed ? 'Zapis…' : 'Wyprane'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="laundry-action-btn is-danger"
+                    onClick={() => handleUnmarkWashed(group)}
+                    disabled={!canUnmarkWashed || busyUnwashed}
+                    title={!canManageLaundry ? 'Brak uprawnień do zapisu' : 'Cofa wypranie i aktywne pakowania tego punktu'}
+                  >
+                    <RotateCcw size={16} />
+                    {busyUnwashed ? 'Cofam…' : 'Cofnij wyprane'}
                   </button>
 
                   <label className="laundry-trolley-input">
@@ -629,6 +698,10 @@ export default function WashView() {
             const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
             const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
             const busyReturn = busyKey === `return:${cycle.id}`;
+            const busyCancel = busyKey === `cancel:${cycle.id}`;
+            const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
+            const canCancelCycle = canManageLaundry && !cycle.returned_at && status.key !== 'canceled';
+            const canUndoReturn = canManageLaundry && status.key === 'returned';
 
             return (
               <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
@@ -647,16 +720,42 @@ export default function WashView() {
                   {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
                   {cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
                 </div>
-                {!cycle.returned_at && canManageLaundry && (
-                  <button
-                    type="button"
-                    className="laundry-return-btn"
-                    onClick={() => handleReturnTrolley(cycle)}
-                    disabled={busyReturn}
-                  >
-                    <RotateCcw size={15} />
-                    {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
-                  </button>
+                {canManageLaundry && (
+                  <div className="laundry-card-actions">
+                    {canCancelCycle && (
+                      <button
+                        type="button"
+                        className="laundry-return-btn is-danger"
+                        onClick={() => handleCancelTrolley(cycle)}
+                        disabled={busyCancel}
+                      >
+                        <RotateCcw size={15} />
+                        {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
+                      </button>
+                    )}
+                    {!cycle.returned_at && status.key !== 'canceled' && (
+                      <button
+                        type="button"
+                        className="laundry-return-btn"
+                        onClick={() => handleReturnTrolley(cycle)}
+                        disabled={busyReturn}
+                      >
+                        <RotateCcw size={15} />
+                        {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
+                      </button>
+                    )}
+                    {canUndoReturn && (
+                      <button
+                        type="button"
+                        className="laundry-return-btn is-secondary"
+                        onClick={() => handleUndoReturnTrolley(cycle)}
+                        disabled={busyUndoReturn}
+                      >
+                        <RotateCcw size={15} />
+                        {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
+                      </button>
+                    )}
+                  </div>
                 )}
               </article>
             );
