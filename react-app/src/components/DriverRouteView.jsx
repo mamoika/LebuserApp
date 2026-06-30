@@ -1715,9 +1715,34 @@ export default function DriverRouteView({ manageMode = false }) {
     return <span className="rt-badge" style={routeBadgeStyle(info.num)}>T{info.num}</span>;
   };
 
-  const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange }) => (
+  const getStopPackInfo = (stop) => {
+    const pickupEntries = stop.entries || [];
+    if (pickupEntries.length === 0) return null;
+    
+    const packedAt = pickupEntries
+      .map(e => e.laundry_packed_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+
+    const packedBy = pickupEntries
+      .map(e => e.laundry_packed_at ? e.laundry_packed_by : null)
+      .filter(Boolean)
+      .at(-1);
+
+    const trolleyNos = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))].join(', ');
+
+    if (!packedAt) return 'Nie spakowano jeszcze';
+    
+    return `Spakowano: ${fmtDateTime(packedAt)}${packedBy ? ` przez: ${packedBy}` : ''}${trolleyNos ? ` (wózek: ${trolleyNos})` : ''}`;
+  };
+
+  const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange, sub }) => (
     <div className={`driver-action-row driver-action-${tone}`}>
-      <span className="driver-action-label">{icon} {label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span className="driver-action-label">{icon} {label}</span>
+        {sub && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '22px', marginTop: '2px' }}>{sub}</span>}
+      </div>
       {done ? (
         <div className="driver-action-meta">
           <span className="driver-action-time">✓ {fmtTime(at)}</span>
@@ -2023,7 +2048,13 @@ export default function DriverRouteView({ manageMode = false }) {
                   return (
                   <>
                     <div className="driver-action-row driver-action-laundry">
-                      <span className="driver-action-label">🏭 Odbiór z pralni</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span className="driver-action-label">🏭 Odbiór z pralni</span>
+                        {(() => {
+                          const info = getStopPackInfo(stop);
+                          return info ? <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '22px', marginTop: '2px' }}>{info}</span> : null;
+                        })()}
+                      </div>
                       {pralniaDone
                         ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.picked_at)}</span><span className="driver-action-extra">{trolleyLabel(getPickedBaskets(stop))}</span>{canAct && !deliveredDone && aBtn('Cofnij', () => adminUndoPralnia(stop), 'undo')}</span>
                         : (canAct ? aBtn('Odbierz z pralni', () => adminPralnia(t, stop)) : <span style={muted}>oczekuje</span>)}
@@ -2795,6 +2826,7 @@ export default function DriverRouteView({ manageMode = false }) {
                   {hasPickupEntries && (
                     <>
                       <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
+                        sub={getStopPackInfo(stop)}
                         quantityValue={draftVal(stop.key, 'pickedBaskets', 1)}
                         onQuantityChange={value => setDraftVal(stop.key, 'pickedBaskets', value)}
                         onClick={() => markPralnia(stop, draftVal(stop.key, 'pickedBaskets', 1))}
