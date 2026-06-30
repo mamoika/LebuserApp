@@ -4695,7 +4695,7 @@ select.ap-input {
   font-weight: 900;
 }
 
-/* Znacznik "+Xh" na końcu wiersza: godziny zmiany wykraczające poza oś 5–21 */
+/* Znacznik "+Xh": godziny zmiany wykraczające poza oś 5–21 */
 .tl-duty-badge {
   position: absolute;
   right: 1px;
@@ -4718,6 +4718,10 @@ select.ap-input {
   white-space: nowrap;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+.tl-duty-badge.start {
+  left: 1px;
+  right: auto;
 }
 .tl-duty-badge:hover { background: #b45309; }
 .tl-duty-badge.open { background: #92400e; box-shadow: 0 0 0 2px rgba(217,119,6,0.35); }

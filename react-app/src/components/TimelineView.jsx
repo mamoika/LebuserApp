@@ -46,24 +46,28 @@ function isFullDayDuty(endH, duration) {
   return endH > 24 || roundHours(duration) >= 23.5;
 }
 
-// Komórki zmiany wypadające poza widoczną osią 5–21 (do panelu „+Xh"), w kolejności
-// chronologicznej: wieczór dnia startu (22, 23…), potem poranek po północy.
+// Komórki zmiany wypadające poza widoczną osią 5–21 (do panelu „+Xh").
+// `side` mówi, przy której krawędzi osi pokazać znacznik.
 function getOverflowCells(startH, endH) {
   const cells = [];
   const dayEnd = Math.min(endH, 24);
   const isShownInGrid = (h) => h >= VISIBLE_START && h < VISIBLE_END
     && Math.min(h + 1, dayEnd) > Math.max(h, startH);
-  const addRange = (from, to) => {
+  const addRange = (from, to, side) => {
     for (let h = Math.floor(from); h < to; h++) {
       const cs = Math.max(from, h);
       const ce = Math.min(to, h + 1);
-      if (ce > cs && !isShownInGrid(h)) cells.push({ h, fillFrom: cs - h, fillTo: ce - h });
+      if (ce > cs && !isShownInGrid(h)) cells.push({ h, fillFrom: cs - h, fillTo: ce - h, side });
     }
   };
-  if (startH < VISIBLE_START) addRange(startH, Math.min(dayEnd, VISIBLE_START)); // wczesny ranek dnia startu
-  if (dayEnd > VISIBLE_END) addRange(Math.max(startH, VISIBLE_END), dayEnd);      // wieczór dnia startu
-  if (endH > 24) addRange(0, endH - 24);                                          // poranek po północy
+  if (startH < VISIBLE_START) addRange(startH, Math.min(dayEnd, VISIBLE_START), 'start'); // wczesny ranek dnia startu
+  if (dayEnd > VISIBLE_END) addRange(Math.max(startH, VISIBLE_END), dayEnd, 'end');       // wieczór dnia startu
+  if (endH > 24) addRange(0, endH - 24, 'end');                                           // poranek po północy
   return cells;
+}
+
+function sumOverflowHours(cells) {
+  return roundHours(cells.reduce((s, c) => s + (c.fillTo - c.fillFrom), 0));
 }
 
 function getOverflowEndMarker(startH, endH) {
@@ -277,7 +281,7 @@ const TimelineRow = React.memo(({
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   const { t } = useTranslation();
-  // Panel godzin doby spoza osi 5–21 ("+Xh"): { dateStr, range, overflowHours, rect } | null
+  // Panel godzin doby spoza osi 5–21 ("+Xh"): { dateStr, side, count, cells, rect } | null
   const [duty, setDuty] = useState(null);
 
   useEffect(() => {
@@ -314,10 +318,13 @@ const TimelineRow = React.memo(({
     const fullDay = working && !dayStatus && (sched?.fullDay ?? isFullDayDuty(endH, duration));
     // Godziny zmiany wykraczające poza widoczną oś 5–21 → znacznik "+Xh" i wysuwany panel.
     const overflowCells = working && !dayStatus ? getOverflowCells(startH, endH) : [];
+    const overflowStartCells = overflowCells.filter(c => c.side === 'start');
+    const overflowEndCells = overflowCells.filter(c => c.side === 'end');
     const overflowEndMarker = working && !dayStatus ? getOverflowEndMarker(startH, endH) : null;
     // Realne godziny poza osią = suma wypełnień komórek (np. 1+1+1+0,5 = 3,5),
     // a nie liczba dotkniętych komórek (która zaokrąglała 3,5 h w górę do 4).
-    const overflowH = roundHours(overflowCells.reduce((s, c) => s + (c.fillTo - c.fillFrom), 0));
+    const overflowStartH = sumOverflowHours(overflowStartCells);
+    const overflowEndH = sumOverflowHours(overflowEndCells);
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
 
@@ -350,8 +357,13 @@ const TimelineRow = React.memo(({
 
           const isBrushable = isAdmin && brushRole && !dayStatus && working && isShiftHour && confirmed;
           const isBreakHour = working && !dayStatus && !fullDay && isShiftHour && (h === breakCell1 || h === breakCell2);
-          // Znacznik "+Xh" w ostatniej widocznej godzinie (21), jeśli zmiana ma godziny poza osią.
-          const showBadge = h === VISIBLE_END - 1 && overflowCells.length > 0;
+          const showStartBadge = h === VISIBLE_START && overflowStartCells.length > 0;
+          const showEndBadge = h === VISIBLE_END - 1 && overflowEndCells.length > 0;
+          const showBadge = showStartBadge || showEndBadge;
+          const badgeSide = showStartBadge ? 'start' : 'end';
+          const badgeCells = showStartBadge ? overflowStartCells : overflowEndCells;
+          const badgeHours = showStartBadge ? overflowStartH : overflowEndH;
+          const badgeEndMarker = showEndBadge ? overflowEndMarker : null;
 
           return (
             <td key={h}
@@ -380,17 +392,17 @@ const TimelineRow = React.memo(({
                 {showBadge && (
                   <button
                     type="button"
-                    className={`tl-duty-badge ${duty?.dateStr === dateStr ? 'open' : ''}`}
+                    className={`tl-duty-badge ${badgeSide === 'start' ? 'start' : 'end'} ${duty?.dateStr === dateStr && duty?.side === badgeSide ? 'open' : ''}`}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
                       const r = e.currentTarget.getBoundingClientRect();
-                      setDuty(prev => (prev && prev.dateStr === dateStr)
+                      setDuty(prev => (prev && prev.dateStr === dateStr && prev.side === badgeSide)
                         ? null
-                        : { dateStr, count: overflowH, cells: overflowCells, endMarker: overflowEndMarker, endH, rect: r });
+                        : { dateStr, side: badgeSide, count: badgeHours, cells: badgeCells, endMarker: badgeEndMarker, endH, rect: r });
                     }}
                   >
-                    +{fmtHours(overflowH)}h
+                    +{fmtHours(badgeHours)}h
                   </button>
                 )}
               </div>
