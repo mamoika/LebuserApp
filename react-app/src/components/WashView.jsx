@@ -23,7 +23,7 @@ import {
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
-
+import PackingModal from './modals/PackingModal';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -225,7 +225,7 @@ export default function WashView() {
   const [workflowLoading, setWorkflowLoading] = useState(true);
   const [workflowError, setWorkflowError] = useState('');
   const [busyKey, setBusyKey] = useState('');
-  const [packDrafts, setPackDrafts] = useState({});
+  const [packingGroup, setPackingGroup] = useState(null);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
 
   const canManageLaundry = isAdmin || user?.role === 'admin_viewer_driver';
@@ -430,46 +430,36 @@ export default function WashView() {
     });
   };
 
-  const handlePack = (group) => {
-    const draft = packDrafts[group.key] || {};
-    const trolleyNo = (draft.trolleyNo || '').trim();
-    const kgValue = Number.parseFloat(String(draft.kg ?? group.remainingKg).replace(',', '.'));
+  const handlePack = async (group, trolleyNo, kgValue) => {
     if (!trolleyNo) {
-      toastError('Wybierz numer wózka');
-      return;
+      throw new Error('Wybierz numer wózka');
     }
     if (!Number.isFinite(kgValue) || kgValue <= 0) {
-      toastError('Podaj ile kg wkładasz do tego wózka');
-      return;
+      throw new Error('Podaj ile kg wkładasz do tego wózka');
     }
     if (kgValue > group.remainingKg + 0.05) {
-      toastError(`Do spakowania zostało ${group.remainingKg} kg`);
-      return;
+      throw new Error(`Do spakowania zostało ${group.remainingKg} kg`);
     }
     if (!trolleyNumbers.includes(trolleyNo)) {
-      toastError(`Wybierz wózek od 1 do ${trolleyCount}`);
-      return;
+      throw new Error(`Wybierz wózek od 1 do ${trolleyCount}`);
     }
     const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
     if (activeCycle) {
-      toastError(`Wózek ${trolleyNo} jest zajęty: ${activeCycle.client_name}`);
-      return;
+      throw new Error(`Wózek ${trolleyNo} jest zajęty: ${activeCycle.client_name}`);
     }
     if (group.pendingIds.length > 0) {
-      toastError('Najpierw oznacz całe pranie klienta jako wyprane');
-      return;
+      throw new Error('Najpierw oznacz całe pranie klienta jako wyprane');
     }
     if (!group.washedIds.length) return;
 
-    runAction(`pack:${group.key}`, async () => {
+    setBusyKey(`pack:${group.key}`);
+    try {
       await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, kgValue, user?.name);
-      setPackDrafts(prev => {
-        const next = { ...prev };
-        delete next[group.key];
-        return next;
-      });
       toastSuccess(`${group.clientName}: ${kgValue} kg do wózka ${trolleyNo}`);
-    });
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } finally {
+      setBusyKey('');
+    }
   };
 
   const handleReturnTrolley = (cycle) => {
@@ -621,54 +611,15 @@ export default function WashView() {
                     {busyUnwashed ? 'Cofam…' : 'Cofnij wyprane'}
                   </button>
 
-                  <label className="laundry-trolley-input">
-                    <span>Nr wózka</span>
-                    <select
-                      value={draft.trolleyNo || ''}
-                      onChange={e => setPackDrafts(prev => ({
-                        ...prev,
-                        [group.key]: { ...(prev[group.key] || {}), trolleyNo: e.target.value },
-                      }))}
-                      disabled={!canManageLaundry || group.stage === 'ready'}
-                    >
-                      <option value="">Wybierz</option>
-                      {trolleyNumbers.map(no => {
-                        const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
-                        const disabled = Boolean(activeCycle);
-                        return (
-                          <option key={no} value={no} disabled={disabled}>
-                            {no}{activeCycle ? ` · zajęty: ${activeCycle.client_name}` : ' · wolny'}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
-
-                  <label className="laundry-trolley-input is-kg">
-                    <span>Kg</span>
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      max={group.remainingKg || undefined}
-                      value={draftKg}
-                      onChange={e => setPackDrafts(prev => ({
-                        ...prev,
-                        [group.key]: { ...(prev[group.key] || {}), kg: e.target.value },
-                      }))}
-                      disabled={!canManageLaundry || group.stage === 'ready'}
-                    />
-                  </label>
-
                   <button
                     type="button"
                     className="laundry-action-btn is-primary"
-                    onClick={() => handlePack(group)}
-                    disabled={!canPack || busyPack}
+                    onClick={() => setPackingGroup(group)}
+                    disabled={!canPack}
                     title={group.pendingIds.length > 0 ? 'Najpierw oznacz jako wyprane' : undefined}
                   >
                     <PackageCheck size={16} />
-                    {busyPack ? 'Pakuję…' : 'Spakuj'}
+                    Pakuj (Skaner)
                   </button>
                 </div>
               </article>
@@ -767,6 +718,16 @@ export default function WashView() {
         <Truck size={18} />
         <span>Hotel trafia do kierowcy dopiero po spakowaniu całej wagi. Każdy wózek ma osobny numer, kg i historię aż do oznaczenia powrotu.</span>
       </section>
+
+      {packingGroup && (
+        <PackingModal
+          group={laundryGroups.find(g => g.key === packingGroup.key) || packingGroup}
+          onClose={() => setPackingGroup(null)}
+          onPack={handlePack}
+          trolleyNumbers={trolleyNumbers}
+          activeTrolleyByNo={activeTrolleyByNo}
+        />
+      )}
     </div>
   );
 }

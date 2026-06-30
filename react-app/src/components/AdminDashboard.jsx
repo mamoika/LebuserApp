@@ -21,7 +21,7 @@ import { currentLocale, monthNames } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
-
+import BarcodeGenerator from './BarcodeGenerator';
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
 const roleLabel = (t, role) => ({
@@ -1124,7 +1124,7 @@ export default function AdminDashboard() {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
-  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings'
+  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings' | 'barcodes'
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -1219,6 +1219,7 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
+        <button type="button" className={`seg-btn ${tab === 'barcodes' ? 'active' : ''}`} onClick={() => setTab('barcodes')}>Etykiety</button>
         <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 
@@ -1226,6 +1227,7 @@ export default function AdminDashboard() {
       {tab === 'employees' && <EmployeesSection />}
       {tab === 'groups' && <GroupsSection />}
       {tab === 'sessions' && <SessionsSection />}
+      {tab === 'barcodes' && <BarcodeGenerator />}
       {tab === 'settings' && <SettingsSection />}
 
       {tab === 'users' && <>
