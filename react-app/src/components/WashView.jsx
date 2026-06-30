@@ -545,8 +545,7 @@ export default function WashView() {
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
-            const draft = packDrafts[group.key] || {};
-            const draftKg = draft.kg ?? (group.remainingKg > 0 ? String(group.remainingKg) : '');
+
 
             return (
               <article key={group.key} className={`laundry-work-row stage-${group.stage}`}>
