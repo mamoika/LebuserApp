@@ -765,12 +765,40 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 }
 
 .tag-name {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
+}
+.schedule-tag-title {
+  flex: 1 1 90px;
+  min-width: 56px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+.schedule-tag-title .tag-name {
+  flex: 1 1 auto;
+}
+.schedule-washed-badge {
+  flex: 0 1 auto;
+  max-width: 70px;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent-green-light);
+  color: var(--accent-green);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .schedule-point-badge {
   flex-shrink: 0;

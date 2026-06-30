@@ -89,6 +89,25 @@ function hasPositiveWeight(entry) {
   return (parseFloat(entry?.weight) || 0) > 0;
 }
 
+function hasLaundryWorkflowState(entry) {
+  return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_packed_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_trolley_no');
+}
+
+function cleanLaundryReadyForDriver(entry) {
+  if (entry?.done) return true;
+  if (hasLaundryWorkflowState(entry)) {
+    return Boolean(
+      entry.laundry_ready_at
+      || entry.laundry_packed_at
+      || ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status)
+    );
+  }
+  return Boolean(entry?.washed);
+}
+
 // Czas absolutny dnia roboczego (1=Pn..5=Pt) w danym tygodniu — do porównań.
 function dayWeekToTime(day, weekKey) {
   const [y, m, d] = (weekKey || '').split('-').map(Number);
@@ -372,10 +391,12 @@ export default function ScheduleView() {
       >
         {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
-        <span className="tag-name">{entry.client_name}</span>
-        {!entry.isPickupGroup && entry.washed && (
-          <span className="kg-badge" title={t('schedule.washed')} style={{ background: 'var(--accent-green-light)', color: 'var(--accent-green)' }}>{t('schedule.washedBadge')}</span>
-        )}
+        <span className="schedule-tag-title">
+          <span className="tag-name">{entry.client_name}</span>
+          {!entry.isPickupGroup && entry.washed && (
+            <span className="schedule-washed-badge" title={t('schedule.washed')}>{t('schedule.washedBadge')}</span>
+          )}
+        </span>
         <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
         {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
         <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
@@ -393,10 +414,13 @@ export default function ScheduleView() {
 
     const picked = entries
       .filter(e => e.pick_day === (dayIndex + 1) && e.pick_week_key === weekKey);
-    const pickupGroups = groupPickupEntries(picked, compareEntriesByRouteOrder);
+    const visiblePicked = isDriver
+      ? picked.filter(cleanLaundryReadyForDriver)
+      : picked;
+    const pickupGroups = groupPickupEntries(visiblePicked, compareEntriesByRouteOrder);
 
     const sumArr = arrived.reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
-    const sumPicked = picked
+    const sumPicked = visiblePicked
       .filter(e => !e.done)
       .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
     const sumWash = washKgBySlot.get(`${weekKey}|${dayIndex + 1}`) || 0;
@@ -429,7 +453,7 @@ export default function ScheduleView() {
           {arrived.map(entry => renderEntryTag(entry, 'arr'))}
         </div>
 
-        {picked.length > 0 && (
+        {visiblePicked.length > 0 && (
           <>
             <div className="divider schedule-divider"></div>
             <div className="sec-label schedule-pick-label">{t('schedule.secPickup')}</div>
