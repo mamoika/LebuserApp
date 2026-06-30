@@ -958,7 +958,7 @@ export default function DriverRouteView({ manageMode = false }) {
   };
 
   // 1) Odbiór czystego z pralni
-  const markPralnia = async (stop, baskets = 1) => {
+  const markPralnia = async (stop, baskets = 1, leaveTrolley = false) => {
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
@@ -967,11 +967,17 @@ export default function DriverRouteView({ manageMode = false }) {
         p_session_token: sessionToken,
         p_ids: ids,
         p_baskets: basketCount,
+        p_leave_trolley: leaveTrolley,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if ((data?.affected ?? 0) !== ids.length) throw new Error('Ten punkt jest już odebrany przez innego kierowcę. Odświeżam widok.');
-      await logAction({ sessionToken, action: 'done', clientName: stop.client_name, entryId: ids[0], details: `odbiór z pralni, ${Number(sumWeight(stop.entries).toFixed(1))} kg, ${trolleyLabel(basketCount)}` });
+      
+      const details = leaveTrolley 
+        ? `odbiór z pralni (wózek został w pralni), ${Number(sumWeight(stop.entries).toFixed(1))} kg`
+        : `odbiór z pralni, ${Number(sumWeight(stop.entries).toFixed(1))} kg, ${trolleyLabel(basketCount)}`;
+
+      await logAction({ sessionToken, action: 'done', clientName: stop.client_name, entryId: ids[0], details });
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
@@ -1730,7 +1736,9 @@ export default function DriverRouteView({ manageMode = false }) {
       .filter(Boolean)
       .at(-1);
 
-    const trolleyNos = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))].join(', ');
+    const trolleyNos = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))]
+      .filter(t => t !== 'brak')
+      .join(', ');
 
     if (!packedAt) {
       return {
@@ -1740,12 +1748,12 @@ export default function DriverRouteView({ manageMode = false }) {
     }
     
     return {
-      text: `Spakowano: ${fmtDateTime(packedAt)}${packedBy ? ` przez: ${packedBy}` : ''}${trolleyNos ? ` (wózek: ${trolleyNos})` : ''}`,
+      text: `Spakowano: ${fmtDateTime(packedAt)}${packedBy ? ` przez: ${packedBy}` : ''}${trolleyNos ? ` (wózek: ${trolleyNos})` : ' (bez wózka)'}`,
       isReady: true
     };
   };
 
-  const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange, sub }) => (
+  const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange, sub, children }) => (
     <div className={`driver-action-row driver-action-${tone}`}>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <span className="driver-action-label" style={{ flex: 'none' }}>{icon} {label}</span>
@@ -1779,20 +1787,24 @@ export default function DriverRouteView({ manageMode = false }) {
           )}
         </div>
       ) : trip?.status === 'active' ? (
-        <div className="driver-action-pending">
-          {onQuantityChange && (
-            <label className="driver-trolley-inline">
-              <input
-                type="number"
-                min="0"
-                inputMode="numeric"
-                value={quantityValue}
-                onChange={e => onQuantityChange(e.target.value)}
-              />
-              <span>{trolleyLabel(quantityValue).replace(/^\S+\s+/, '')}</span>
-            </label>
+        <div className="driver-action-pending" style={{ flexShrink: 0 }}>
+          {children ? children : (
+            <>
+              {onQuantityChange && (
+                <label className="driver-trolley-inline">
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={quantityValue}
+                    onChange={e => onQuantityChange(e.target.value)}
+                  />
+                  <span>{trolleyLabel(quantityValue).replace(/^\S+\s+/, '')}</span>
+                </label>
+              )}
+              <button className="driver-action-btn" onClick={onClick} disabled={busy || actionDisabled} title={actionDisabled ? actionHint : undefined}>{btnLabel}</button>
+            </>
           )}
-          <button className="driver-action-btn" onClick={onClick} disabled={busy || actionDisabled} title={actionDisabled ? actionHint : undefined}>{btnLabel}</button>
         </div>
       ) : <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>—</span>}
     </div>
@@ -2872,18 +2884,43 @@ export default function DriverRouteView({ manageMode = false }) {
 
                   {hasPickupEntries && (
                     <>
-                      <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
-                        sub={getStopPackInfo(stop)}
-                        actionDisabled={!pickupEntries.some(e => e.laundry_packed_at)}
-                        actionHint="Pranie nie zostało jeszcze spakowane na pralni"
-                        onClick={() => {
-                          const uniqueTrolleys = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))];
-                          const basketsCount = uniqueTrolleys.length || 1;
-                          markPralnia(stop, basketsCount);
-                        }}
-                        onUndo={() => undoPralnia(stop)}
-                        undoDisabled={deliveredDone || !pickedByMe}
-                        undoHint={deliveredDone ? 'Najpierw cofnij dostawę' : `Odbiór oznaczył: ${pickupOwner}`} />
+                      {(() => {
+                        const hasPhysicalTrolley = pickupEntries.some(e => e.laundry_trolley_no && e.laundry_trolley_no !== 'brak' && e.laundry_trolley_no !== '');
+                        const isPacked = pickupEntries.some(e => e.laundry_packed_at);
+                        const uniqueTrolleys = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))];
+                        const basketsCount = uniqueTrolleys.length || 1;
+
+                        return (
+                          <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
+                            sub={getStopPackInfo(stop)}
+                            actionDisabled={!isPacked}
+                            actionHint="Pranie nie zostało jeszcze spakowane na pralni"
+                            onUndo={() => undoPralnia(stop)}
+                            undoDisabled={deliveredDone || !pickedByMe}
+                            undoHint={deliveredDone ? 'Najpierw cofnij dostawę' : `Odbiór oznaczył: ${pickupOwner}`}>
+                            {hasPhysicalTrolley ? (
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <button className="driver-action-btn" onClick={() => markPralnia(stop, basketsCount, false)} disabled={busy || !isPacked} title={!isPacked ? 'Pranie nie zostało jeszcze spakowane' : undefined} style={{ padding: '8px 12px', fontSize: '12px' }}>
+                                  Zabieram z wózkiem
+                                </button>
+                                <button className="driver-action-btn" onClick={() => markPralnia(stop, basketsCount, true)} disabled={busy || !isPacked} title={!isPacked ? 'Pranie nie zostało jeszcze spakowane' : undefined} style={{ 
+                                  padding: '8px 12px', 
+                                  fontSize: '12px',
+                                  background: 'transparent', 
+                                  color: 'var(--driver-action-color)', 
+                                  border: '1px solid var(--driver-action-color)' 
+                                }}>
+                                  Wózek zostaje
+                                </button>
+                              </div>
+                            ) : (
+                              <button className="driver-action-btn" onClick={() => markPralnia(stop, 0, true)} disabled={busy || !isPacked} title={!isPacked ? 'Pranie nie zostało jeszcze spakowane' : undefined}>
+                                Odbierz z pralni
+                              </button>
+                            )}
+                          </ActionRow>
+                        );
+                      })()}
                       <ActionRow icon="📦" label="Dostarczono" tone="delivered" done={deliveredDone} at={pickupEntries[0]?.delivered_at} btnLabel="Dostarczono"
                         onClick={() => markDelivered(stop)} onUndo={() => undoDelivered(stop)}
                         undoDisabled={!deliveredByMe}

@@ -471,8 +471,9 @@ export default function WashView() {
       throw new Error('Nie wybrano wózków');
     }
     
-    // Validate all trolleys first
+    // Validate all trolleys first (skip for 'brak' which is a virtual non-trolley option)
     for (const trolleyNo of trolleyNos) {
+      if (trolleyNo === 'brak') continue;
       if (!trolleyNumbers.includes(trolleyNo)) {
         throw new Error(`Wózek ${trolleyNo} nie istnieje`);
       }
@@ -492,7 +493,11 @@ export default function WashView() {
         const kgValue = (i === trolleyNos.length - 1) ? lastKg : baseKg;
         await packLaundryTrolley(sessionToken, group.washedIds, trolleyNos[i], kgValue, user?.name);
       }
-      toastSuccess(`${group.clientName}: spakowano do ${trolleyNos.length} wózków`);
+      if (trolleyNos.includes('brak')) {
+        toastSuccess(`${group.clientName}: spakowano (bez wózka)`);
+      } else {
+        toastSuccess(`${group.clientName}: spakowano do ${trolleyNos.length} wózków`);
+      }
       await Promise.all([refetch(), fetchWorkflow()]);
       setPackingGroup(null);
     } catch (err) {

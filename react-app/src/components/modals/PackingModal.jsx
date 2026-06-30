@@ -67,19 +67,15 @@ export default function PackingModal({
   };
 
   const handleConfirmPack = async () => {
-    if (scannedTrolleys.length === 0) {
-      setError('Nie dodano żadnych wózków do spakowania.');
-      return;
-    }
-
     setError('');
     setIsPacking(true);
     try {
+      const trolleysToSend = scannedTrolleys.length > 0 ? scannedTrolleys : ['brak'];
       if (onPackMulti) {
-        await onPackMulti(group, scannedTrolleys);
+        await onPackMulti(group, trolleysToSend);
       } else {
         // Fallback for safety
-        await onPack(group, scannedTrolleys[0], group.remainingKg);
+        await onPack(group, trolleysToSend[0], group.remainingKg);
       }
       // onClose is not needed here as WashView handles closing on finish
     } catch (err) {
@@ -195,9 +191,9 @@ export default function PackingModal({
               className="ap-btn ap-btn-primary"
               style={{ width: '100%', padding: '15px', fontSize: '16px', marginTop: '10px' }}
               onClick={handleConfirmPack}
-              disabled={isPacking || scannedTrolleys.length === 0}
+              disabled={isPacking}
             >
-              {isPacking ? 'Pakowanie...' : `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków`}
+              {isPacking ? 'Pakowanie...' : scannedTrolleys.length > 0 ? `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków` : 'Zatwierdź i Spakuj (bez wózka)'}
             </button>
           </div>
         </div>
