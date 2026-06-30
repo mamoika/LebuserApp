@@ -21,6 +21,8 @@ import {
   returnLaundryTrolley,
   undoReturnLaundryTrolley,
   unmarkLaundryWashed,
+  deleteLaundryTrolley,
+  setTrolleyAtClient,
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
@@ -172,22 +174,19 @@ function stageConfig(stage) {
   return map[stage] || map.pending;
 }
 
-function trolleyCycleStatus(cycle, entryById) {
-  if (cycle.status === 'canceled') {
-    return { key: 'canceled', label: 'Cofnięto pakowanie', tone: 'canceled' };
-  }
-  if (cycle.returned_at || cycle.status === 'returned') {
-    return { key: 'returned', label: 'Wózek wrócił', tone: 'returned' };
-  }
+const getTrolleyStatus = (cycle, entryById) => {
+  if (cycle.status === 'canceled') return { key: 'canceled', label: 'COFNIĘTO PAKOWANIE', tone: 'neutral' };
+  if (cycle.returned_at) return { key: 'returned', label: 'WRÓCIŁ', tone: 'returned' };
+  if (cycle.status === 'at_client') return { key: 'at_client', label: 'Zostawiony w hotelu', tone: 'client' };
+  
   const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
-  if (linked.length > 0 && linked.every(e => e.delivered)) {
-    return { key: 'atClient', label: 'U klienta', tone: 'client' };
-  }
-  if (linked.some(e => e.done)) {
-    return { key: 'released', label: 'Wydany kierowcy', tone: 'released' };
-  }
-  return { key: 'packed', label: 'Spakowany', tone: 'packed' };
-}
+  const delivered = linked.some(e => e.delivered_at);
+  const picked = linked.some(e => e.picked_at);
+
+  if (delivered) return { key: 'delivered', label: 'Dostarczony', tone: 'delivered' };
+  if (picked) return { key: 'picked', label: 'W trasie', tone: 'picked' };
+  return { key: 'packed', label: 'Spakowany na pralni', tone: 'packed' };
+};
 
 function routeBadge(routeId, routeMap) {
   const route = routeMap.get(routeId);
@@ -227,6 +226,7 @@ export default function WashView() {
   const [workflowError, setWorkflowError] = useState('');
   const [busyKey, setBusyKey] = useState('');
   const [packingGroup, setPackingGroup] = useState(null);
+  const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
 
   const hasWashRole = isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker;
@@ -517,11 +517,41 @@ export default function WashView() {
     });
   };
 
-  const handleUndoReturnTrolley = (cycle) => {
-    runAction(`undo-return:${cycle.id}`, async () => {
-      await undoReturnLaundryTrolley(sessionToken, cycle.id, user?.name);
-      toastSuccess(`Cofnięto powrót wózka ${cycle.trolley_no}`);
-    });
+  const handleUndoReturnTrolley = async (cycle) => {
+    try {
+      setBusyKey(`undo-return:${cycle.id}`);
+      await undoReturnLaundryTrolley(sessionToken, cycle.id);
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } catch (e) {
+      alert(`Błąd: ${e.message}`);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleDeleteTrolley = async (cycle) => {
+    if (!window.confirm(`Czy na pewno chcesz bezpowrotnie USUNĄĆ cykl wózka ${cycle.trolley_no}? Tej operacji nie można cofnąć.`)) return;
+    try {
+      setBusyKey(`delete:${cycle.id}`);
+      await deleteLaundryTrolley(sessionToken, cycle.id);
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } catch (e) {
+      alert(`Błąd: ${e.message}`);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleSetAtClient = async (cycle) => {
+    try {
+      setBusyKey(`at-client:${cycle.id}`);
+      await setTrolleyAtClient(sessionToken, cycle.id);
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } catch (e) {
+      alert(`Błąd: ${e.message}`);
+    } finally {
+      setBusyKey(null);
+    }
   };
 
   const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
@@ -560,7 +590,9 @@ export default function WashView() {
         <Metric icon={WashingMachine} label="Do wyprania" value={`${metrics.pendingKg} kg`} tone="pending" />
         <Metric icon={CheckCircle2} label="Wyprane, do pakowania" value={`${metrics.washedKg} kg`} tone="washed" />
         <Metric icon={PackageCheck} label="Gotowe dla kierowcy" value={`${metrics.readyKg} kg`} tone="ready" />
-        <Metric icon={Archive} label={`Wózki zajęte / ${trolleyCount}`} value={`${metrics.activeTrolleys}/${trolleyCount}`} tone="trolley" />
+        <div onClick={() => setTrolleysModalOpen(true)} style={{ cursor: 'pointer' }}>
+          <Metric icon={Archive} label={`Wózki zajęte / ${trolleyCount}`} value={`${metrics.activeTrolleys}/${trolleyCount}`} tone="trolley" />
+        </div>
       </div>
 
       <section className="laundry-section">
@@ -696,15 +728,19 @@ export default function WashView() {
           )}
 
           {trolleys.map(cycle => {
-            const status = trolleyCycleStatus(cycle, entryById);
+            const status = getTrolleyStatus(cycle, entryById);
             const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
             const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
             const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
             const busyReturn = busyKey === `return:${cycle.id}`;
             const busyCancel = busyKey === `cancel:${cycle.id}`;
             const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
-            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key !== 'canceled';
+            const busyDelete = busyKey === `delete:${cycle.id}`;
+            const busyAtClient = busyKey === `at-client:${cycle.id}`;
+            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key !== 'canceled' && status.key !== 'at_client';
             const canUndoReturn = hasPackRole && status.key === 'returned';
+            const canDelete = isAdmin;
+            const canSetAtClient = hasPackRole && !cycle.returned_at && status.key !== 'canceled' && status.key !== 'at_client';
 
             return (
               <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
@@ -747,6 +783,17 @@ export default function WashView() {
                         {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
                       </button>
                     )}
+                    {canSetAtClient && (
+                      <button
+                        type="button"
+                        className="laundry-return-btn is-secondary"
+                        onClick={() => handleSetAtClient(cycle)}
+                        disabled={busyAtClient}
+                      >
+                        <Archive size={15} />
+                        {busyAtClient ? 'Zapis…' : 'Został u klienta'}
+                      </button>
+                    )}
                     {canUndoReturn && (
                       <button
                         type="button"
@@ -756,6 +803,17 @@ export default function WashView() {
                       >
                         <RotateCcw size={15} />
                         {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="laundry-return-btn is-danger"
+                        style={{ background: 'var(--red-900)' }}
+                        onClick={() => handleDeleteTrolley(cycle)}
+                        disabled={busyDelete}
+                      >
+                        {busyDelete ? 'Usuwam…' : 'Usuń wpis'}
                       </button>
                     )}
                   </div>
@@ -779,6 +837,15 @@ export default function WashView() {
           onPackMulti={handlePackMulti}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}
+        />
+      )}
+      
+      {trolleysModalOpen && (
+        <TrolleysDashboardModal
+          onClose={() => setTrolleysModalOpen(false)}
+          trolleyCount={trolleyCount}
+          activeTrolleyByNo={activeTrolleyByNo}
+          trolleys={trolleys}
         />
       )}
     </div>

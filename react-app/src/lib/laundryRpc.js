@@ -63,3 +63,17 @@ export function undoReturnLaundryTrolley(sessionToken, cycleId, by) {
     p_by: by || null,
   });
 }
+
+export function deleteLaundryTrolley(sessionToken, cycleId) {
+  return callLaundryRpc('admin_delete_laundry_trolley', {
+    p_session_token: sessionToken,
+    p_cycle_id: cycleId,
+  });
+}
+
+export function setTrolleyAtClient(sessionToken, cycleId) {
+  return callLaundryRpc('admin_set_trolley_at_client', {
+    p_session_token: sessionToken,
+    p_cycle_id: cycleId,
+  });
+}
