@@ -92,61 +92,69 @@ export default function PackingModal({
   if (!group) return null;
 
   return (
-    <div className="ap-overlay" onClick={onClose}>
-      <div className="ap-modal" onClick={e => e.stopPropagation()}>
-        <button type="button" className="ap-modal-close" onClick={onClose}><X size={20} /></button>
-        <h2>Pakowanie Wózków</h2>
-        <p className="ap-modal-sub">
-          <strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong>
-        </p>
-
-        {error && (
-          <div className="ap-error" style={{ marginBottom: 15, padding: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 4 }}>
-            {error}
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', margin: 'auto' }}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Pakowanie Wózków</div>
+            <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}><X size={20} /></button>
           </div>
-        )}
 
-        <div className="packing-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontWeight: 600, fontSize: '1rem' }}>Podaj wagę dla najbliższego wózka (kg)</span>
-            <input
-              id="packing-kg-input"
-              type="number"
-              min="0.1"
-              step="0.1"
-              max={group.remainingKg}
-              value={kg}
-              onChange={(e) => setKg(e.target.value)}
-              disabled={isPacking}
-              style={{
-                fontSize: '2rem',
-                padding: '10px 15px',
-                borderRadius: '8px',
-                border: '2px solid #cbd5e1',
-                textAlign: 'center',
-                width: '200px',
-                margin: '0 auto'
-              }}
-            />
-          </label>
+          <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
+            <strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong>
+          </p>
 
-          <div style={{
-            background: '#f8fafc',
-            border: '2px dashed #cbd5e1',
-            borderRadius: '12px',
-            padding: '30px',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <ScanBarcode size={48} color="#94a3b8" />
-            <h3 style={{ margin: 0, color: '#334155' }}>Zeskanuj kod wózka</h3>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
-              System automatycznie przypisze podaną wagę i wózek do tego klienta.
-            </p>
-            {isPacking && <span style={{ color: '#0ea5e9', fontWeight: 600 }}>Pakowanie...</span>}
+          {error && (
+            <div className="ap-error" style={{ marginBottom: 15, padding: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 4 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontWeight: 600, fontSize: '15px' }}>Podaj wagę dla najbliższego wózka (kg)</span>
+              <input
+                id="packing-kg-input"
+                type="number"
+                min="0.1"
+                step="0.1"
+                max={group.remainingKg}
+                value={kg}
+                onChange={(e) => setKg(e.target.value)}
+                disabled={isPacking}
+                style={{
+                  fontSize: '2rem',
+                  padding: '10px 15px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  width: '200px',
+                  margin: '0 auto',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+            </label>
+
+            <div style={{
+              background: 'var(--bg-secondary)',
+              border: '2px dashed var(--border)',
+              borderRadius: '12px',
+              padding: '30px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <ScanBarcode size={48} color="var(--text-tertiary)" />
+              <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '17px' }}>Zeskanuj kod wózka</h3>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
+                System automatycznie przypisze podaną wagę i wózek do tego klienta.
+              </p>
+              {isPacking && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Pakowanie...</span>}
+            </div>
           </div>
         </div>
       </div>
