@@ -289,6 +289,13 @@ export const AuthProvider = ({ children }) => {
   const isAdminViewer = role === 'admin_viewer' || role === 'admin_viewer_driver';
   const isDriver = role === 'driver' || role === 'admin_viewer_driver';
   const isViewer = role === 'viewer';
+  const isTunnel = role === 'tunnel';
+  const isPacker = role === 'packer';
+  
+  // Who can see the Laundry (Pralnia) tab:
+  const canViewLaundry = isAdmin || isAdminViewer || isDriver || isTunnel || isPacker;
+  
+  // General admin data view permission (used for other things)
   const canViewAdminData = isAdmin || isAdminViewer;
 
   return (
@@ -311,6 +318,9 @@ export const AuthProvider = ({ children }) => {
       isViewer,
       canViewAdminData,
       canEdit:  isAdmin || isDriver,
+      isTunnel,
+      isPacker,
+      canViewLaundry
     }}>
       {children}
     </AuthContext.Provider>

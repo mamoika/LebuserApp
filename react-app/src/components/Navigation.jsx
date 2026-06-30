@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
   const { t } = useTranslation();
-  const { isAdmin, canEdit, canViewAdminData } = useAuth();
+  const { isAdmin, canEdit, canViewAdminData, canViewLaundry } = useAuth();
 
   const navItems = [];
 
@@ -17,7 +17,7 @@ export default function Navigation() {
     { to: '/schedule', icon: '📅', label: t('nav.schedule') }
   );
 
-  if (canViewAdminData) {
+  if (canViewLaundry) {
     navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
   }
 

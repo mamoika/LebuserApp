@@ -218,7 +218,7 @@ function StagePill({ stage }) {
 }
 
 export default function WashView() {
-  const { sessionToken, user, isAdmin } = useAuth();
+  const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver } = useAuth();
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [trolleys, setTrolleys] = useState([]);
@@ -228,7 +228,9 @@ export default function WashView() {
   const [packingGroup, setPackingGroup] = useState(null);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
 
-  const canManageLaundry = isAdmin || user?.role === 'admin_viewer_driver';
+  const hasWashRole = isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker;
+  const hasPackRole = isAdmin || user?.role === 'admin_viewer_driver' || isPacker;
+  const isReadOnly = isDriver && !isAdmin && user?.role !== 'admin_viewer_driver';
 
   const fetchWorkflow = useCallback(async () => {
     if (!sessionToken) {
@@ -577,9 +579,9 @@ export default function WashView() {
 
           {laundryGroups.map(group => {
             const route = routeBadge(group.routeId, routeMap);
-            const canMarkWashed = canManageLaundry && group.pendingIds.length > 0;
-            const canUnmarkWashed = canManageLaundry && (group.cycles.length > 0 || group.entries.some(entry => entry.washed || isReadyForDriver(entry)));
-            const canPack = canManageLaundry && group.pendingIds.length === 0 && group.washedIds.length > 0 && group.remainingKg > 0;
+            const canMarkWashed = hasWashRole && group.pendingIds.length > 0;
+            const canUnmarkWashed = hasWashRole && (group.cycles.length > 0 || group.entries.some(entry => entry.washed || isReadyForDriver(entry)));
+            const canPack = hasPackRole && group.pendingIds.length === 0 && group.washedIds.length > 0 && group.remainingKg > 0;
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
@@ -601,6 +603,14 @@ export default function WashView() {
                     {group.packedAt && <span>spakowane {fmtTime(group.packedAt)}</span>}
                     {group.trolleyNo && <span>wózki {group.trolleyNo}</span>}
                   </div>
+                  
+                  {/* Progress bar */}
+                  <div className="laundry-progress-track">
+                    <div 
+                      className={`laundry-progress-fill ${group.packedKg + 0.05 >= group.kg ? 'is-complete' : ''}`} 
+                      style={{ width: `${Math.min(100, Math.max(0, (group.packedKg / (group.kg || 1)) * 100))}%` }}
+                    />
+                  </div>
                   {group.cycles.length > 0 && (
                     <div className="laundry-cycle-chips">
                       {group.cycles.map(cycle => {
@@ -609,7 +619,7 @@ export default function WashView() {
                           <span key={cycle.id} className="laundry-cycle-chip">
                             <strong>wózek {cycle.trolley_no}</strong>
                             <b>{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
-                            {canManageLaundry && (
+                            {hasPackRole && (
                               <button
                                 type="button"
                                 onClick={() => handleCancelTrolley(cycle)}
@@ -625,13 +635,14 @@ export default function WashView() {
                   )}
                 </div>
 
+                {!isReadOnly && (
                 <div className="laundry-work-actions">
                   <button
                     type="button"
                     className="laundry-action-btn"
                     onClick={() => handleMarkWashed(group)}
                     disabled={!canMarkWashed || busyWashed}
-                    title={!canManageLaundry ? 'Brak uprawnień do zapisu' : undefined}
+                    title={!hasWashRole ? 'Brak uprawnień do zapisu' : undefined}
                   >
                     <CheckCircle2 size={16} />
                     {busyWashed ? 'Zapis…' : 'Wyprane'}
@@ -642,23 +653,26 @@ export default function WashView() {
                     className="laundry-action-btn is-danger"
                     onClick={() => handleUnmarkWashed(group)}
                     disabled={!canUnmarkWashed || busyUnwashed}
-                    title={!canManageLaundry ? 'Brak uprawnień do zapisu' : 'Cofa wypranie i aktywne pakowania tego punktu'}
+                    title={!hasWashRole ? 'Brak uprawnień do zapisu' : 'Cofa wypranie i aktywne pakowania tego punktu'}
                   >
                     <RotateCcw size={16} />
                     {busyUnwashed ? 'Cofam…' : 'Cofnij wyprane'}
                   </button>
 
-                  <button
-                    type="button"
-                    className="laundry-action-btn is-primary"
-                    onClick={() => setPackingGroup(group)}
-                    disabled={!canPack}
-                    title={group.pendingIds.length > 0 ? 'Najpierw oznacz jako wyprane' : undefined}
-                  >
-                    <PackageCheck size={16} />
-                    Pakuj (Skaner)
-                  </button>
+                  {hasPackRole && (
+                    <button
+                      type="button"
+                      className="laundry-action-btn is-pack"
+                      onClick={() => setPackingGroup(group)}
+                      disabled={!canPack || busyPack}
+                      title={!hasPackRole ? 'Brak uprawnień do pakowania' : undefined}
+                    >
+                      <Package size={16} />
+                      Pakuj (Skaner)
+                    </button>
+                  )}
                 </div>
+              )}
               </article>
             );
           })}
@@ -688,8 +702,8 @@ export default function WashView() {
             const busyReturn = busyKey === `return:${cycle.id}`;
             const busyCancel = busyKey === `cancel:${cycle.id}`;
             const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
-            const canCancelCycle = canManageLaundry && !cycle.returned_at && status.key !== 'canceled';
-            const canUndoReturn = canManageLaundry && status.key === 'returned';
+            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key !== 'canceled';
+            const canUndoReturn = hasPackRole && status.key === 'returned';
 
             return (
               <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
@@ -708,7 +722,7 @@ export default function WashView() {
                   {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
                   {cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
                 </div>
-                {canManageLaundry && (
+                {hasPackRole && (
                   <div className="laundry-card-actions">
                     {canCancelCycle && (
                       <button

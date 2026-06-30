@@ -5356,9 +5356,16 @@ select.ap-input {
   align-items: center;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  border-radius: 16px;
+  background: rgba(var(--bg-card-rgb, 255, 255, 255), 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.laundry-work-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 .laundry-work-row.stage-ready {
   background: rgba(52,199,89,.08);
@@ -5723,4 +5730,23 @@ select.ap-input {
     margin-top: 16px; padding: 16px 16px 28px;
     border-top: 1px solid var(--border);
   }
+}
+
+/* Laundry Progress Bar */
+.laundry-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.laundry-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+.laundry-progress-fill.is-complete {
+  background: rgba(52,199,89, 1);
 }
