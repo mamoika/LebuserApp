@@ -16,6 +16,9 @@ import { getLaundryWorkflow, markLaundryWashed, packLaundryTrolley, returnLaundr
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 
+const TROLLEY_COUNT = 25;
+const TROLLEY_NUMBERS = Array.from({ length: TROLLEY_COUNT }, (_, index) => String(index + 1));
+
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -346,6 +349,16 @@ export default function WashView() {
     [trolleys]
   );
 
+  const activeTrolleyByNo = useMemo(() => {
+    const map = new Map();
+    activeTrolleys.forEach(cycle => {
+      map.set(String(cycle.trolley_no || '').trim().toLowerCase(), cycle);
+    });
+    return map;
+  }, [activeTrolleys]);
+
+  const freeTrolleyCount = Math.max(0, TROLLEY_COUNT - activeTrolleys.length);
+
   const metrics = useMemo(() => {
     const pendingKg = laundryGroups
       .filter(group => ['pending', 'partial'].includes(group.stage))
@@ -387,7 +400,16 @@ export default function WashView() {
   const handlePack = (group) => {
     const trolleyNo = (packDrafts[group.key] || group.trolleyNo || '').trim();
     if (!trolleyNo) {
-      toastError('Wpisz numer wózka');
+      toastError('Wybierz numer wózka');
+      return;
+    }
+    if (!TROLLEY_NUMBERS.includes(trolleyNo)) {
+      toastError(`Wybierz wózek od 1 do ${TROLLEY_COUNT}`);
+      return;
+    }
+    const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
+    if (activeCycle && activeCycle.client_name !== group.clientName) {
+      toastError(`Wózek ${trolleyNo} jest zajęty: ${activeCycle.client_name}`);
       return;
     }
     if (group.pendingIds.length > 0) {
@@ -446,7 +468,7 @@ export default function WashView() {
         <Metric icon={WashingMachine} label="Do wyprania" value={`${metrics.pendingKg} kg`} tone="pending" />
         <Metric icon={CheckCircle2} label="Wyprane, do pakowania" value={`${metrics.washedKg} kg`} tone="washed" />
         <Metric icon={PackageCheck} label="Gotowe dla kierowcy" value={`${metrics.readyKg} kg`} tone="ready" />
-        <Metric icon={Archive} label="Wózki poza obiegiem wolnym" value={metrics.activeTrolleys} tone="trolley" />
+        <Metric icon={Archive} label={`Wózki zajęte / ${TROLLEY_COUNT}`} value={`${metrics.activeTrolleys}/${TROLLEY_COUNT}`} tone="trolley" />
       </div>
 
       <section className="laundry-section">
@@ -501,12 +523,23 @@ export default function WashView() {
 
                   <label className="laundry-trolley-input">
                     <span>Nr wózka</span>
-                    <input
+                    <select
                       value={packDrafts[group.key] ?? group.trolleyNo ?? ''}
                       onChange={e => setPackDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
-                      placeholder="np. 12"
                       disabled={!canManageLaundry || group.stage === 'ready'}
-                    />
+                    >
+                      <option value="">Wybierz</option>
+                      {TROLLEY_NUMBERS.map(no => {
+                        const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
+                        const isOwnCycle = activeCycle && activeCycle.client_name === group.clientName;
+                        const disabled = Boolean(activeCycle && !isOwnCycle);
+                        return (
+                          <option key={no} value={no} disabled={disabled}>
+                            {no}{activeCycle ? ` · ${isOwnCycle ? 'ten klient' : `zajęty: ${activeCycle.client_name}`}` : ' · wolny'}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </label>
 
                   <button
@@ -530,7 +563,7 @@ export default function WashView() {
         <div className="laundry-section-head">
           <div>
             <h2>Harmonogram wózków</h2>
-            <span>Wózek jest zajęty, dopóki nie wróci do pralni</span>
+            <span>{freeTrolleyCount} wolne · {activeTrolleys.length} zajęte · razem {TROLLEY_COUNT}</span>
           </div>
         </div>
 
