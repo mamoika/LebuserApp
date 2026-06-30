@@ -464,6 +464,8 @@
     "roleAdminViewer": "Admin-Ansicht",
     "roleAdminViewerDriver": "Admin-Ansicht + Fahrer",
     "roleDriver": "Fahrer",
+    "roleTunnel": "Tunnelbetreiber",
+    "rolePacker": "Packer",
     "roleAdmin": "Administrator",
     "creating": "Wird erstellt…",
     "createUser": "Benutzer erstellen",

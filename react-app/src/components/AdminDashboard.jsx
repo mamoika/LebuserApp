@@ -29,6 +29,8 @@ const roleLabel = (t, role) => ({
   admin_viewer: t('admin.roleAdminViewer'),
   admin_viewer_driver: t('admin.roleAdminViewerDriver'),
   driver: t('admin.roleDriver'),
+  tunnel: t('admin.roleTunnel'),
+  packer: t('admin.rolePacker'),
   admin: t('admin.roleAdmin'),
 }[role] || role);
 
@@ -143,6 +145,8 @@ function AddUserModal({ onClose, onSave }) {
             <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
             <option value="admin_viewer_driver">{t('admin.roleAdminViewerDriver')}</option>
             <option value="driver">{t('admin.roleDriver')}</option>
+            <option value="tunnel">{t('admin.roleTunnel')}</option>
+            <option value="packer">{t('admin.rolePacker')}</option>
             <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
 
@@ -212,6 +216,8 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
             <option value="admin_viewer">{t('admin.roleAdminViewer')}</option>
             <option value="admin_viewer_driver">{t('admin.roleAdminViewerDriver')}</option>
             <option value="driver">{t('admin.roleDriver')}</option>
+            <option value="tunnel">{t('admin.roleTunnel')}</option>
+            <option value="packer">{t('admin.rolePacker')}</option>
             <option value="admin">{t('admin.roleAdmin')}</option>
           </select>
 

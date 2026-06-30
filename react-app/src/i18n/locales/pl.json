@@ -474,6 +474,8 @@
     "roleAdminViewer": "Admin do wglądu",
     "roleAdminViewerDriver": "Admin do wglądu + Kierowca",
     "roleDriver": "Kierowca",
+    "roleTunnel": "Operator tunelu",
+    "rolePacker": "Pakowacz",
     "roleAdmin": "Administrator",
     "creating": "Tworzenie…",
     "createUser": "Utwórz użytkownika",
