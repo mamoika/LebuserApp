@@ -1732,16 +1732,43 @@ export default function DriverRouteView({ manageMode = false }) {
 
     const trolleyNos = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))].join(', ');
 
-    if (!packedAt) return 'Nie spakowano jeszcze';
+    if (!packedAt) {
+      return {
+        text: 'Nie spakowano jeszcze',
+        isReady: false
+      };
+    }
     
-    return `Spakowano: ${fmtDateTime(packedAt)}${packedBy ? ` przez: ${packedBy}` : ''}${trolleyNos ? ` (wózek: ${trolleyNos})` : ''}`;
+    return {
+      text: `Spakowano: ${fmtDateTime(packedAt)}${packedBy ? ` przez: ${packedBy}` : ''}${trolleyNos ? ` (wózek: ${trolleyNos})` : ''}`,
+      isReady: true
+    };
   };
 
   const ActionRow = ({ icon, label, tone, done, at, extra, btnLabel, onClick, onUndo, undoDisabled, undoHint, actionDisabled, actionHint, quantityValue, onQuantityChange, sub }) => (
     <div className={`driver-action-row driver-action-${tone}`}>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <span className="driver-action-label">{icon} {label}</span>
-        {sub && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '22px', marginTop: '2px' }}>{sub}</span>}
+        {sub && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: sub.isReady ? '#1D4ED8' : '#B45309',
+            background: sub.isReady ? 'rgba(37, 99, 235, 0.05)' : 'rgba(255, 149, 0, 0.06)',
+            border: sub.isReady ? '1px solid rgba(37, 99, 235, 0.15)' : '1px solid rgba(255, 149, 0, 0.2)',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            marginLeft: '22px', 
+            marginTop: '5px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontWeight: 600,
+            width: 'fit-content'
+          }}>
+            <span>{sub.isReady ? '📦' : '⏳'}</span>
+            {sub.text}
+          </div>
+        )}
       </div>
       {done ? (
         <div className="driver-action-meta">
@@ -2052,7 +2079,27 @@ export default function DriverRouteView({ manageMode = false }) {
                         <span className="driver-action-label">🏭 Odbiór z pralni</span>
                         {(() => {
                           const info = getStopPackInfo(stop);
-                          return info ? <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '22px', marginTop: '2px' }}>{info}</span> : null;
+                          if (!info) return null;
+                          return (
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: info.isReady ? '#1D4ED8' : '#B45309',
+                              background: info.isReady ? 'rgba(37, 99, 235, 0.05)' : 'rgba(255, 149, 0, 0.06)',
+                              border: info.isReady ? '1px solid rgba(37, 99, 235, 0.15)' : '1px solid rgba(255, 149, 0, 0.2)',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              marginLeft: '22px', 
+                              marginTop: '5px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: 600,
+                              width: 'fit-content'
+                            }}>
+                              <span>{info.isReady ? '📦' : '⏳'}</span>
+                              {info.text}
+                            </div>
+                          );
                         })()}
                       </div>
                       {pralniaDone
@@ -2827,9 +2874,11 @@ export default function DriverRouteView({ manageMode = false }) {
                     <>
                       <ActionRow icon="🏭" label="Odbiór z pralni" tone="laundry" done={pralniaDone} at={pickupEntries[0]?.picked_at} extra={pralniaDone ? trolleyLabel(getPickedBaskets(stop)) : null} btnLabel="Odbierz z pralni"
                         sub={getStopPackInfo(stop)}
-                        quantityValue={draftVal(stop.key, 'pickedBaskets', 1)}
-                        onQuantityChange={value => setDraftVal(stop.key, 'pickedBaskets', value)}
-                        onClick={() => markPralnia(stop, draftVal(stop.key, 'pickedBaskets', 1))}
+                        onClick={() => {
+                          const uniqueTrolleys = [...new Set(pickupEntries.map(e => e.laundry_trolley_no).filter(Boolean))];
+                          const basketsCount = uniqueTrolleys.length || 1;
+                          markPralnia(stop, basketsCount);
+                        }}
                         onUndo={() => undoPralnia(stop)}
                         undoDisabled={deliveredDone || !pickedByMe}
                         undoHint={deliveredDone ? 'Najpierw cofnij dostawę' : `Odbiór oznaczył: ${pickupOwner}`} />
