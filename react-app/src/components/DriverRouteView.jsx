@@ -483,7 +483,11 @@ export default function DriverRouteView({ manageMode = false }) {
     const isPickedByMe = e.done && e.picked_by === user?.name && actionDateStr(e.picked_at) === contextDate;
     const isDeliveredByMe = e.delivered && e.delivered_by === user?.name && actionDateStr(e.delivered_at) === contextDate;
     const isPastBacklog = pDate < contextDate && !e.delivered;
-    const isFutureReady = pDate > contextDate && !e.delivered;
+    // Gotowe wcześniej na później (np. dziś jest środa, odbiór zaplanowany na piątek) nie
+    // ląduje automatycznie na dzisiejszej trasie tylko dlatego, że klient jest na Twojej
+    // trasie — to by pokazywało punkty, których jeszcze nie trzeba dziś obsługiwać.
+    // Pokazujemy je tylko, gdy kierowca sam dorzucił klienta (przycisk "dodaj z innego dnia").
+    const isFutureReady = pDate > contextDate && !e.delivered && extraSet.has(e.client_name);
 
     if (isToday || isPickedByMe || isDeliveredByMe || isPastBacklog || isFutureReady) {
       ensureStop(e).entries.push(e);
@@ -575,7 +579,9 @@ export default function DriverRouteView({ manageMode = false }) {
       const isPickedByMe = e.done && e.picked_by === sourceTrip.driver_name && actionDateStr(e.picked_at) === sourceTrip.trip_date;
       const isDeliveredByMe = e.delivered && e.delivered_by === sourceTrip.driver_name && actionDateStr(e.delivered_at) === sourceTrip.trip_date;
       const isPastBacklog = pDate < sourceTrip.trip_date && !e.delivered;
-      const isFutureReady = pDate > sourceTrip.trip_date && !e.delivered;
+      // Jak w głównym widoku: gotowe na później pokazujemy tu tylko, gdy klient został
+      // jawnie dorzucony do tej trasy — nie automatycznie przez samo przypisanie trasy.
+      const isFutureReady = pDate > sourceTrip.trip_date && !e.delivered && extrasSet.has(e.client_name);
 
       if (isToday || isPickedByMe || isDeliveredByMe || isPastBacklog || isFutureReady) {
         if (!tripIncludesCleanEntry(e)) return;
