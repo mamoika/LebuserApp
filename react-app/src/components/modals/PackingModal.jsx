@@ -15,6 +15,10 @@ export default function PackingModal({
   const [isPacking, setIsPacking] = useState(false);
   const [manualTrolley, setManualTrolley] = useState('');
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'no_trolley'
+  // Waga nie była znana przy przyjeździe — trzeba ją wpisać teraz, przy ważeniu na pralni,
+  // zamiast automatycznie dzielić już znane kg na wózki.
+  const needsManualKg = !group?.hasKnownWeight;
+  const [manualKg, setManualKg] = useState({}); // { [trolleyNo|'brak']: '12,5' }
 
   // Zaznacz całą zawartość pola input po otwarciu, żeby od razu móc wpisać nową wagę
 
@@ -69,19 +73,30 @@ export default function PackingModal({
 
   const handleConfirmPack = async () => {
     setError('');
+    const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
+    if (packMode === 'trolley' && trolleysToSend.length === 0) {
+      setError('Zeskanuj lub dodaj przynajmniej jeden wózek.');
+      return;
+    }
+    let kgByTrolley = null;
+    if (needsManualKg) {
+      kgByTrolley = {};
+      for (const no of trolleysToSend) {
+        const kg = parseFloat(String(manualKg[no] ?? '').replace(',', '.'));
+        if (!Number.isFinite(kg) || kg <= 0) {
+          setError(no === 'brak' ? 'Podaj wagę tego prania.' : `Podaj wagę dla wózka ${no}.`);
+          return;
+        }
+        kgByTrolley[no] = kg;
+      }
+    }
     setIsPacking(true);
     try {
-      const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
-      if (packMode === 'trolley' && trolleysToSend.length === 0) {
-        setError('Zeskanuj lub dodaj przynajmniej jeden wózek.');
-        setIsPacking(false);
-        return;
-      }
       if (onPackMulti) {
-        await onPackMulti(group, trolleysToSend);
+        await onPackMulti(group, trolleysToSend, kgByTrolley);
       } else {
         // Fallback for safety
-        await onPack(group, trolleysToSend[0], group.remainingKg);
+        await onPack(group, trolleysToSend[0], kgByTrolley ? kgByTrolley[trolleysToSend[0]] : group.remainingKg);
       }
       // onClose is not needed here as WashView handles closing on finish
     } catch (err) {
@@ -90,14 +105,18 @@ export default function PackingModal({
     }
   };
 
-  // Auto-close if all packed
+  // Auto-close, gdy nic już nie czeka na spakowanie (uniwersalne — działa też
+  // przy nieznanej wadze, gdzie remainingKg zawsze wynosi 0).
   useEffect(() => {
-    if (group?.remainingKg <= 0) {
+    if (group && group.washedIds?.length === 0) {
       onClose();
     }
-  }, [group?.remainingKg, onClose]);
+  }, [group, onClose]);
 
   if (!group) return null;
+
+  const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
+  const missingKg = needsManualKg && trolleysToSend.some(no => !(parseFloat(String(manualKg[no] ?? '').replace(',', '.')) > 0));
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
@@ -110,7 +129,9 @@ export default function PackingModal({
           </div>
 
           <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
-            <strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong>
+            {needsManualKg
+              ? <><strong>{group.clientName}</strong> · waga nieznana — zważ i wpisz kg przy pakowaniu</>
+              : <><strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong></>}
           </p>
 
           {error && (
@@ -209,13 +230,23 @@ export default function PackingModal({
                 {scannedTrolleys.length > 0 && (
                   <div style={{ padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                      Dodane wózki ({scannedTrolleys.length}):
+                      Dodane wózki ({scannedTrolleys.length}){needsManualKg ? ' — wpisz zważone kg' : ''}:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {scannedTrolleys.map(no => (
                         <div key={no} style={{ background: 'var(--bg-card-solid)', padding: '6px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 600, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {no}
-                          <button 
+                          {needsManualKg && (
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="kg"
+                              value={manualKg[no] ?? ''}
+                              onChange={e => setManualKg(prev => ({ ...prev, [no]: e.target.value }))}
+                              style={{ width: '52px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
+                            />
+                          )}
+                          <button
                             type="button"
                             style={{ background: 'transparent', border: 'none', padding: 0, margin: 0, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}
                             onClick={() => setScannedTrolleys(prev => prev.filter(t => t !== no))}
@@ -245,6 +276,17 @@ export default function PackingModal({
                 <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.4 }}>
                   Wybierz tę opcję, jeśli pakujesz pranie luzem (np. w worek lub luzem na auto). Wózki w systemie nie zostaną zajęte.
                 </p>
+                {needsManualKg && (
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="ile kg?"
+                    value={manualKg.brak ?? ''}
+                    onChange={e => setManualKg(prev => ({ ...prev, brak: e.target.value }))}
+                    className="ap-input"
+                    style={{ width: '120px', textAlign: 'center', fontWeight: 700 }}
+                  />
+                )}
               </div>
             )}
 
@@ -253,7 +295,7 @@ export default function PackingModal({
               className="ap-btn ap-btn-primary"
               style={{ width: '100%', padding: '15px', fontSize: '16px', marginTop: '10px' }}
               onClick={handleConfirmPack}
-              disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0)}
+              disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0) || missingKg}
             >
               {isPacking ? 'Pakowanie...' : packMode === 'trolley' ? `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków` : 'Zatwierdź i Spakuj (bez wózka)'}
             </button>

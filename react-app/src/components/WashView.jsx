@@ -457,7 +457,9 @@ export default function WashView() {
     if (!Number.isFinite(kgValue) || kgValue <= 0) {
       throw new Error('Podaj ile kg wkładasz do tego wózka');
     }
-    if (kgValue > group.remainingKg + 0.05) {
+    // Gdy waga nie była znana przy przyjeździe, dopiero teraz (ważenie na pralni)
+    // ustalamy realne kg — nie ma górnego limitu do porównania.
+    if (group.hasKnownWeight && kgValue > group.remainingKg + 0.05) {
       throw new Error(`Do spakowania zostało ${group.remainingKg} kg`);
     }
     if (!trolleyNumbers.includes(trolleyNo)) {
@@ -482,11 +484,11 @@ export default function WashView() {
     }
   };
 
-  const handlePackMulti = async (group, trolleyNos) => {
+  const handlePackMulti = async (group, trolleyNos, kgByTrolley) => {
     if (!trolleyNos || trolleyNos.length === 0) {
       throw new Error('Nie wybrano wózków');
     }
-    
+
     // Validate all trolleys first (skip for 'brak' which is a virtual non-trolley option)
     for (const trolleyNo of trolleyNos) {
       if (trolleyNo === 'brak') continue;
@@ -499,14 +501,26 @@ export default function WashView() {
       }
     }
 
-    const baseKg = Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10;
-    const totalBase = baseKg * (trolleyNos.length - 1);
-    const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
+    // Waga znana z przyjazdu → dzielimy ją automatycznie na wózki jak dotychczas.
+    // Waga nieznana → kgByTrolley to realne kg zważone teraz przy pakowaniu (z modala).
+    let kgFor;
+    if (group.hasKnownWeight) {
+      const baseKg = Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10;
+      const totalBase = baseKg * (trolleyNos.length - 1);
+      const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
+      kgFor = (i) => (i === trolleyNos.length - 1) ? lastKg : baseKg;
+    } else {
+      kgFor = (i) => {
+        const kg = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
+        if (!Number.isFinite(kg) || kg <= 0) throw new Error(`Podaj wagę dla wózka ${trolleyNos[i]}`);
+        return kg;
+      };
+    }
 
     try {
       setBusyKey(`pack:${group.key}`);
       for (let i = 0; i < trolleyNos.length; i++) {
-        const kgValue = (i === trolleyNos.length - 1) ? lastKg : baseKg;
+        const kgValue = kgFor(i);
         await packLaundryTrolley(sessionToken, group.washedIds, trolleyNos[i], kgValue, user?.name);
       }
       if (trolleyNos.includes('brak')) {
@@ -636,7 +650,8 @@ export default function WashView() {
             const route = routeBadge(group.routeId, routeMap);
             const canMarkWashed = hasWashRole && group.pendingIds.length > 0;
             const canUnmarkWashed = hasWashRole && (group.cycles.length > 0 || group.entries.some(entry => entry.washed || isReadyForDriver(entry)));
-            const canPack = hasPackRole && group.pendingIds.length === 0 && group.washedIds.length > 0 && group.remainingKg > 0;
+            const canPack = hasPackRole && group.pendingIds.length === 0 && group.washedIds.length > 0
+              && (group.hasKnownWeight ? group.remainingKg > 0 : true);
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
