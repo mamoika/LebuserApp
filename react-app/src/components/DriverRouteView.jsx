@@ -34,6 +34,11 @@ function arrivalDateStr(e) {
   dt.setDate(dt.getDate() + ((e.arr_day || 1) - 1));
   return ymd(dt);
 }
+// Data faktycznego wykonania akcji (odbiór/dostawa), a nie zaplanowany dzień z grafiku —
+// używana, by zaległość odebrana/dostarczona w danym dniu nie wracała na listę tras z innych dni.
+function actionDateStr(iso) {
+  return iso ? ymd(new Date(iso)) : null;
+}
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
@@ -472,8 +477,11 @@ export default function DriverRouteView({ manageMode = false }) {
   entries.filter(includeCleanEntryForCurrentTrip).forEach(e => {
     const pDate = pickupDateStr(e);
     const isToday = pDate === contextDate;
-    const isPickedByMe = e.done && e.picked_by === user?.name;
-    const isDeliveredByMe = e.delivered && e.delivered_by === user?.name;
+    // Zaległość obsłużona w ramach TEJ trasy (odebrana/dostarczona faktycznie dziś) —
+    // nie każda kiedykolwiek odebrana/dostarczona przez tego kierowcę (inaczej stare,
+    // dawno zamknięte wpisy wracają na listę "Przystanki dziś" w kolejnych trasach).
+    const isPickedByMe = e.done && e.picked_by === user?.name && actionDateStr(e.picked_at) === contextDate;
+    const isDeliveredByMe = e.delivered && e.delivered_by === user?.name && actionDateStr(e.delivered_at) === contextDate;
     const isPastBacklog = pDate < contextDate && !e.delivered;
     const isFutureReady = pDate > contextDate && !e.delivered;
 
@@ -564,8 +572,8 @@ export default function DriverRouteView({ manageMode = false }) {
     entries.forEach(e => {
       const pDate = pickupDateStr(e);
       const isToday = pDate === sourceTrip.trip_date;
-      const isPickedByMe = e.done && e.picked_by === sourceTrip.driver_name;
-      const isDeliveredByMe = e.delivered && e.delivered_by === sourceTrip.driver_name;
+      const isPickedByMe = e.done && e.picked_by === sourceTrip.driver_name && actionDateStr(e.picked_at) === sourceTrip.trip_date;
+      const isDeliveredByMe = e.delivered && e.delivered_by === sourceTrip.driver_name && actionDateStr(e.delivered_at) === sourceTrip.trip_date;
       const isPastBacklog = pDate < sourceTrip.trip_date && !e.delivered;
       const isFutureReady = pDate > sourceTrip.trip_date && !e.delivered;
 
