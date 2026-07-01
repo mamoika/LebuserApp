@@ -40,6 +40,17 @@ export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by) {
   });
 }
 
+// Poprawia kg na już spakowanym wózku/cyklu — gdy waga nie była znana przy pakowaniu
+// (np. kierowca zgłosił ją dopiero po dostawie).
+export function updateLaundryTrolleyKg(sessionToken, cycleId, kg, by) {
+  return callLaundryRpc('admin_update_laundry_trolley_kg', {
+    p_session_token: sessionToken,
+    p_cycle_id: cycleId,
+    p_kg: kg,
+    p_by: by || null,
+  });
+}
+
 export function returnLaundryTrolley(sessionToken, cycleId, by) {
   return callLaundryRpc('admin_return_laundry_trolley', {
     p_session_token: sessionToken,

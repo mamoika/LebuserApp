@@ -24,6 +24,7 @@ import {
   unmarkLaundryWashed,
   deleteLaundryTrolley,
   setTrolleyAtClient,
+  updateLaundryTrolleyKg,
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
@@ -236,6 +237,7 @@ export default function WashView() {
   const [packingGroup, setPackingGroup] = useState(null);
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
+  const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
 
   const hasWashRole = isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker;
   const hasPackRole = isAdmin || user?.role === 'admin_viewer_driver' || isPacker;
@@ -454,12 +456,13 @@ export default function WashView() {
     if (!trolleyNo) {
       throw new Error('Wybierz numer wózka');
     }
-    if (!Number.isFinite(kgValue) || kgValue <= 0) {
+    // Waga nieznana z przyjazdu → kg jest opcjonalne teraz, można uzupełnić później
+    // (np. gdy kierowca zgłosi wagę po dostawie) przez edycję wpisu wózka.
+    const kg = Number.isFinite(kgValue) ? kgValue : 0;
+    if (group.hasKnownWeight && kg <= 0) {
       throw new Error('Podaj ile kg wkładasz do tego wózka');
     }
-    // Gdy waga nie była znana przy przyjeździe, dopiero teraz (ważenie na pralni)
-    // ustalamy realne kg — nie ma górnego limitu do porównania.
-    if (group.hasKnownWeight && kgValue > group.remainingKg + 0.05) {
+    if (group.hasKnownWeight && kg > group.remainingKg + 0.05) {
       throw new Error(`Do spakowania zostało ${group.remainingKg} kg`);
     }
     if (!trolleyNumbers.includes(trolleyNo)) {
@@ -476,8 +479,8 @@ export default function WashView() {
 
     setBusyKey(`pack:${group.key}`);
     try {
-      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, kgValue, user?.name);
-      toastSuccess(`${group.clientName}: ${kgValue} kg do wózka ${trolleyNo}`);
+      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, kg, user?.name);
+      toastSuccess(`${group.clientName}: ${kg > 0 ? `${kg} kg` : 'spakowano'} do wózka ${trolleyNo}`);
       await Promise.all([refetch(), fetchWorkflow()]);
     } finally {
       setBusyKey('');
@@ -510,10 +513,10 @@ export default function WashView() {
       const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
       kgFor = (i) => (i === trolleyNos.length - 1) ? lastKg : baseKg;
     } else {
+      // Kg opcjonalne przy nieznanej wadze — puste pole = 0, do uzupełnienia później.
       kgFor = (i) => {
         const kg = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
-        if (!Number.isFinite(kg) || kg <= 0) throw new Error(`Podaj wagę dla wózka ${trolleyNos[i]}`);
-        return kg;
+        return Number.isFinite(kg) && kg > 0 ? kg : 0;
       };
     }
 
@@ -563,6 +566,33 @@ export default function WashView() {
     } finally {
       setBusyKey(null);
     }
+  };
+
+  // "Bez wózka" (brak) jest od razu oznaczane jako "wróciło" — bo nie zajmuje realnego
+  // wózka w pralni — więc dla klienta nie ma tu sensownego "powrotu" do cofnięcia
+  // osobno. Jeden przycisk robi oba kroki wymagane przez backend (cofnij powrót, potem
+  // anuluj pakowanie), żeby cały cykl dało się cofnąć jednym kliknięciem.
+  const handleUndoPackNoTrolley = (cycle) => {
+    runAction(`cancel:${cycle.id}`, async () => {
+      await undoReturnLaundryTrolley(sessionToken, cycle.id, user?.name);
+      await cancelLaundryTrolley(sessionToken, cycle.id, user?.name);
+      toastSuccess(`Cofnięto pakowanie: ${cycle.client_name}`);
+    });
+  };
+
+  // Uzupełnienie kg poznanego po fakcie (np. kierowca zgłosił wagę po dostawie),
+  // gdy pakowanie odbyło się bez znanej wagi.
+  const handleSaveTrolleyKg = (cycle) => {
+    const kg = parseFloat(String(kgEdit[cycle.id] ?? '').replace(',', '.'));
+    if (!Number.isFinite(kg) || kg <= 0) {
+      toastError('Podaj poprawną wagę');
+      return;
+    }
+    runAction(`kg:${cycle.id}`, async () => {
+      await updateLaundryTrolleyKg(sessionToken, cycle.id, kg, user?.name);
+      setKgEdit(prev => { const next = { ...prev }; delete next[cycle.id]; return next; });
+      toastSuccess(`${cycle.client_name}: zapisano ${kg} kg`);
+    });
   };
 
   const handleDeleteTrolley = async (cycle) => {
@@ -774,6 +804,10 @@ export default function WashView() {
             const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
             const busyDelete = busyKey === `delete:${cycle.id}`;
             const busyAtClient = busyKey === `at-client:${cycle.id}`;
+            const busyKg = busyKey === `kg:${cycle.id}`;
+            const isNoTrolley = cycle.trolley_no === 'brak';
+            const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
+            const isEditingKg = cycle.id in kgEdit;
             const canCancelCycle = hasPackRole && !cycle.returned_at && status.key !== 'canceled' && status.key !== 'at_client';
             const canUndoReturn = hasPackRole && status.key === 'returned';
             const canDelete = isAdmin;
@@ -790,7 +824,35 @@ export default function WashView() {
                 </div>
                 <div className="laundry-trolley-client">{cycle.client_name}</div>
                 <div className="laundry-trolley-grid">
-                  <span>kg</span><strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
+                  <span>kg</span>
+                  {kgUnknown && hasPackRole ? (
+                    isEditingKg ? (
+                      <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          autoFocus
+                          placeholder="kg"
+                          value={kgEdit[cycle.id]}
+                          onChange={e => setKgEdit(prev => ({ ...prev, [cycle.id]: e.target.value }))}
+                          style={{ width: '60px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
+                        />
+                        <button type="button" onClick={() => handleSaveTrolleyKg(cycle)} disabled={busyKg} style={{ fontSize: '12px', fontWeight: 700 }}>
+                          {busyKg ? 'Zapis…' : 'Zapisz'}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setKgEdit(prev => ({ ...prev, [cycle.id]: '' }))}
+                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-tertiary)', fontStyle: 'italic', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        waga nieznana — wpisz kg
+                      </button>
+                    )
+                  ) : (
+                    <strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
+                  )}
                   <span>spakowano</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
                   {driver && <><span>kierowca</span><strong>{driver}</strong></>}
                   {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
@@ -798,49 +860,68 @@ export default function WashView() {
                 </div>
                 {hasPackRole && (
                   <div className="laundry-card-actions">
-                    {canCancelCycle && (
-                      <button
-                        type="button"
-                        className="laundry-return-btn is-danger"
-                        onClick={() => handleCancelTrolley(cycle)}
-                        disabled={busyCancel}
-                      >
-                        <RotateCcw size={15} />
-                        {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
-                      </button>
-                    )}
-                    {!cycle.returned_at && status.key !== 'canceled' && (
-                      <button
-                        type="button"
-                        className="laundry-return-btn"
-                        onClick={() => handleReturnTrolley(cycle)}
-                        disabled={busyReturn}
-                      >
-                        <RotateCcw size={15} />
-                        {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
-                      </button>
-                    )}
-                    {canSetAtClient && (
-                      <button
-                        type="button"
-                        className="laundry-return-btn is-secondary"
-                        onClick={() => handleSetAtClient(cycle)}
-                        disabled={busyAtClient}
-                      >
-                        <Archive size={15} />
-                        {busyAtClient ? 'Zapis…' : 'Został u klienta'}
-                      </button>
-                    )}
-                    {canUndoReturn && (
-                      <button
-                        type="button"
-                        className="laundry-return-btn is-secondary"
-                        onClick={() => handleUndoReturnTrolley(cycle)}
-                        disabled={busyUndoReturn}
-                      >
-                        <RotateCcw size={15} />
-                        {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
-                      </button>
+                    {isNoTrolley ? (
+                      // "Bez wózka" nie jest realnym wózkiem, więc nie ma tu nic do "zwrócenia" —
+                      // jeden przycisk cofa cały pakiet (backend wymaga cofnięcia powrotu przed
+                      // anulowaniem pakowania, robimy to za jednym kliknięciem).
+                      status.key !== 'canceled' && (
+                        <button
+                          type="button"
+                          className="laundry-return-btn is-danger"
+                          onClick={() => handleUndoPackNoTrolley(cycle)}
+                          disabled={busyCancel}
+                        >
+                          <RotateCcw size={15} />
+                          {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
+                        </button>
+                      )
+                    ) : (
+                      <>
+                        {canCancelCycle && (
+                          <button
+                            type="button"
+                            className="laundry-return-btn is-danger"
+                            onClick={() => handleCancelTrolley(cycle)}
+                            disabled={busyCancel}
+                          >
+                            <RotateCcw size={15} />
+                            {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
+                          </button>
+                        )}
+                        {!cycle.returned_at && status.key !== 'canceled' && (
+                          <button
+                            type="button"
+                            className="laundry-return-btn"
+                            onClick={() => handleReturnTrolley(cycle)}
+                            disabled={busyReturn}
+                          >
+                            <RotateCcw size={15} />
+                            {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
+                          </button>
+                        )}
+                        {canSetAtClient && (
+                          <button
+                            type="button"
+                            className="laundry-return-btn is-secondary"
+                            onClick={() => handleSetAtClient(cycle)}
+                            disabled={busyAtClient}
+                          >
+                            <Archive size={15} />
+                            {busyAtClient ? 'Zapis…' : 'Został u klienta'}
+                          </button>
+                        )}
+                        {canUndoReturn && (
+                          <button
+                            type="button"
+                            className="laundry-return-btn is-secondary"
+                            onClick={() => handleUndoReturnTrolley(cycle)}
+                            disabled={busyUndoReturn}
+                          >
+                            <RotateCcw size={15} />
+                            {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
+                          </button>
+                        )}
+                      </>
                     )}
                     {canDelete && (
                       <button

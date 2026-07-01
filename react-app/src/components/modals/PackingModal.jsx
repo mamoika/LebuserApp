@@ -78,18 +78,11 @@ export default function PackingModal({
       setError('Zeskanuj lub dodaj przynajmniej jeden wózek.');
       return;
     }
-    let kgByTrolley = null;
-    if (needsManualKg) {
-      kgByTrolley = {};
-      for (const no of trolleysToSend) {
-        const kg = parseFloat(String(manualKg[no] ?? '').replace(',', '.'));
-        if (!Number.isFinite(kg) || kg <= 0) {
-          setError(no === 'brak' ? 'Podaj wagę tego prania.' : `Podaj wagę dla wózka ${no}.`);
-          return;
-        }
-        kgByTrolley[no] = kg;
-      }
-    }
+    // Waga jest opcjonalna, gdy nie była znana przy przyjeździe — czasem dowiadujemy się
+    // jej dopiero po fakcie (np. od kierowcy), więc puste pole nie blokuje pakowania.
+    const kgByTrolley = needsManualKg
+      ? Object.fromEntries(trolleysToSend.map(no => [no, parseFloat(String(manualKg[no] ?? '').replace(',', '.')) || 0]))
+      : null;
     setIsPacking(true);
     try {
       if (onPackMulti) {
@@ -115,9 +108,6 @@ export default function PackingModal({
 
   if (!group) return null;
 
-  const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
-  const missingKg = needsManualKg && trolleysToSend.some(no => !(parseFloat(String(manualKg[no] ?? '').replace(',', '.')) > 0));
-
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', margin: 'auto' }}>
@@ -130,7 +120,7 @@ export default function PackingModal({
 
           <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
             {needsManualKg
-              ? <><strong>{group.clientName}</strong> · waga nieznana — zważ i wpisz kg przy pakowaniu</>
+              ? <><strong>{group.clientName}</strong> · waga nieznana — wpisz kg jeśli już wiadomo, albo spakuj i uzupełnij później</>
               : <><strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong></>}
           </p>
 
@@ -230,7 +220,7 @@ export default function PackingModal({
                 {scannedTrolleys.length > 0 && (
                   <div style={{ padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                      Dodane wózki ({scannedTrolleys.length}){needsManualKg ? ' — wpisz zważone kg' : ''}:
+                      Dodane wózki ({scannedTrolleys.length}){needsManualKg ? ' — kg opcjonalnie' : ''}:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {scannedTrolleys.map(no => (
@@ -280,11 +270,11 @@ export default function PackingModal({
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="ile kg?"
+                    placeholder="kg (opcjonalnie)"
                     value={manualKg.brak ?? ''}
                     onChange={e => setManualKg(prev => ({ ...prev, brak: e.target.value }))}
                     className="ap-input"
-                    style={{ width: '120px', textAlign: 'center', fontWeight: 700 }}
+                    style={{ width: '140px', textAlign: 'center', fontWeight: 700 }}
                   />
                 )}
               </div>
@@ -295,7 +285,7 @@ export default function PackingModal({
               className="ap-btn ap-btn-primary"
               style={{ width: '100%', padding: '15px', fontSize: '16px', marginTop: '10px' }}
               onClick={handleConfirmPack}
-              disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0) || missingKg}
+              disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0)}
             >
               {isPacking ? 'Pakowanie...' : packMode === 'trolley' ? `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków` : 'Zatwierdź i Spakuj (bez wózka)'}
             </button>
