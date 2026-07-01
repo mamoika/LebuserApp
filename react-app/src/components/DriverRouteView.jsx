@@ -129,6 +129,18 @@ function trolleyLabel(count) {
 
 const UrgentBadge = () => <span className="driver-urgent-badge">Pilne</span>;
 
+// Plakietka statusu spakowania na przystanku (spakowano / czeka). Jedna definicja
+// dla wiersza akcji kierowcy i widoku admina — spójny wygląd, kolory z tokenów CSS.
+function PackInfoBadge({ info }) {
+  if (!info) return null;
+  return (
+    <div className={`driver-pack-badge ${info.isReady ? 'is-ready' : 'is-waiting'}`}>
+      <span>{info.isReady ? '📦' : '⏳'}</span>
+      {info.text}
+    </div>
+  );
+}
+
 function formatKg(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';
@@ -1757,26 +1769,7 @@ export default function DriverRouteView({ manageMode = false }) {
     <div className={`driver-action-row driver-action-${tone}`}>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <span className="driver-action-label" style={{ flex: 'none' }}>{icon} {label}</span>
-        {sub && (
-          <div style={{ 
-            fontSize: '11px', 
-            color: sub.isReady ? '#1D4ED8' : '#B45309',
-            background: sub.isReady ? 'rgba(37, 99, 235, 0.05)' : 'rgba(255, 149, 0, 0.06)',
-            border: sub.isReady ? '1px solid rgba(37, 99, 235, 0.15)' : '1px solid rgba(255, 149, 0, 0.2)',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            marginLeft: '22px', 
-            marginTop: '5px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontWeight: 600,
-            width: 'fit-content'
-          }}>
-            <span>{sub.isReady ? '📦' : '⏳'}</span>
-            {sub.text}
-          </div>
-        )}
+        <PackInfoBadge info={sub} />
       </div>
       {done ? (
         <div className="driver-action-meta">
@@ -2034,7 +2027,7 @@ export default function DriverRouteView({ manageMode = false }) {
               cursor: 'pointer',
               border: '1px dashed rgba(255,149,0,0.45)',
               background: 'rgba(255,149,0,0.12)',
-              color: '#B45309',
+              color: 'var(--accent-orange-text)',
               fontWeight: 700,
               fontSize: '13px',
               marginTop: '10px',
@@ -2089,30 +2082,7 @@ export default function DriverRouteView({ manageMode = false }) {
                     <div className="driver-action-row driver-action-laundry">
                       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                         <span className="driver-action-label" style={{ flex: 'none' }}>🏭 Odbiór z pralni</span>
-                        {(() => {
-                          const info = getStopPackInfo(stop);
-                          if (!info) return null;
-                          return (
-                            <div style={{ 
-                              fontSize: '11px', 
-                              color: info.isReady ? '#1D4ED8' : '#B45309',
-                              background: info.isReady ? 'rgba(37, 99, 235, 0.05)' : 'rgba(255, 149, 0, 0.06)',
-                              border: info.isReady ? '1px solid rgba(37, 99, 235, 0.15)' : '1px solid rgba(255, 149, 0, 0.2)',
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              marginLeft: '22px', 
-                              marginTop: '5px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontWeight: 600,
-                              width: 'fit-content'
-                            }}>
-                              <span>{info.isReady ? '📦' : '⏳'}</span>
-                              {info.text}
-                            </div>
-                          );
-                        })()}
+                        <PackInfoBadge info={getStopPackInfo(stop)} />
                       </div>
                       {pralniaDone
                         ? <span className="driver-action-meta"><span className="driver-action-time">✓ {fmtTime(pickupEntries[0]?.picked_at)}</span><span className="driver-action-extra">{trolleyLabel(getPickedBaskets(stop))}</span>{canAct && !deliveredDone && aBtn('Cofnij', () => adminUndoPralnia(stop), 'undo')}</span>
@@ -2649,7 +2619,7 @@ export default function DriverRouteView({ manageMode = false }) {
 
           {handoverPool.length > 0 && (
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '12px', color: '#B45309', marginBottom: '8px', fontWeight: 700 }}>🔁 Trasy do przejęcia ({handoverPool.length})</div>
+              <div style={{ fontSize: '12px', color: 'var(--accent-orange-text)', marginBottom: '8px', fontWeight: 700 }}>🔁 Trasy do przejęcia ({handoverPool.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {handoverPool.map(pt => (
                   <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '12px', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.28)' }}>
@@ -3034,7 +3004,7 @@ export default function DriverRouteView({ manageMode = false }) {
               <button onClick={() => setAddEntryFor('')} style={{
                 width: '100%', padding: '14px', borderRadius: '12px', cursor: 'pointer',
                 border: '1px solid rgba(255,149,0,0.45)', background: 'rgba(255,149,0,0.12)',
-                color: '#B45309', fontWeight: 700, fontSize: '15px',
+                color: 'var(--accent-orange-text)', fontWeight: 700, fontSize: '15px',
               }}>🧺 Dodaj brudne pranie do pralni</button>
 
               {/* ZAKOŃCZ TRASĘ (czerwony) — drugi przycisk na dole */}
@@ -3106,7 +3076,7 @@ export default function DriverRouteView({ manageMode = false }) {
               {pickedNotDeliveredStops.length > 0 && (
                 <div style={{
                   fontSize: '12px',
-                  color: '#B45309',
+                  color: 'var(--accent-orange-text)',
                   background: 'rgba(255,149,0,0.12)',
                   border: '1px solid rgba(255,149,0,0.28)',
                   borderRadius: '10px',
@@ -3159,7 +3129,7 @@ export default function DriverRouteView({ manageMode = false }) {
               {tripHasProgress ? (
                 <>
                   {pickedNotDeliveredStops.length > 0 && (
-                    <div style={{ fontSize: '12px', color: '#B45309', background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.28)', borderRadius: '10px', padding: '9px 11px', marginBottom: '14px', fontWeight: 650, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '12px', color: 'var(--accent-orange-text)', background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.28)', borderRadius: '10px', padding: '9px 11px', marginBottom: '14px', fontWeight: 650, lineHeight: 1.4 }}>
                       Masz pranie odebrane z pralni: {pickedNotDeliveredNames.join(', ')}. Dostarcz je albo cofnij odbiór przed zmianą auta.
                     </div>
                   )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PackageCheck, X, ScanBarcode } from 'lucide-react';
+import { PackageCheck, X, ScanBarcode, ShoppingCart, Package } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 export default function PackingModal({
@@ -114,40 +114,42 @@ export default function PackingModal({
           </p>
 
           {error && (
-            <div className="ap-error" style={{ marginBottom: 15, padding: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 4 }}>
+            <div className="ap-error" style={{ marginBottom: 15, padding: 10, background: 'var(--accent-red-light)', color: 'var(--accent-red)', borderRadius: 4 }}>
               {error}
             </div>
           )}
 
           {/* Segmented Control / Tab Picker */}
           <div style={{ display: 'flex', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: '8px', marginBottom: '16px' }}>
-            <button 
+            <button
               type="button"
               onClick={() => setPackMode('trolley')}
               style={{
                 flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 fontWeight: 600, fontSize: '13px',
-                background: packMode === 'trolley' ? 'var(--bg-primary)' : 'transparent',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                background: packMode === 'trolley' ? 'var(--bg-card-solid)' : 'transparent',
                 color: packMode === 'trolley' ? 'var(--text-primary)' : 'var(--text-secondary)',
                 boxShadow: packMode === 'trolley' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              📥 Do wózków
+              <ShoppingCart size={15} /> Do wózków
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => setPackMode('no_trolley')}
               style={{
                 flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 fontWeight: 600, fontSize: '13px',
-                background: packMode === 'no_trolley' ? 'var(--bg-primary)' : 'transparent',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                background: packMode === 'no_trolley' ? 'var(--bg-card-solid)' : 'transparent',
                 color: packMode === 'no_trolley' ? 'var(--text-primary)' : 'var(--text-secondary)',
                 boxShadow: packMode === 'no_trolley' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              📦 Bez wózka (luzem)
+              <Package size={15} /> Bez wózka (luzem)
             </button>
           </div>
 
@@ -211,7 +213,7 @@ export default function PackingModal({
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {scannedTrolleys.map(no => (
-                        <div key={no} style={{ background: 'var(--bg-primary)', padding: '6px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 600, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div key={no} style={{ background: 'var(--bg-card-solid)', padding: '6px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 600, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {no}
                           <button 
                             type="button"
@@ -229,9 +231,9 @@ export default function PackingModal({
             ) : (
               <div style={{
                 padding: '24px 20px',
-                background: 'rgba(0,122,255,0.05)',
+                background: 'var(--accent-light)',
                 borderRadius: '12px',
-                border: '1px solid rgba(0,122,255,0.15)',
+                border: '1px solid var(--accent-border)',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',

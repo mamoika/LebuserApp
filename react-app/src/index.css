@@ -24,6 +24,9 @@
   --accent-purple-light: rgba(175, 82, 222, 0.1);
   --accent-teal: #32ADE6;
   --accent-indigo: #5856D6;
+  --accent-border: rgba(0, 122, 255, 0.22);
+  --accent-orange-text: #B45309;
+  --accent-orange-border: rgba(255, 149, 0, 0.28);
   --radius-sm: 8px;
   --radius-md: 11px;
   --radius-lg: 14px;
@@ -1091,6 +1094,29 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   border-radius: 7px;
   padding: 3px 8px;
   font-weight: 700;
+}
+/* Plakietka statusu spakowania na przystanku kierowcy (spakowano / czeka). */
+.driver-pack-badge {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-left: 22px;
+  margin-top: 5px;
+}
+.driver-pack-badge.is-ready {
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--accent-border);
+}
+.driver-pack-badge.is-waiting {
+  color: var(--accent-orange-text);
+  background: var(--accent-orange-light);
+  border: 1px solid var(--accent-orange-border);
 }
 .driver-urgent-badge {
   flex-shrink: 0;

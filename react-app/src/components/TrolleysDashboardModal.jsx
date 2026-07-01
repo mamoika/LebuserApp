@@ -116,7 +116,7 @@ export default function TrolleysDashboardModal({
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>W użyciu: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{inUseCount}</strong></span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-orange, #FF9500)' }}></span>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-orange)' }}></span>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Zostawione: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{atClientCount}</strong></span>
             </div>
           </div>
@@ -146,8 +146,8 @@ export default function TrolleysDashboardModal({
                   daysAtClient = getDaysAtClient(active);
                   bgColor = 'rgba(255, 149, 0, 0.04)';
                   borderColor = 'rgba(255, 149, 0, 0.18)';
-                  accentColor = 'var(--accent-orange, #FF9500)';
-                  textColor = '#B45309';
+                  accentColor = 'var(--accent-orange)';
+                  textColor = 'var(--accent-orange-text)';
                 } else if (active.entry_ids?.length > 0) {
                   statusLabel = 'W użyciu';
                   Icon = Truck;
