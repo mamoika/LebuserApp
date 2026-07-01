@@ -147,10 +147,6 @@ function washSlotOf(entry, scheduleByRoute) {
   return `${washWeek}|${washDay}`;
 }
 
-function hasPositiveWeight(entry) {
-  return (parseFloat(entry?.weight) || 0) > 0;
-}
-
 function hasWorkflowColumns(entry) {
   return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
     || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
@@ -299,7 +295,10 @@ export default function WashView() {
     const groups = new Map();
 
     entries.forEach(entry => {
-      if (!entry?.id || entry.deleted_at || !hasPositiveWeight(entry) || entry.done) return;
+      // Waga jest opcjonalna przy dodawaniu przyjazdu (patrz EntryModals) — brak kg
+      // nie znaczy, że nie ma prania. Nie filtrujemy po wadze, inaczej hotel bez
+      // wpisanego kg znika z Pralni i nikt się nim nie zajmie.
+      if (!entry?.id || entry.deleted_at || entry.done) return;
       const washDate = slotToDate(washSlotOf(entry, scheduleByRoute));
       const stage = entryStage(entry);
       const touchedToday = [
@@ -339,7 +338,12 @@ export default function WashView() {
       const activeCycles = groupCycles.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status));
       const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
       const remainingKg = Math.max(0, totalKg - packedKg);
-      const groupReady = remainingKg <= 0.05 || ready.length === group.entries.length;
+      const hasKnownWeight = totalKg > 0;
+      // Gdy waga nie jest jeszcze znana, "zostało 0 kg" nic nie mówi o realnym stanie —
+      // o gotowości decydują wtedy wyłącznie flagi na wpisach (ready/washed), a nie matematyka kg.
+      const groupReady = hasKnownWeight
+        ? (remainingKg <= 0.05 || ready.length === group.entries.length)
+        : ready.length === group.entries.length;
       const stage = groupReady
         ? 'ready'
         : pending.length > 0 && washed.length > 0
@@ -354,6 +358,7 @@ export default function WashView() {
       return {
         ...group,
         kg: Number(totalKg.toFixed(1)),
+        hasKnownWeight,
         packedKg: Number(Math.min(totalKg, packedKg).toFixed(1)),
         remainingKg: Number(remainingKg.toFixed(1)),
         stage,
@@ -646,7 +651,7 @@ export default function WashView() {
                     <StagePill stage={group.stage} />
                   </div>
                   <div className="laundry-work-meta">
-                    <span>{group.kg} kg</span>
+                    <span>{group.hasKnownWeight ? `${group.kg} kg` : 'waga nieznana'}</span>
                     {group.packedKg > 0 && <span>spakowane {group.packedKg}/{group.kg} kg</span>}
                     {group.packedKg > 0 && group.remainingKg > 0 && <span>zostało {group.remainingKg} kg</span>}
                     {group.washedAt && <span>wyprane {fmtTime(group.washedAt)}</span>}
