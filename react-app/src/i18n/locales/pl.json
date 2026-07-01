@@ -321,6 +321,7 @@
     "prev": "‹ Poprzedni",
     "next": "Następny ›",
     "week": "Tydzień {{num}}",
+    "partialWeek": "część tygodnia",
     "brush": "Pędzel:",
     "eraser": "✕ Gumka",
     "escDisable": "Esc / wyłącz",

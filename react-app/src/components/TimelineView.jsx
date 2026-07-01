@@ -520,7 +520,8 @@ export default function TimelineView() {
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
-  const [monday, setMonday] = useState(() => getMondayOfWeek(new Date()));
+  // Kotwica bieżącego widoku — dowolny dzień w obrębie wyświetlanego fragmentu tygodnia.
+  const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [employees, setEmployees] = useState([]);
   const [groupData, setGroupData] = useState([]);
   const [entries, setEntries] = useState({});
@@ -533,10 +534,24 @@ export default function TimelineView() {
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
   const containerRef = useRef(null);
 
+  const monday = useMemo(() => getMondayOfWeek(anchor), [anchor]);
   const allWeekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const weekNum = getWeekNum(monday);
 
-  const weekDays = allWeekDays.filter(d => {
+  // Tydzień ISO może przecinać granicę miesiąca (np. Pn 29.06 – Nd 05.07). Grafik i roster
+  // są miesięczne, więc pokazujemy tylko dni z miesiąca kotwicy; reszta tygodnia to osobny
+  // "fragment", do którego przechodzi się strzałką Poprzedni/Następny.
+  const segMonth = anchor.getMonth();
+  const segYear = anchor.getFullYear();
+  const segDays = useMemo(
+    () => allWeekDays.filter(d => d.getMonth() === segMonth && d.getFullYear() === segYear),
+    [allWeekDays, segMonth, segYear]
+  );
+  const segStart = segDays[0];
+  const segEnd = segDays[segDays.length - 1];
+  const isPartialWeek = segDays.length < 7;
+
+  const weekDays = segDays.filter(d => {
     const dw = d.getDay();
     if (dw !== 0 && dw !== 6) return true;
     const ds = toDateStr(d);
@@ -553,16 +568,16 @@ export default function TimelineView() {
       return;
     }
     setLoading(true);
-    const dateFrom = toDateStr(monday);
-    const dateTo = toDateStr(addDays(monday, 6));
+    const dateFrom = toDateStr(segStart);
+    const dateTo = toDateStr(segEnd);
 
     try {
       const data = await getTimelineWeek(
         sessionToken,
         dateFrom,
         dateTo,
-        monday.getFullYear(),
-        monday.getMonth() + 1
+        segYear,
+        segMonth + 1
       );
       const emps = data?.roster || [];
       const tl = data?.timeline_entries || [];
@@ -576,7 +591,7 @@ export default function TimelineView() {
       sched.forEach(e => {
         const emp = emps.find(x => x.id === e.employee_id);
         if (!emp) return;
-        const dayDate = allWeekDays.find(d => d.getDate() === e.day && d.getMonth() === monday.getMonth());
+        const dayDate = segDays.find(d => d.getDate() === e.day);
         if (!dayDate) return;
         const ds = toDateStr(dayDate);
         sm[`${e.employee_id}_${ds}`] = parseScheduleShift(e.value, emp);
@@ -587,7 +602,7 @@ export default function TimelineView() {
     } finally {
       setLoading(false);
     }
-  }, [allWeekDays, canViewAdminData, sessionToken, monday, t]);
+  }, [segDays, segStart, segEnd, segYear, segMonth, canViewAdminData, sessionToken, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -599,8 +614,8 @@ export default function TimelineView() {
     return () => window.removeEventListener('keydown', onKey);
   }, [brushRole, copyMode]);
 
-  // Zmiana tygodnia kasuje zaznaczone źródło kopiowania
-  useEffect(() => { setCopySource(null); }, [monday]);
+  // Zmiana tygodnia/fragmentu kasuje zaznaczone źródło kopiowania
+  useEffect(() => { setCopySource(null); }, [anchor]);
 
   // Stop painting on mouseup anywhere
   useEffect(() => {
@@ -719,9 +734,12 @@ export default function TimelineView() {
   }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
-  const atMinWeek = monday <= minMonday;
-  const prevWeek = () => setMonday(m => { const p = addDays(m, -7); return p < minMonday ? m : p; });
-  const nextWeek = () => setMonday(m => addDays(m, 7));
+  const atMinWeek = segStart <= minMonday;
+  // Poprzedni/następny fragment: dzień tuż przed/po obecnym segmencie ustala nową kotwicę,
+  // co samo w sobie wylicza właściwy miesiąc — jeśli sąsiedni tydzień też przecina granicę
+  // miesiąca, pokaże się tylko jego fragment należący do tego miesiąca.
+  const prevWeek = () => setAnchor(a => { const p = addDays(segStart, -1); return p < minMonday ? a : p; });
+  const nextWeek = () => setAnchor(() => addDays(segEnd, 1));
 
   const groups = useMemo(() => {
     // Pracownicy w grupie sortowani alfabetycznie po nazwisku (locale PL).
@@ -776,7 +794,8 @@ export default function TimelineView() {
       }}>
         <button onClick={prevWeek} disabled={atMinWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: atMinWeek ? 'not-allowed' : 'pointer', opacity: atMinWeek ? 0.4 : 1, fontWeight: 700, color: 'var(--text-primary)' }}>{t('timeline.prev')}</button>
         <div style={{ fontWeight: 700, fontSize: '16px', flex: 1, textAlign: 'center', color: 'var(--text-primary)' }}>
-          {t('timeline.week', { num: weekNum })} · {fmtDate(monday)} – {fmtDate(addDays(monday, 6))}
+          {t('timeline.week', { num: weekNum })} · {fmtDate(segStart)} – {fmtDate(segEnd)}
+          {isPartialWeek && <span style={{ fontWeight: 500, color: 'var(--text-tertiary)' }}> · {t('timeline.partialWeek')}</span>}
         </div>
         <button onClick={nextWeek} style={{ background: 'var(--bg-card-solid)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 14px', fontSize: '14px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-primary)' }}>{t('timeline.next')}</button>
       </div>

@@ -319,6 +319,7 @@
     "prev": "‹ Vorherige",
     "next": "Nächste ›",
     "week": "Woche {{num}}",
+    "partialWeek": "Wochenteil",
     "brush": "Pinsel:",
     "eraser": "✕ Radierer",
     "escDisable": "Esc / aus",
