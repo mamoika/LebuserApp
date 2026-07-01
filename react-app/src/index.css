@@ -5241,6 +5241,15 @@ select.ap-input {
   opacity: .55;
   cursor: not-allowed;
 }
+/* Wyszarzony przycisk „danger" ma wyglądać na nieaktywny, a nie jak aktywna
+   czerwona akcja — neutralizujemy kolor zamiast tylko przygaszać. */
+.laundry-action-btn.is-danger:disabled,
+.laundry-return-btn.is-danger:disabled {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  color: var(--text-quaternary);
+  opacity: 1;
+}
 .laundry-warning {
   padding: 12px 14px;
   border-radius: 12px;
@@ -5278,7 +5287,7 @@ select.ap-input {
   color: var(--accent);
   flex-shrink: 0;
 }
-.laundry-metric.tone-pending .laundry-metric-icon { background: rgba(255,149,0,.12); color: #B45309; }
+.laundry-metric.tone-pending .laundry-metric-icon { background: rgba(255,149,0,.12); color: var(--accent-orange-text); }
 .laundry-metric.tone-washed .laundry-metric-icon { background: rgba(52,199,89,.12); color: #15803D; }
 .laundry-metric.tone-ready .laundry-metric-icon { background: rgba(0,122,255,.11); color: var(--accent); }
 .laundry-metric.tone-trolley .laundry-metric-icon { background: rgba(88,86,214,.11); color: var(--accent-indigo); }
@@ -5440,7 +5449,7 @@ select.ap-input {
   font-weight: 800;
   border: 1px solid transparent;
 }
-.laundry-stage-pill.tone-pending { background: rgba(255,149,0,.11); color: #B45309; border-color: rgba(255,149,0,.2); }
+.laundry-stage-pill.tone-pending { background: rgba(255,149,0,.11); color: var(--accent-orange-text); border-color: rgba(255,149,0,.2); }
 .laundry-stage-pill.tone-partial { background: rgba(88,86,214,.1); color: var(--accent-indigo); border-color: rgba(88,86,214,.18); }
 .laundry-stage-pill.tone-washed { background: rgba(52,199,89,.11); color: #15803D; border-color: rgba(52,199,89,.2); }
 .laundry-stage-pill.tone-ready { background: rgba(0,122,255,.1); color: var(--accent); border-color: rgba(0,122,255,.19); }
@@ -5499,10 +5508,11 @@ select.ap-input {
   cursor: not-allowed;
 }
 .laundry-work-actions {
-  display: grid;
-  grid-template-columns: auto auto minmax(122px, 150px) minmax(82px, 98px) auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
-  align-items: end;
 }
 .laundry-action-btn,
 .laundry-return-btn {
@@ -5626,7 +5636,7 @@ select.ap-input {
 }
 .laundry-trolley-status.tone-packed { background: rgba(0,122,255,.1); color: var(--accent); }
 .laundry-trolley-status.tone-released { background: rgba(88,86,214,.11); color: var(--accent-indigo); }
-.laundry-trolley-status.tone-client { background: rgba(255,149,0,.12); color: #B45309; }
+.laundry-trolley-status.tone-client { background: rgba(255,149,0,.12); color: var(--accent-orange-text); }
 .laundry-trolley-status.tone-returned { background: rgba(52,199,89,.11); color: #15803D; }
 .laundry-trolley-status.tone-canceled { background: rgba(255,59,48,.09); color: #C2410C; }
 .laundry-trolley-client {
@@ -5708,7 +5718,8 @@ select.ap-input {
     align-self: flex-start;
   }
   .laundry-work-actions {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
   .laundry-action-btn,
   .laundry-return-btn {

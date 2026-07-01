@@ -48,6 +48,17 @@ function formatDate(dateStr) {
   });
 }
 
+// Poprawna polska odmiana: 1 punkt, 2-4 punkty, 5+ punktów (z wyjątkiem 12-14).
+function punktLabel(n) {
+  const num = Number(n) || 0;
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  let word = 'punktów';
+  if (num === 1) word = 'punkt';
+  else if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) word = 'punkty';
+  return `${num} ${word} do pilnowania`;
+}
+
 function fmtTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
@@ -605,7 +616,7 @@ export default function WashView() {
         <div className="laundry-section-head">
           <div>
             <h2>Dzisiejsze pranie</h2>
-            <span>{laundryGroups.length} punktów do pilnowania</span>
+            <span>{punktLabel(laundryGroups.length)}</span>
           </div>
         </div>
 
