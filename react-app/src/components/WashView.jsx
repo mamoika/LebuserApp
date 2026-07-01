@@ -114,6 +114,14 @@ function slotToDate(slot) {
   return ymd(dt);
 }
 
+// Dzień wyjazdu (odbiór czystego przez kierowcę) — różny od dnia prania, który
+// wypada dzień wcześniej. Wyznacza górną granicę okna, w którym wpis ma sens
+// pokazywać się w Pralni na dany dzień.
+function departureDateOf(entry) {
+  if (!entry.pick_day || !entry.pick_week_key) return null;
+  return slotToDate(`${entry.pick_week_key}|${entry.pick_day}`);
+}
+
 function washSlotOf(entry, scheduleByRoute) {
   const arrDay = Number(entry.arr_day);
   const arrWeek = entry.week_key;
@@ -165,12 +173,6 @@ function isReadyForDriver(entry) {
     );
   }
   return Boolean(entry?.washed);
-}
-
-function entryStage(entry) {
-  if (isReadyForDriver(entry)) return 'ready';
-  if (entry?.washed) return 'washed';
-  return 'pending';
 }
 
 function stageConfig(stage) {
@@ -302,14 +304,21 @@ export default function WashView() {
       // wpisanego kg znika z Pralni i nikt się nim nie zajmie.
       if (!entry?.id || entry.deleted_at || entry.done) return;
       const washDate = slotToDate(washSlotOf(entry, scheduleByRoute));
-      const stage = entryStage(entry);
+      const departureDate = departureDateOf(entry);
       const touchedToday = [
         dateOnly(entry.washed_at),
         dateOnly(entry.laundry_packed_at),
         dateOnly(entry.laundry_ready_at),
       ].includes(selectedDate);
 
-      if (washDate !== selectedDate && !touchedToday && !['washed', 'ready'].includes(stage)) return;
+      // Wpis jest "na dziś" od dnia prania aż do dnia wyjazdu włącznie (to wtedy
+      // kierowca po niego przyjeżdża) — nie wiecznie, żeby przełączanie dni w
+      // kalendarzyku pokazywało pranie tego dnia, a nie ciągnęło stare, gotowe
+      // wpisy z poprzednich dni.
+      const inWindow = washDate === selectedDate
+        || (washDate && departureDate && selectedDate > washDate && selectedDate <= departureDate);
+
+      if (!inWindow && !touchedToday) return;
 
       const client = clientByName.get(entry.client_name);
       const routeId = client?.route_id || entry.route_id || 0;

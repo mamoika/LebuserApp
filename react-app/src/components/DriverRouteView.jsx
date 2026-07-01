@@ -3040,6 +3040,12 @@ export default function DriverRouteView({ manageMode = false }) {
 
         const info = tripDateInfo(contextDate);
 
+        // Klienci już widoczni jako przystanek dzisiejszej trasy nie mają co robić
+        // w tym pickerze — dodanie ich jeszcze raz nic by nie dało. Wyjątek: klient
+        // wybrany z góry (przycisk "+ Dodaj" na jego własnym przystanku) zostaje
+        // na liście, żeby domyślny wybór był poprawny.
+        const shownClientNames = new Set(stops.map(s => s.client_name));
+
         return (
           <AddEntryModal
             isOpen={true}
@@ -3048,7 +3054,7 @@ export default function DriverRouteView({ manageMode = false }) {
             defaultClientName={addEntryFor || undefined}
             defaultType={defaultType}
             weekKey={info.weekKey}
-            clients={clients.filter(c => c.route_id)}
+            clients={clients.filter(c => c.route_id && (c.name === addEntryFor || !shownClientNames.has(c.name)))}
             routes={allRoutes}
             onAdded={() => { setAddEntryFor(null); refetch(); }}
           />
