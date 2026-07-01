@@ -493,10 +493,13 @@ export default function DriverRouteView({ manageMode = false }) {
     (s.entries || []).some(e => e.done && e.picked_by === user?.name && !e.delivered)
   );
   const pickedNotDeliveredNames = pickedNotDeliveredStops.map(s => s.client_name).filter(Boolean);
-  // Ekran startowy ma pokazywać tylko CZYSTE do rozwiezienia dziś (pick_day),
-  // jeszcze nie dostarczone. Brudne (arr_day) nie należy do tego widoku.
+  // Ekran startowy pokazuje TYLKO czyste do rozwiezienia dziś (pick_day == dziś),
+  // jeszcze niedostarczone. `stops` celowo zawiera też zaległe z przeszłości i
+  // gotowe z przyszłości (dla trasy w toku i listy kandydatów), więc tutaj
+  // filtrujemy po dacie odbioru — inaczej licznik puchnie od wszystkich
+  // niedostarczonych wpisów ze wszystkich dni i tras (por. commit b10051b).
   const previewStops = stops
-    .map(s => ({ ...s, pendingClean: (s.entries || []).filter(e => !e.delivered) }))
+    .map(s => ({ ...s, pendingClean: (s.entries || []).filter(e => !e.delivered && pickupDateStr(e) === contextDate) }))
     .filter(s => s.pendingClean.length > 0);
   // Trasa w toku: przystanek widoczny, gdy ma czyste do dowiezienia albo
   // zaplanowany odbiór brudnego przypięty do tej trasy.
