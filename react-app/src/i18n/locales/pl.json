@@ -190,6 +190,8 @@
     "addArrival": "Dodaj przyjazd",
     "dirtyToLaundry": "Brudne pranie do pralni",
     "client": "Klient",
+    "searchClientPlaceholder": "Szukaj klienta…",
+    "noClientResults": "Brak wyników",
     "backToMyRoutes": "Wróć do moich tras",
     "addFromOtherRoute": "Dodaj klienta z innej trasy",
     "yourRouteSuffix": " · twoja trasa",

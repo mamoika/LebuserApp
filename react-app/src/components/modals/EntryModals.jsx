@@ -31,6 +31,17 @@ function getDefaultPickInfo(arrDay, schedule = 'other') {
   return { pickDay: 1, pickWeek: 1 };
 }
 
+// Do wyszukiwania klienta: bez wielkości liter i polskich znaków diakrytycznych
+// (np. "lodz" trafia "Łódź"). "ł" nie rozkłada się przez NFD, więc
+// składamy je ręcznie po normalizacji.
+function normalizeSearch(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\u0142/g, 'l');
+}
+
 function parseRouteIds(routesStr) {
   return new Set(
     (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
@@ -485,6 +496,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const [clientName, setClientName] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientListOpen, setClientListOpen] = useState(false);
   const [showOtherRoutes, setShowOtherRoutes] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
@@ -507,6 +520,22 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     : [], [assignedRouteIds, clients, hasAssignedRouteFilter]);
   const selectableClients = useMemo(() => hasAssignedRouteFilter && showOtherRoutes ? otherClients : ownClients, [hasAssignedRouteFilter, showOtherRoutes, otherClients, ownClients]);
   const canToggleOtherRoutes = hasAssignedRouteFilter && otherClients.length > 0;
+  const filteredClients = useMemo(() => {
+    const q = normalizeSearch(clientQuery);
+    if (!q) return selectableClients;
+    return selectableClients.filter(c => normalizeSearch(c.name).includes(q));
+  }, [selectableClients, clientQuery]);
+
+  const selectClient = (name) => {
+    setClientName(name);
+    setClientQuery(name);
+    setClientListOpen(false);
+    const selectedClient = clients.find(c => c.name === name);
+    const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, name));
+    setPickDay(pd);
+    setPickWeek(pw);
+    setType(isWorkwearRoute(routes, selectedClient?.route_id) ? 'R' : 'P');
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -524,6 +553,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setPickWeek(pw);
       setShowOtherRoutes(false);
       setClientName(initClient?.name || '');
+      setClientQuery(initClient?.name || '');
+      setClientListOpen(false);
       setWeight('');
       setType(isWorkwear ? 'R' : (defaultType || 'P'));
       setTrolleys(1);
@@ -538,6 +569,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     const nextClient = firstClientByRouteOrder(selectableClients, routes);
     if (!selectableClients.some(c => c.name === clientName)) {
       setClientName(nextClient?.name || '');
+      setClientQuery(nextClient?.name || '');
       const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, nextClient?.name));
       setPickDay(pd);
       setPickWeek(pw);
@@ -608,31 +640,55 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           {!isClientScoped && (
             <>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.client')}</div>
-              <select
-                className="ap-input"
-                style={{ padding: '12px 14px', marginBottom: '12px' }}
-                value={clientName}
-                onChange={e => {
-                  setClientName(e.target.value);
-                  const selectedClient = clients.find(c => c.name === e.target.value);
-                  const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, e.target.value));
-                  setPickDay(pd);
-                  setPickWeek(pw);
-                  setType(isWorkwearRoute(routes, selectedClient?.route_id) ? 'R' : 'P');
-                }}
-              >
-                {routes
-                  .filter(r => selectableClients.some(c => c.route_id === r.id))
-                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                  .map(r => (
-                    <optgroup key={r.id} label={`${r.name}${hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}`}>
-                      {selectableClients
-                        .filter(c => c.route_id === r.id)
-                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </optgroup>
-                  ))}
-              </select>
+              <div style={{ marginBottom: '12px' }}>
+                <input
+                  type="text"
+                  className="ap-input"
+                  style={{ padding: '12px 14px' }}
+                  placeholder={t('entry.searchClientPlaceholder')}
+                  value={clientQuery}
+                  onFocus={() => { if (clientQuery === clientName) setClientQuery(''); setClientListOpen(true); }}
+                  onBlur={() => setTimeout(() => setClientListOpen(false), 150)}
+                  onChange={e => { setClientQuery(e.target.value); setClientListOpen(true); }}
+                />
+                {clientListOpen && (
+                  <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '6px' }}>
+                    {routes
+                      .filter(r => filteredClients.some(c => c.route_id === r.id))
+                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                      .map(r => (
+                        <div key={r.id}>
+                          <div style={{ padding: '6px 14px', fontSize: '10px', fontWeight: 700, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', background: 'var(--bg-secondary)' }}>
+                            {r.name}{hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}
+                          </div>
+                          {filteredClients
+                            .filter(c => c.route_id === r.id)
+                            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                            .map(c => (
+                              <button
+                                type="button"
+                                key={c.id}
+                                onMouseDown={e => e.preventDefault()}
+                                onClick={() => selectClient(c.name)}
+                                style={{
+                                  display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px',
+                                  border: 'none', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit',
+                                  background: clientName === c.name ? 'rgba(0,122,255,0.1)' : 'transparent',
+                                  fontWeight: clientName === c.name ? 700 : 400,
+                                  color: clientName === c.name ? 'var(--accent)' : 'inherit',
+                                }}
+                              >
+                                {c.name}
+                              </button>
+                            ))}
+                        </div>
+                      ))}
+                    {filteredClients.length === 0 && (
+                      <div style={{ padding: '14px', textAlign: 'center', color: 'rgba(60,60,67,0.4)', fontSize: '13px' }}>{t('entry.noClientResults')}</div>
+                    )}
+                  </div>
+                )}
+              </div>
               {canToggleOtherRoutes && (
                 <button
                   type="button"

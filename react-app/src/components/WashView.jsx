@@ -75,6 +75,13 @@ function fmtDateTime(iso) {
   });
 }
 
+// Sama godzina, gdy zdarzenie miało miejsce w oglądanym dniu — data + godzina,
+// gdy jest z innego dnia (np. wyprane wcześniej, a dziś tylko wisi jako gotowe).
+function fmtTimeForDay(iso, selectedDate) {
+  if (!iso) return '—';
+  return dateOnly(iso) === selectedDate ? fmtTime(iso) : fmtDateTime(iso);
+}
+
 function addDays(dateStr, days) {
   const dt = new Date(`${dateStr}T00:00:00`);
   dt.setDate(dt.getDate() + days);
@@ -187,13 +194,23 @@ function stageConfig(stage) {
 
 const getTrolleyStatus = (cycle, entryById) => {
   if (cycle.status === 'canceled') return { key: 'canceled', label: 'COFNIĘTO PAKOWANIE', tone: 'neutral' };
-  if (cycle.returned_at) return { key: 'returned', label: 'WRÓCIŁ', tone: 'returned' };
-  if (cycle.status === 'at_client') return { key: 'at_client', label: 'Zostawiony w hotelu', tone: 'client' };
-  
+
   const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
   const delivered = linked.some(e => e.delivered_at);
   const picked = linked.some(e => e.picked_at);
 
+  // "Bez wózka" nie ma fizycznego wózka do zwrócenia — returned_at ustawiamy tu
+  // automatycznie w chwili pakowania (żeby nie liczyło się jako zajęty wózek),
+  // więc to pole nie mówi nic o faktycznym postępie. Pomijamy je i pokazujemy
+  // realny status dostawy zamiast mylącego "WRÓCIŁ".
+  if (cycle.trolley_no === 'brak') {
+    if (delivered) return { key: 'delivered', label: 'Dostarczony', tone: 'delivered' };
+    if (picked) return { key: 'picked', label: 'W trasie', tone: 'picked' };
+    return { key: 'packed', label: 'Spakowane (bez wózka)', tone: 'packed' };
+  }
+
+  if (cycle.returned_at) return { key: 'returned', label: 'WRÓCIŁ', tone: 'returned' };
+  if (cycle.status === 'at_client') return { key: 'at_client', label: 'Zostawiony w hotelu', tone: 'client' };
   if (delivered) return { key: 'delivered', label: 'Dostarczony', tone: 'delivered' };
   if (picked) return { key: 'picked', label: 'W trasie', tone: 'picked' };
   return { key: 'packed', label: 'Spakowany na pralni', tone: 'packed' };
@@ -708,8 +725,8 @@ export default function WashView() {
                     <span>{group.hasKnownWeight ? `${group.kg} kg` : 'waga nieznana'}</span>
                     {group.packedKg > 0 && <span>spakowane {group.packedKg}/{group.kg} kg</span>}
                     {group.packedKg > 0 && group.remainingKg > 0 && <span>zostało {group.remainingKg} kg</span>}
-                    {group.washedAt && <span>wyprane {fmtTime(group.washedAt)}</span>}
-                    {group.packedAt && <span>spakowane {fmtTime(group.packedAt)}</span>}
+                    {group.washedAt && <span>wyprane {fmtTimeForDay(group.washedAt, selectedDate)}</span>}
+                    {group.packedAt && <span>spakowane {fmtTimeForDay(group.packedAt, selectedDate)}</span>}
                     {group.trolleyNo && <span>wózki {group.trolleyNo}</span>}
                   </div>
                   
@@ -865,7 +882,9 @@ export default function WashView() {
                   <span>spakowano</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
                   {driver && <><span>kierowca</span><strong>{driver}</strong></>}
                   {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
-                  {cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
+                  {/* "brak" ma returned_at ustawione automatycznie przy pakowaniu — to nie jest
+                      realny powrót wózka, więc dla tych kart tego wiersza nie pokazujemy. */}
+                  {!isNoTrolley && cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
                 </div>
                 {hasPackRole && (
                   <div className="laundry-card-actions">

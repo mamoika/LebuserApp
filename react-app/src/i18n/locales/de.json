@@ -190,6 +190,8 @@
     "addArrival": "Ankunft hinzufügen",
     "dirtyToLaundry": "Schmutzwäsche zur Wäscherei",
     "client": "Kunde",
+    "searchClientPlaceholder": "Kunde suchen…",
+    "noClientResults": "Keine Ergebnisse",
     "backToMyRoutes": "Zurück zu meinen Routen",
     "addFromOtherRoute": "Kunde aus anderer Route hinzufügen",
     "yourRouteSuffix": " · Ihre Route",
