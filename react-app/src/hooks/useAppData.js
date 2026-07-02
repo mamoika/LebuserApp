@@ -128,8 +128,14 @@ export function useAppData() {
     }
     // Zgłoś do Sentry ciche awarie ładowania danych (pomijając wygaśnięcie
     // sesji, które jest normalne) — to one psują ekran kierowcy/admina bez śladu.
+    // Błędy sieciowe (offline/słaby zasięg u kierowcy) oznaczamy osobnym tagiem —
+    // nie da się ich "naprawić" w kodzie, więc nie powinny wyglądać jak bug do zrobienia.
     if (lastErr && !isSessionError(lastErr)) {
-      captureError(lastErr, { feature: 'useAppData', retries: MAX_RETRIES });
+      captureError(
+        lastErr,
+        { feature: 'useAppData', retries: MAX_RETRIES },
+        lastErr.isNetworkError ? { networkError: 'true' } : undefined
+      );
     }
   }, [sessionToken]);
 

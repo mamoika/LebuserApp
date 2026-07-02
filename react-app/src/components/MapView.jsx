@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -70,14 +70,20 @@ function makeUserIcon() {
   });
 }
 
-// Komponent do automatycznego dopasowania widoku do markerów
+// Komponent do automatycznego dopasowania widoku do markerów.
+// Realtime odświeża dane co chwilę (np. zmiana statusu prania), co bez tej
+// blokady wywoływało nowe fitBounds() w trakcie animacji poprzedniego —
+// nakładające się animacje Leaflet potrafią zostawić marker bez _leaflet_pos
+// i wywalić się przy kolejnej klatce ("undefined is not an object").
 function FitBounds({ positions }) {
   const map = useMap();
+  const lastBoundsRef = useRef(null);
   useEffect(() => {
-    if (positions.length > 0) {
-      const bounds = L.latLngBounds(positions);
-      map.fitBounds(bounds, { padding: [40, 40] });
-    }
+    if (positions.length === 0) return;
+    const bounds = L.latLngBounds(positions);
+    if (lastBoundsRef.current?.equals(bounds)) return;
+    lastBoundsRef.current = bounds;
+    map.fitBounds(bounds, { padding: [40, 40] });
   }, [map, positions]);
   return null;
 }
@@ -123,11 +129,16 @@ export default function MapView() {
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
-  // Wszystkie pozycje do FitBounds
-  const allPositions = [
+  // Wszystkie pozycje do FitBounds — trzymamy referencję stabilną między
+  // odświeżeniami realtime, które nie zmieniają współrzędnych klientów
+  // (np. status prania), żeby nie wywoływać fitBounds() bez potrzeby.
+  const geoClients = clients.filter(c => c.lat && c.lng);
+  const positionsKey = geoClients.map(c => `${c.id}:${c.lat}:${c.lng}`).sort().join('|');
+  const allPositions = useMemo(() => [
     [BASE_LAT, BASE_LNG],
-    ...clients.filter(c => c.lat && c.lng).map(c => [c.lat, c.lng]),
-  ];
+    ...geoClients.map(c => [c.lat, c.lng]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [positionsKey]);
 
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
   if (error) return <DataError onRetry={refetch} />;

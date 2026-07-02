@@ -37,7 +37,12 @@ export function clearSentryUser() {
 
 // Ręczne zgłoszenie złapanego błędu (np. nieudane ładowanie danych po
 // wyczerpaniu ponowień) — inaczej Sentry by go nie zobaczył, bo jest obsłużony.
-export function captureError(error, extra) {
+// `tags` pozwala odróżnić np. błędy sieciowe (offline/timeout) od realnych
+// błędów kodu — łatwo je potem odfiltrować w Sentry, bo nie są "do naprawy".
+export function captureError(error, extra, tags) {
   if (!dsn) return;
-  Sentry.captureException(error, extra ? { extra } : undefined);
+  Sentry.captureException(error, {
+    ...(extra ? { extra } : null),
+    ...(tags ? { tags } : null),
+  });
 }
