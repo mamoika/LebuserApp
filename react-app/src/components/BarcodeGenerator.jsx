@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, X } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getLaundryWorkflow } from '../lib/laundryRpc';

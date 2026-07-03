@@ -4,7 +4,6 @@ export default function TrolleysDashboardModal({
   onClose,
   trolleyCount,
   activeTrolleyByNo,
-  trolleys = []
 }) {
   const trolleyNumbers = Array.from({ length: trolleyCount }, (_, i) => String(i + 1));
 

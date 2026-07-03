@@ -991,7 +991,6 @@ export default function WashView() {
           onClose={() => setTrolleysModalOpen(false)}
           trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
-          trolleys={trolleys}
         />
       )}
     </div>

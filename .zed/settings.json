@@ -1,0 +1,13 @@
+// Ustawienia Zed dla tego projektu.
+//
+// Kod (zwlaszcza react-app/src) nie byl formatowany Prettierem — styl to
+// pojedyncze cudzyslowy, strzalki bez nawiasow (`e => ...`) i dlugie,
+// nierozbijane linie JSX z inline style'ami. Domyslny formatter Zed (Prettier
+// z ustawieniami domyslnymi: podwojne cudzyslowy, zawijanie od 80 znakow)
+// przy kazdym zapisie przeformatowywal caly plik, robiac ogromne, nieczytelne
+// diffy niezwiazane z faktyczna zmiana. Wylaczamy automatyczne formatowanie
+// przy zapisie, zeby edycje (rowniez robione przez agenta) zostawaly minimalne
+// i skupione na rzeczywistej tresci zmiany.
+{
+  "format_on_save": "off"
+}

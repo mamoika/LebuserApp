@@ -16,6 +16,28 @@ export default defineConfig({
   // bundlu (nie trafiają do przeglądarki). Plugin kasuje je po wysłaniu.
   build: {
     sourcemap: sentryUpload ? 'hidden' : false,
+    // Vite ostrzega dopiero powyżej tego progu (kB, po minifikacji). Główny
+    // chunk jest duży głównie przez biblioteki potrzebne od pierwszej klatki
+    // (auth: Supabase, Sentry, i18next, router) — patrz manualChunks niżej,
+    // które je wydziela do osobnych, lepiej cache'owalnych plików.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Biblioteki trzecie w osobnych, nazwanych chunkach: rzadko się
+        // zmieniają między deployami, więc przeglądarka użytkownika nie
+        // musi ich ściągać ponownie przy każdym wdrożeniu — tylko kod
+        // appki faktycznie się zmienia.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('@sentry')) return 'vendor-sentry';
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('i18next')) return 'vendor-i18n';
+          if (id.includes('react-router')) return 'vendor-router';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'vendor-react';
+          return undefined;
+        },
+      },
+    },
   },
   plugins: [
     react(),

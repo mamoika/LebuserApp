@@ -11,6 +11,7 @@ import { formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
 import { getBlockingPickedLaundry, getDriverAppSettings, getDriverTripsData } from '../lib/readRpc';
+import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 /* ── helpery dat ── */
@@ -130,6 +131,33 @@ function trolleyLabel(count) {
   if (n === 1) return '1 wózek';
   if (n >= 2 && n <= 4) return `${n} wózki`;
   return `${n} wózków`;
+}
+
+function daysSinceDate(dateStr) {
+  if (!dateStr) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const then = new Date(dateStr);
+  then.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((today - then) / (1000 * 60 * 60 * 24)));
+}
+
+function daysAtClientLabel(days) {
+  if (days === 0) return 'zostawiony dzisiaj';
+  if (days === 1) return 'zostawiony wczoraj';
+  return `zostawiony ${days} dni temu`;
+}
+
+function describeTrolleyActions(deliverPrompt) {
+  if (!deliverPrompt) return '';
+  const leaving = deliverPrompt.trolleys.filter(t => t.choice === 'leave').map(t => t.trolleyNo);
+  const returning = deliverPrompt.trolleys.filter(t => t.choice === 'return').map(t => t.trolleyNo);
+  const pickedUpOld = deliverPrompt.oldTrolleys.filter(t => t.take).map(t => t.trolleyNo);
+  const parts = [];
+  if (returning.length) parts.push(`wózek ${returning.join(', ')} wraca z kierowcą`);
+  if (leaving.length) parts.push(`wózek ${leaving.join(', ')} zostaje u klienta`);
+  if (pickedUpOld.length) parts.push(`zabrano też wcześniej zostawiony wózek ${pickedUpOld.join(', ')}`);
+  return parts.join('; ');
 }
 
 const UrgentBadge = () => <span className="driver-urgent-badge">Pilne</span>;
@@ -264,7 +292,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const [addDirtyTrip, setAddDirtyTrip] = useState(null); // { trip, clientName? } — trasa admina, do której dorzucamy odbiór brudnego
   const [viewEntry, setViewEntry] = useState(null); // wpis do podglądu/edycji w ViewEditEntryModal
   const [partialPickup, setPartialPickup] = useState(null); // { stop, kg, value, baskets }
-  const [draft, setDraft] = useState({}); // { clientKey: { note } }
+  const [deliverPrompt, setDeliverPrompt] = useState(null); // { stop, trolleys: [{cycleId, trolleyNo, choice}], oldTrolleys: [{cycleId, trolleyNo, days, take}] }
   const [noteEdit, setNoteEdit] = useState({}); // { clientName: value } — notatka klienta w trakcie edycji
 
   const today = ymd(new Date());
@@ -605,7 +633,7 @@ export default function DriverRouteView({ manageMode = false }) {
   const openPartialPickup = (stop) => {
     const kg = Number(sumWeight(stop?.entries || []).toFixed(1));
     if (!kg || kg <= 0 || stop?.entries?.some(e => e.done)) return;
-    const baskets = draftVal(stop.key, 'pickedBaskets', 1);
+    const baskets = 1;
     setPartialPickup({ stop, kg, value: String(kg), baskets, remainingDate: nextWorkDateAfter(contextDate) });
   };
 
@@ -726,14 +754,6 @@ export default function DriverRouteView({ manageMode = false }) {
   // Panel zarządzania (wszystkie trasy) jest osobno, w zakładce "Trasy na żywo".
   const historyTrips = allTrips.filter(t => t.status === 'finished' && t.driver_id === user?.id).slice(0, 12);
   const pendingKmTrips = allTrips.filter(t => t.status === 'finished' && t.end_km && !tripKmApproval(t).approved);
-
-  const draftVal = (key, field, fallback) => {
-    const d = draft[key];
-    if (d && d[field] !== undefined) return d[field];
-    return fallback ?? '';
-  };
-  const setDraftVal = (key, field, value) =>
-    setDraft(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
 
   const toggleRoute = (id) => setSelectedRoutes(prev => {
     const next = new Set(prev);
@@ -1058,26 +1078,84 @@ export default function DriverRouteView({ manageMode = false }) {
     }
   };
 
-  // 2) Dostawa do klienta
+  // 2) Dostawa do klienta — jeśli są fizyczne wózki, pytamy kierowcę co z nimi
   const markDelivered = async (stop) => {
     if (!stopPickedByCurrentUser(stop)) {
       toastError(`Dostarczyć może tylko kierowca, który odebrał pranie z pralni (${actionOwnerLabel(stop, 'picked_by')})`);
       return;
     }
+
+    const cycleMap = new Map();
+    stop.entries.forEach(e => {
+      if (e.laundry_trolley_cycle_id && e.laundry_trolley_no && e.laundry_trolley_no !== 'brak') {
+        cycleMap.set(e.laundry_trolley_cycle_id, e.laundry_trolley_no);
+      }
+    });
+
+    // Bez fizycznego wózka (pranie luzem) — dostarczamy od razu, bez pytania.
+    if (cycleMap.size === 0) {
+      await performDelivery(stop, []);
+      return;
+    }
+
+    let oldTrolleys = [];
+    try {
+      const wf = await getLaundryWorkflow(sessionToken);
+      oldTrolleys = (wf?.trolleys || [])
+        .filter(c => c.client_name === stop.client_name && c.status === 'at_client' && !cycleMap.has(c.id))
+        .map(c => ({ cycleId: c.id, trolleyNo: c.trolley_no, days: daysSinceDate(c.delivered_at || c.packed_at), take: false }));
+    } catch (e) {
+      captureError(e, { feature: 'DriverRouteView.loadOldTrolleysForDelivery' });
+    }
+
+    setDeliverPrompt({
+      stop,
+      trolleys: Array.from(cycleMap, ([cycleId, trolleyNo]) => ({ cycleId, trolleyNo, choice: 'return' })),
+      oldTrolleys,
+    });
+  };
+
+  const performDelivery = async (stop, trolleyActions) => {
     try {
       setBusy(true);
       const ids = stop.entries.map(e => e.id);
       const { data, error } = await supabase.rpc('driver_deliver_entries', {
         p_session_token: sessionToken,
         p_ids: ids,
+        p_trolley_actions: trolleyActions,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if ((data?.affected ?? 0) !== ids.length) throw new Error('Nie można dostarczyć prania odebranego przez innego kierowcę. Odświeżam widok.');
-      await logAction({ sessionToken, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta` });
+      const trolleyDetails = deliverPrompt ? describeTrolleyActions(deliverPrompt) : '';
+      await logAction({ sessionToken, action: 'delivered', clientName: stop.client_name, entryId: ids[0], details: `dostawa do klienta${trolleyDetails ? ', ' + trolleyDetails : ''}` });
+      setDeliverPrompt(null);
       await refetch();
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
+  };
+
+  const toggleDeliverTrolleyChoice = (cycleId, choice) => {
+    setDeliverPrompt(prev => prev && ({
+      ...prev,
+      trolleys: prev.trolleys.map(t => t.cycleId === cycleId ? { ...t, choice } : t),
+    }));
+  };
+
+  const toggleOldTrolleyTake = (cycleId) => {
+    setDeliverPrompt(prev => prev && ({
+      ...prev,
+      oldTrolleys: prev.oldTrolleys.map(t => t.cycleId === cycleId ? { ...t, take: !t.take } : t),
+    }));
+  };
+
+  const confirmDeliverPrompt = () => {
+    if (!deliverPrompt) return;
+    const actions = [
+      ...deliverPrompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: t.choice })),
+      ...deliverPrompt.oldTrolleys.filter(t => t.take).map(t => ({ cycle_id: t.cycleId, action: 'return' })),
+    ];
+    performDelivery(deliverPrompt.stop, actions);
   };
 
   // Cofnij dostawę (np. klienta nie było, pranie wraca na pralnię)
@@ -3265,6 +3343,66 @@ export default function DriverRouteView({ manageMode = false }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={() => setPartialPickup(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
                 <button onClick={markPartialPralnia} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Odbierz tyle'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: co z wózkiem przy dostawie */}
+      {deliverPrompt && (
+        <div className="ap-overlay" style={{ display: 'flex' }} onClick={() => !busy && setDeliverPrompt(null)}>
+          <div className="ap-sheet" onClick={ev => ev.stopPropagation()}>
+            <div className="ap-handle"></div>
+            <div className="ap-content">
+              <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '4px' }}>Co z wózkiem?</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {deliverPrompt.stop.client_name}
+              </div>
+
+              {deliverPrompt.trolleys.map(t => (
+                <div key={t.cycleId} style={{ marginBottom: '14px' }}>
+                  <label style={pfLabel}>Wózek {t.trolleyNo}</label>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDeliverTrolleyChoice(t.cycleId, 'return')}
+                      style={{
+                        flex: 1, padding: '11px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13px',
+                        border: t.choice === 'return' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        background: t.choice === 'return' ? 'var(--accent)' : 'var(--bg-card)',
+                        color: t.choice === 'return' ? '#fff' : 'var(--text-primary)',
+                      }}
+                    >Zabieram z powrotem</button>
+                    <button
+                      type="button"
+                      onClick={() => toggleDeliverTrolleyChoice(t.cycleId, 'leave')}
+                      style={{
+                        flex: 1, padding: '11px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13px',
+                        border: t.choice === 'leave' ? '2px solid var(--accent-orange)' : '1px solid var(--border)',
+                        background: t.choice === 'leave' ? 'var(--accent-orange)' : 'var(--bg-card)',
+                        color: t.choice === 'leave' ? '#fff' : 'var(--text-primary)',
+                      }}
+                    >Zostaje u klienta</button>
+                  </div>
+                </div>
+              ))}
+
+              {deliverPrompt.oldTrolleys.length > 0 && (
+                <div style={{ marginTop: '4px', marginBottom: '10px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
+                  <label style={pfLabel}>Wózki zostawione wcześniej u tego klienta</label>
+                  {deliverPrompt.oldTrolleys.map(t => (
+                    <label key={t.cycleId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', fontSize: '13px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={t.take} onChange={() => toggleOldTrolleyTake(t.cycleId)} style={{ width: '18px', height: '18px' }} />
+                      <span>Zabieram wózek {t.trolleyNo} <span style={{ color: 'var(--text-tertiary)' }}>({daysAtClientLabel(t.days)})</span></span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                <button onClick={() => setDeliverPrompt(null)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
+                <button onClick={confirmDeliverPrompt} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent-green)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Potwierdź dostawę'}</button>
               </div>
             </div>
           </div>
