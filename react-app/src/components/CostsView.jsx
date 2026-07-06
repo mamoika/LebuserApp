@@ -56,6 +56,35 @@ const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleStr
 const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 1 }) : '---';
 const FMT3 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '---';
 
+function parseDecimalInput(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  let s = String(value).trim();
+  if (!s) return null;
+  s = s.replace(/\s/g, '').replace(/[^\d,.-]/g, '');
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    const dotParts = s.split('.');
+    if (dotParts.length > 2) {
+      s = `${dotParts.slice(0, -1).join('')}.${dotParts.at(-1)}`;
+    }
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+const decimalValue = (value) => parseDecimalInput(value) ?? 0;
+
+function normalizeDailyCostRow(row) {
+  const numericFields = ['other_costs', 'ton_zd1', 'ton_zd2', 'ton_pralki'];
+  const normalized = { ...row };
+  numericFields.forEach(field => {
+    if (field in normalized) normalized[field] = parseDecimalInput(normalized[field]);
+  });
+  return normalized;
+}
+
 // iOS 18 Design Constants
 const IOS_THEME = {
   bg: '#F9FAFB',
@@ -414,7 +443,7 @@ export default function CostsView() {
       const rows = days
         .map(ds => dailyDataRef.current[ds])
         .filter(d => d && Object.keys(d).length > 1)
-        .map(d => ({ ...d, updated_at: new Date().toISOString() }));
+        .map(d => normalizeDailyCostRow({ ...d, updated_at: new Date().toISOString() }));
       if (rows.length) {
         await upsertDailyCosts(sessionToken, rows);
       }
@@ -444,8 +473,10 @@ export default function CostsView() {
       parsed = null;
     } else if (field.endsWith('_end')) {
       parsed = value.trim(); // preserve leading zeros
+    } else if (field === 'other_costs') {
+      parsed = value;
     } else {
-      parsed = parseFloat(value.replace(',', '.'));
+      parsed = parseDecimalInput(value);
     }
     
     setDailyData(prev => ({
@@ -458,7 +489,7 @@ export default function CostsView() {
 
   const handleSettingChange = (field, value) => {
     if (!isAdmin) return;
-    const num = value === '' ? null : parseFloat(value);
+    const num = parseDecimalInput(value);
     setSettings(prev => ({ ...prev, [field]: num }));
     dirtySettings.current = true;
     dirtySettingsMonthKey.current = monthKey;
@@ -472,7 +503,7 @@ export default function CostsView() {
       await upsertCostSettings(sessionToken, { ...settings, month_key: monthKey });
       const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
       if (toSave.length > 0) {
-        await upsertDailyCosts(sessionToken, toSave);
+        await upsertDailyCosts(sessionToken, toSave.map(normalizeDailyCostRow));
       }
     } catch {
       setSaving(false);
@@ -548,9 +579,9 @@ export default function CostsView() {
     const water_cost = water_usage * settings.water_price_m3 + (isFuture ? 0 : (settings.water_fixed_monthly / daysInMonth));
     const hrs = laborHours[dStr] || 0; // łączne godziny z Grafiku pracy
     const worker_cost = hrs * settings.worker_hourly_rate;
-    const other_cost = d.other_costs || 0;
+    const other_cost = decimalValue(d.other_costs);
     const total_cost = transportCost + elec_cost + gas_prod_cost + gas_heat_cost + water_cost + worker_cost + other_cost;
-    const ton = (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0);
+    const ton = decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki);
     const pln_kg = ton > 0 ? total_cost / ton : 0;
 
     return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg };
@@ -579,10 +610,13 @@ export default function CostsView() {
   const perfTotals = days.reduce((acc, dStr) => {
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
-    acc.zd1 += dt.ton_zd1 || 0;
-    acc.zd2 += dt.ton_zd2 || 0;
-    acc.pralki += dt.ton_pralki || 0;
-    acc.kg += (dt.ton_zd1 || 0) + (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+    const kgZd1 = decimalValue(dt.ton_zd1);
+    const kgZd2 = decimalValue(dt.ton_zd2);
+    const kgPralki = decimalValue(dt.ton_pralki);
+    acc.zd1 += kgZd1;
+    acc.zd2 += kgZd2;
+    acc.pralki += kgPralki;
+    acc.kg += kgZd1 + kgZd2 + kgPralki;
     acc.hZd1 += ts.ZD1?.hrs || 0;
     acc.hZd2 += ts.ZD2?.hrs || 0;
     acc.hKier += ts.Kierowcy?.hrs || 0;
@@ -646,11 +680,14 @@ export default function CostsView() {
     const perfRows = days.map((dStr) => {
       const dt = dailyData[dStr] || {};
       const ts = timelineStats[dStr]?.roles || {};
-      const kgZd1 = dt.ton_zd1 || 0, kgZd2pr = (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+      const kgZd1 = decimalValue(dt.ton_zd1);
+      const kgZd2 = decimalValue(dt.ton_zd2);
+      const kgPralki = decimalValue(dt.ton_pralki);
+      const kgZd2pr = kgZd2 + kgPralki;
       const tSuma = kgZd1 + kgZd2pr;
       const hZd1 = ts.ZD1?.hrs || 0, hZd2 = ts.ZD2?.hrs || 0, hKier = ts.Kierowcy?.hrs || 0;
       const hSuma = hZd1 + hZd2 + hKier;
-      return [dayLabel(dStr), dt.ton_zd1 || '', dt.ton_zd2 || '', dt.ton_pralki || '', tSuma || '',
+      return [dayLabel(dStr), kgZd1 || '', kgZd2 || '', kgPralki || '', tSuma || '',
         hZd1 ? r2(hZd1) : '', hZd2 ? r2(hZd2) : '', hKier ? r2(hKier) : '', hSuma ? r2(hSuma) : '',
         hZd1 > 0 ? r2(kgZd1 / hZd1) : '', hZd2 > 0 ? r2(kgZd2pr / hZd2) : '', hSuma > 0 ? r2(tSuma / hSuma) : ''];
     });
@@ -1290,7 +1327,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
-                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + (d.ton_zd1 || 0) + (d.ton_zd2 || 0) + (d.ton_pralki || 0); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
+                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
                 </div>
               </td>
             </tr>
@@ -1409,7 +1446,8 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   const osAgg = days.reduce((a, dStr) => {
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
-    const kgZd1 = dt.ton_zd1 || 0, kgZd2pr = (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+    const kgZd1 = decimalValue(dt.ton_zd1);
+    const kgZd2pr = decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
     const pZd1 = ts.ZD1?.emp?.size || 0, pZd2 = ts.ZD2?.emp?.size || 0;
     if (pZd1 > 0 && kgZd1 > 0) { a.z1 += kgZd1 / pZd1; a.n1++; }
     if (pZd2 > 0 && kgZd2pr > 0) { a.z2 += kgZd2pr / pZd2; a.n2++; }
@@ -1422,7 +1460,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   const dayStats = days.map(dStr => {
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
-    const t_suma = (dt.ton_zd1 || 0) + (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+    const t_suma = decimalValue(dt.ton_zd1) + decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
     const h_suma = (ts.ZD1?.hrs || 0) + (ts.ZD2?.hrs || 0) + (ts.Kierowcy?.hrs || 0);
     return { dStr, effAll: h_suma > 0 ? t_suma / h_suma : 0, t_suma, h_suma };
   });
@@ -1477,8 +1515,8 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               const isToday = dStr === todayStr;
               const dt = dailyData[dStr] || {};
               const ts = timelineStats[dStr]?.roles || {};
-              const kgZd1 = dt.ton_zd1 || 0;
-              const kgZd2pr = (dt.ton_zd2 || 0) + (dt.ton_pralki || 0);
+              const kgZd1 = decimalValue(dt.ton_zd1);
+              const kgZd2pr = decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
               const t_suma = kgZd1 + kgZd2pr;
               const hZd1 = ts.ZD1?.hrs || 0, hZd2 = ts.ZD2?.hrs || 0, hKier = ts.Kierowcy?.hrs || 0;
               const h_suma = hZd1 + hZd2 + hKier;
