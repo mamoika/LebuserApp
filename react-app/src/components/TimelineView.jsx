@@ -1137,11 +1137,11 @@ export default function TimelineView() {
                         }}>{role}</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 650, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ROLES[role]?.name || role}</span>
                       </div>
-                      <div style={{ display: 'flex', width: '88px', background: `${r.bg}10`, borderLeft: '1px solid var(--border)' }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekOs.size ? r.bg : 'var(--text-quaternary)', fontWeight: weekOs.size ? 800 : 500, fontSize: '12px', borderRight: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', width: '88px', background: 'transparent', borderLeft: '1px solid var(--border)' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekOs.size ? r.bg : 'var(--text-quaternary)', fontWeight: weekOs.size ? 800 : 500, fontSize: '13px', borderRight: '1px solid var(--border)' }}>
                           {weekOs.size || '·'}
                         </div>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekGodz ? r.bg : 'var(--text-quaternary)', fontWeight: weekGodz ? 800 : 500, fontSize: '12px' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekGodz ? r.bg : 'var(--text-quaternary)', fontWeight: weekGodz ? 800 : 500, fontSize: '13px' }}>
                           {weekGodz || '·'}
                         </div>
                       </div>
