@@ -1019,7 +1019,7 @@ export default function TimelineView() {
             <tbody key={`grp-${g}`}>
               <tr style={{ height: '28px' }}>
                 <td className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: 'none' }}>
-                  <div style={{ display: 'flex', width: '100%', height: '100%', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }}>
+                  <div style={{ display: 'flex', width: '100%', minHeight: '28px', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }}>
                     <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: grpColor, boxShadow: `0 0 8px ${grpColor}80` }} />
                       <span style={{ fontWeight: 800, fontSize: '11px', color: grpColor, letterSpacing: '1px', textTransform: 'uppercase' }}>{g}</span>
@@ -1027,7 +1027,7 @@ export default function TimelineView() {
                   </div>
                 </td>
                 <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1)} style={{ padding: 0, background: 'var(--bg-card-solid)' }}>
-                  <div style={{ width: '100%', height: '100%', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }} />
+                  <div style={{ width: '100%', minHeight: '28px', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }} />
                 </td>
               </tr>
               {members.map((emp) => {
