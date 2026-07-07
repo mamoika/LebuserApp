@@ -796,13 +796,6 @@ export default function TimelineView() {
     return grps;
   }, [groupData, employees]);
 
-  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
-  if (loading) return <div className="loader">{t('timeline.loading')}</div>;
-
-  const NAME_W = 160;
-  const HOUR_W = 24;
-  const todayStr = toDateStr(today);
-
   const groupNames = useMemo(() => groups.map(g => g.g), [groups]);
 
   // Optymalizacja: jednorazowe przeliczenie wszystkich podsumowań z entries
@@ -812,6 +805,7 @@ export default function TimelineView() {
     const dayTotals = {};
     const dayGroupTotals = {};
     const weekTotal = { os: new Set(), godz: 0 };
+    const weekGroupTotals = {};
 
     Object.keys(ROLES).forEach(role => { roleWeekTotals[role] = { os: new Set(), godz: 0 }; });
 
@@ -821,7 +815,10 @@ export default function TimelineView() {
       Object.keys(ROLES).forEach(role => { summaries[dateStr][role] = {}; });
       dayTotals[dateStr] = { os: new Set(), godz: 0 };
       dayGroupTotals[dateStr] = {};
-      groupNames.forEach(gn => { dayGroupTotals[dateStr][gn] = { os: new Set(), godz: 0 }; });
+      groupNames.forEach(gn => { 
+        dayGroupTotals[dateStr][gn] = { os: new Set(), godz: 0 };
+        if (!weekGroupTotals[gn]) weekGroupTotals[gn] = { os: new Set(), godz: 0 };
+      });
     });
 
     const empToGroup = {};
@@ -859,13 +856,23 @@ export default function TimelineView() {
       if (empGroup && dayGroupTotals[dateStr][empGroup]) {
         dayGroupTotals[dateStr][empGroup].os.add(empId);
         dayGroupTotals[dateStr][empGroup].godz += 1;
+        
+        weekGroupTotals[empGroup].os.add(empId);
+        weekGroupTotals[empGroup].godz += 1;
       }
     });
 
-    return { summaries, roleWeekTotals, dayTotals, dayGroupTotals, weekTotal };
+    return { summaries, roleWeekTotals, dayTotals, dayGroupTotals, weekTotal, weekGroupTotals };
   }, [entries, weekDays, ROLES, groupNames, employees]);
 
   const summaries = stats.summaries;
+
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
+  if (loading) return <div className="loader">{t('timeline.loading')}</div>;
+
+  const NAME_W = 160;
+  const HOUR_W = 24;
+  const todayStr = toDateStr(today);
 
   // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
   // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
