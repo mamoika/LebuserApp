@@ -4597,6 +4597,44 @@ select.ap-input {
     size: landscape;
     margin: 1cm;
   }
+
+  /* ── Clients & routes printout ── */
+  .clients-routes-view {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .clients-routes-view .drag-handle,
+  .clients-routes-view .edit-icon,
+  .clients-routes-view .gps-dot.ok::after {
+    display: none !important;
+  }
+  .clients-routes-view .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .clients-routes-view .route-group-header {
+    margin: 16px 0 10px 0;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .clients-routes-view .route-card {
+    min-height: 0;
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+    background: #fff !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .clients-routes-view .tag-client {
+    box-shadow: none !important;
+    border-color: #ddd;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .clients-routes-view .client-order {
+    background: #fff;
+    border-color: #bbb;
+  }
 }
 
 /* ── TIMELINE STYLES (iOS 18 Premium UI) ── */

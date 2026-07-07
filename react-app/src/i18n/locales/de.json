@@ -270,6 +270,8 @@
     "searchResults": "Gefunden: {{count}}",
     "searchNoResults": "Keine Treffer",
     "clearSearch": "Suche zurücksetzen",
+    "printTitle": "Kundenliste drucken",
+    "print": "Drucken",
     "driverRoutes": "Fahrer-Routen",
     "driverRoutesBtn": "👨‍✈️ Fahrer-Routen",
     "noDrivers": "Keine Fahrer in der Datenbank",

@@ -272,6 +272,8 @@
     "searchResults": "Znaleziono: {{count}}",
     "searchNoResults": "Brak wyników",
     "clearSearch": "Wyczyść wyszukiwanie",
+    "printTitle": "Drukuj listę klientów",
+    "print": "Drukuj",
     "driverRoutes": "Trasy kierowców",
     "driverRoutesBtn": "👨‍✈️ Trasy kierowców",
     "noDrivers": "Brak kierowców w bazie",

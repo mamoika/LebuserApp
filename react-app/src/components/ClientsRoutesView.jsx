@@ -8,6 +8,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 import { getClientUsageStatus } from '../lib/readRpc';
+import { Printer } from 'lucide-react';
 
 // Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
 const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
@@ -724,6 +725,10 @@ export default function ClientsRoutesView() {
 
   // ---- Render ----
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   const groups = SCHEDULE_VALUES.map(value => ({
@@ -850,7 +855,7 @@ export default function ClientsRoutesView() {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="clients-routes-view">
-        <div className="clients-header clients-searchbar">
+        <div className="clients-header clients-searchbar print-hide">
           <div className="clients-search-input-wrap">
             <span className="clients-search-icon" aria-hidden="true">⌕</span>
             <input
@@ -880,15 +885,20 @@ export default function ClientsRoutesView() {
             </div>
           )}
 
-          {isAdmin && (
-            <div className="clients-header-actions">
+          <div className="clients-header-actions">
+            <button className="add-route-btn" onClick={handlePrint} title={t('clients.printTitle')}>
+              <Printer size={15} /> {t('clients.print')}
+            </button>
+            {isAdmin && (
+              <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
               <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="clients-hint" style={{ marginBottom: '16px' }}>
+        <div className="clients-hint print-hide" style={{ marginBottom: '16px' }}>
           {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>{t('clients.hasGps')}</span> &nbsp;·&nbsp;
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
