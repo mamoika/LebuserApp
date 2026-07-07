@@ -71,6 +71,8 @@ language plpgsql
 security definer
 set search_path = public, extensions
 as $$
+declare
+  v_last_seen timestamptz;
 begin
   return query
   select u.id, u.username, u.name, u.role, u.routes
@@ -81,11 +83,18 @@ begin
     and s.expires_at > now()
   limit 1;
 
-  update public.user_sessions s
-  set last_seen_at = now()
-  where s.token_hash = public.session_hash(p_session_token)
-    and s.revoked_at is null
-    and s.expires_at > now();
+  select last_seen_at into v_last_seen
+  from public.user_sessions
+  where token_hash = public.session_hash(p_session_token)
+  limit 1;
+
+  if v_last_seen is null or v_last_seen < now() - interval '5 minutes' then
+    update public.user_sessions s
+    set last_seen_at = now()
+    where s.token_hash = public.session_hash(p_session_token)
+      and s.revoked_at is null
+      and s.expires_at > now();
+  end if;
 end;
 $$;
 
