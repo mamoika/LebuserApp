@@ -334,7 +334,7 @@
     "copyHintTarget": "Kliknij dzień docelowy (kolumnę Σ), aby wkleić. Można wkleić na kilka dni.",
     "copyHintSource": "Kliknij dzień źródłowy w kolumnie Σ przy osobie.",
     "empStation": "Pracownik / Dzień",
-    "sum": "Suma / Stanowisko",
+    "sum": "Stanowisko / Suma",
     "sumPersons": "Σ Os.",
     "sumHours": "Σ Gdz.",
     "hoursShort": "Gdz",

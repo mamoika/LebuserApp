@@ -1064,7 +1064,7 @@ export default function TimelineView() {
             <tr className="tl-summary-header">
               <th className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center' }}>
-                  <div style={{ flex: 1, padding: '0 12px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800 }}>
+                  <div style={{ flex: 1, padding: '0 12px', color: 'var(--text-primary)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {t('timeline.sum')}
                   </div>
                   <div style={{ display: 'flex', alignSelf: 'stretch', width: '88px', background: 'var(--bg-tertiary)', borderLeft: '1px solid var(--border)' }}>
