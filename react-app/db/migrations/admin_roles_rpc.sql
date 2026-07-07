@@ -16,6 +16,8 @@ create table if not exists public.roles (
   created_at timestamptz not null default now()
 );
 
+alter table public.roles enable row level security;
+
 -- Seed: dzisiejsze 13 stanowisk, tymczasowo przypięte do grupy o najniższym sort_order
 -- (dowolna jedna grupa — placeholder). To trzeba potem przejrzeć w Panel Admina →
 -- Stanowiska i rozdzielić (np. dodać "Magiel" jako osobny wpis dla ZD2, zduplikować

@@ -38,6 +38,8 @@ create table if not exists public.laundry_trolley_delivery_events (
   changes jsonb not null default '[]'::jsonb
 );
 
+alter table public.laundry_trolley_delivery_events enable row level security;
+
 create index if not exists laundry_trolley_delivery_events_entry_ids_idx
   on public.laundry_trolley_delivery_events using gin (entry_ids);
 
