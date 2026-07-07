@@ -851,29 +851,34 @@ export default function TimelineView() {
 
   // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
   // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
-  const renderTimeHeader = () => (
+  const renderTimeHeader = (isBottom = false) => (
     <>
+      {!isBottom && (
+        <tr>
+          <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
+            <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
+              {t('timeline.empStation')}
+            </div>
+          </th>
+          {weekDays.map((d, di) => {
+            const dw = d.getDay();
+            const isWe = dw === 0 || dw === 6;
+            const isToday = toDateStr(d) === todayStr;
+            return (
+              <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
+                background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
+                color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
+              }}>
+                {DAY_NAMES[dw]} {fmtDate(d)}
+              </th>
+            );
+          })}
+        </tr>
+      )}
       <tr>
-        <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
-            {t('timeline.empStation')}
-          </div>
-        </th>
-        {weekDays.map((d, di) => {
-          const dw = d.getDay();
-          const isWe = dw === 0 || dw === 6;
-          const isToday = toDateStr(d) === todayStr;
-          return (
-            <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
-              background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
-              color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
-            }}>
-              {DAY_NAMES[dw]} {fmtDate(d)}
-            </th>
-          );
-        })}
-      </tr>
-      <tr>
+        {isBottom && (
+          <th className="tl-th-corner" style={{ padding: 0, minWidth: '200px', borderTop: '2px solid var(--border-strong)' }} />
+        )}
         {weekDays.map((d, di) => {
           const isWe = d.getDay() === 0 || d.getDay() === 6;
           const isToday = toDateStr(d) === todayStr;
@@ -1052,7 +1057,7 @@ export default function TimelineView() {
             <tr>
               <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1) + 1} style={{ height: '32px', border: 'none', background: 'var(--bg-primary)' }}></td>
             </tr>
-            {renderTimeHeader()}
+            {renderTimeHeader(true)}
           </tbody>
 
           {/* Ciało tabeli: Podsumowanie */}
