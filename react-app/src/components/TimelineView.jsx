@@ -796,28 +796,6 @@ export default function TimelineView() {
     return grps;
   }, [groupData, employees]);
 
-  // Godziny liczą się do grupy, do której NALEŻY STANOWISKO (ROLES[role].group),
-  // nie do stałej grupy pracownika — bo pracownik z ZD1 może dziś pracować na
-  // stanowisku istniejącym tylko w ZD2, i te godziny mają liczyć się do ZD2.
-  const buildSummary = useCallback((d) => {
-    const dateStr = toDateStr(d);
-    const result = {};
-    Object.entries(ROLES).forEach(([role]) => { result[role] = {}; });
-    employees.forEach(emp => {
-      COUNT_HOURS.forEach(h => {
-        const role = entries[`${emp.id}_${dateStr}_${h}`];
-        if (!role) return;
-        const g = ROLES[role]?.group;
-        if (!g) return;
-        if (!result[role]) result[role] = {};
-        if (!result[role][g]) result[role][g] = { os: new Set(), godz: 0 };
-        result[role][g].os.add(emp.id);
-        result[role][g].godz += 1;
-      });
-    });
-    return result;
-  }, [entries, employees, ROLES]);
-
   if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
   if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
@@ -826,9 +804,68 @@ export default function TimelineView() {
   const todayStr = toDateStr(today);
 
   const groupNames = useMemo(() => groups.map(g => g.g), [groups]);
-  const summaries = useMemo(() => {
-    return Object.fromEntries(weekDays.map(d => [toDateStr(d), buildSummary(d)]));
-  }, [weekDays, buildSummary]);
+
+  // Optymalizacja: jednorazowe przeliczenie wszystkich podsumowań z entries
+  const stats = useMemo(() => {
+    const summaries = {};
+    const roleWeekTotals = {};
+    const dayTotals = {};
+    const dayGroupTotals = {};
+    const weekTotal = { os: new Set(), godz: 0 };
+
+    Object.keys(ROLES).forEach(role => { roleWeekTotals[role] = { os: new Set(), godz: 0 }; });
+
+    weekDays.forEach(d => {
+      const dateStr = toDateStr(d);
+      summaries[dateStr] = {};
+      Object.keys(ROLES).forEach(role => { summaries[dateStr][role] = {}; });
+      dayTotals[dateStr] = { os: new Set(), godz: 0 };
+      dayGroupTotals[dateStr] = {};
+      groupNames.forEach(gn => { dayGroupTotals[dateStr][gn] = { os: new Set(), godz: 0 }; });
+    });
+
+    const empToGroup = {};
+    employees.forEach(e => { empToGroup[e.id] = e.group_name; });
+    const validDates = new Set(weekDays.map(toDateStr));
+
+    Object.entries(entries).forEach(([key, role]) => {
+      if (!role) return;
+      const [empIdStr, dateStr] = key.split('_');
+      if (!validDates.has(dateStr)) return;
+      
+      const empId = String(empIdStr);
+
+      const roleGroup = ROLES[role]?.group;
+      if (roleGroup) {
+        if (!summaries[dateStr][role][roleGroup]) {
+           summaries[dateStr][role][roleGroup] = { os: new Set(), godz: 0 };
+        }
+        summaries[dateStr][role][roleGroup].os.add(empId);
+        summaries[dateStr][role][roleGroup].godz += 1;
+        
+        if (roleWeekTotals[role]) {
+          roleWeekTotals[role].os.add(empId);
+          roleWeekTotals[role].godz += 1;
+        }
+      }
+
+      dayTotals[dateStr].os.add(empId);
+      dayTotals[dateStr].godz += 1;
+      
+      weekTotal.os.add(empId);
+      weekTotal.godz += 1;
+      
+      const empGroup = empToGroup[empId];
+      if (empGroup && dayGroupTotals[dateStr][empGroup]) {
+        dayGroupTotals[dateStr][empGroup].os.add(empId);
+        dayGroupTotals[dateStr][empGroup].godz += 1;
+      }
+    });
+
+    return { summaries, roleWeekTotals, dayTotals, dayGroupTotals, weekTotal };
+  }, [entries, weekDays, ROLES, groupNames, employees]);
+
+  const summaries = stats.summaries;
 
   // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
   // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
@@ -1097,14 +1134,8 @@ export default function TimelineView() {
             {Object.entries(ROLES).map(([role, r], ri) => {
               const rowBg = ri % 2 === 0 ? '#ffffff' : '#f6f6f9';
               
-              const weekOs = new Set(weekDays.flatMap(d => {
-                const rd = summaries[toDateStr(d)]?.[role] || {};
-                return Object.values(rd).flatMap(x => [...(x?.os || [])]);
-              }));
-              const weekGodz = weekDays.reduce((s, d) => {
-                const rd = summaries[toDateStr(d)]?.[role] || {};
-                return s + Object.values(rd).reduce((ss, x) => ss + (x?.godz || 0), 0);
-              }, 0);
+              const weekOs = stats.roleWeekTotals[role]?.os || new Set();
+              const weekGodz = stats.roleWeekTotals[role]?.godz || 0;
 
               return (
                 <tr key={role} style={{ background: rowBg, height: '36px' }}>
@@ -1171,14 +1202,8 @@ export default function TimelineView() {
             })}
             <tr style={{ height: '36px' }}>
               {(() => {
-                const wOs = new Set(weekDays.flatMap(d => {
-                  const ds = toDateStr(d);
-                  return employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${ds}_${h}`])).map(e => e.id);
-                }));
-                const wGodz = weekDays.reduce((s, d) => {
-                  const ds = toDateStr(d);
-                  return s + employees.reduce((ss, e) => ss + COUNT_HOURS.filter(h => entries[`${e.id}_${ds}_${h}`]).length, 0);
-                }, 0);
+                const wOs = stats.weekTotal.os;
+                const wGodz = stats.weekTotal.godz;
 
                 return (
                   <td className="tl-sticky-col" style={{ background: '#f2f2f7', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)', borderTop: '2px solid var(--border-strong)' }}>
@@ -1201,8 +1226,8 @@ export default function TimelineView() {
               {weekDays.map((d, di) => {
                 const dateStr = toDateStr(d);
                 const isToday = dateStr === todayStr;
-                const allOs = new Set(employees.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                const allGodz = employees.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                const allOs = stats.dayTotals[dateStr]?.os || new Set();
+                const allGodz = stats.dayTotals[dateStr]?.godz || 0;
                 
                 return (
                   <td key={di} colSpan={VISIBLE_HOURS.length + 1} style={{ padding: 0, borderLeft: '2px solid var(--border-strong)', background: isToday ? 'rgba(56,189,248,0.06)' : 'var(--bg-tertiary)', borderTop: '2px solid var(--border-strong)' }}>
@@ -1219,9 +1244,8 @@ export default function TimelineView() {
                       {/* GROUPS */}
                       {groupNames.flatMap((gn, idx) => {
                         const gc = groups.find(g => g.g === gn)?.color || '#555';
-                        const gm = groups.find(g => g.g === gn)?.members || [];
-                        const gOs = new Set(gm.filter(e => COUNT_HOURS.some(h => entries[`${e.id}_${dateStr}_${h}`])).map(e => e.id));
-                        const gGodz = gm.reduce((s, e) => s + COUNT_HOURS.filter(h => entries[`${e.id}_${dateStr}_${h}`]).length, 0);
+                        const gOs = stats.dayGroupTotals[dateStr]?.[gn]?.os || new Set();
+                        const gGodz = stats.dayGroupTotals[dateStr]?.[gn]?.godz || 0;
                         const isLast = idx === groupNames.length - 1;
                         
                         return [
