@@ -485,6 +485,8 @@ const TimelineRow = React.memo(({
   if (prev.brushRole !== next.brushRole) return false;
   if (prev.copyMode !== next.copyMode) return false;
   if (prev.copySource !== next.copySource) return false;
+  if (prev.roles !== next.roles) return false;
+  if (prev.weekDays !== next.weekDays) return false;
   for (let d of next.weekDays) {
     const dateStr = toDateStr(d);
     if (prev.scheduleMap[`${prev.emp.id}_${dateStr}`] !== next.scheduleMap[`${next.emp.id}_${dateStr}`]) return false;
@@ -519,6 +521,11 @@ export default function TimelineView() {
   const containerRef = useRef(null);
   const sumaContainerRef = useRef(null);
 
+  const entriesRef = useRef(entries);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
   const monday = useMemo(() => getMondayOfWeek(anchor), [anchor]);
   const allWeekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const weekNum = getWeekNum(monday);
@@ -536,16 +543,18 @@ export default function TimelineView() {
   const segEnd = segDays[segDays.length - 1];
   const isPartialWeek = segDays.length < 7;
 
-  const weekDays = segDays.filter(d => {
-    const dw = d.getDay();
-    if (dw !== 0 && dw !== 6) return true;
-    const ds = toDateStr(d);
-    // Weekend widoczny, gdy ktoś ma malowanie godzinowe (entries) LUB przepracowaną
-    // zmianę z grafiku (scheduleMap) tego dnia — np. sobotnia zmiana nocna 23:00.
-    const hasTimeline = Object.keys(entries).some(k => k.includes(`_${ds}_`));
-    const hasWorkShift = Object.keys(scheduleMap).some(k => k.endsWith(`_${ds}`) && scheduleMap[k]?.working);
-    return hasTimeline || hasWorkShift;
-  });
+  const weekDays = useMemo(() => {
+    return segDays.filter(d => {
+      const dw = d.getDay();
+      if (dw !== 0 && dw !== 6) return true;
+      const ds = toDateStr(d);
+      // Weekend widoczny, gdy ktoś ma malowanie godzinowe (entries) LUB przepracowaną
+      // zmianę z grafiku (scheduleMap) tego dnia — np. sobotnia zmiana nocna 23:00.
+      const hasTimeline = Object.keys(entries).some(k => k.includes(`_${ds}_`));
+      const hasWorkShift = Object.keys(scheduleMap).some(k => k.endsWith(`_${ds}`) && scheduleMap[k]?.working);
+      return hasTimeline || hasWorkShift;
+    });
+  }, [segDays, entries, scheduleMap]);
 
   const fetchData = useCallback(async () => {
     if (!canViewAdminData || !sessionToken) {
@@ -660,7 +669,7 @@ export default function TimelineView() {
     const key = `${empId}_${dateStr}_${hour}`;
     const isErase = brushRole === '__erase__';
     const newRole = isErase ? null : brushRole;
-    const current = entries[key];
+    const current = entriesRef.current[key];
     if (current === newRole) return;
     setEntries(prev => {
       const next = { ...prev };
@@ -684,7 +693,7 @@ export default function TimelineView() {
       });
       toastError(t('timeline.saveError'));
     }
-  }, [isAdmin, brushRole, entries, user, sessionToken, t]);
+  }, [isAdmin, brushRole, user, sessionToken, t]);
 
   // Kopiowanie dnia jednej osoby na inny dzień (tryb "dołóż")
   const handleCopyClick = useCallback(async (empId, dateStr) => {
@@ -707,14 +716,14 @@ export default function TimelineView() {
     // godziny ze źródła, które mieszczą się w zmianie docelowej
     const toWrite = [];
     for (const h of COUNT_HOURS) {
-      const role = entries[`${srcEmpId}_${srcDateStr}_${h}`];
+      const role = entriesRef.current[`${srcEmpId}_${srcDateStr}_${h}`];
       if (!role) continue;
       if (!isHourInShift(h, tShift.startH, tShift.endH)) continue;
       toWrite.push({ h, role });
     }
     if (!toWrite.length) { toastWarn(t('timeline.noHoursToCopy')); return; }
 
-    const prevValues = toWrite.map(({ h }) => ({ h, role: entries[`${empId}_${dateStr}_${h}`] }));
+    const prevValues = toWrite.map(({ h }) => ({ h, role: entriesRef.current[`${empId}_${dateStr}_${h}`] }));
     setEntries(prev => {
       const next = { ...prev };
       toWrite.forEach(({ h, role }) => { next[`${empId}_${dateStr}_${h}`] = role; });
@@ -741,7 +750,7 @@ export default function TimelineView() {
     } else {
       toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
-  }, [isAdmin, copySource, employees, scheduleMap, entries, user, sessionToken, t]);
+  }, [isAdmin, copySource, employees, scheduleMap, user, sessionToken, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = segStart <= minMonday;
@@ -816,8 +825,10 @@ export default function TimelineView() {
   const HOUR_W = 24;
   const todayStr = toDateStr(today);
 
-  const groupNames = groups.map(g => g.g);
-  const summaries = Object.fromEntries(weekDays.map(d => [toDateStr(d), buildSummary(d)]));
+  const groupNames = useMemo(() => groups.map(g => g.g), [groups]);
+  const summaries = useMemo(() => {
+    return Object.fromEntries(weekDays.map(d => [toDateStr(d), buildSummary(d)]));
+  }, [weekDays, buildSummary]);
 
   // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
   // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
@@ -857,7 +868,7 @@ export default function TimelineView() {
       </tr>
     </thead>
   );
-  const tableMinWidth = `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px`;
+  const tableMinWidth = useMemo(() => `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px`, [weekDays.length]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
