@@ -852,7 +852,7 @@ export default function TimelineView() {
   // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
   // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
   const renderTimeHeader = () => (
-    <thead>
+    <>
       <tr>
         <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
@@ -885,7 +885,7 @@ export default function TimelineView() {
           ];
         })}
       </tr>
-    </thead>
+    </>
   );
   const tableMinWidth = useMemo(() => `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px`, [weekDays.length]);
 
@@ -1005,7 +1005,9 @@ export default function TimelineView() {
       {/* Roster: lista pracowników, cała na ekranie (bez pionowego scrolla) */}
       <div className="tl-container" ref={containerRef}>
         <table className="tl-table" style={{ minWidth: tableMinWidth }}>
-          {renderTimeHeader()}
+          <thead>
+            {renderTimeHeader()}
+          </thead>
 
           {/* Ciało tabeli: Grupy i Pracownicy */}
           {groups.map(({ g, color: grpColor, members }) => (
@@ -1045,11 +1047,12 @@ export default function TimelineView() {
               })}
             </tbody>
           ))}
-          {/* PRZERWA MIĘDZY LISTĄ A PODSUMOWANIEM */}
+          {/* PRZERWA MIĘDZY LISTĄ A PODSUMOWANIEM ORAZ DOLNY NAGŁÓWEK */}
           <tbody>
             <tr>
               <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1) + 1} style={{ height: '32px', border: 'none', background: 'var(--bg-primary)' }}></td>
             </tr>
+            {renderTimeHeader()}
           </tbody>
 
           {/* Ciało tabeli: Podsumowanie */}
