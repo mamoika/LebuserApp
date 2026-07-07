@@ -867,9 +867,6 @@ export default function TimelineView() {
 
   const summaries = stats.summaries;
 
-  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
-  if (loading) return <div className="loader">{t('timeline.loading')}</div>;
-
   const NAME_W = 160;
   const HOUR_W = 24;
   const todayStr = toDateStr(today);
@@ -913,6 +910,9 @@ export default function TimelineView() {
     </thead>
   );
   const tableMinWidth = useMemo(() => `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px`, [weekDays.length]);
+
+  if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
+  if (loading) return <div className="loader">{t('timeline.loading')}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
