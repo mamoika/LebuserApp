@@ -1052,11 +1052,8 @@ export default function TimelineView() {
               })}
             </tbody>
           ))}
-          {/* PRZERWA MIĘDZY LISTĄ A PODSUMOWANIEM ORAZ DOLNY NAGŁÓWEK */}
+          {/* DOLNY NAGŁÓWEK */}
           <tbody>
-            <tr>
-              <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1) + 1} style={{ height: '32px', border: 'none', background: 'var(--bg-primary)' }}></td>
-            </tr>
             {renderTimeHeader(true)}
           </tbody>
 
