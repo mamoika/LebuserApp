@@ -877,7 +877,7 @@ export default function TimelineView() {
       )}
       <tr>
         {isBottom && (
-          <th className="tl-th-corner" style={{ padding: 0, minWidth: '200px', borderTop: '2px solid var(--border-strong)' }} />
+          <th className="tl-th-corner" style={{ padding: 0, minWidth: '200px', width: '200px', borderTop: '2px solid var(--border-strong)', borderRight: '1px solid var(--border-strong)', background: 'var(--bg-card-solid)', borderBottom: '2px solid var(--border-strong)' }} />
         )}
         {weekDays.map((d, di) => {
           const isWe = d.getDay() === 0 || d.getDay() === 6;
