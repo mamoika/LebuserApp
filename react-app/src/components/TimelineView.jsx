@@ -610,8 +610,8 @@ export default function TimelineView() {
     return () => window.removeEventListener('mouseup', stop);
   }, []);
 
-  // Mysz: pionowe kółko przewija tabelę Sumy w bok (roster ma teraz własny
-  // pionowy scroll, więc kółko nad nim ma przewijać normalnie w pionie).
+  // Mysz: pionowe kółko przewija tabelę Sumy w bok (roster jest rozwijany
+  // w pełni w pionie na stronie, więc kółko nad nim przewija całą stronę).
   useEffect(() => {
     const el = sumaContainerRef.current;
     if (!el) return;
@@ -969,7 +969,7 @@ export default function TimelineView() {
 
 
 
-      {/* Roster: lista pracowników, własny pionowy scroll + przyklejony nagłówek */}
+      {/* Roster: lista pracowników, cała na ekranie (bez pionowego scrolla) */}
       <div className="tl-container" ref={containerRef}>
         <table className="tl-table" style={{ minWidth: tableMinWidth }}>
           {renderTimeHeader()}
