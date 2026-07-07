@@ -1119,7 +1119,12 @@ export default function TimelineView() {
                 );
               })}
             </tr>
-            {Object.entries(ROLES).map(([role, r], ri) => {
+            {(() => {
+              const ordered = rolesByGroup.flatMap(g => g.items);
+              const orderedCodes = new Set(ordered.map(x => x[0]));
+              const extras = Object.entries(ROLES).filter(([code]) => !orderedCodes.has(code));
+              return [...ordered, ...extras];
+            })().map(([role, r], ri) => {
               const rowBg = ri % 2 === 0 ? '#ffffff' : '#f6f6f9';
               
               const weekOs = stats.roleWeekTotals[role]?.os || new Set();
