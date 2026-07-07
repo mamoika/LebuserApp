@@ -647,17 +647,28 @@ export default function TimelineView() {
     const roster = containerRef.current;
     const suma = sumaContainerRef.current;
     if (!roster || !suma) return;
-    let syncing = false;
-    const sync = (from, to) => () => {
-      if (syncing) return;
-      syncing = true;
-      to.scrollLeft = from.scrollLeft;
-      syncing = false;
+    
+    let isSyncingLeft = false;
+    let isSyncingRight = false;
+    
+    const onRosterScroll = () => {
+      if (!isSyncingLeft) {
+        isSyncingRight = true;
+        suma.scrollLeft = roster.scrollLeft;
+      }
+      isSyncingLeft = false;
     };
-    const onRosterScroll = sync(roster, suma);
-    const onSumaScroll = sync(suma, roster);
-    roster.addEventListener('scroll', onRosterScroll);
-    suma.addEventListener('scroll', onSumaScroll);
+    
+    const onSumaScroll = () => {
+      if (!isSyncingRight) {
+        isSyncingLeft = true;
+        roster.scrollLeft = suma.scrollLeft;
+      }
+      isSyncingRight = false;
+    };
+    
+    roster.addEventListener('scroll', onRosterScroll, { passive: true });
+    suma.addEventListener('scroll', onSumaScroll, { passive: true });
     return () => {
       roster.removeEventListener('scroll', onRosterScroll);
       suma.removeEventListener('scroll', onSumaScroll);
