@@ -4690,6 +4690,8 @@ select.ap-input {
   top: 0;
   z-index: 5;
   background: inherit;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .tl-th-hour {
   font-size: 9px;
@@ -4703,6 +4705,8 @@ select.ap-input {
   top: 32px;
   z-index: 4;
   background: var(--bg-card-solid);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 

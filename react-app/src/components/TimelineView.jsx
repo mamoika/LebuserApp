@@ -641,30 +641,22 @@ export default function TimelineView() {
     return () => el.removeEventListener('wheel', onWheel);
   }, [loading]);
 
-  // Synchronizacja poziomego scrolla między listą pracowników a tabelą Sumy —
-  // to te same dni/godziny w kolumnach, więc mają się przewijać razem.
+  // Synchronizacja poziomego scrolla między listą pracowników a tabelą Sumy
   useEffect(() => {
     const roster = containerRef.current;
     const suma = sumaContainerRef.current;
     if (!roster || !suma) return;
     
-    let isSyncingLeft = false;
-    let isSyncingRight = false;
-    
     const onRosterScroll = () => {
-      if (!isSyncingLeft) {
-        isSyncingRight = true;
+      if (suma.scrollLeft !== roster.scrollLeft) {
         suma.scrollLeft = roster.scrollLeft;
       }
-      isSyncingLeft = false;
     };
     
     const onSumaScroll = () => {
-      if (!isSyncingRight) {
-        isSyncingLeft = true;
+      if (roster.scrollLeft !== suma.scrollLeft) {
         roster.scrollLeft = suma.scrollLeft;
       }
-      isSyncingRight = false;
     };
     
     roster.addEventListener('scroll', onRosterScroll, { passive: true });
