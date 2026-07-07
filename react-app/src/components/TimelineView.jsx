@@ -618,10 +618,10 @@ export default function TimelineView() {
     return () => window.removeEventListener('mouseup', stop);
   }, []);
 
-  // Mysz: pionowe kółko przewija tabelę Sumy w bok (roster jest rozwijany
-  // w pełni w pionie na stronie, więc kółko nad nim przewija całą stronę).
+  // Mysz: pionowe kółko przewija całą tabelę w bok (tabela rozciąga się w pionie,
+  // więc scroll pionowy strony działa, a kółko nad tabelą przesuwa w bok).
   useEffect(() => {
-    const el = sumaContainerRef.current;
+    const el = containerRef.current;
     if (!el) return;
     const onWheel = (e) => {
       if (e.deltaY === 0) return;
