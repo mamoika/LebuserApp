@@ -1017,16 +1017,18 @@ export default function TimelineView() {
           {/* Ciało tabeli: Grupy i Pracownicy */}
           {groups.map(({ g, color: grpColor, members }) => (
             <tbody key={`grp-${g}`}>
-              <tr style={{ height: '22px' }}>
-                <td className="tl-sticky-col" style={{ background: '#fff', borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30`, padding: 0, minWidth: '200px' }}>
-                  <div style={{ display: 'flex', width: '100%', height: '100%', background: `${grpColor}15` }}>
-                    <div style={{ flex: 1, padding: '0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: grpColor }} />
-                      <span style={{ fontWeight: 800, fontSize: '10px', color: grpColor, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{g}</span>
+              <tr style={{ height: '28px' }}>
+                <td className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: 'none' }}>
+                  <div style={{ display: 'flex', width: '100%', height: '100%', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }}>
+                    <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: grpColor, boxShadow: `0 0 8px ${grpColor}80` }} />
+                      <span style={{ fontWeight: 800, fontSize: '11px', color: grpColor, letterSpacing: '1px', textTransform: 'uppercase' }}>{g}</span>
                     </div>
                   </div>
                 </td>
-                <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1)} style={{ background: `${grpColor}08`, borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20` }} />
+                <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1)} style={{ padding: 0, background: 'var(--bg-card-solid)' }}>
+                  <div style={{ width: '100%', height: '100%', background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30` }} />
+                </td>
               </tr>
               {members.map((emp) => {
                 const rowBg = '#ffffff';
