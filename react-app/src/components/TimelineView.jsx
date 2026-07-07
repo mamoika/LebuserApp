@@ -519,7 +519,6 @@ export default function TimelineView() {
   const isPainting = useRef(false);
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
   const containerRef = useRef(null);
-  const sumaContainerRef = useRef(null);
 
   const entriesRef = useRef(entries);
   useEffect(() => {
@@ -641,31 +640,7 @@ export default function TimelineView() {
     return () => el.removeEventListener('wheel', onWheel);
   }, [loading]);
 
-  // Synchronizacja poziomego scrolla między listą pracowników a tabelą Sumy
-  useEffect(() => {
-    const roster = containerRef.current;
-    const suma = sumaContainerRef.current;
-    if (!roster || !suma) return;
-    
-    const onRosterScroll = () => {
-      if (suma.scrollLeft !== roster.scrollLeft) {
-        suma.scrollLeft = roster.scrollLeft;
-      }
-    };
-    
-    const onSumaScroll = () => {
-      if (roster.scrollLeft !== suma.scrollLeft) {
-        roster.scrollLeft = suma.scrollLeft;
-      }
-    };
-    
-    roster.addEventListener('scroll', onRosterScroll, { passive: true });
-    suma.addEventListener('scroll', onSumaScroll, { passive: true });
-    return () => {
-      roster.removeEventListener('scroll', onRosterScroll);
-      suma.removeEventListener('scroll', onSumaScroll);
-    };
-  }, [loading]);
+
 
   const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
     if (!isAdmin || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
@@ -1070,14 +1045,12 @@ export default function TimelineView() {
               })}
             </tbody>
           ))}
-        </table>
-      </div>
-
-      {/* Suma: zawsze w całości widoczna, nie trzeba przewijać rostera żeby ją zobaczyć.
-          Osobny kontener — tylko poziomy scroll, zsynchronizowany z rosterem powyżej. */}
-      <div className="tl-suma-container" ref={sumaContainerRef}>
-        <table className="tl-table" style={{ minWidth: tableMinWidth }}>
-          {renderTimeHeader()}
+          {/* PRZERWA MIĘDZY LISTĄ A PODSUMOWANIEM */}
+          <tbody>
+            <tr>
+              <td colSpan={weekDays.length * (VISIBLE_HOURS.length + 1) + 1} style={{ height: '32px', border: 'none', background: 'var(--bg-primary)' }}></td>
+            </tr>
+          </tbody>
 
           {/* Ciało tabeli: Podsumowanie */}
           <tbody>
