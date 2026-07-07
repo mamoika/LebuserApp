@@ -4641,11 +4641,21 @@ select.ap-input {
 .tl-container {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 72vh;
+  max-height: 60vh;
   border-radius: 20px;
   border: 1px solid var(--border-strong);
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3) inset;
   background: var(--bg-card-solid);
+}
+
+/* Tabela Suma — zawsze w całości widoczna, tylko poziomy scroll (bez max-height). */
+.tl-suma-container {
+  overflow-x: auto;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3) inset;
+  background: var(--bg-card-solid);
+  margin-top: 16px;
 }
 
 .tl-table {

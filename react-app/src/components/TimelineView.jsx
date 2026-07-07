@@ -517,6 +517,7 @@ export default function TimelineView() {
   const isPainting = useRef(false);
   const paintedInStroke = useRef(new Map()); // key -> prevRole for undo on cancel
   const containerRef = useRef(null);
+  const sumaContainerRef = useRef(null);
 
   const monday = useMemo(() => getMondayOfWeek(anchor), [anchor]);
   const allWeekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
@@ -609,9 +610,10 @@ export default function TimelineView() {
     return () => window.removeEventListener('mouseup', stop);
   }, []);
 
-  // Mysz: pionowe kółko przewija tabelę w bok
+  // Mysz: pionowe kółko przewija tabelę Sumy w bok (roster ma teraz własny
+  // pionowy scroll, więc kółko nad nim ma przewijać normalnie w pionie).
   useEffect(() => {
-    const el = containerRef.current;
+    const el = sumaContainerRef.current;
     if (!el) return;
     const onWheel = (e) => {
       if (e.deltaY === 0) return;
@@ -628,6 +630,29 @@ export default function TimelineView() {
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
+  }, [loading]);
+
+  // Synchronizacja poziomego scrolla między listą pracowników a tabelą Sumy —
+  // to te same dni/godziny w kolumnach, więc mają się przewijać razem.
+  useEffect(() => {
+    const roster = containerRef.current;
+    const suma = sumaContainerRef.current;
+    if (!roster || !suma) return;
+    let syncing = false;
+    const sync = (from, to) => () => {
+      if (syncing) return;
+      syncing = true;
+      to.scrollLeft = from.scrollLeft;
+      syncing = false;
+    };
+    const onRosterScroll = sync(roster, suma);
+    const onSumaScroll = sync(suma, roster);
+    roster.addEventListener('scroll', onRosterScroll);
+    suma.addEventListener('scroll', onSumaScroll);
+    return () => {
+      roster.removeEventListener('scroll', onRosterScroll);
+      suma.removeEventListener('scroll', onSumaScroll);
+    };
   }, [loading]);
 
   const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
@@ -794,6 +819,46 @@ export default function TimelineView() {
   const groupNames = groups.map(g => g.g);
   const summaries = Object.fromEntries(weekDays.map(d => [toDateStr(d), buildSummary(d)]));
 
+  // Nagłówek dni/godzin — identyczny w obu tabelach (roster i Suma), żeby
+  // kolumny się pokrywały. Wspólna funkcja zamiast kopiowania JSX-a dwa razy.
+  const renderTimeHeader = () => (
+    <thead>
+      <tr>
+        <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
+          <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
+            {t('timeline.empStation')}
+          </div>
+        </th>
+        {weekDays.map((d, di) => {
+          const dw = d.getDay();
+          const isWe = dw === 0 || dw === 6;
+          const isToday = toDateStr(d) === todayStr;
+          return (
+            <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
+              background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
+              color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
+            }}>
+              {DAY_NAMES[dw]} {fmtDate(d)}
+            </th>
+          );
+        })}
+      </tr>
+      <tr>
+        {weekDays.map((d, di) => {
+          const isWe = d.getDay() === 0 || d.getDay() === 6;
+          const isToday = toDateStr(d) === todayStr;
+          return [
+            <th key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-quaternary)', fontSize: '8px', fontWeight: 700, textAlign: 'center', borderBottom: '2px solid var(--border)', borderLeft: '2px solid var(--border-strong)', padding: '2px 0' }}>Σ</th>,
+            ...VISIBLE_HOURS.map(h => (
+              <th key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)', color: isWe ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>{h}</th>
+            )),
+          ];
+        })}
+      </tr>
+    </thead>
+  );
+  const tableMinWidth = `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px`;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -904,44 +969,11 @@ export default function TimelineView() {
 
 
 
-      {/* Tabela połączona */}
+      {/* Roster: lista pracowników, własny pionowy scroll + przyklejony nagłówek */}
       <div className="tl-container" ref={containerRef}>
-        <table className="tl-table" style={{ minWidth: `${NAME_W + weekDays.length * (VISIBLE_HOURS.length * HOUR_W + 29)}px` }}>
-          <thead>
-            <tr>
-              <th rowSpan={2} className="tl-th-corner" style={{ padding: 0, minWidth: '200px' }}>
-                <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 10px' }}>
-                  {t('timeline.empStation')}
-                </div>
-              </th>
-              {weekDays.map((d, di) => {
-                const dw = d.getDay();
-                const isWe = dw === 0 || dw === 6;
-                const isToday = toDateStr(d) === todayStr;
-                return (
-                  <th key={di} colSpan={VISIBLE_HOURS.length + 1} className="tl-th-day" style={{
-                    background: isToday ? 'var(--accent)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)',
-                    color: isToday ? '#fff' : isWe ? 'var(--accent-red)' : 'var(--text-secondary)',
-                  }}>
-                    {DAY_NAMES[dw]} {fmtDate(d)}
-                  </th>
-                );
-              })}
-            </tr>
-            <tr>
-              {weekDays.map((d, di) => {
-                const isWe = d.getDay() === 0 || d.getDay() === 6;
-                const isToday = toDateStr(d) === todayStr;
-                return [
-                  <th key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-quaternary)', fontSize: '8px', fontWeight: 700, textAlign: 'center', borderBottom: '2px solid var(--border)', borderLeft: '2px solid var(--border-strong)', padding: '2px 0' }}>Σ</th>,
-                  ...VISIBLE_HOURS.map(h => (
-                    <th key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : isWe ? 'var(--accent-red-light)' : 'var(--bg-secondary)', color: isWe ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>{h}</th>
-                  )),
-                ];
-              })}
-            </tr>
-          </thead>
-          
+        <table className="tl-table" style={{ minWidth: tableMinWidth }}>
+          {renderTimeHeader()}
+
           {/* Ciało tabeli: Grupy i Pracownicy */}
           {groups.map(({ g, color: grpColor, members }) => (
             <tbody key={`grp-${g}`}>
@@ -980,22 +1012,14 @@ export default function TimelineView() {
               })}
             </tbody>
           ))}
+        </table>
+      </div>
 
-          {/* Oś czasu - Stopka (Powtórzenie godzin) */}
-          <tbody style={{ borderTop: '2px solid var(--border-strong)', borderBottom: '4px solid var(--border-strong)' }}>
-            <tr>
-              <td className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', borderRight: '1px solid var(--border)' }}></td>
-              {weekDays.map((d, di) => {
-                const isToday = toDateStr(d) === todayStr;
-                return [
-                  <td key={`sum-${di}`} style={{ width: '28px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: '10px', fontWeight: 800, textAlign: 'center', borderBottom: '1px solid var(--border)', borderLeft: '2px solid var(--border-strong)' }}>Σ</td>,
-                  ...VISIBLE_HOURS.map(h => (
-                    <td key={`h-${di}-${h}`} className="tl-th-hour" style={{ width: `${HOUR_W}px`, background: isToday ? 'var(--accent-light)' : 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, textAlign: 'center', borderBottom: '1px solid var(--border)' }}>{h}</td>
-                  )),
-                ];
-              })}
-            </tr>
-          </tbody>
+      {/* Suma: zawsze w całości widoczna, nie trzeba przewijać rostera żeby ją zobaczyć.
+          Osobny kontener — tylko poziomy scroll, zsynchronizowany z rosterem powyżej. */}
+      <div className="tl-suma-container" ref={sumaContainerRef}>
+        <table className="tl-table" style={{ minWidth: tableMinWidth }}>
+          {renderTimeHeader()}
 
           {/* Ciało tabeli: Podsumowanie */}
           <tbody>
