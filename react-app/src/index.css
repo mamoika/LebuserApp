@@ -655,7 +655,7 @@ body{
 .metric-chip.towash { background:var(--accent-orange-light); border-color:rgba(255,149,0,0.12); }
 .metric-chip.wash { background:var(--accent-green-light); border-color:rgba(52,199,89,0.12); }
 .metric-chip-label {
-  font-size:9px;
+  font-size:10px;
   font-weight:750;
   text-transform:uppercase;
   letter-spacing:0;
@@ -3314,7 +3314,7 @@ html.phone-layout .metric-chip{
   padding:8px;
 }
 html.phone-layout .metric-chip-label{
-  font-size:9.5px;
+  font-size:10.5px;
 }
 html.phone-layout .metric-chip-val{
   font-size:14.5px;
@@ -3569,7 +3569,7 @@ html.phone-layout .segmented-control { margin-bottom:6px; }
   .today-pill{font-size:10px;padding:3px 6px}
   .metrics-row{gap:6px}
   .metric-chip{padding:8px}
-  .metric-chip-label{font-size:9.5px}
+  .metric-chip-label{font-size:10.5px}
   .metric-chip-val{font-size:14.5px}
   .sec-label{font-size:10px;margin-top:4px;margin-bottom:2px}
   .tag,.tag-client{min-height:34px;padding:6px 8px;font-size:13px;border-radius:6px}
@@ -4640,6 +4640,8 @@ select.ap-input {
 /* ── TIMELINE STYLES (iOS 18 Premium UI) ── */
 .tl-container {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 72vh;
   border-radius: 20px;
   border: 1px solid var(--border-strong);
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3) inset;

@@ -421,6 +421,7 @@ export default function ScheduleView() {
       <div
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
+        title={entry.client_name}
         onClick={() => {
           setSelectedEntry(entry);
           setSelectedRelatedEntries(relatedEntries);

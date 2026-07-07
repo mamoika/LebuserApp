@@ -534,7 +534,7 @@ export default function GrafikView() {
                     <tr key={emp.id} style={{ height: '30px' }}>
                       <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 12px', borderRight: '1px solid #e8e8ec', borderBottom: '1px solid #f0f0f0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
-                          <span style={{ fontWeight: 600, fontSize: '11px', color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
+                          <span title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
                           <span style={{ fontSize: '9px', color: '#bbb', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
                         </div>
                       </td>

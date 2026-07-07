@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Archive, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +13,7 @@ import {
   getAdminEmployeesData,
   getAdminGroupEmployeeCount,
   getAdminGroups,
+  getAdminRoles,
   getAdminRouteOptions,
   getAdminSessionDetails,
   getAdminSessionOverview,
@@ -431,6 +433,305 @@ function GroupsSection() {
       {(modal === 'new' || (modal && typeof modal === 'object')) && (
         <GroupModal
           group={modal === 'new' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        />
+      )}
+    </div>
+  );
+}
+
+function RoleModal({ role, duplicateFrom, groups, onClose, onSave, onDelete }) {
+  const { t } = useTranslation();
+  const isNew = !role;
+  // Przy duplikowaniu przejmujemy nazwę/kolor/grupę ze źródła, ale NIGDY kod
+  // (musi być unikalny — admin świadomie wpisuje nowy, np. przy kopiowaniu
+  // "Pranie" z ZD1 do ZD2).
+  const seed = role || duplicateFrom || {};
+  const [code, setCode] = useState(role?.code || '');
+  const [namePl, setNamePl] = useState(seed.name_pl || '');
+  const [nameDe, setNameDe] = useState(seed.name_de || '');
+  const [groupId, setGroupId] = useState(seed.group_id || groups[0]?.id || '');
+  const [color, setColor] = useState(seed.color || '#455a64');
+  const [textColor, setTextColor] = useState(seed.text_color || '#ffffff');
+  const [sortOrder, setSortOrder] = useState(seed.sort_order || 9999);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleSave = async () => {
+    if (!code.trim() || !namePl.trim() || !groupId) return;
+    setSaving(true);
+    await onSave({
+      id: role?.id,
+      code: code.trim(),
+      name_pl: namePl.trim(),
+      name_de: nameDe.trim(),
+      group_id: groupId,
+      color,
+      text_color: textColor,
+      sort_order: parseInt(sortOrder, 10) || 9999,
+    });
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setSaving(true);
+    const res = await onDelete(role.id);
+    setSaving(false);
+    if (res?.error) {
+      toastError(res.error);
+    }
+  };
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${color}, ${color}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🧺</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newStation') : t('admin.editStation')}</div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={LABEL_STYLE}>{t('admin.stationCode')}</div>
+              <input className="ap-input" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="PR" maxLength={6} autoFocus />
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>{t('admin.stationGroup')}</div>
+              <select className="ap-input" value={groupId} onChange={e => setGroupId(e.target.value)}>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={LABEL_STYLE}>{t('admin.stationNamePl')}</div>
+          <input className="ap-input" value={namePl} onChange={e => setNamePl(e.target.value)} placeholder="Pranie" style={{ marginBottom: '12px' }} />
+
+          <div style={LABEL_STYLE}>{t('admin.stationNameDe')}</div>
+          <input className="ap-input" value={nameDe} onChange={e => setNameDe(e.target.value)} placeholder="Waschen" style={{ marginBottom: '12px' }} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={LABEL_STYLE}>{t('admin.hexColor')}</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: '44px', height: '44px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
+                <input className="ap-input" value={color} onChange={e => setColor(e.target.value)} placeholder="#000000" />
+              </div>
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>{t('admin.stationTextColor')}</div>
+              <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} style={{ width: '44px', height: '44px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
+            </div>
+            <div>
+              <div style={LABEL_STYLE}>{t('admin.sortOrder')}</div>
+              <input type="number" className="ap-input" value={sortOrder} onChange={e => setSortOrder(e.target.value)} placeholder="10" />
+            </div>
+          </div>
+
+          <div className="ap-btn-group" style={{ marginTop: '24px' }}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !code.trim() || !namePl.trim() || !groupId}>{saving ? t('common.saving') : t('common.save')}</button>
+            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? t('admin.confirmDelete') : t('common.delete')}</button>}
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RolesSection() {
+  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
+  const [roles, setRoles] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rolesData, groupsData] = await Promise.all([
+        getAdminRoles(sessionToken),
+        getAdminGroups(sessionToken),
+      ]);
+      setRoles(rolesData?.roles || []);
+      setGroups(groupsData?.groups || []);
+    } catch (err) {
+      toastError(t('common.error') + ': ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, t]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const handleSave = async ({ id, code, name_pl, name_de, group_id, color, text_color, sort_order }) => {
+    const args = {
+      p_session_token: sessionToken,
+      p_code: code,
+      p_name_pl: name_pl,
+      p_name_de: name_de,
+      p_group_id: group_id,
+      p_color: color,
+      p_text_color: text_color,
+      p_sort_order: sort_order,
+    };
+    const { data, error } = id
+      ? await supabase.rpc('admin_update_role', { ...args, p_role_id: id })
+      : await supabase.rpc('admin_create_role', args);
+    if (error) {
+      toastError(t('admin.errSaveStation') + ' ' + error.message);
+      return;
+    }
+    if (data?.error) {
+      toastError(data.error);
+      return;
+    }
+    setModal(null);
+    fetch();
+  };
+
+  const handleDelete = async (id) => {
+    const { data, error: deleteErr } = await supabase.rpc('admin_delete_role', {
+      p_session_token: sessionToken,
+      p_role_id: id,
+    });
+    if (deleteErr) return { error: deleteErr.message };
+    if (data?.error) return { error: data.error };
+    setModal(null);
+    fetch();
+    return { ok: true };
+  };
+
+  // Stanowiska pogrupowane wg group_id — każda grupa to osobny Droppable, żeby
+  // było od razu widać co należy do ZD1 a co do ZD2, i żeby dało się przeciągnąć
+  // stanowisko z jednej grupy do drugiej (zamiast przez modal).
+  const rolesByGroup = groups.map(g => ({
+    ...g,
+    items: roles.filter(r => r.group_id === g.id),
+  }));
+
+  const onDragEnd = async (result) => {
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const previous = roles;
+    const bucket = (groupId) => roles.filter(r => r.group_id === groupId);
+
+    const sourceList = bucket(source.droppableId);
+    const [moved] = sourceList.splice(source.index, 1);
+    const destList = source.droppableId === destination.droppableId ? sourceList : bucket(destination.droppableId);
+    const destGroupName = groups.find(g => g.id === destination.droppableId)?.name;
+    destList.splice(destination.index, 0, { ...moved, group_id: destination.droppableId, group_name: destGroupName });
+    const destWithOrder = destList.map((r, i) => ({ ...r, sort_order: (i + 1) * 10 }));
+
+    const untouched = roles.filter(r => r.group_id !== source.droppableId && r.group_id !== destination.droppableId);
+    const updatedRoles = source.droppableId === destination.droppableId
+      ? [...untouched, ...destWithOrder]
+      : [...untouched, ...sourceList, ...destWithOrder];
+
+    setRoles(updatedRoles);
+    try {
+      const { data, error } = await supabase.rpc('admin_reorder_roles', {
+        p_session_token: sessionToken,
+        p_updates: destWithOrder.map(r => ({ id: r.id, sort_order: r.sort_order, group_id: r.group_id })),
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    } catch (err) {
+      setRoles(previous);
+      toastError(t('admin.errSaveOrder') + ' ' + err.message);
+    }
+  };
+
+  if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingStations')}</div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.stations')}</div>
+        <button onClick={() => setModal('new')} disabled={!groups.length} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: groups.length ? 'pointer' : 'not-allowed', opacity: groups.length ? 1 : 0.5 }}>{t('admin.addStation')}</button>
+      </div>
+
+      {!groups.length && (
+        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '12px' }}>{t('admin.stationsNeedGroupFirst')}</div>
+      )}
+
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {rolesByGroup.map(g => (
+            <div key={g.id}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: g.color, flexShrink: 0 }} />
+                <div style={{ fontSize: '12px', fontWeight: 800, color: g.color, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{g.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-quaternary)', fontWeight: 600 }}>({g.items.length})</div>
+              </div>
+              <Droppable droppableId={g.id}>
+                {(droppableProvided, dropSnapshot) => (
+                  <div
+                    ref={droppableProvided.innerRef}
+                    {...droppableProvided.droppableProps}
+                    style={{
+                      display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '44px',
+                      padding: '6px', borderRadius: '14px',
+                      background: dropSnapshot.isDraggingOver ? `${g.color}12` : 'transparent',
+                      outline: dropSnapshot.isDraggingOver ? `2px dashed ${g.color}55` : 'none',
+                    }}
+                  >
+                    {g.items.length === 0 && !dropSnapshot.isDraggingOver && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-quaternary)', padding: '8px 10px' }}>{t('admin.noStationsInGroup')}</div>
+                    )}
+                    {g.items.map((r, index) => (
+                      <Draggable key={r.id} draggableId={r.id} index={index}>
+                        {(draggableProvided, snapshot) => (
+                          <div
+                            ref={draggableProvided.innerRef}
+                            {...draggableProvided.draggableProps}
+                            onClick={() => setModal(r)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+                              background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)', cursor: 'pointer',
+                              boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.15)' : 'none',
+                              ...draggableProvided.draggableProps.style,
+                            }}
+                          >
+                            <span {...draggableProvided.dragHandleProps} onClick={(e) => e.stopPropagation()} style={{ cursor: 'grab', color: 'var(--text-quaternary)', fontSize: '15px', padding: '0 2px' }}>⠿</span>
+                            <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: r.color, color: r.text_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>{r.code}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: '15px' }}>{r.name_pl}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{r.name_de}</div>
+                            </div>
+                            <button
+                              type="button"
+                              title={t('admin.duplicateStation')}
+                              onClick={(e) => { e.stopPropagation(); setModal({ duplicateFrom: r }); }}
+                              style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-secondary)', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              {t('admin.duplicate')}
+                            </button>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {droppableProvided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+
+      {(modal === 'new' || (modal && typeof modal === 'object')) && (
+        <RoleModal
+          role={modal !== 'new' && modal?.id ? modal : null}
+          duplicateFrom={modal?.duplicateFrom || null}
+          groups={groups}
           onClose={() => setModal(null)}
           onSave={handleSave}
           onDelete={handleDelete}
@@ -1222,6 +1523,7 @@ export default function AdminDashboard() {
       <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
         <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
+        <button type="button" className={`seg-btn ${tab === 'roles' ? 'active' : ''}`} onClick={() => setTab('roles')}>{t('admin.stations')}</button>
         <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
@@ -1232,6 +1534,7 @@ export default function AdminDashboard() {
       {tab === 'logs' && <LogsSection />}
       {tab === 'employees' && <EmployeesSection />}
       {tab === 'groups' && <GroupsSection />}
+      {tab === 'roles' && <RolesSection />}
       {tab === 'sessions' && <SessionsSection />}
       {tab === 'barcodes' && <BarcodeGenerator />}
       {tab === 'settings' && <SettingsSection />}

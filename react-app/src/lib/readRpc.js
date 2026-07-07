@@ -73,6 +73,12 @@ export function getAdminGroupEmployeeCount(sessionToken, groupName) {
   });
 }
 
+export function getAdminRoles(sessionToken) {
+  return callReadRpc('get_admin_roles', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getAdminEmployeesData(sessionToken, year, month) {
   return callReadRpc('get_admin_employees_data', {
     p_session_token: sessionToken,

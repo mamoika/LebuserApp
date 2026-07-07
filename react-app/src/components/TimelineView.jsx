@@ -8,23 +8,6 @@ import { getTimelineWeek } from '../lib/readRpc';
 import { isHoliday } from '../utils/holidays';
 import { dayNamesSunSat } from '../lib/dateUtils';
 
-// Kolory stanowisk; nazwy wyświetlane przez t(`timeline.roles.<key>`).
-const ROLES = {
-  "T":  { bg: "#607D8B", fc: "#fff" },
-  "S":  { bg: "#2E7D32", fc: "#fff" },
-  "M":  { bg: "#E65100", fc: "#fff" },
-  "R":  { bg: "#C62828", fc: "#fff" },
-  "PR": { bg: "#00838F", fc: "#fff" },
-  "P":  { bg: "#6A1B9A", fc: "#fff" },
-  "SZ": { bg: "#4E342E", fc: "#fff" },
-  "PP": { bg: "#F9A825", fc: "#1a1a1a" },
-  "SP": { bg: "#37474F", fc: "#fff" },
-  "O":  { bg: "#AD1457", fc: "#fff" },
-  "PK": { bg: "#558B2F", fc: "#fff" },
-  "SC": { bg: "#FF6F00", fc: "#fff" },
-  "K":  { bg: "#1155cc", fc: "#fff" },
-};
-
 const STATUS_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa' },
   'UW':  { bg: '#bfdbfe', color: '#1e40af' },
@@ -226,10 +209,10 @@ function parseScheduleShift(value, emp) {
   };
 }
 
-function getCellBackground(h, startH, endH, working, role, confirmed) {
+function getCellBackground(h, startH, endH, working, role, confirmed, roles) {
   if (!working) return { background: 'transparent', color: 'transparent' };
 
-  const rInfo = ROLES[role];
+  const rInfo = roles[role];
   const unassignedColor = confirmed ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 0, 0, 0.04)';
   const shiftColor = rInfo ? rInfo.bg : unassignedColor;
   const shiftTextColor = rInfo ? rInfo.fc : 'transparent';
@@ -277,7 +260,7 @@ function getEmpDayShift(emp, scheduleMap, dateStr) {
 
 // Zmemoizowany komponent wiersza
 const TimelineRow = React.memo(({
-  emp, weekDays, scheduleMap, entries, isAdmin, rowBg,
+  emp, weekDays, scheduleMap, entries, isAdmin, rowBg, roles,
   brushRole, onBrushCell, isPaintingRef, copyMode, copySource, onCopyClick
 }) => {
   const { t } = useTranslation();
@@ -351,7 +334,7 @@ const TimelineRow = React.memo(({
           const role = entries[key];
           const cellStyle = statusSt
             ? { background: statusSt.bg, color: statusSt.color }
-            : getCellBackground(h, startH, endH, working, role, confirmed);
+            : getCellBackground(h, startH, endH, working, role, confirmed, roles);
 
           const isShiftHour = isHourInShift(h, startH, endH);
 
@@ -445,7 +428,7 @@ const TimelineRow = React.memo(({
             <div className="tl-duty-pop-cells">
               {duty.cells.map(({ h, fillFrom, fillTo }) => {
                 const role = entries[`${emp.id}_${duty.dateStr}_${h}`];
-                const rInfo = role ? ROLES[role] : null;
+                const rInfo = role ? roles[role] : null;
                 const base = rInfo ? rInfo.bg : 'rgba(0,122,255,0.12)';
                 const full = fillFrom <= 0 && fillTo >= 1;
                 const pF = Math.round(fillFrom * 100);
@@ -516,7 +499,7 @@ const TimelineRow = React.memo(({
 
 
 export default function TimelineView() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
@@ -524,6 +507,7 @@ export default function TimelineView() {
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [employees, setEmployees] = useState([]);
   const [groupData, setGroupData] = useState([]);
+  const [rolesData, setRolesData] = useState([]);
   const [entries, setEntries] = useState({});
   const [scheduleMap, setScheduleMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -584,6 +568,7 @@ export default function TimelineView() {
       const sched = data?.schedule_entries || [];
       setEmployees(emps);
       setGroupData(data?.groups || []);
+      setRolesData(data?.roles || []);
       const map = {};
       tl.forEach(e => { map[`${e.employee_id}_${e.entry_date}_${e.hour}`] = e.role; });
       setEntries(map);
@@ -741,6 +726,29 @@ export default function TimelineView() {
   const prevWeek = () => setAnchor(a => { const p = addDays(segStart, -1); return p < minMonday ? a : p; });
   const nextWeek = () => setAnchor(() => addDays(segEnd, 1));
 
+  // Stanowiska z bazy (public.roles); grupa (r.group_name) to grupa, do której
+  // FIZYCZNIE należy stanowisko — to ona, nie stała grupa pracownika, decyduje
+  // do której grupy liczą się godziny w tabeli Suma (patrz buildSummary niżej).
+  const ROLES = useMemo(() => Object.fromEntries(rolesData.map(r => [r.code, {
+    bg: r.color,
+    fc: r.text_color,
+    group: r.group_name,
+    name: i18n.language === 'de' ? r.name_de : r.name_pl,
+  }])), [rolesData, i18n.language]);
+
+  // Stanowiska pogrupowane wg grupy, do której należą — do legendy pędzla, żeby
+  // było od razu widać, które stanowisko jest "ZD1" a które "ZD2".
+  const rolesByGroup = useMemo(() => {
+    const buckets = new Map();
+    Object.entries(ROLES).forEach(([code, r]) => {
+      if (!buckets.has(r.group)) buckets.set(r.group, []);
+      buckets.get(r.group).push([code, r]);
+    });
+    return groupData
+      .map(g => ({ name: g.name, color: g.color, items: buckets.get(g.name) || [] }))
+      .filter(b => b.items.length > 0);
+  }, [ROLES, groupData]);
+
   const groups = useMemo(() => {
     // Pracownicy w grupie sortowani alfabetycznie po nazwisku (locale PL).
     const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl');
@@ -754,24 +762,27 @@ export default function TimelineView() {
     return grps;
   }, [groupData, employees]);
 
+  // Godziny liczą się do grupy, do której NALEŻY STANOWISKO (ROLES[role].group),
+  // nie do stałej grupy pracownika — bo pracownik z ZD1 może dziś pracować na
+  // stanowisku istniejącym tylko w ZD2, i te godziny mają liczyć się do ZD2.
   const buildSummary = useCallback((d) => {
     const dateStr = toDateStr(d);
     const result = {};
     Object.entries(ROLES).forEach(([role]) => { result[role] = {}; });
-    groups.forEach(({ g, members }) => {
-      members.forEach(emp => {
-        COUNT_HOURS.forEach(h => {
-          const role = entries[`${emp.id}_${dateStr}_${h}`];
-          if (!role) return;
-          if (!result[role]) result[role] = {};
-          if (!result[role][g]) result[role][g] = { os: new Set(), godz: 0 };
-          result[role][g].os.add(emp.id);
-          result[role][g].godz += 1;
-        });
+    employees.forEach(emp => {
+      COUNT_HOURS.forEach(h => {
+        const role = entries[`${emp.id}_${dateStr}_${h}`];
+        if (!role) return;
+        const g = ROLES[role]?.group;
+        if (!g) return;
+        if (!result[role]) result[role] = {};
+        if (!result[role][g]) result[role][g] = { os: new Set(), godz: 0 };
+        result[role][g].os.add(emp.id);
+        result[role][g].godz += 1;
       });
     });
     return result;
-  }, [entries, groups]);
+  }, [entries, employees, ROLES]);
 
   if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
   if (loading) return <div className="loader">{t('timeline.loading')}</div>;
@@ -810,22 +821,29 @@ export default function TimelineView() {
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-quaternary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px', whiteSpace: 'nowrap' }}>
             {t('timeline.brush')}
           </span>
-          {Object.entries(ROLES).map(([key, r]) => {
-            const isActive = brushRole === key;
-            return (
-              <button key={key} onClick={() => { setBrushRole(isActive ? null : key); setCopyMode(false); setCopySource(null); }} style={{
-                background: isActive ? r.bg : `${r.bg}18`,
-                color: isActive ? r.fc : r.bg,
-                border: isActive ? `2px solid ${r.bg}` : '2px solid transparent',
-                borderRadius: '10px', padding: '4px 8px',
-                fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                transition: 'all 0.15s', boxShadow: isActive ? `0 0 0 3px ${r.bg}35` : 'none',
-                transform: isActive ? 'scale(1.08)' : 'scale(1)',
-              }}>
-                {key}
-              </button>
-            );
-          })}
+          {rolesByGroup.map(bucket => (
+            <React.Fragment key={bucket.name}>
+              <span style={{ fontSize: '9px', fontWeight: 800, color: bucket.color, textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+                {bucket.name}
+              </span>
+              {bucket.items.map(([key, r]) => {
+                const isActive = brushRole === key;
+                return (
+                  <button key={key} title={r.name} onClick={() => { setBrushRole(isActive ? null : key); setCopyMode(false); setCopySource(null); }} style={{
+                    background: isActive ? r.bg : `${r.bg}18`,
+                    color: isActive ? r.fc : r.bg,
+                    border: isActive ? `2px solid ${r.bg}` : '2px solid transparent',
+                    borderRadius: '10px', padding: '4px 8px',
+                    fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                    transition: 'all 0.15s', boxShadow: isActive ? `0 0 0 3px ${r.bg}35` : 'none',
+                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                  }}>
+                    {key}
+                  </button>
+                );
+              })}
+            </React.Fragment>
+          ))}
           <div style={{ width: '1px', height: '20px', background: 'var(--border-strong)', margin: '0 4px' }} />
           <button onClick={() => { setBrushRole(brushRole === '__erase__' ? null : '__erase__'); setCopyMode(false); setCopySource(null); }} style={{
             background: brushRole === '__erase__' ? '#ef4444' : 'rgba(239,68,68,0.1)',
@@ -928,8 +946,8 @@ export default function TimelineView() {
           {groups.map(({ g, color: grpColor, members }) => (
             <tbody key={`grp-${g}`}>
               <tr style={{ height: '22px' }}>
-                <td className="tl-sticky-col" style={{ background: `${grpColor}15`, borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30`, padding: 0, minWidth: '200px' }}>
-                  <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                <td className="tl-sticky-col" style={{ background: '#fff', borderTop: `1px solid ${grpColor}30`, borderBottom: `1px solid ${grpColor}30`, padding: 0, minWidth: '200px' }}>
+                  <div style={{ display: 'flex', width: '100%', height: '100%', background: `${grpColor}15` }}>
                     <div style={{ flex: 1, padding: '0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: grpColor }} />
                       <span style={{ fontWeight: 800, fontSize: '10px', color: grpColor, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{g}</span>
@@ -950,6 +968,7 @@ export default function TimelineView() {
                     entries={entries}
                     isAdmin={isAdmin}
                     rowBg={rowBg}
+                    roles={ROLES}
                     brushRole={brushRole}
                     onBrushCell={handleBrushCell}
                     isPaintingRef={isPainting}
@@ -982,11 +1001,11 @@ export default function TimelineView() {
           <tbody>
             <tr className="tl-summary-header">
               <th className="tl-sticky-col" style={{ background: 'var(--bg-card-solid)', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800, borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center' }}>
+                  <div style={{ flex: 1, padding: '0 12px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 800 }}>
                     {t('timeline.sum')}
                   </div>
-                  <div style={{ flex: 1, display: 'flex', background: 'var(--bg-tertiary)' }}>
+                  <div style={{ display: 'flex', alignSelf: 'stretch', width: '88px', background: 'var(--bg-tertiary)', borderLeft: '1px solid var(--border)' }}>
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, borderRight: '1px solid var(--border)' }}>OS.</div>
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700 }}>GODZ.</div>
                   </div>
@@ -1041,7 +1060,7 @@ export default function TimelineView() {
               })}
             </tr>
             {Object.entries(ROLES).map(([role, r], ri) => {
-              const rowBg = ri % 2 === 0 ? 'var(--bg-card-solid)' : 'var(--bg-secondary)';
+              const rowBg = ri % 2 === 0 ? '#ffffff' : '#f6f6f9';
               
               const weekOs = new Set(weekDays.flatMap(d => {
                 const rd = summaries[toDateStr(d)]?.[role] || {};
@@ -1054,17 +1073,21 @@ export default function TimelineView() {
 
               return (
                 <tr key={role} style={{ background: rowBg, height: '36px' }}>
-                  <td className="tl-sticky-col" style={{ background: r.bg, borderBottom: '1px solid rgba(0,0,0,0.1)', padding: 0, minWidth: '200px' }}>
-                    <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-                      <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: r.fc, fontSize: '13px', fontWeight: 800, flexShrink: 0 }}>{role}</span>
-                        <span style={{ fontSize: '11px', color: r.fc, fontWeight: 600, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden' }}>{t(`timeline.roles.${role}`)}</span>
+                  <td className="tl-sticky-col" style={{ background: rowBg, borderBottom: '1px solid var(--border)', padding: 0, minWidth: '200px' }}>
+                    <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: 0, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          minWidth: '24px', height: '20px', padding: '0 6px', borderRadius: '6px',
+                          background: r.bg, color: r.fc, fontSize: '11px', fontWeight: 800, flexShrink: 0,
+                        }}>{role}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 650, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ROLES[role]?.name || role}</span>
                       </div>
-                      <div style={{ display: 'flex', width: '88px', background: 'rgba(0,0,0,0.15)', borderLeft: '1px solid rgba(255,255,255,0.15)' }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: r.fc, fontWeight: weekOs.size ? 800 : 500, fontSize: '12px', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ display: 'flex', width: '88px', background: `${r.bg}10`, borderLeft: '1px solid var(--border)' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekOs.size ? r.bg : 'var(--text-quaternary)', fontWeight: weekOs.size ? 800 : 500, fontSize: '12px', borderRight: '1px solid var(--border)' }}>
                           {weekOs.size || '·'}
                         </div>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: r.fc, fontWeight: weekGodz ? 800 : 500, fontSize: '12px' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekGodz ? r.bg : 'var(--text-quaternary)', fontWeight: weekGodz ? 800 : 500, fontSize: '12px' }}>
                           {weekGodz || '·'}
                         </div>
                       </div>
@@ -1123,7 +1146,7 @@ export default function TimelineView() {
                 }, 0);
 
                 return (
-                  <td className="tl-sticky-col" style={{ background: 'var(--bg-tertiary)', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)', borderTop: '2px solid var(--border-strong)' }}>
+                  <td className="tl-sticky-col" style={{ background: '#f2f2f7', padding: 0, minWidth: '200px', borderRight: '1px solid var(--border)', borderTop: '2px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                       <div style={{ flex: 1, padding: '0 12px', display: 'flex', alignItems: 'center', color: 'var(--text-primary)', fontWeight: 800, fontSize: '13px' }}>
                         {t('timeline.total')}

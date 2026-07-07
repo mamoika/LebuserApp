@@ -817,6 +817,7 @@ export default function ClientsRoutesView() {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         className={`tag-client ${isAdmin ? 'draggable' : ''} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
+                        title={client.name}
                         style={{
                           ...provided.draggableProps.style,
                           boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
