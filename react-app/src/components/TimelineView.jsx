@@ -348,9 +348,15 @@ const TimelineRow = React.memo(({
           const badgeHours = showStartBadge ? overflowStartH : overflowEndH;
           const badgeEndMarker = showEndBadge ? overflowEndMarker : null;
 
+          // Dymek z pełną nazwą stanowiska po najechaniu na zamalowaną komórkę
+          const roleTitle = !dayStatus && isShiftHour && role
+            ? (roles[role]?.name ? `${role} — ${roles[role].name}` : role)
+            : undefined;
+
           return (
             <td key={h}
               className={`tl-cell ${isBrushable ? 'brushable' : ''}`}
+              title={roleTitle}
               onMouseDown={() => {
                 if (!isBrushable) return;
                 isPaintingRef.current = true;
@@ -439,7 +445,10 @@ const TimelineRow = React.memo(({
                     <span className="tl-duty-pop-hl">{h}</span>
                     <div
                       className="tl-duty-pop-cell"
-                      title={full ? undefined : `${h}:00–${h}:${String(Math.round(fillTo * 60)).padStart(2, '0')}`}
+                      title={[
+                        role ? (rInfo?.name ? `${role} — ${rInfo.name}` : role) : null,
+                        full ? null : `${h}:00–${h}:${String(Math.round(fillTo * 60)).padStart(2, '0')}`,
+                      ].filter(Boolean).join(' · ') || undefined}
                       style={{
                         background: full
                           ? base
@@ -543,7 +552,7 @@ export default function TimelineView() {
   const isPartialWeek = segDays.length < 7;
 
   const weekDays = useMemo(() => {
-    return segDays.filter(d => {
+    const visible = segDays.filter(d => {
       const dw = d.getDay();
       if (dw !== 0 && dw !== 6) return true;
       const ds = toDateStr(d);
@@ -556,6 +565,9 @@ export default function TimelineView() {
       const hasWorkShift = Object.keys(scheduleMap).some(k => k.endsWith(`_${ds}`) && scheduleMap[k]?.working);
       return hasTimeline || hasWorkShift;
     });
+    // Fragment tygodnia złożony z samego weekendu (np. 1–2.08 = sob/nd) dawałby pustą
+    // tabelę po odfiltrowaniu — pokaż wtedy wszystkie dni fragmentu jako wolne.
+    return visible.length ? visible : segDays;
   }, [segDays, entries, scheduleMap]);
 
   const fetchData = useCallback(async () => {
