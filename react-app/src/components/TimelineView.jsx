@@ -547,9 +547,12 @@ export default function TimelineView() {
       const dw = d.getDay();
       if (dw !== 0 && dw !== 6) return true;
       const ds = toDateStr(d);
-      // Weekend widoczny, gdy ktoś ma malowanie godzinowe (entries) LUB przepracowaną
-      // zmianę z grafiku (scheduleMap) tego dnia — np. sobotnia zmiana nocna 23:00.
-      const hasTimeline = Object.keys(entries).some(k => k.includes(`_${ds}_`));
+      // Weekend widoczny, gdy ktoś ma malowanie godzinowe (entries) na dniu roboczym
+      // wg grafiku LUB przepracowaną zmianę z grafiku (scheduleMap) tego dnia — np.
+      // sobotnia zmiana nocna 23:00. Malowanie zakryte nieobecnością (UW/L4) nie liczy się.
+      const hasTimeline = Object.keys(entries).some(k =>
+        k.includes(`_${ds}_`) && scheduleMap[k.slice(0, k.lastIndexOf('_'))]?.working
+      );
       const hasWorkShift = Object.keys(scheduleMap).some(k => k.endsWith(`_${ds}`) && scheduleMap[k]?.working);
       return hasTimeline || hasWorkShift;
     });
@@ -807,7 +810,10 @@ export default function TimelineView() {
       if (!role) return;
       const [empIdStr, dateStr] = key.split('_');
       if (!validDates.has(dateStr)) return;
-      
+      // Dzień zmieniony w grafiku na nieobecność (UW/L4/W/NN/I/END) zakrywa stare
+      // malowanie stanowisk — nie wliczaj go do podsumowań, choć wpisy zostają w bazie.
+      if (!scheduleMap[`${empIdStr}_${dateStr}`]?.working) return;
+
       const empId = String(empIdStr);
 
       const roleGroup = ROLES[role]?.group;
@@ -841,7 +847,7 @@ export default function TimelineView() {
     });
 
     return { summaries, roleWeekTotals, dayTotals, dayGroupTotals, weekTotal, weekGroupTotals };
-  }, [entries, weekDays, ROLES, groupNames, employees]);
+  }, [entries, scheduleMap, weekDays, ROLES, groupNames, employees]);
 
   const summaries = stats.summaries;
 

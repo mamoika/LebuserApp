@@ -335,11 +335,14 @@ export default function CostsView() {
       empDefaultStart[e.id] = parseHour(e.default_start);
     });
 
-    // start zmiany per (pracownik, dzień) z grafiku — do wyznaczenia godzin przerw
+    // start zmiany per (pracownik, dzień) z grafiku — do wyznaczenia godzin przerw;
+    // workingMap: czy dzień jest przepracowany wg grafiku (nieobecność UW/L4/... = false)
     const startMap = {};
+    const workingMap = {};
     (sched || []).forEach(s => {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`;
       startMap[`${s.employee_id}_${dateStr}`] = shiftStartHour(s.value, empDefaultStart[s.employee_id] ?? 0);
+      workingMap[`${s.employee_id}_${dateStr}`] = scheduleDayHours(s.value) > 0;
     });
     const startFor = (empId, dateStr) => startMap[`${empId}_${dateStr}`] ?? (empDefaultStart[empId] ?? 0);
 
@@ -352,8 +355,10 @@ export default function CostsView() {
     setLaborHours(labor);
 
     // Timeline stats (wydajność): godziny stanowiskowe z osi czasu, godzina z przerwą = 0.75.
+    // Malowanie zakryte nieobecnością w grafiku (UW/L4/...) nie liczy się do wydajności.
     const tStats = {};
     (timeline || []).forEach(t => {
+      if (!workingMap[`${t.employee_id}_${t.entry_date}`]) return;
       if (!tStats[t.entry_date]) {
         tStats[t.entry_date] = {
           roles: { ZD1: { hrs: 0, emp: new Set() }, ZD2: { hrs: 0, emp: new Set() }, Kierowcy: { hrs: 0, emp: new Set() } }
