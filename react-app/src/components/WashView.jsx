@@ -825,6 +825,7 @@ export default function WashView() {
             const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
             const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
             const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
+            const pickedAt = linked.map(entry => entry.picked_at).filter(Boolean).sort().at(-1);
             const busyReturn = busyKey === `return:${cycle.id}`;
             const busyCancel = busyKey === `cancel:${cycle.id}`;
             const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
@@ -834,10 +835,13 @@ export default function WashView() {
             const isNoTrolley = cycle.trolley_no === 'brak';
             const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
             const isEditingKg = cycle.id in kgEdit;
-            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key !== 'canceled' && status.key !== 'at_client';
+            const isIssuedToDriver = Boolean(pickedAt || deliveredAt || status.key === 'picked' || status.key === 'delivered' || status.key === 'at_client');
+            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver;
+            const canUndoPackNoTrolley = hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver;
             const canUndoReturn = hasPackRole && status.key === 'returned';
-            const canDelete = isAdmin;
-            const canSetAtClient = hasPackRole && !cycle.returned_at && status.key !== 'canceled' && status.key !== 'at_client';
+            const canDelete = isAdmin && !isIssuedToDriver;
+            const canReturnTrolley = hasPackRole && !isNoTrolley && !cycle.returned_at && status.key !== 'canceled' && ['picked', 'delivered', 'at_client'].includes(status.key);
+            const canSetAtClient = hasPackRole && !cycle.returned_at && status.key === 'delivered';
 
             return (
               <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
@@ -892,7 +896,7 @@ export default function WashView() {
                       // "Bez wózka" nie jest realnym wózkiem, więc nie ma tu nic do "zwrócenia" —
                       // jeden przycisk cofa cały pakiet (backend wymaga cofnięcia powrotu przed
                       // anulowaniem pakowania, robimy to za jednym kliknięciem).
-                      status.key !== 'canceled' && (
+                      canUndoPackNoTrolley && (
                         <button
                           type="button"
                           className="laundry-return-btn is-danger"
@@ -916,7 +920,7 @@ export default function WashView() {
                             {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
                           </button>
                         )}
-                        {!cycle.returned_at && status.key !== 'canceled' && (
+                        {canReturnTrolley && (
                           <button
                             type="button"
                             className="laundry-return-btn"
@@ -961,6 +965,11 @@ export default function WashView() {
                       >
                         {busyDelete ? 'Usuwam…' : 'Usuń wpis'}
                       </button>
+                    )}
+                    {isIssuedToDriver && !canDelete && status.key !== 'returned' && status.key !== 'canceled' && (
+                      <div style={{ fontSize: '12px', lineHeight: 1.35, color: 'var(--text-tertiary)', fontWeight: 600, padding: '4px 2px' }}>
+                        Wydane kierowcy — najpierw cofnij odbiór/dostawę w trasie, dopiero potem pakowanie.
+                      </div>
                     )}
                   </div>
                 )}
