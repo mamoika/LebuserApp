@@ -3,6 +3,7 @@ import {
   Archive,
   CheckCircle2,
   Clock3,
+  MoreHorizontal,
   Package,
   PackageCheck,
   RefreshCw,
@@ -192,6 +193,40 @@ function stageConfig(stage) {
   return map[stage] || map.pending;
 }
 
+const WORK_FILTERS = [
+  { key: 'all', label: 'Wszystkie' },
+  { key: 'pending', label: 'Do prania' },
+  { key: 'washed', label: 'Do pakowania' },
+  { key: 'ready', label: 'Gotowe' },
+];
+
+function filterGroup(group, filterKey) {
+  if (filterKey === 'all') return true;
+  if (filterKey === 'pending') return ['pending', 'partial'].includes(group.stage) && group.pendingIds.length > 0;
+  if (filterKey === 'washed') return isPackCandidate(group);
+  if (filterKey === 'ready') return group.stage === 'ready';
+  return true;
+}
+
+function isPackCandidate(group) {
+  return group.stage !== 'ready'
+    && group.pendingIds.length === 0
+    && group.washedIds.length > 0
+    && (group.hasKnownWeight ? group.remainingKg > 0 : true);
+}
+
+function isEntryIssuedToDriver(entry) {
+  return Boolean(
+    entry?.picked_at
+    || entry?.delivered_at
+    || entry?.delivered
+    || entry?.done
+    || entry?.laundry_packed_at
+    || entry?.laundry_ready_at
+    || ['packed', 'released', 'at_client', 'returned'].includes(entry?.laundry_status)
+  );
+}
+
 const getTrolleyStatus = (cycle, entryById) => {
   if (cycle.status === 'canceled') return { key: 'canceled', label: 'COFNIĘTO PAKOWANIE', tone: 'neutral' };
 
@@ -216,21 +251,43 @@ const getTrolleyStatus = (cycle, entryById) => {
   return { key: 'packed', label: 'Spakowany na pralni', tone: 'packed' };
 };
 
+function getCycleTransportState(cycle, entryById) {
+  const status = getTrolleyStatus(cycle, entryById);
+  const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
+  const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
+  const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
+  const pickedAt = linked.map(entry => entry.picked_at).filter(Boolean).sort().at(-1);
+  const isIssuedToDriver = Boolean(
+    pickedAt
+    || deliveredAt
+    || status.key === 'picked'
+    || status.key === 'delivered'
+    || status.key === 'at_client'
+  );
+
+  return { status, linked, driver, deliveredAt, pickedAt, isIssuedToDriver };
+}
+
 function routeBadge(routeId, routeMap) {
   const route = routeMap.get(routeId);
   if (!route) return null;
   return `T${route.num}`;
 }
 
-function Metric({ icon: Icon, label, value, tone }) {
+function Metric({ icon: Icon, label, value, tone, active = false, onClick }) {
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className={`laundry-metric ${tone ? `tone-${tone}` : ''}`}>
+    <Tag
+      className={`laundry-metric ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''}`}
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+    >
       <div className="laundry-metric-icon"><Icon size={18} /></div>
       <div>
         <div className="laundry-metric-value">{value}</div>
         <div className="laundry-metric-label">{label}</div>
       </div>
-    </div>
+    </Tag>
   );
 }
 
@@ -257,6 +314,7 @@ export default function WashView() {
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
+  const [workFilter, setWorkFilter] = useState('all');
 
   const hasWashRole = isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker;
   const hasPackRole = isAdmin || user?.role === 'admin_viewer_driver' || isPacker;
@@ -394,6 +452,8 @@ export default function WashView() {
         washedIds: groupReady ? [] : washed.map(entry => entry.id),
         readyIds: groupReady ? entryIds : ready.map(entry => entry.id),
         cycles: activeCycles,
+        allCycles: groupCycles,
+        issuedToDriver: group.entries.some(isEntryIssuedToDriver),
         trolleyNo: trolleyNos.join(', '),
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
         packedAt: [
@@ -447,6 +507,43 @@ export default function WashView() {
       activeTrolleys: activeTrolleys.length,
     };
   }, [activeTrolleys.length, entryById, laundryGroups]);
+
+  const filterCounts = useMemo(() => (
+    WORK_FILTERS.reduce((acc, filter) => {
+      acc[filter.key] = laundryGroups.filter(group => filterGroup(group, filter.key)).length;
+      return acc;
+    }, {})
+  ), [laundryGroups]);
+
+  const filteredLaundryGroups = useMemo(
+    () => laundryGroups.filter(group => filterGroup(group, workFilter)),
+    [laundryGroups, workFilter]
+  );
+
+  const getCycleCorrection = (cycle) => {
+    const { status, isIssuedToDriver } = getCycleTransportState(cycle, entryById);
+    const isNoTrolley = cycle.trolley_no === 'brak';
+
+    if (hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver) {
+      return {
+        key: `cancel-no-trolley:${cycle.id}`,
+        label: busyKey === `cancel:${cycle.id}` ? 'Cofam...' : `Cofnij pakowanie: ${cycle.trolley_no}`,
+        disabled: busyKey === `cancel:${cycle.id}`,
+        onClick: () => handleUndoPackNoTrolley(cycle),
+      };
+    }
+
+    if (hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver) {
+      return {
+        key: `cancel:${cycle.id}`,
+        label: busyKey === `cancel:${cycle.id}` ? 'Cofam...' : `Cofnij pakowanie: wózek ${cycle.trolley_no}`,
+        disabled: busyKey === `cancel:${cycle.id}`,
+        onClick: () => handleCancelTrolley(cycle),
+      };
+    }
+
+    return null;
+  };
 
   const runAction = async (key, action) => {
     try {
@@ -678,38 +775,101 @@ export default function WashView() {
       )}
 
       <div className="laundry-metrics">
-        <Metric icon={WashingMachine} label="Do wyprania" value={`${metrics.pendingKg} kg`} tone="pending" />
-        <Metric icon={CheckCircle2} label="Wyprane, do pakowania" value={`${metrics.washedKg} kg`} tone="washed" />
-        <Metric icon={PackageCheck} label="Gotowe dla kierowcy" value={`${metrics.readyKg} kg`} tone="ready" />
-        <div onClick={() => setTrolleysModalOpen(true)} style={{ cursor: 'pointer' }}>
-          <Metric icon={Archive} label={`Wózki zajęte / ${trolleyCount}`} value={`${metrics.activeTrolleys}/${trolleyCount}`} tone="trolley" />
-        </div>
+        <Metric
+          icon={WashingMachine}
+          label={`Do wyprania · ${filterCounts.pending || 0}`}
+          value={`${metrics.pendingKg} kg`}
+          tone="pending"
+          active={workFilter === 'pending'}
+          onClick={() => setWorkFilter(workFilter === 'pending' ? 'all' : 'pending')}
+        />
+        <Metric
+          icon={CheckCircle2}
+          label={`Do pakowania · ${filterCounts.washed || 0}`}
+          value={`${metrics.washedKg} kg`}
+          tone="washed"
+          active={workFilter === 'washed'}
+          onClick={() => setWorkFilter(workFilter === 'washed' ? 'all' : 'washed')}
+        />
+        <Metric
+          icon={PackageCheck}
+          label={`Gotowe dla kierowcy · ${filterCounts.ready || 0}`}
+          value={`${metrics.readyKg} kg`}
+          tone="ready"
+          active={workFilter === 'ready'}
+          onClick={() => setWorkFilter(workFilter === 'ready' ? 'all' : 'ready')}
+        />
+        <Metric
+          icon={Archive}
+          label={`Wózki zajęte / ${trolleyCount}`}
+          value={`${metrics.activeTrolleys}/${trolleyCount}`}
+          tone="trolley"
+          onClick={() => setTrolleysModalOpen(true)}
+        />
       </div>
 
       <section className="laundry-section">
         <div className="laundry-section-head">
           <div>
             <h2>Dzisiejsze pranie</h2>
-            <span>{punktLabel(laundryGroups.length)}</span>
+            <span>{punktLabel(filteredLaundryGroups.length)}{workFilter !== 'all' ? ` z ${laundryGroups.length}` : ''}</span>
+          </div>
+          <div className="laundry-filter-tabs" aria-label="Filtr prania">
+            {WORK_FILTERS.map(filter => (
+              <button
+                key={filter.key}
+                type="button"
+                className={workFilter === filter.key ? 'is-active' : ''}
+                onClick={() => setWorkFilter(filter.key)}
+              >
+                <span>{filter.label}</span>
+                <strong>{filterCounts[filter.key] || 0}</strong>
+              </button>
+            ))}
           </div>
         </div>
 
         <div className="laundry-work-list">
-          {laundryGroups.length === 0 && (
+          {filteredLaundryGroups.length === 0 && (
             <div className="laundry-empty">
-              Brak prania na wybrany dzień.
+              {laundryGroups.length === 0 ? 'Brak prania na wybrany dzień.' : 'Brak pozycji w tym filtrze.'}
             </div>
           )}
 
-          {laundryGroups.map(group => {
+          {filteredLaundryGroups.map(group => {
             const route = routeBadge(group.routeId, routeMap);
+            const groupIssuedToDriver = group.issuedToDriver
+              || group.allCycles.some(cycle => getCycleTransportState(cycle, entryById).isIssuedToDriver);
             const canMarkWashed = hasWashRole && group.pendingIds.length > 0;
-            const canUnmarkWashed = hasWashRole && (group.cycles.length > 0 || group.entries.some(entry => entry.washed || isReadyForDriver(entry)));
-            const canPack = hasPackRole && group.pendingIds.length === 0 && group.washedIds.length > 0
-              && (group.hasKnownWeight ? group.remainingKg > 0 : true);
+            const canUnmarkWashed = hasWashRole && !groupIssuedToDriver && group.entries.some(entry => entry.washed);
+            const canPack = hasPackRole && isPackCandidate(group);
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
+            const cycleCorrections = group.cycles.map(getCycleCorrection).filter(Boolean);
+            const hasCorrections = canUnmarkWashed || cycleCorrections.length > 0;
+            const primaryAction = canMarkWashed
+              ? {
+                className: 'is-primary',
+                Icon: CheckCircle2,
+                label: busyWashed ? 'Zapis...' : 'Wyprane',
+                onClick: () => handleMarkWashed(group),
+                disabled: busyWashed,
+              }
+              : canPack
+                ? {
+                  className: 'is-pack',
+                  Icon: Package,
+                  label: busyPack ? 'Otwieram...' : group.packedKg > 0 ? 'Dopakuj' : 'Pakuj',
+                  onClick: () => setPackingGroup(group),
+                  disabled: busyPack,
+                }
+                : null;
+            const waitingNote = !primaryAction && group.stage === 'ready'
+              ? 'Gotowe dla kierowcy'
+              : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
+                ? 'Nic do wykonania'
+                : null;
 
 
             return (
@@ -729,30 +889,21 @@ export default function WashView() {
                     {group.trolleyNo && <span>wózki {group.trolleyNo}</span>}
                   </div>
                   
-                  {/* Progress bar */}
-                  <div className="laundry-progress-track">
-                    <div 
-                      className={`laundry-progress-fill ${group.packedKg + 0.05 >= group.kg ? 'is-complete' : ''}`} 
-                      style={{ width: `${Math.min(100, Math.max(0, (group.packedKg / (group.kg || 1)) * 100))}%` }}
-                    />
-                  </div>
+                  {group.hasKnownWeight && (
+                    <div className="laundry-progress-track">
+                      <div
+                        className={`laundry-progress-fill ${group.packedKg + 0.05 >= group.kg ? 'is-complete' : ''}`}
+                        style={{ width: `${Math.min(100, Math.max(0, (group.packedKg / group.kg) * 100))}%` }}
+                      />
+                    </div>
+                  )}
                   {group.cycles.length > 0 && (
                     <div className="laundry-cycle-chips">
                       {group.cycles.map(cycle => {
-                        const busyCancel = busyKey === `cancel:${cycle.id}`;
                         return (
                           <span key={cycle.id} className="laundry-cycle-chip">
                             <strong>wózek {cycle.trolley_no}</strong>
                             <b>{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
-                            {hasPackRole && (
-                              <button
-                                type="button"
-                                onClick={() => handleCancelTrolley(cycle)}
-                                disabled={busyCancel}
-                              >
-                                {busyCancel ? 'cofam…' : 'cofnij'}
-                              </button>
-                            )}
                           </span>
                         );
                       })}
@@ -762,39 +913,53 @@ export default function WashView() {
 
                 {!isReadOnly && (
                 <div className="laundry-work-actions">
-                  <button
-                    type="button"
-                    className="laundry-action-btn"
-                    onClick={() => handleMarkWashed(group)}
-                    disabled={!canMarkWashed || busyWashed}
-                    title={!hasWashRole ? 'Brak uprawnień do zapisu' : undefined}
-                  >
-                    <CheckCircle2 size={16} />
-                    {busyWashed ? 'Zapis…' : 'Wyprane'}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="laundry-action-btn is-danger"
-                    onClick={() => handleUnmarkWashed(group)}
-                    disabled={!canUnmarkWashed || busyUnwashed}
-                    title={!hasWashRole ? 'Brak uprawnień do zapisu' : 'Cofa wypranie i aktywne pakowania tego punktu'}
-                  >
-                    <RotateCcw size={16} />
-                    {busyUnwashed ? 'Cofam…' : 'Cofnij wyprane'}
-                  </button>
-
-                  {hasPackRole && (
+                  {primaryAction ? (
                     <button
                       type="button"
-                      className="laundry-action-btn is-pack"
-                      onClick={() => setPackingGroup(group)}
-                      disabled={!canPack || busyPack}
-                      title={!hasPackRole ? 'Brak uprawnień do pakowania' : undefined}
+                      className={`laundry-action-btn ${primaryAction.className}`}
+                      onClick={primaryAction.onClick}
+                      disabled={primaryAction.disabled}
                     >
-                      <Package size={16} />
-                      Pakuj (Skaner)
+                      <primaryAction.Icon size={16} />
+                      {primaryAction.label}
                     </button>
+                  ) : (
+                    <div className="laundry-work-state">{waitingNote}</div>
+                  )}
+
+                  {hasCorrections && (
+                    <details className="laundry-correction-menu">
+                      <summary>
+                        <MoreHorizontal size={16} />
+                        Korekta
+                      </summary>
+                      <div className="laundry-correction-panel">
+                        {canUnmarkWashed && (
+                          <button
+                            type="button"
+                            className="laundry-correction-btn is-danger"
+                            onClick={() => handleUnmarkWashed(group)}
+                            disabled={busyUnwashed}
+                            title="Cofa wypranie i aktywne pakowania tego punktu"
+                          >
+                            <RotateCcw size={15} />
+                            {busyUnwashed ? 'Cofam...' : 'Cofnij wyprane'}
+                          </button>
+                        )}
+                        {cycleCorrections.map(action => (
+                          <button
+                            key={action.key}
+                            type="button"
+                            className="laundry-correction-btn is-danger"
+                            onClick={action.onClick}
+                            disabled={action.disabled}
+                          >
+                            <RotateCcw size={15} />
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}
@@ -820,11 +985,7 @@ export default function WashView() {
           )}
 
           {trolleys.map(cycle => {
-            const status = getTrolleyStatus(cycle, entryById);
-            const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
-            const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
-            const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
-            const pickedAt = linked.map(entry => entry.picked_at).filter(Boolean).sort().at(-1);
+            const { status, driver, deliveredAt, isIssuedToDriver } = getCycleTransportState(cycle, entryById);
             const busyReturn = busyKey === `return:${cycle.id}`;
             const busyCancel = busyKey === `cancel:${cycle.id}`;
             const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
@@ -834,7 +995,6 @@ export default function WashView() {
             const isNoTrolley = cycle.trolley_no === 'brak';
             const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
             const isEditingKg = cycle.id in kgEdit;
-            const isIssuedToDriver = Boolean(pickedAt || deliveredAt || status.key === 'picked' || status.key === 'delivered' || status.key === 'at_client');
             const canCancelCycle = hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver;
             const canUndoPackNoTrolley = hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver;
             const canUndoReturn = hasPackRole && status.key === 'returned';
