@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Archive, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, KeyRound, RefreshCw, Route, ShieldCheck, Trash2, Users, WashingMachine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
-import { VEHICLES, DRIVER_CARS_KEY } from '../lib/vehicles';
+import { VEHICLES, DRIVER_CARS_KEY, vehicleEndColumn } from '../lib/vehicles';
 import { pruneUserSessions, revokeUserSession, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
@@ -18,6 +18,8 @@ import {
   getAdminSessionDetails,
   getAdminSessionOverview,
   getAdminUsersData,
+  getDriverAppSettings,
+  getDriverTripsData,
 } from '../lib/readRpc';
 import { currentLocale, monthNames } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
@@ -39,6 +41,272 @@ const roleLabel = (t, role) => ({
 const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_viewer_driver';
 const SESSION_KEEP_ACTIVE = 10;
 const LAUNDRY_TROLLEY_COUNT_KEY = 'laundry_trolley_count';
+
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const panelBaseStyle = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+  borderRadius: '14px',
+  boxShadow: 'var(--shadow-sm)',
+};
+
+function AdminStatCard({ icon: Icon, label, value, detail, tone = 'neutral', urgent = false, urgentLabel = 'Pilne' }) {
+  const tones = {
+    neutral: { bg: 'rgba(10,132,255,0.09)', color: 'var(--accent)' },
+    good: { bg: 'rgba(52,199,89,0.12)', color: '#1F8F3A' },
+    warn: { bg: 'rgba(255,149,0,0.14)', color: '#B45309' },
+    danger: { bg: 'rgba(255,59,48,0.12)', color: '#C24135' },
+  };
+  const conf = tones[tone] || tones.neutral;
+  return (
+    <div style={{ ...panelBaseStyle, padding: '14px', minHeight: '112px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: conf.bg, color: conf.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon size={18} strokeWidth={2} />
+        </div>
+        {urgent && (
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#C24135', background: 'rgba(255,59,48,0.1)', borderRadius: '999px', padding: '4px 8px' }}>
+            {urgentLabel}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: '26px', lineHeight: 1, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', marginBottom: '6px' }}>{value}</div>
+      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', textWrap: 'balance' }}>{label}</div>
+      {detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px', lineHeight: 1.35, textWrap: 'pretty' }}>{detail}</div>}
+    </div>
+  );
+}
+
+function AdminActionRow({ icon: Icon, title, detail, tone = 'neutral', to, onClick }) {
+  const tones = {
+    neutral: { bg: 'rgba(10,132,255,0.09)', color: 'var(--accent)' },
+    good: { bg: 'rgba(52,199,89,0.12)', color: '#1F8F3A' },
+    warn: { bg: 'rgba(255,149,0,0.14)', color: '#B45309' },
+    danger: { bg: 'rgba(255,59,48,0.12)', color: '#C24135' },
+  };
+  const conf = tones[tone] || tones.neutral;
+  const content = (
+    <>
+      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: conf.bg, color: conf.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={18} />
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', textWrap: 'balance' }}>{title}</div>
+        {detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '3px', lineHeight: 1.35, textWrap: 'pretty' }}>{detail}</div>}
+      </div>
+      <ArrowRight size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+    </>
+  );
+  const style = {
+    ...panelBaseStyle,
+    minHeight: '58px',
+    width: '100%',
+    padding: '10px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    background: 'var(--bg-card)',
+    color: 'inherit',
+    transitionProperty: 'border-color, box-shadow, transform',
+    transitionDuration: '150ms',
+    transitionTimingFunction: 'ease-out',
+  };
+  if (to) return <Link to={to} style={style}>{content}</Link>;
+  return <button type="button" onClick={onClick} style={{ ...style, border: '1px solid var(--border)', fontFamily: 'var(--font)', textAlign: 'left' }}>{content}</button>;
+}
+
+function AdminOverview({ users, driverCars, onOpenTab }) {
+  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    sessionOverview: null,
+    trips: [],
+    dailyCosts: [],
+    kmResolvedIds: [],
+    trolleys: [],
+    trolleyCount: 0,
+  });
+  const [issues, setIssues] = useState([]);
+
+  const fetchOverview = useCallback(async () => {
+    if (!sessionToken) return;
+    setLoading(true);
+    const nextIssues = [];
+    const [sessionsRes, tripsRes, settingsRes, laundryRes] = await Promise.allSettled([
+      getAdminSessionOverview(sessionToken),
+      getDriverTripsData(sessionToken),
+      getDriverAppSettings(sessionToken),
+      getLaundryWorkflow(sessionToken),
+    ]);
+
+    if (sessionsRes.status === 'rejected') nextIssues.push(t('admin.overviewErrSessions'));
+    if (tripsRes.status === 'rejected') nextIssues.push(t('admin.overviewErrTrips'));
+    if (settingsRes.status === 'rejected') nextIssues.push(t('admin.overviewErrSettings'));
+    if (laundryRes.status === 'rejected') nextIssues.push(t('admin.overviewErrLaundry'));
+
+    setData({
+      sessionOverview: sessionsRes.status === 'fulfilled' ? sessionsRes.value : null,
+      trips: tripsRes.status === 'fulfilled' ? (tripsRes.value?.trips || []) : [],
+      dailyCosts: tripsRes.status === 'fulfilled' ? (tripsRes.value?.daily_costs || []) : [],
+      kmResolvedIds: settingsRes.status === 'fulfilled' && Array.isArray(settingsRes.value?.km_resolved_ids) ? settingsRes.value.km_resolved_ids : [],
+      trolleys: laundryRes.status === 'fulfilled' ? (laundryRes.value?.trolleys || []) : [],
+      trolleyCount: laundryRes.status === 'fulfilled' ? Number(laundryRes.value?.trolley_count || 0) : 0,
+    });
+    setIssues(nextIssues);
+    setLoading(false);
+  }, [sessionToken, t]);
+
+  useEffect(() => { fetchOverview(); }, [fetchOverview]);
+
+  const today = todayKey();
+  const tripsToday = data.trips.filter(trip => trip.trip_date === today);
+  const activeTrips = data.trips.filter(trip => trip.status === 'active');
+  const plannedToday = tripsToday.filter(trip => trip.status === 'planned');
+  const finishedToday = tripsToday.filter(trip => trip.status === 'finished');
+  const activeTrolleys = data.trolleys.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status));
+  const trolleysAtClient = activeTrolleys.filter(cycle => cycle.status === 'at_client');
+  const noPasswordUsers = users.filter(user => !user.has_password);
+  const rodoMissingUsers = users.filter(user => !user.privacy_notice_ack_version);
+  const driversWithoutCar = users.filter(user => canAssignDriverSettings(user.role) && !driverCars[user.id]);
+  const pendingKmTrips = data.trips.filter(trip => {
+    if (trip.status !== 'finished' || !trip.end_km) return false;
+    if (data.kmResolvedIds.map(String).includes(String(trip.id))) return false;
+    const field = vehicleEndColumn(trip.car);
+    const row = data.dailyCosts.find(cost => cost.entry_date === trip.trip_date);
+    return String(row?.[field] ?? '').trim() !== String(trip.end_km ?? '').trim();
+  });
+
+  const actionRows = [
+    pendingKmTrips.length > 0 && {
+      icon: Clock3,
+      tone: 'warn',
+      title: t('admin.overviewActionKm', { count: pendingKmTrips.length }),
+      detail: t('admin.overviewActionKmDetail'),
+      to: '/routes',
+    },
+    activeTrips.length > 0 && {
+      icon: Route,
+      title: t('admin.overviewActionLiveRoutes', { count: activeTrips.length }),
+      detail: t('admin.overviewActionLiveRoutesDetail'),
+      to: '/routes',
+    },
+    activeTrolleys.length >= data.trolleyCount && data.trolleyCount > 0 && {
+      icon: WashingMachine,
+      tone: 'warn',
+      title: t('admin.overviewActionTrolleyFull'),
+      detail: t('admin.overviewActionTrolleyFullDetail', { active: activeTrolleys.length, total: data.trolleyCount }),
+      to: '/wash',
+    },
+    trolleysAtClient.length > 0 && {
+      icon: WashingMachine,
+      title: t('admin.overviewActionTrolleysAtClient', { count: trolleysAtClient.length }),
+      detail: t('admin.overviewActionTrolleysAtClientDetail'),
+      to: '/wash',
+    },
+    noPasswordUsers.length > 0 && {
+      icon: KeyRound,
+      tone: 'danger',
+      title: t('admin.overviewActionPasswords', { count: noPasswordUsers.length }),
+      detail: t('admin.overviewActionPasswordsDetail'),
+      onClick: () => onOpenTab('users'),
+    },
+    rodoMissingUsers.length > 0 && {
+      icon: ShieldCheck,
+      tone: 'warn',
+      title: t('admin.overviewActionRodo', { count: rodoMissingUsers.length }),
+      detail: t('admin.overviewActionRodoDetail'),
+      onClick: () => onOpenTab('users'),
+    },
+  ].filter(Boolean);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('admin.overviewTitle')}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '3px' }}>{t('admin.overviewSubtitle')}</div>
+        </div>
+        <button
+          type="button"
+          onClick={fetchOverview}
+          disabled={loading}
+          style={{
+            minHeight: '44px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: '11px',
+            padding: '9px 13px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.65 : 1,
+          }}
+        >
+          <RefreshCw size={15} className={loading ? 'spin' : ''} />
+          {t('common.refresh', 'Odśwież')}
+        </button>
+      </div>
+
+      {issues.length > 0 && (
+        <div style={{ ...panelBaseStyle, padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start', borderColor: 'rgba(255,149,0,0.35)', background: 'rgba(255,149,0,0.08)' }}>
+          <AlertTriangle size={18} style={{ color: '#B45309', flexShrink: 0, marginTop: '1px' }} />
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{t('admin.overviewPartialData')}</strong> {issues.join(' · ')}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+        <AdminStatCard icon={Route} label={t('admin.overviewLiveRoutes')} value={activeTrips.length} detail={t('admin.overviewRoutesDetail', { planned: plannedToday.length, finished: finishedToday.length })} tone={activeTrips.length ? 'neutral' : 'good'} />
+        <AdminStatCard icon={Clock3} label={t('admin.overviewPendingKm')} value={pendingKmTrips.length} detail={t('admin.overviewPendingKmDetail')} tone={pendingKmTrips.length ? 'warn' : 'good'} urgent={pendingKmTrips.length > 0} urgentLabel={t('admin.overviewUrgent')} />
+        <AdminStatCard icon={WashingMachine} label={t('admin.overviewTrolleys')} value={`${activeTrolleys.length}/${data.trolleyCount || '—'}`} detail={t('admin.overviewTrolleysDetail', { count: trolleysAtClient.length })} tone={activeTrolleys.length >= data.trolleyCount && data.trolleyCount > 0 ? 'warn' : 'neutral'} />
+        <AdminStatCard icon={Users} label={t('admin.overviewAccess')} value={data.sessionOverview?.active_total ?? '—'} detail={t('admin.overviewAccessDetail', { count: noPasswordUsers.length })} tone={noPasswordUsers.length ? 'danger' : 'good'} urgent={noPasswordUsers.length > 0} urgentLabel={t('admin.overviewUrgent')} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: '14px' }}>
+        <section style={{ ...panelBaseStyle, padding: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('admin.overviewNextActions')}</div>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: actionRows.length ? '#B45309' : '#1F8F3A', fontVariantNumeric: 'tabular-nums' }}>
+              {actionRows.length ? t('admin.overviewActionsCount', { count: actionRows.length }) : t('admin.overviewAllClear')}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {actionRows.length ? actionRows.map((row, index) => (
+              <AdminActionRow key={`${row.title}-${index}`} {...row} />
+            )) : (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+                <CheckCircle2 size={24} style={{ color: '#1F8F3A', marginBottom: '8px' }} />
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.overviewNoActionsTitle')}</div>
+                <div style={{ marginTop: '3px' }}>{t('admin.overviewNoActionsDetail')}</div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section style={{ ...panelBaseStyle, padding: '14px' }}>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px' }}>{t('admin.overviewShortcuts')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <AdminActionRow icon={Activity} title={t('admin.overviewShortcutSessions')} detail={t('admin.overviewShortcutSessionsDetail')} onClick={() => onOpenTab('sessions')} />
+            <AdminActionRow icon={Users} title={t('admin.overviewShortcutUsers')} detail={t('admin.overviewShortcutUsersDetail', { count: driversWithoutCar.length })} onClick={() => onOpenTab('users')} tone={driversWithoutCar.length ? 'warn' : 'neutral'} />
+            <AdminActionRow icon={Route} title={t('admin.overviewShortcutCosts')} detail={t('admin.overviewShortcutCostsDetail')} to="/costs" />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
 
 // Picker tras — pokazuje wszystkie trasy jako chip-toggley
 function RoutesPicker({ value, onChange }) {
@@ -1431,7 +1699,7 @@ export default function AdminDashboard() {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
-  const [tab, setTab] = useState('users'); // 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings' | 'barcodes'
+  const [tab, setTab] = useState('overview'); // 'overview' | 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings' | 'barcodes'
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -1519,8 +1787,9 @@ export default function AdminDashboard() {
   if (error) return <DataError onRetry={fetchUsers} error={error} />;
 
   return (
-    <div style={{ maxWidth: '600px' }}>
+    <div style={{ maxWidth: '980px' }}>
       <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
+        <button type="button" className={`seg-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>{t('admin.overview')}</button>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
         <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
         <button type="button" className={`seg-btn ${tab === 'roles' ? 'active' : ''}`} onClick={() => setTab('roles')}>{t('admin.stations')}</button>
@@ -1531,6 +1800,7 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 
+      {tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}
       {tab === 'logs' && <LogsSection />}
       {tab === 'employees' && <EmployeesSection />}
       {tab === 'groups' && <GroupsSection />}
