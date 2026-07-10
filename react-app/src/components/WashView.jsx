@@ -402,9 +402,8 @@ export default function WashView() {
         ].sort().at(-1),
       };
     }).sort((a, b) => {
-      const order = { pending: 0, partial: 1, washed: 2, ready: 3 };
-      const stageDiff = order[a.stage] - order[b.stage];
-      if (stageDiff) return stageDiff;
+      // Keep the list stable while operators mark items as washed/packed.
+      // Status changes should update the row in place, not move the client away.
       const routeDiff = (routeMap.get(a.routeId)?.num || 9999) - (routeMap.get(b.routeId)?.num || 9999);
       if (routeDiff) return routeDiff;
       return a.clientName.localeCompare(b.clientName, 'pl');
