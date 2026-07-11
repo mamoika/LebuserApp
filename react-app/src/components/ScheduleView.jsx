@@ -441,14 +441,16 @@ export default function ScheduleView() {
         <span className="schedule-tag-content">
           <span className="tag-name">{entry.client_name}</span>
           <span className="schedule-tag-meta" aria-hidden="true">
-            <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
             {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))} kg</span> : null}
-            <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
+            <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
           </span>
         </span>
         <span className="schedule-tag-state">
           {entry.urgent && <Flag className="schedule-urgent-icon" size={14} strokeWidth={2.2} aria-label={t('schedule.urgent')} />}
-          {renderLaundryStatusDot(entry, mode)}
+          <span className="schedule-route-status">
+            <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
+            {renderLaundryStatusDot(entry, mode)}
+          </span>
         </span>
       </button>
     );

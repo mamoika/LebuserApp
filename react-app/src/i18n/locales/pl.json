@@ -121,9 +121,9 @@
     "urgent": "Pilne",
     "washed": "Wyprane",
     "washedBadge": "🫧 uprane",
-    "metricDelivery": "Dostawa",
+    "metricDelivery": "Od klienta",
     "metricToWash": "Do prania",
-    "metricPickup": "Odbiór",
+    "metricPickup": "Do klienta",
     "secArrival": "PRZYJAZD",
     "secPickup": "ODBIÓR",
     "addArrival": "+ dodaj przyjazd"
