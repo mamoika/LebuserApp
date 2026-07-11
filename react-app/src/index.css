@@ -843,9 +843,13 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   gap:6px;
   flex-shrink:0;
 }
-.schedule-urgent-icon {
-  color:var(--accent-red);
-  fill:var(--accent-red-light);
+.schedule-urgent-emoji {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  font-size:13px;
+  line-height:1;
 }
 .schedule-washed-badge {
   flex: 0 1 auto;

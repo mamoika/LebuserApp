@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
@@ -428,7 +428,7 @@ export default function ScheduleView() {
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
         title={entry.client_name}
-        aria-label={`${entry.client_name}, T${displayNum}, ${Number(totalWeight.toFixed(1)) || 0} kg`}
+        aria-label={`${entry.client_name}, ${entry.urgent ? `${t('schedule.urgent')}, ` : ''}T${displayNum}, ${Number(totalWeight.toFixed(1)) || 0} kg`}
         onClick={() => {
           setSelectedEntry(entry);
           setSelectedRelatedEntries(relatedEntries);
@@ -441,12 +441,12 @@ export default function ScheduleView() {
         <span className="schedule-tag-content">
           <span className="tag-name">{entry.client_name}</span>
           <span className="schedule-tag-meta" aria-hidden="true">
+            {entry.urgent && <span className="schedule-urgent-emoji">🚩</span>}
             {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))} kg</span> : null}
             <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
           </span>
         </span>
         <span className="schedule-tag-state">
-          {entry.urgent && <Flag className="schedule-urgent-icon" size={14} strokeWidth={2.2} aria-label={t('schedule.urgent')} />}
           <span className="schedule-route-status">
             <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
             {renderLaundryStatusDot(entry, mode)}
