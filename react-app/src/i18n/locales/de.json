@@ -113,8 +113,7 @@
     "monthTitle": "Monatsplan",
     "monthDescription": "Arbeitstage, Abwesenheiten, Stunden und Sollzeiten der Mitarbeiter",
     "timelineTitle": "Stündliche Besetzung",
-    "timelineDescription": "Einteilung der Mitarbeiter auf Arbeitsplätze nach Stunden",
-    "timelinePreparing": "Stündliche Besetzung wird vorbereitet…"
+    "timelineDescription": "Einteilung der Mitarbeiter auf Arbeitsplätze nach Stunden"
   },
   "schedule": {
     "loadingData": "Daten werden geladen…",

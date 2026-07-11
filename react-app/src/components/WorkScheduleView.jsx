@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarRange, Clock3 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,63 +14,22 @@ export default function WorkScheduleView() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const timelineSectionRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(() => (
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
-  ));
   const [activeSection, setActiveSection] = useState(
     location.hash === '#obsada' ? 'timeline' : 'schedule'
   );
-  const [timelineReady, setTimelineReady] = useState(location.hash === '#obsada');
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 720px)');
-    const onChange = () => setIsMobile(media.matches);
-    onChange();
-    media.addEventListener?.('change', onChange);
-    return () => media.removeEventListener?.('change', onChange);
-  }, []);
 
   useEffect(() => {
     const requestedSection = location.hash === '#obsada' ? 'timeline' : 'schedule';
     setActiveSection(requestedSection);
-    if (requestedSection === 'timeline') setTimelineReady(true);
-
-    if (!isMobile && location.hash === '#obsada') {
-      const frame = window.requestAnimationFrame(() => {
-        timelineSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-    return undefined;
-  }, [isMobile, location.hash]);
-
-  useEffect(() => {
-    if (isMobile || timelineReady || !timelineSectionRef.current) return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setTimelineReady(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '700px 0px' }
-    );
-    observer.observe(timelineSectionRef.current);
-    return () => observer.disconnect();
-  }, [isMobile, timelineReady]);
+  }, [location.hash]);
 
   const selectSection = (section) => {
     setActiveSection(section);
-    if (section === 'timeline') setTimelineReady(true);
     navigate(
       { pathname: location.pathname, hash: section === 'timeline' ? '#obsada' : '#harmonogram' },
       { replace: true }
     );
   };
-
-  const showSchedule = !isMobile || activeSection === 'schedule';
-  const showTimeline = !isMobile || activeSection === 'timeline';
 
   return (
     <div className="work-schedule-view">
@@ -103,7 +62,7 @@ export default function WorkScheduleView() {
         </button>
       </div>
 
-      {showSchedule && (
+      {activeSection === 'schedule' && (
         <section id="harmonogram" className="work-schedule-section" aria-labelledby="work-schedule-month-title">
           <header className="work-schedule-section-header">
             <span className="work-schedule-section-icon" aria-hidden="true"><CalendarRange size={19} /></span>
@@ -118,10 +77,9 @@ export default function WorkScheduleView() {
         </section>
       )}
 
-      {showTimeline && (
+      {activeSection === 'timeline' && (
         <section
           id="obsada"
-          ref={timelineSectionRef}
           className="work-schedule-section work-schedule-timeline-section"
           aria-labelledby="work-schedule-timeline-title"
         >
@@ -132,13 +90,9 @@ export default function WorkScheduleView() {
               <p>{t('workSchedule.timelineDescription')}</p>
             </span>
           </header>
-          {timelineReady ? (
-            <Suspense fallback={<SectionLoader label={t('timeline.loading')} />}>
-              <TimelineView />
-            </Suspense>
-          ) : (
-            <SectionLoader label={t('workSchedule.timelinePreparing')} />
-          )}
+          <Suspense fallback={<SectionLoader label={t('timeline.loading')} />}>
+            <TimelineView />
+          </Suspense>
         </section>
       )}
     </div>

@@ -6153,18 +6153,49 @@ button.laundry-metric:focus-visible {
 .work-schedule-view {
   display:flex;
   flex-direction:column;
-  gap:32px;
+  gap:18px;
 }
 .work-schedule-tabs {
-  display:none;
+  align-self:center;
+  display:flex;
+  gap:2px;
+  padding:3px;
+  border-radius:12px;
+  background:#EEEEEE;
+}
+.work-schedule-tabs button {
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 18px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:13px;
+  font-weight:650;
+  cursor:pointer;
+  transition:color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.work-schedule-tabs button:hover { color:var(--text-primary); }
+.work-schedule-tabs button.active {
+  background:#FFFFFF;
+  color:var(--text-primary);
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+.work-schedule-tabs button:focus-visible {
+  outline:3px solid rgba(0,122,255,.3);
+  outline-offset:2px;
 }
 .work-schedule-section {
   min-width:0;
   scroll-margin-top:18px;
 }
 .work-schedule-timeline-section {
-  padding-top:30px;
-  border-top:1px solid var(--border-strong);
+  padding-top:0;
 }
 .work-schedule-section-header {
   display:flex;
@@ -6216,41 +6247,23 @@ button.laundry-metric:focus-visible {
     position:sticky;
     top:6px;
     z-index:20;
+    align-self:stretch;
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:5px;
     padding:5px;
-    border:1px solid var(--border);
-    border-radius:14px;
-    background:rgba(255,255,255,.92);
+    border:1px solid rgba(0,0,0,.04);
+    border-radius:13px;
+    background:rgba(238,238,238,.94);
     box-shadow:var(--shadow-sm);
     backdrop-filter:blur(18px);
     -webkit-backdrop-filter:blur(18px);
   }
-  .work-schedule-tabs button {
-    min-height:42px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    padding:8px 10px;
-    border:0;
-    border-radius:10px;
-    background:transparent;
-    color:var(--text-tertiary);
-    font-family:var(--font);
-    font-size:12px;
-    font-weight:700;
-    cursor:pointer;
-  }
+  .work-schedule-tabs button { min-height:42px; padding:8px 10px; font-size:12px; }
   .work-schedule-tabs button.active {
-    background:var(--accent);
-    color:#fff;
-    box-shadow:0 4px 12px var(--accent-light);
-  }
-  .work-schedule-tabs button:focus-visible {
-    outline:3px solid rgba(0,122,255,.3);
-    outline-offset:2px;
+    background:#fff;
+    color:var(--text-primary);
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
   }
   .work-schedule-timeline-section {
     padding-top:0;
