@@ -1271,6 +1271,55 @@ function EmployeesSection() {
   );
 }
 
+export function WorkScheduleSettings() {
+  const { t } = useTranslation();
+  const { isAdmin } = useAuth();
+  const [tab, setTab] = useState('employees');
+
+  if (!isAdmin) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
+  }
+
+  const tabs = [
+    ['employees', t('admin.employees')],
+    ['groups', t('admin.groups')],
+    ['roles', t('admin.stations')],
+  ];
+
+  return (
+    <div className="work-schedule-settings">
+      <div className="work-schedule-settings-tabs" role="tablist" aria-label={t('workSchedule.settingsSelector')}>
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            id={`work-schedule-settings-tab-${key}`}
+            aria-controls="work-schedule-settings-content"
+            aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
+            className={tab === key ? 'active' : ''}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id="work-schedule-settings-content"
+        className="work-schedule-settings-content"
+        role="tabpanel"
+        aria-labelledby={`work-schedule-settings-tab-${tab}`}
+      >
+        {tab === 'employees' && <EmployeesSection />}
+        {tab === 'groups' && <GroupsSection />}
+        {tab === 'roles' && <RolesSection />}
+      </div>
+    </div>
+  );
+}
+
 const ACTION_COLORS = {
   added: '#34C759',
   edited: '#FF9500',
@@ -1699,7 +1748,7 @@ export default function AdminDashboard() {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
-  const [tab, setTab] = useState('overview'); // 'overview' | 'users' | 'groups' | 'employees' | 'logs' | 'sessions' | 'settings' | 'barcodes'
+  const [tab, setTab] = useState('overview'); // 'overview' | 'users' | 'logs' | 'sessions' | 'settings' | 'barcodes'
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -1791,9 +1840,6 @@ export default function AdminDashboard() {
       <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
         <button type="button" className={`seg-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>{t('admin.overview')}</button>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
-        <button type="button" className={`seg-btn ${tab === 'groups' ? 'active' : ''}`} onClick={() => setTab('groups')}>{t('admin.groups')}</button>
-        <button type="button" className={`seg-btn ${tab === 'roles' ? 'active' : ''}`} onClick={() => setTab('roles')}>{t('admin.stations')}</button>
-        <button type="button" className={`seg-btn ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>{t('admin.employees')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
         <button type="button" className={`seg-btn ${tab === 'barcodes' ? 'active' : ''}`} onClick={() => setTab('barcodes')}>Etykiety</button>
@@ -1802,9 +1848,6 @@ export default function AdminDashboard() {
 
       {tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}
       {tab === 'logs' && <LogsSection />}
-      {tab === 'employees' && <EmployeesSection />}
-      {tab === 'groups' && <GroupsSection />}
-      {tab === 'roles' && <RolesSection />}
       {tab === 'sessions' && <SessionsSection />}
       {tab === 'barcodes' && <BarcodeGenerator />}
       {tab === 'settings' && <SettingsSection />}

@@ -110,10 +110,14 @@
     "viewSelector": "Arbeitsplanansicht auswählen",
     "monthTab": "Monatsplan",
     "timelineTab": "Stündliche Besetzung",
+    "settingsButton": "Planeinstellungen",
     "monthTitle": "Monatsplan",
     "monthDescription": "Arbeitstage, Abwesenheiten, Stunden und Sollzeiten der Mitarbeiter",
     "timelineTitle": "Stündliche Besetzung",
-    "timelineDescription": "Einteilung der Mitarbeiter auf Arbeitsplätze nach Stunden"
+    "timelineDescription": "Einteilung der Mitarbeiter auf Arbeitsplätze nach Stunden",
+    "settingsTitle": "Planeinstellungen",
+    "settingsDescription": "Mitarbeiter, Gruppen und Arbeitsplätze für den Arbeitsplan",
+    "settingsSelector": "Art der Planeinstellungen auswählen"
   },
   "schedule": {
     "loadingData": "Daten werden geladen…",

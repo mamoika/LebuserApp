@@ -6216,6 +6216,47 @@ button.laundry-metric:focus-visible {
   background:rgba(118,118,128,.13);
   box-shadow:inset 0 1px 2px rgba(0,0,0,.04);
 }
+.work-schedule-controls {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+.work-schedule-settings-button {
+  min-height:48px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 13px;
+  border:1px solid var(--border-strong);
+  border-radius:12px;
+  background:var(--bg-card-solid);
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+  white-space:nowrap;
+  box-shadow:var(--shadow-sm);
+  transition:color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.work-schedule-settings-button:hover {
+  color:var(--accent);
+  border-color:var(--accent-border);
+  background:var(--accent-light);
+}
+.work-schedule-settings-button:active { transform:scale(.97); }
+.work-schedule-settings-button.active {
+  color:#fff;
+  border-color:var(--accent);
+  background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
+  box-shadow:0 5px 14px rgba(0,122,255,.28), inset 0 1px 0 rgba(255,255,255,.24);
+}
+.work-schedule-settings-button:focus-visible {
+  outline:3px solid rgba(0,122,255,.3);
+  outline-offset:2px;
+}
 .work-schedule-tabs button {
   min-height:40px;
   display:flex;
@@ -6275,6 +6316,10 @@ button.laundry-metric:focus-visible {
   background:var(--accent-purple-light);
   color:var(--accent-purple);
 }
+.work-schedule-section-icon.settings {
+  background:rgba(255,149,0,.12);
+  color:#C66A00;
+}
 .work-schedule-current-heading h2 {
   margin:0;
   color:var(--text-primary);
@@ -6296,6 +6341,47 @@ button.laundry-metric:focus-visible {
   align-items:center;
   justify-content:center;
 }
+.work-schedule-settings {
+  width:min(100%, 980px);
+}
+.work-schedule-settings-tabs {
+  display:flex;
+  gap:4px;
+  padding:4px;
+  margin-bottom:16px;
+  border:1px solid rgba(118,118,128,.08);
+  border-radius:13px;
+  background:rgba(118,118,128,.13);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.04);
+}
+.work-schedule-settings-tabs button {
+  flex:1;
+  min-height:40px;
+  padding:8px 16px;
+  border:0;
+  border-radius:9px;
+  background:rgba(255,255,255,.2);
+  color:var(--text-secondary);
+  font-family:var(--font);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition:color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.work-schedule-settings-tabs button:hover { background:rgba(255,255,255,.6); color:var(--text-primary); }
+.work-schedule-settings-tabs button:active { transform:scale(.98); }
+.work-schedule-settings-tabs button.active {
+  background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
+  color:#fff;
+  box-shadow:0 5px 14px rgba(0,122,255,.25), inset 0 1px 0 rgba(255,255,255,.24);
+}
+.work-schedule-settings-tabs button:focus-visible {
+  outline:3px solid rgba(0,122,255,.3);
+  outline-offset:2px;
+}
+.work-schedule-settings-content {
+  min-width:0;
+}
 
 @media(max-width:720px) {
   .costs-view-tabs {
@@ -6312,6 +6398,10 @@ button.laundry-metric:focus-visible {
     gap:11px;
     padding:11px;
   }
+  .work-schedule-controls {
+    flex-direction:column;
+    align-items:stretch;
+  }
   .work-schedule-tabs {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -6320,6 +6410,7 @@ button.laundry-metric:focus-visible {
     border-radius:12px;
     background:rgba(118,118,128,.14);
   }
+  .work-schedule-settings-button { width:100%; min-height:44px; }
   .work-schedule-tabs button { min-height:42px; padding:8px 10px; font-size:12px; }
   .work-schedule-tabs button.active {
     background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
@@ -6333,4 +6424,9 @@ button.laundry-metric:focus-visible {
   .work-schedule-section-icon { width:34px; height:34px; border-radius:10px; }
   .work-schedule-current-heading h2 { font-size:15px; }
   .work-schedule-current-heading p { font-size:11px; }
+  .work-schedule-settings-tabs {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .work-schedule-settings-tabs button { min-height:42px; padding:8px 6px; font-size:11px; }
 }

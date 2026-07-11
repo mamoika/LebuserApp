@@ -110,10 +110,14 @@
     "viewSelector": "Wybierz widok grafiku pracy",
     "monthTab": "Grafik miesięczny",
     "timelineTab": "Obsada godzinowa",
+    "settingsButton": "Ustawienia grafiku",
     "monthTitle": "Grafik miesięczny",
     "monthDescription": "Dni pracy, nieobecności, godziny i normy pracowników",
     "timelineTitle": "Obsada godzinowa",
-    "timelineDescription": "Rozmieszczenie pracowników na stanowiskach w poszczególnych godzinach"
+    "timelineDescription": "Rozmieszczenie pracowników na stanowiskach w poszczególnych godzinach",
+    "settingsTitle": "Ustawienia grafiku",
+    "settingsDescription": "Pracownicy, grupy i stanowiska używane w grafiku pracy",
+    "settingsSelector": "Wybierz typ ustawień grafiku"
   },
   "schedule": {
     "loadingData": "Ładowanie danych…",
