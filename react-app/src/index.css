@@ -6210,7 +6210,7 @@ button.laundry-metric:focus-visible {
   flex-shrink:0;
   display:flex;
   gap:4px;
-  padding:4px;
+  padding:2px;
   border:1px solid rgba(118,118,128,.08);
   border-radius:13px;
   background:rgba(118,118,128,.13);
@@ -6223,12 +6223,12 @@ button.laundry-metric:focus-visible {
   flex-shrink:0;
 }
 .work-schedule-settings-button {
-  min-height:48px;
+  min-height:32px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:7px;
-  padding:8px 13px;
+  padding:4px 13px;
   border:1px solid var(--border-strong);
   border-radius:12px;
   background:var(--bg-card-solid);
@@ -6258,12 +6258,12 @@ button.laundry-metric:focus-visible {
   outline-offset:2px;
 }
 .work-schedule-tabs button {
-  min-height:40px;
+  min-height:32px;
   display:flex;
   align-items:center;
   justify-content:center;
   gap:7px;
-  padding:8px 18px;
+  padding:4px 14px;
   border:0;
   border-radius:9px;
   background:rgba(255,255,255,.2);
@@ -6406,12 +6406,12 @@ button.laundry-metric:focus-visible {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:5px;
-    padding:5px;
+    padding:2px;
     border-radius:12px;
     background:rgba(118,118,128,.14);
   }
-  .work-schedule-settings-button { width:100%; min-height:44px; }
-  .work-schedule-tabs button { min-height:42px; padding:8px 10px; font-size:12px; }
+  .work-schedule-settings-button { width:100%; min-height:34px; }
+  .work-schedule-tabs button { min-height:34px; padding:6px 4px; font-size:12px; }
   .work-schedule-tabs button.active {
     background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
     color:#fff;
