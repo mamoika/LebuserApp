@@ -728,10 +728,16 @@ export default function CostsView() {
           <button onClick={() => setCurrentDate(new Date(year, month, 1))} style={navBtnStyle}>›</button>
         </div>
 
-        <div style={{ display: 'flex', background: '#EEEEEE', padding: '2px', borderRadius: '10px', gap: '2px' }}>
+        <div className="costs-view-tabs" role="tablist" aria-label={t('pages.costs.title')}>
           {[['overview', t('costs.tabOverview')], ['entry', t('costs.tabEntry')], ['performance', t('costs.tabPerformance')]].map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              style={{ ...segmentBtnStyle, color: activeTab === key ? IOS_THEME.textPrimary : IOS_THEME.textSecondary, background: activeTab === key ? '#FFFFFF' : 'transparent', boxShadow: activeTab === key ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}>
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === key}
+              className={`costs-view-tab ${activeTab === key ? 'active' : ''}`}
+              onClick={() => setActiveTab(key)}
+            >
               {label}
             </button>
           ))}
@@ -1701,9 +1707,6 @@ const cardTitleStyle = { fontSize: '15px', fontWeight: 700, marginBottom: '16px'
 
 const navBtnStyle = {
   padding: '6px 14px', borderRadius: '10px', background: '#F2F2F7', border: 'none', fontWeight: 700, fontSize: '18px', cursor: 'pointer'
-};
-const segmentBtnStyle = {
-  padding: '6px 18px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
 };
 const newThStyle = {
   padding: '8px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
