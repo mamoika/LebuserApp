@@ -98,13 +98,23 @@
     "map": { "title": "Mapa", "subtitle": "Klienci na mapie" },
     "tunnel": { "title": "Tunel", "subtitle": "Worki, programy i tory prania" },
     "history": { "title": "Historia", "subtitle": "Archiwum przyjazdów i zmian" },
-    "grafik": { "title": "Grafik pracy", "subtitle": "Grafik pracowników" },
+    "grafik": { "title": "Grafik pracy", "subtitle": "Plan miesięczny i obsada godzinowa" },
     "timeline": { "title": "Oś czasu", "subtitle": "Przegląd w czasie" },
     "costs": { "title": "Koszty", "subtitle": "Koszty i rozliczenia" },
     "tunnel": { "title": "Tunel", "subtitle": "Status gatewaya live" },
     "wash": { "title": "Pralnia", "subtitle": "Pranie, pakowanie i obieg wózków" },
     "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" },
     "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" }
+  },
+  "workSchedule": {
+    "viewSelector": "Wybierz widok grafiku pracy",
+    "monthTab": "Grafik miesięczny",
+    "timelineTab": "Obsada godzinowa",
+    "monthTitle": "Grafik miesięczny",
+    "monthDescription": "Dni pracy, nieobecności, godziny i normy pracowników",
+    "timelineTitle": "Obsada godzinowa",
+    "timelineDescription": "Rozmieszczenie pracowników na stanowiskach w poszczególnych godzinach",
+    "timelinePreparing": "Przygotowywanie obsady godzinowej…"
   },
   "schedule": {
     "loadingData": "Ładowanie danych…",

@@ -98,13 +98,23 @@
     "map": { "title": "Karte", "subtitle": "Kunden auf der Karte" },
     "tunnel": { "title": "Tunnel", "subtitle": "Säcke, Programme und Waschbahnen" },
     "history": { "title": "Verlauf", "subtitle": "Archiv der Ankünfte und Änderungen" },
-    "grafik": { "title": "Arbeitsplan", "subtitle": "Mitarbeiterplan" },
+    "grafik": { "title": "Arbeitsplan", "subtitle": "Monatsplan und stündliche Besetzung" },
     "timeline": { "title": "Zeitleiste", "subtitle": "Zeitlicher Überblick" },
     "costs": { "title": "Kosten", "subtitle": "Kosten und Abrechnungen" },
     "tunnel": { "title": "Tunnel", "subtitle": "Live Gateway Status" },
     "wash": { "title": "Wäscherei", "subtitle": "Waschen, Packen und Wagenumlauf" },
     "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" },
     "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" }
+  },
+  "workSchedule": {
+    "viewSelector": "Arbeitsplanansicht auswählen",
+    "monthTab": "Monatsplan",
+    "timelineTab": "Stündliche Besetzung",
+    "monthTitle": "Monatsplan",
+    "monthDescription": "Arbeitstage, Abwesenheiten, Stunden und Sollzeiten der Mitarbeiter",
+    "timelineTitle": "Stündliche Besetzung",
+    "timelineDescription": "Einteilung der Mitarbeiter auf Arbeitsplätze nach Stunden",
+    "timelinePreparing": "Stündliche Besetzung wird vorbereitet…"
   },
   "schedule": {
     "loadingData": "Daten werden geladen…",

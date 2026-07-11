@@ -18,8 +18,7 @@ const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
 const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
 const MapView = lazy(() => import('../components/MapView'));
 const HistoryView = lazy(() => import('../components/HistoryView'));
-const GrafikView = lazy(() => import('../components/GrafikView'));
-const TimelineView = lazy(() => import('../components/TimelineView'));
+const WorkScheduleView = lazy(() => import('../components/WorkScheduleView'));
 const CostsView = lazy(() => import('../components/CostsView'));
 const WashView = lazy(() => import('../components/WashView'));
 
@@ -34,7 +33,7 @@ const PAGE_KEYS = {
   '/map': 'map',
   '/history': 'history',
   '/grafik': 'grafik',
-  '/timeline': 'timeline',
+  '/timeline': 'grafik',
   '/costs': 'costs',
   '/wash': 'wash',
   '/admin': 'admin',
@@ -181,8 +180,8 @@ export default function Dashboard() {
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />
-          <Route path="/grafik" element={<GrafikView />} />
-          <Route path="/timeline" element={<TimelineView />} />
+          <Route path="/grafik" element={<WorkScheduleView />} />
+          <Route path="/timeline" element={<Navigate to="/grafik#obsada" replace />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
           <Route path="/wash" element={canViewLaundry ? <WashView /> : <Navigate to="/" replace />} />

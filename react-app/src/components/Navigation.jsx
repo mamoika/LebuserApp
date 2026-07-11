@@ -30,7 +30,6 @@ export default function Navigation() {
   if (canViewAdminData) {
     navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
     navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
-    navItems.push({ to: '/timeline', icon: '⏱', label: t('nav.timeline') });
     navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
   }
 
