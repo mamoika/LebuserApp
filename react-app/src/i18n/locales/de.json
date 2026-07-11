@@ -124,8 +124,8 @@
     "metricDelivery": "Vom Kunden",
     "metricToWash": "Zu waschen",
     "metricPickup": "Zum Kunden",
-    "secArrival": "ANKUNFT",
-    "secPickup": "ABHOLUNG",
+    "secArrival": "Abholung vom Kunden",
+    "secPickup": "Lieferung zum Kunden",
     "addArrival": "+ Ankunft hinzufügen"
   },
   "tunnel": {

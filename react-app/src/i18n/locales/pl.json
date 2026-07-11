@@ -124,8 +124,8 @@
     "metricDelivery": "Od klienta",
     "metricToWash": "Do prania",
     "metricPickup": "Do klienta",
-    "secArrival": "PRZYJAZD",
-    "secPickup": "ODBIÓR",
+    "secArrival": "Przywóz od klienta",
+    "secPickup": "Wywóz do klienta",
     "addArrival": "+ dodaj przyjazd"
   },
   "tunnel": {
