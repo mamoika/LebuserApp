@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CalendarDays, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
@@ -368,9 +369,11 @@ export default function ScheduleView() {
       const isDone = entry.done;
       const title = isDone ? t('schedule.pickedUp', 'Odebrane') : t('schedule.toPickUp', 'Do odebrania');
       return (
-        <span 
-          className={`gps-dot ${isDone ? 'gps-green' : 'gps-grey'}`} 
+        <span
+          className={`gps-dot ${isDone ? 'gps-green' : 'gps-grey'}`}
           title={title}
+          role="img"
+          aria-label={title}
         />
       );
     }
@@ -399,6 +402,8 @@ export default function ScheduleView() {
       <span 
         className={`gps-dot ${dotClass}`} 
         title={title}
+        role="img"
+        aria-label={title}
       />
     );
   };
@@ -418,10 +423,12 @@ export default function ScheduleView() {
     const hasMixedTypes = entry.isPickupGroup && relatedEntries.some(e => e.type === 'O') && relatedEntries.some(e => (e.type || 'P') === 'P');
 
     return (
-      <div
+      <button
+        type="button"
         key={entry.id}
         className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
         title={entry.client_name}
+        aria-label={`${entry.client_name}, T${displayNum}, ${Number(totalWeight.toFixed(1)) || 0} kg`}
         onClick={() => {
           setSelectedEntry(entry);
           setSelectedRelatedEntries(relatedEntries);
@@ -430,16 +437,20 @@ export default function ScheduleView() {
         }}
         style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
-        {entry.urgent && <span style={{ color: 'var(--accent-red)', fontSize: '11px', marginRight: '2px' }}>🚩</span>}
         {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
-        <span className="schedule-tag-title">
+        <span className="schedule-tag-content">
           <span className="tag-name">{entry.client_name}</span>
+          <span className="schedule-tag-meta" aria-hidden="true">
+            <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
+            {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))} kg</span> : null}
+            <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
+          </span>
         </span>
-        <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
-        {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))}kg</span> : null}
-        <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
-        {renderLaundryStatusDot(entry, mode)}
-      </div>
+        <span className="schedule-tag-state">
+          {entry.urgent && <Flag className="schedule-urgent-icon" size={14} strokeWidth={2.2} aria-label={t('schedule.urgent')} />}
+          {renderLaundryStatusDot(entry, mode)}
+        </span>
+      </button>
     );
   };
 
@@ -466,12 +477,14 @@ export default function ScheduleView() {
     return (
       <div key={`${weekKey}-${dayIndex}`} className={`col schedule-col ${isToday ? 'col-today' : ''}`}>
         <div className="col-header">
-          <span className="col-date">{formatDate(dayDate)}</span>
-          <span className="col-day-name" style={{ flex: 1, textAlign: 'center' }}>{dayName}</span>
+          <span className="col-day-heading">
+            <span className="col-day-name">{dayName}</span>
+            <span className="col-date">{formatDate(dayDate)}</span>
+          </span>
           {isToday && <span className="today-pill">{t('schedule.today')}</span>}
         </div>
 
-        <div className="metrics-row" style={{ marginBottom: '8px' }}>
+        <div className="metrics-row">
           <div className="metric-chip arr">
             <div className="metric-chip-label">{t('schedule.metricDelivery')}</div>
             <div className="metric-chip-val">{sumArr > 0 ? sumArr.toFixed(1) : 0}<span className="metric-unit">kg</span></div>
@@ -526,20 +539,42 @@ export default function ScheduleView() {
   );
 
   const isMobileCompact = isPhone && mobileMode !== 'full';
+  const resetToToday = () => {
+    setWeekOffset(0);
+    setMobileDayOffset(0);
+  };
+  const periodLabel = isMobileCompact
+    ? mobileWindowLabel
+    : `${formatDate(currentMonday)} – ${formatDate(w2End)}`;
 
   return (
     <div id="mainView">
       <div className="week-nav">
         <div className="week-nav-row">
-          <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v - 1) : setWeekOffset(weekOffset - 1)}>‹</button>
+          <button
+            type="button"
+            className="week-nav-btn"
+            aria-label={t('schedule.previousPeriod')}
+            onClick={() => isMobileCompact ? setMobileDayOffset(v => v - 1) : setWeekOffset(weekOffset - 1)}
+          >
+            <ChevronLeft size={19} aria-hidden="true" />
+          </button>
           <div className="week-label" id="weekLabel">
-            {isPhone ? (
-              <div className="schedule-mobile-nav-center">
-                <span className="schedule-mobile-date">{isMobileCompact ? mobileWindowLabel : t('schedule.twoWeekView')}</span>
-              </div>
-            ) : t('schedule.twoWeekView')}
+            <span className="week-label-title">{t('schedule.twoWeekView')}</span>
+            <span className="week-label-range">{periodLabel}</span>
           </div>
-          <button className="week-nav-btn" onClick={() => isMobileCompact ? setMobileDayOffset(v => v + 1) : setWeekOffset(weekOffset + 1)}>›</button>
+          <button type="button" className="week-today-btn" onClick={resetToToday}>
+            <CalendarDays size={15} aria-hidden="true" />
+            {t('schedule.today')}
+          </button>
+          <button
+            type="button"
+            className="week-nav-btn"
+            aria-label={t('schedule.nextPeriod')}
+            onClick={() => isMobileCompact ? setMobileDayOffset(v => v + 1) : setWeekOffset(weekOffset + 1)}
+          >
+            <ChevronRight size={19} aria-hidden="true" />
+          </button>
         </div>
         {isPhone && (
           <div className="schedule-mobile-range" aria-label={t('schedule.mobileRange')}>
@@ -565,19 +600,22 @@ export default function ScheduleView() {
       {isMobileCompact ? (
         <>
           <div className="section-heading" id="titleMobile">
-            📅 {mobileWindowLabel}
+            <CalendarDays size={14} aria-hidden="true" />
+            {mobileWindowLabel}
           </div>
           {renderMobileGrid()}
         </>
       ) : (
         <>
           <div className="section-heading" id="titleWk1">
-            📅 {formatDate(currentMonday)} – {formatDate(w1End)}
+            <CalendarDays size={14} aria-hidden="true" />
+            {formatDate(currentMonday)} – {formatDate(w1End)}
           </div>
           {renderGrid(currentMonday, week1Key)}
 
           <div className="section-heading" id="titleWk2" style={{ marginTop: '28px' }}>
-            📅 {t('schedule.nextWeek')} {formatDate(nextMonday)} – {formatDate(w2End)}
+            <CalendarDays size={14} aria-hidden="true" />
+            {t('schedule.nextWeek')} {formatDate(nextMonday)} – {formatDate(w2End)}
           </div>
           {renderGrid(nextMonday, week2Key)}
         </>
