@@ -6216,19 +6216,22 @@ button.laundry-metric:focus-visible {
   background:rgba(118,118,128,.13);
   box-shadow:inset 0 1px 2px rgba(0,0,0,.04);
 }
-.work-schedule-controls {
+.work-schedule-tabs-wrapper {
   display:flex;
-  align-items:center;
-  gap:8px;
-  flex-shrink:0;
+  justify-content:center;
+}
+.work-schedule-settings-wrapper {
+  flex:1;
+  display:flex;
+  justify-content:flex-end;
 }
 .work-schedule-settings-button {
-  min-height:32px;
+  min-height:34px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:7px;
-  padding:4px 13px;
+  padding:5px 13px;
   border:1px solid var(--border-strong);
   border-radius:12px;
   background:var(--bg-card-solid);
@@ -6258,12 +6261,12 @@ button.laundry-metric:focus-visible {
   outline-offset:2px;
 }
 .work-schedule-tabs button {
-  min-height:32px;
+  min-height:34px;
   display:flex;
   align-items:center;
   justify-content:center;
   gap:7px;
-  padding:4px 14px;
+  padding:5px 14px;
   border:0;
   border-radius:9px;
   background:rgba(255,255,255,.2);
@@ -6296,6 +6299,7 @@ button.laundry-metric:focus-visible {
   padding-top:0;
 }
 .work-schedule-current-heading {
+  flex:1;
   display:flex;
   align-items:center;
   gap:11px;
@@ -6398,10 +6402,8 @@ button.laundry-metric:focus-visible {
     gap:11px;
     padding:11px;
   }
-  .work-schedule-controls {
-    flex-direction:column;
-    align-items:stretch;
-  }
+  .work-schedule-tabs-wrapper { width: 100%; }
+  .work-schedule-settings-wrapper { width: 100%; }
   .work-schedule-tabs {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));

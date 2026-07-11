@@ -69,7 +69,7 @@ export default function WorkScheduleView() {
           </span>
         </div>
 
-        <div className="work-schedule-controls">
+        <div className="work-schedule-tabs-wrapper">
           <div className="work-schedule-tabs" role="tablist" aria-label={t('workSchedule.viewSelector')}>
             <button
               type="button"
@@ -98,6 +98,8 @@ export default function WorkScheduleView() {
               {t('workSchedule.timelineTab')}
             </button>
           </div>
+        </div>
+        <div className="work-schedule-settings-wrapper">
           {isAdmin && (
             <button
               type="button"
