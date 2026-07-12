@@ -7,6 +7,7 @@ import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils'
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
+import '../mockups/mockups.css';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
 function getDefaultPickInfo(arrDay, schedule = 'other') {
