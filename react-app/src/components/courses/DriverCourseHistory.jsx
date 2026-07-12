@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Clock3, Gauge, LoaderCircle, Printer, Route } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Gauge, LoaderCircle, Printer, Route } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
@@ -20,6 +20,69 @@ function routeDisplayForTrip(trip, routeMap) {
   return routeMap[firstRouteId]?.num || firstRouteId || null;
 }
 
+function formatWeekday(dateStr, locale) {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(locale, { weekday: 'short' });
+}
+
+function WorkHoursBlock({ row, locale, t, onResubmit }) {
+  if (!row) return null;
+
+  if (row.kind === 'report') {
+    const report = row.report;
+    const approved = report.status === 'approved';
+    const rejected = report.status === 'rejected';
+    const start = timeForInput(approved ? report.approved_start : report.reported_start);
+    const end = timeForInput(approved ? report.approved_end : report.reported_end);
+    const minutes = approved ? report.approved_minutes : report.reported_minutes;
+
+    return (
+      <div className="live-history-day-hours">
+        <div className="live-history-hours-main">
+          <span className="live-history-hours-value">{formatWorkDuration(minutes)}</span>
+          <span className="live-history-hours-range">{start}–{end}</span>
+        </div>
+        <div className="live-history-hours-meta">
+          <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
+            {approved
+              ? t('course.history.statusApproved')
+              : rejected
+                ? t('course.history.statusRejected')
+                : t('course.history.statusPending')}
+          </span>
+          {row.schedule && (
+            <span className="live-history-schedule-ref">
+              {t('course.history.scheduleRef', {
+                hours: formatWorkDuration(row.schedule.minutes),
+                value: row.schedule.value,
+              })}
+            </span>
+          )}
+          {approved && report.approved_by_name && <span>{report.approved_by_name}</span>}
+          {rejected && report.rejection_note && <span>{report.rejection_note}</span>}
+        </div>
+        {rejected && (
+          <button type="button" className="driver-tool-btn live-history-fix-btn" onClick={() => onResubmit(report)}>
+            {t('course.history.fix')}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="live-history-day-hours is-schedule">
+      <div className="live-history-hours-main">
+        <span className="live-history-hours-value">{formatWorkDuration(row.minutes)}</span>
+        <span className="live-history-hours-range">{row.start}–{row.end}</span>
+      </div>
+      <div className="live-history-hours-meta">
+        <span className="live-worktime-status is-schedule">{t('course.history.statusSchedule')}</span>
+        <span>{t('course.history.scheduleValue', { value: row.scheduleValue })}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DriverCourseHistory({ routeMap, onBack }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
@@ -27,7 +90,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
   const { entries } = useAppData();
   const [allTrips, setAllTrips] = useState([]);
   const [dailyCosts, setDailyCosts] = useState([]);
-  const [workTimeData, setWorkTimeData] = useState({ employee: null, reports: [] });
+  const [workTimeData, setWorkTimeData] = useState({ employee: null, reports: [], schedule_entries: [] });
   const [workPeriod, setWorkPeriod] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
@@ -76,6 +139,25 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
     [workPeriod.month, workPeriod.year, workTimeData.employee, workTimeData.schedule_entries, workTimeData.reports],
   );
 
+  const workByDate = useMemo(
+    () => new Map(workHistoryRows.map(row => [row.dateStr, row])),
+    [workHistoryRows],
+  );
+
+  const historyDays = useMemo(() => {
+    const dayMap = new Map();
+    workHistoryRows.forEach(row => {
+      dayMap.set(row.dateStr, { dateStr: row.dateStr, work: row, trips: [] });
+    });
+    monthTrips.forEach(trip => {
+      const existing = dayMap.get(trip.trip_date) || { dateStr: trip.trip_date, work: workByDate.get(trip.trip_date) || null, trips: [] };
+      existing.trips = [...existing.trips, trip];
+      if (!existing.work) existing.work = workByDate.get(trip.trip_date) || null;
+      dayMap.set(trip.trip_date, existing);
+    });
+    return [...dayMap.values()].sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+  }, [monthTrips, workByDate, workHistoryRows]);
+
   const myWorkReports = useMemo(
     () => workHistoryRows.filter(row => row.kind === 'report').map(row => row.report),
     [workHistoryRows],
@@ -87,6 +169,9 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
   const pendingWorkMinutes = myWorkReports
     .filter(report => report.status === 'pending')
     .reduce((sum, report) => sum + (Number(report.reported_minutes) || 0), 0);
+  const scheduleWorkMinutes = workHistoryRows
+    .filter(row => row.kind === 'schedule')
+    .reduce((sum, row) => sum + (Number(row.minutes) || 0), 0);
 
   const isCurrentMonth = workPeriod.year === new Date().getFullYear()
     && workPeriod.month === new Date().getMonth() + 1;
@@ -184,7 +269,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
         </div>
       ) : (
         <>
-          <div className="live-history-summary">
+          <div className="live-history-summary live-history-summary-4">
             <div className="live-history-stat">
               <Route size={16} aria-hidden="true" />
               <span className="live-history-stat-val">{monthTrips.length}</span>
@@ -200,122 +285,94 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
               <span className="live-history-stat-val">{formatWorkDuration(pendingWorkMinutes)}</span>
               <span className="live-history-stat-label">{t('course.history.pending')}</span>
             </div>
+            <div className="live-history-stat is-schedule">
+              <CalendarDays size={16} aria-hidden="true" />
+              <span className="live-history-stat-val">{formatWorkDuration(scheduleWorkMinutes)}</span>
+              <span className="live-history-stat-label">{t('course.history.scheduleTotal')}</span>
+            </div>
           </div>
 
           <section className="driver-history-panel live-history-section">
             <div className="live-history-section-head">
-              <h2 className="live-history-section-title">{t('course.history.finishedCourses')}</h2>
-              <span className="live-history-section-count">{monthTrips.length}</span>
+              <h2 className="live-history-section-title">{t('course.history.monthOverview')}</h2>
+              <span className="live-history-section-count">{historyDays.length}</span>
             </div>
-            {monthTrips.length === 0 ? (
-              <div className="driver-empty-row">{t('course.history.noFinishedMonth')}</div>
-            ) : (
-              <div className="driver-trip-list live-history-list">
-                {monthTrips.map(trip => {
-                  const routeNum = routeDisplayForTrip(trip, routeMap);
-                  return (
-                    <article className="driver-trip-row live-history-trip-card" key={trip.id}>
-                      <div className="live-history-trip-main">
-                        <div className="live-history-trip-title-row">
-                          {routeNum != null && (
-                            <span className="kurs-route-badge" style={routeBadgeStyle(routeNum)}>T{routeNum}</span>
-                          )}
-                          <span className="driver-trip-row-title">{routeNamesForTrip(trip, routeMap)}</span>
-                        </div>
-                        <div className="live-history-trip-meta">
-                          <span>{formatCourseShortDate(trip.trip_date, locale)}</span>
-                          {trip.car && <span>{VEHICLE_LABELS[trip.car] || trip.car}</span>}
-                          {trip.started_at && <span>{formatCourseTime(trip.started_at, locale)}</span>}
-                          {trip.end_km != null && <span>{trip.end_km} km</span>}
-                        </div>
-                      </div>
-                      <div className="live-history-actions">
-                        {trip.end_km != null && (
-                          <span className={`live-history-km ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`}>
-                            <Gauge size={13} aria-hidden="true" />
-                            {trip.km_approval_status === 'approved' ? '✓' : '⏳'}
-                          </span>
-                        )}
-                        <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'trip')}>
-                          <Printer size={13} aria-hidden="true" />
-                          {t('course.history.printTrip')}
-                        </button>
-                        <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'day')}>
-                          {t('course.history.printDay')}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
 
-          <section className="driver-history-panel live-history-section">
-            <div className="live-history-section-head">
-              <h2 className="live-history-section-title">{t('course.history.workHours')}</h2>
-              <span className="live-history-section-count">{workHistoryRows.length}</span>
-            </div>
             {!workTimeData.employee ? (
               <div className="driver-empty-row live-worktime-missing">{t('course.history.noEmployee')}</div>
-            ) : workHistoryRows.length === 0 ? (
-              <div className="driver-empty-row">{t('course.history.noReports')}</div>
+            ) : historyDays.length === 0 ? (
+              <div className="driver-empty-row">
+                <p>{t('course.history.noDays')}</p>
+                <p className="live-history-empty-hint">{t('course.history.noDaysHint')}</p>
+              </div>
             ) : (
-              <div className="driver-trip-list live-history-list">
-                {workHistoryRows.map(row => {
-                  if (row.kind === 'report') {
-                    const report = row.report;
-                    const approved = report.status === 'approved';
-                    const rejected = report.status === 'rejected';
-                    const start = timeForInput(approved ? report.approved_start : report.reported_start);
-                    const end = timeForInput(approved ? report.approved_end : report.reported_end);
-                    const minutes = approved ? report.approved_minutes : report.reported_minutes;
-                    return (
-                      <article key={report.id} className="driver-trip-row live-history-work-card">
-                        <div className="live-history-work-main">
-                          <div className="live-worktime-row-title">
-                            {formatCourseShortDate(report.work_date, locale)} · {start}–{end}
-                          </div>
-                          <div className="live-worktime-row-meta">
-                            {formatWorkDuration(minutes)}
-                            {approved && report.approved_by_name ? ` · ${report.approved_by_name}` : ''}
-                            {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
-                          </div>
-                        </div>
-                        <div className="live-history-actions">
-                          <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
-                            {approved
-                              ? t('course.history.statusApproved')
-                              : rejected
-                                ? t('course.history.statusRejected')
-                                : t('course.history.statusPending')}
-                          </span>
-                          {rejected && (
-                            <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>
-                              {t('course.history.fix')}
-                            </button>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  }
+              <div className="live-history-day-list">
+                {historyDays.map(day => (
+                  <article key={day.dateStr} className={`live-history-day-card${day.work?.kind === 'schedule' ? ' has-schedule' : ''}`}>
+                    <header className="live-history-day-head">
+                      <div>
+                        <span className="live-history-day-weekday">{formatWeekday(day.dateStr, locale)}</span>
+                        <span className="live-history-day-date">{formatCourseShortDate(day.dateStr, locale)}</span>
+                      </div>
+                      {day.work && (
+                        <span className={`live-history-day-badge ${day.work.kind === 'schedule' ? 'is-schedule' : 'is-report'}`}>
+                          {day.work.kind === 'schedule'
+                            ? t('course.history.statusSchedule')
+                            : t('course.history.workHours')}
+                        </span>
+                      )}
+                    </header>
 
-                  return (
-                    <article key={`schedule-${row.dateStr}`} className="driver-trip-row live-history-work-card is-schedule">
-                      <div className="live-history-work-main">
-                        <div className="live-worktime-row-title">
-                          {formatCourseShortDate(row.dateStr, locale)} · {row.start}–{row.end}
-                        </div>
-                        <div className="live-worktime-row-meta">
-                          {formatWorkDuration(row.minutes)} · {t('course.history.scheduleValue', { value: row.scheduleValue })}
-                        </div>
+                    {day.work ? (
+                      <WorkHoursBlock row={day.work} locale={locale} t={t} onResubmit={resubmitWorkTime} />
+                    ) : (
+                      <div className="live-history-day-no-hours">{t('course.history.noHoursDay')}</div>
+                    )}
+
+                    {day.trips.length > 0 && (
+                      <div className="live-history-day-trips">
+                        <p className="live-history-day-trips-label">
+                          {t('course.history.tripsOnDay', { count: day.trips.length })}
+                        </p>
+                        {day.trips.map(trip => {
+                          const routeNum = routeDisplayForTrip(trip, routeMap);
+                          return (
+                            <div className="live-history-day-trip" key={trip.id}>
+                              <div className="live-history-trip-main">
+                                <div className="live-history-trip-title-row">
+                                  {routeNum != null && (
+                                    <span className="kurs-route-badge" style={routeBadgeStyle(routeNum)}>T{routeNum}</span>
+                                  )}
+                                  <span className="driver-trip-row-title">{routeNamesForTrip(trip, routeMap)}</span>
+                                </div>
+                                <div className="live-history-trip-meta">
+                                  {trip.car && <span>{VEHICLE_LABELS[trip.car] || trip.car}</span>}
+                                  {trip.started_at && <span>{formatCourseTime(trip.started_at, locale)}</span>}
+                                  {trip.end_km != null && <span>{trip.end_km} km</span>}
+                                </div>
+                              </div>
+                              <div className="live-history-actions">
+                                {trip.end_km != null && (
+                                  <span className={`live-history-km ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`}>
+                                    <Gauge size={13} aria-hidden="true" />
+                                    {trip.km_approval_status === 'approved' ? '✓' : '⏳'}
+                                  </span>
+                                )}
+                                <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'trip')}>
+                                  <Printer size={13} aria-hidden="true" />
+                                  {t('course.history.printTrip')}
+                                </button>
+                                <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'day')}>
+                                  {t('course.history.printDay')}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="live-history-actions">
-                        <span className="live-worktime-status is-schedule">{t('course.history.statusSchedule')}</span>
-                      </div>
-                    </article>
-                  );
-                })}
+                    )}
+                  </article>
+                ))}
               </div>
             )}
           </section>

@@ -1,3 +1,6 @@
+import { isHoliday } from '../utils/holidays';
+import { warsawDate } from './dateUtils';
+
 const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NN', 'I', 'END', '']);
 
 export function isSchedulePlanned(value) {
@@ -6,12 +9,65 @@ export function isSchedulePlanned(value) {
 }
 
 export function isScheduleWorkDay(value) {
-  const raw = String(value ?? '').trim().toUpperCase();
-  return raw && !NON_WORK_VALUES.has(raw);
+  return scheduleDayHours(value) > 0;
 }
 
 function monthDateStr(year, month, day) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function calendarTodayYmd(date = new Date()) {
+  const d = warsawDate(date);
+  return monthDateStr(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+/** Jak w Grafiku: domyślne W/I gdy brak wpisu w bazie. */
+export function effectiveScheduleValue(day, year, month, scheduleByDay) {
+  if (scheduleByDay?.has(day)) return String(scheduleByDay.get(day)).trim();
+  const dateObj = new Date(year, month - 1, day);
+  const dw = dateObj.getDay();
+  const isWe = dw === 0 || dw === 6;
+  if (isWe || isHoliday(dateObj)) return 'W';
+  return 'I';
+}
+
+/** Godziny zmiany z wartości grafiku — ta sama logika co GrafikView / Koszty. */
+export function scheduleDayHours(value) {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (!v || NON_WORK_VALUES.has(v)) return 0;
+
+  if (v.includes('-')) {
+    const parts = v.split('-');
+    if (parts.length === 2 && (parts[0].includes(':') || parts[1].includes(':'))) {
+      const startMinutes = clockToMinutes(parts[0]);
+      const endMinutes = clockToMinutes(parts[1]);
+      if (startMinutes != null && endMinutes != null) {
+        const minutes = endMinutes >= startMinutes ? endMinutes - startMinutes : 1440 - startMinutes + endMinutes;
+        return minutes / 60;
+      }
+    }
+    const st = parseFloat(parts[0].replace(',', '.'));
+    const en = parseFloat(parts[1].replace(',', '.'));
+    if (!Number.isNaN(st) && !Number.isNaN(en)) {
+      return en >= st ? en - st : (24 - st) + en;
+    }
+  }
+
+  if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
+  return parseFloat(v.replace(',', '.')) || 0;
+}
+
+function scheduleAttachment(employee, scheduleValue) {
+  const raw = String(scheduleValue ?? '').trim();
+  if (!raw || isSchedulePlanned(raw) || !isScheduleWorkDay(raw)) return null;
+  const plan = resolveWorkPlan(employee, raw);
+  const hours = scheduleDayHours(raw);
+  return {
+    value: raw,
+    start: plan.start,
+    end: plan.end,
+    minutes: plan.minutes || Math.round(hours * 60),
+  };
 }
 
 /** Łączy zgłoszenia godzin z dniami z grafiku — pomija status „zaplanowane” (I). */
@@ -21,7 +77,7 @@ export function buildDriverWorkHistory({
   employee = null,
   scheduleEntries = [],
   reports = [],
-  todayYmd = monthDateStr(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
+  todayYmd = calendarTodayYmd(),
 }) {
   const reportByDate = new Map((reports || []).map(report => [report.work_date, report]));
   const scheduleByDay = new Map((scheduleEntries || []).map(entry => [Number(entry.day), entry.value]));
@@ -31,23 +87,30 @@ export function buildDriverWorkHistory({
   for (let day = 1; day <= daysInMonth; day += 1) {
     const dateStr = monthDateStr(year, month, day);
     const report = reportByDate.get(dateStr);
+    const explicitSchedule = scheduleByDay.has(day) ? String(scheduleByDay.get(day)).trim() : null;
+
     if (report) {
-      rows.push({ kind: 'report', dateStr, report });
+      rows.push({
+        kind: 'report',
+        dateStr,
+        report,
+        schedule: scheduleAttachment(employee, explicitSchedule),
+      });
       continue;
     }
 
-    const scheduleValue = scheduleByDay.get(day);
-    if (isSchedulePlanned(scheduleValue) || !isScheduleWorkDay(scheduleValue)) continue;
+    if (!explicitSchedule || isSchedulePlanned(explicitSchedule) || !isScheduleWorkDay(explicitSchedule)) continue;
     if (dateStr >= todayYmd) continue;
 
-    const plan = resolveWorkPlan(employee, scheduleValue);
+    const plan = resolveWorkPlan(employee, explicitSchedule);
+    const hours = scheduleDayHours(explicitSchedule);
     rows.push({
       kind: 'schedule',
       dateStr,
-      scheduleValue: String(scheduleValue).trim(),
+      scheduleValue: explicitSchedule,
       start: plan.start,
       end: plan.end,
-      minutes: plan.minutes,
+      minutes: plan.minutes || Math.round(hours * 60),
     });
   }
 
@@ -125,6 +188,20 @@ export function resolveWorkPlan(employee, scheduleValue) {
     const end = normalizeClock(range[2], defaultEnd);
     const minutes = minutesBetweenClocks(start, end);
     if (minutes) return { start, end, minutes, source: 'schedule' };
+  }
+
+  if (raw.includes('+')) {
+    const [startPart, durationPart] = raw.split('+');
+    const start = normalizeClock(startPart, defaultStart);
+    const durationMinutes = decimalHoursToMinutes(durationPart);
+    if (durationMinutes) {
+      return {
+        start,
+        end: addMinutesToClock(start, durationMinutes),
+        minutes: durationMinutes,
+        source: 'schedule',
+      };
+    }
   }
 
   if (raw && !NON_WORK_VALUES.has(raw)) {
