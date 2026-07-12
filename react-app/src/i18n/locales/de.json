@@ -926,6 +926,8 @@
       "statusApproved": "bestätigt",
       "statusRejected": "abgelehnt",
       "statusPending": "ausstehend",
+      "statusSchedule": "laut Dienstplan",
+      "scheduleValue": "Plan: {{value}}",
       "fix": "Korrigieren",
       "finishedCourses": "Abgeschlossene Kurse",
       "noFinished": "Keine abgeschlossenen Kurse",

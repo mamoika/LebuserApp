@@ -10,7 +10,7 @@ import { getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
 import { parseRouteIds, routeNamesForTrip } from '../../lib/tripUiHelpers';
 import { dateInMonth } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
-import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../../lib/workTime';
+import { formatWorkDuration, minutesBetweenClocks, timeForInput, buildDriverWorkHistory } from '../../lib/workTime';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import '../mockups/mockups.css';
@@ -48,6 +48,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
       setWorkTimeData({
         employee: workData?.employee || null,
         reports: workData?.reports || [],
+        schedule_entries: workData?.schedule_entries || [],
       });
     } finally {
       setLoading(false);
@@ -64,11 +65,20 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
       || `${b.ended_at || ''}`.localeCompare(`${a.ended_at || ''}`)),
   [allTrips, user?.id, workPeriod.month, workPeriod.year]);
 
+  const workHistoryRows = useMemo(
+    () => buildDriverWorkHistory({
+      year: workPeriod.year,
+      month: workPeriod.month,
+      employee: workTimeData.employee,
+      scheduleEntries: workTimeData.schedule_entries,
+      reports: workTimeData.reports,
+    }),
+    [workPeriod.month, workPeriod.year, workTimeData.employee, workTimeData.schedule_entries, workTimeData.reports],
+  );
+
   const myWorkReports = useMemo(
-    () => [...(workTimeData.reports || [])]
-      .filter(report => dateInMonth(report.work_date, workPeriod.year, workPeriod.month))
-      .sort((a, b) => `${b.work_date}`.localeCompare(`${a.work_date}`)),
-    [workTimeData.reports, workPeriod.month, workPeriod.year],
+    () => workHistoryRows.filter(row => row.kind === 'report').map(row => row.report),
+    [workHistoryRows],
   );
 
   const approvedWorkMinutes = myWorkReports
@@ -244,45 +254,64 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
           <section className="driver-history-panel live-history-section">
             <div className="live-history-section-head">
               <h2 className="live-history-section-title">{t('course.history.workHours')}</h2>
-              <span className="live-history-section-count">{myWorkReports.length}</span>
+              <span className="live-history-section-count">{workHistoryRows.length}</span>
             </div>
             {!workTimeData.employee ? (
               <div className="driver-empty-row live-worktime-missing">{t('course.history.noEmployee')}</div>
-            ) : myWorkReports.length === 0 ? (
+            ) : workHistoryRows.length === 0 ? (
               <div className="driver-empty-row">{t('course.history.noReports')}</div>
             ) : (
               <div className="driver-trip-list live-history-list">
-                {myWorkReports.map(report => {
-                  const approved = report.status === 'approved';
-                  const rejected = report.status === 'rejected';
-                  const start = timeForInput(approved ? report.approved_start : report.reported_start);
-                  const end = timeForInput(approved ? report.approved_end : report.reported_end);
-                  const minutes = approved ? report.approved_minutes : report.reported_minutes;
+                {workHistoryRows.map(row => {
+                  if (row.kind === 'report') {
+                    const report = row.report;
+                    const approved = report.status === 'approved';
+                    const rejected = report.status === 'rejected';
+                    const start = timeForInput(approved ? report.approved_start : report.reported_start);
+                    const end = timeForInput(approved ? report.approved_end : report.reported_end);
+                    const minutes = approved ? report.approved_minutes : report.reported_minutes;
+                    return (
+                      <article key={report.id} className="driver-trip-row live-history-work-card">
+                        <div className="live-history-work-main">
+                          <div className="live-worktime-row-title">
+                            {formatCourseShortDate(report.work_date, locale)} · {start}–{end}
+                          </div>
+                          <div className="live-worktime-row-meta">
+                            {formatWorkDuration(minutes)}
+                            {approved && report.approved_by_name ? ` · ${report.approved_by_name}` : ''}
+                            {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
+                          </div>
+                        </div>
+                        <div className="live-history-actions">
+                          <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
+                            {approved
+                              ? t('course.history.statusApproved')
+                              : rejected
+                                ? t('course.history.statusRejected')
+                                : t('course.history.statusPending')}
+                          </span>
+                          {rejected && (
+                            <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>
+                              {t('course.history.fix')}
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  }
+
                   return (
-                    <article key={report.id} className="driver-trip-row live-history-work-card">
+                    <article key={`schedule-${row.dateStr}`} className="driver-trip-row live-history-work-card is-schedule">
                       <div className="live-history-work-main">
                         <div className="live-worktime-row-title">
-                          {formatCourseShortDate(report.work_date, locale)} · {start}–{end}
+                          {formatCourseShortDate(row.dateStr, locale)} · {row.start}–{row.end}
                         </div>
                         <div className="live-worktime-row-meta">
-                          {formatWorkDuration(minutes)}
-                          {approved && report.approved_by_name ? ` · ${report.approved_by_name}` : ''}
-                          {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
+                          {formatWorkDuration(row.minutes)} · {t('course.history.scheduleValue', { value: row.scheduleValue })}
                         </div>
                       </div>
                       <div className="live-history-actions">
-                        <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
-                          {approved
-                            ? t('course.history.statusApproved')
-                            : rejected
-                              ? t('course.history.statusRejected')
-                              : t('course.history.statusPending')}
-                        </span>
-                        {rejected && (
-                          <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>
-                            {t('course.history.fix')}
-                          </button>
-                        )}
+                        <span className="live-worktime-status is-schedule">{t('course.history.statusSchedule')}</span>
                       </div>
                     </article>
                   );

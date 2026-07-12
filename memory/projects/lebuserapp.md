@@ -11,6 +11,10 @@
 - Route scheduling uses codes: daily / mwf / tth / other (see memory/glossary.md).
 - Trolley (wózek) handling on deliveries: driver decides stay/return/exchange.
 
+## Workflow
+- Po każdej gotowej paczce zmian: commit + push na `main` automatycznie (preferencja Ruslana, 2026-07-12).
+
 ## Recent Work
-- Added a print button + dedicated print CSS for the clients/routes list (2026-07-07).
+- Historia kursów kierowcy: filtr miesiąca, synchronizacja godzin z grafikiem (bez statusu „zaplanowane” / I).
+- Dzień operacyjny (weekend = piątek), wznawianie kursu w fazie planowania (2026-07-12).
 - Friendlier network-error messages, fixed decimal parsing for other costs, searchable client picker.

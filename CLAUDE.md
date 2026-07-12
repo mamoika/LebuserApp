@@ -19,4 +19,4 @@ Ruslan Mamoika (mamoika@aol.com), solo developer building LebuserApp.
 → Details: memory/projects/lebuserapp.md
 
 ## Preferences
-- (none captured yet — will fill in as we work together)
+- Po zakończeniu sensownej paczki zmian: **commit + push na `main` automatycznie** (bez pytania), chyba że użytkownik powie inaczej.

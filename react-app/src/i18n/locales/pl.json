@@ -936,6 +936,8 @@
       "statusApproved": "zatwierdzone",
       "statusRejected": "odrzucone",
       "statusPending": "oczekuje",
+      "statusSchedule": "wg grafiku",
+      "scheduleValue": "grafik: {{value}}",
       "fix": "Popraw",
       "finishedCourses": "Zakończone kursy",
       "noFinished": "Brak zakończonych kursów",

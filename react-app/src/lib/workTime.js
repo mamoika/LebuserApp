@@ -1,5 +1,59 @@
 const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NN', 'I', 'END', '']);
 
+export function isSchedulePlanned(value) {
+  const raw = String(value ?? '').trim().toUpperCase();
+  return !raw || raw === 'I';
+}
+
+export function isScheduleWorkDay(value) {
+  const raw = String(value ?? '').trim().toUpperCase();
+  return raw && !NON_WORK_VALUES.has(raw);
+}
+
+function monthDateStr(year, month, day) {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Łączy zgłoszenia godzin z dniami z grafiku — pomija status „zaplanowane” (I). */
+export function buildDriverWorkHistory({
+  year,
+  month,
+  employee = null,
+  scheduleEntries = [],
+  reports = [],
+  todayYmd = monthDateStr(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
+}) {
+  const reportByDate = new Map((reports || []).map(report => [report.work_date, report]));
+  const scheduleByDay = new Map((scheduleEntries || []).map(entry => [Number(entry.day), entry.value]));
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const rows = [];
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateStr = monthDateStr(year, month, day);
+    const report = reportByDate.get(dateStr);
+    if (report) {
+      rows.push({ kind: 'report', dateStr, report });
+      continue;
+    }
+
+    const scheduleValue = scheduleByDay.get(day);
+    if (isSchedulePlanned(scheduleValue) || !isScheduleWorkDay(scheduleValue)) continue;
+    if (dateStr >= todayYmd) continue;
+
+    const plan = resolveWorkPlan(employee, scheduleValue);
+    rows.push({
+      kind: 'schedule',
+      dateStr,
+      scheduleValue: String(scheduleValue).trim(),
+      start: plan.start,
+      end: plan.end,
+      minutes: plan.minutes,
+    });
+  }
+
+  return rows.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+}
+
 export function normalizeClock(value, fallback = '') {
   const raw = String(value ?? '').trim();
   if (!raw) return fallback;

@@ -989,6 +989,8 @@
 .live-worktime-status.is-approved { background: rgba(52, 199, 89, .12); color: #15803d; }
 .live-worktime-status.is-pending { background: rgba(255, 149, 0, .12); color: #b45309; }
 .live-worktime-status.is-rejected { background: rgba(255, 59, 48, .1); color: #c24135; }
+.live-worktime-status.is-schedule { background: rgba(109, 40, 217, .1); color: #6d28d9; }
+.live-history-work-card.is-schedule { border-style: dashed; }
 .live-worktime-missing { color: var(--accent-orange-text); }
 .live-history-trip-row { align-items: center; }
 .live-history-km { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
