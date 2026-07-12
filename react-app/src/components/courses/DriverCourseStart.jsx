@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
+import { History, LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -22,7 +22,7 @@ function StartSection({ label, children, hint }) {
   );
 }
 
-export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
+export default function DriverCourseStart({ plannedTrip = null, onStarted, onHistory }) {
   const { t } = useTranslation();
   const { user, sessionToken } = useAuth();
   const { allRoutes } = useAppData();
@@ -263,6 +263,10 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
       <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
         <PlayCircle size={20} aria-hidden="true" />
         {plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
+      </button>
+      <button type="button" className="driver-secondary-btn live-start-history" onClick={onHistory} disabled={busy}>
+        <History size={17} aria-hidden="true" />
+        {t('course.driver.courseHistory')}
       </button>
     </section>
   );

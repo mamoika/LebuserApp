@@ -475,7 +475,7 @@ export default function DriverCourse() {
   }
 
   if (!trip) {
-    return <DriverCourseStart onStarted={loadCourse} />;
+    return <DriverCourseStart onStarted={loadCourse} onHistory={() => setShowHistory(true)} />;
   }
 
   if (trip.status === 'planned') {
