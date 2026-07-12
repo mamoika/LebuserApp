@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, PlayCircle, Printer, RefreshCw, ShoppingCart, UserCheck,
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Package, PlayCircle, Printer, RefreshCw, ShoppingCart, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -11,7 +11,7 @@ import {
 import { getBlockingPickedLaundry, getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
 import { printTripWorkCard } from '../../lib/coursePrint';
 import {
-  buildExtraCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
+  buildExtraCandidates, buildOtherRouteCleanCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, tripDateInfo } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
@@ -26,6 +26,7 @@ import CourseCurrentStop from './CourseCurrentStop';
 import CourseSheet from './CourseSheet';
 import DriverCourseStart from './DriverCourseStart';
 import DriverCourseHistory from './DriverCourseHistory';
+import ExtraCleanPickupSheet from './sheets/ExtraCleanPickupSheet';
 import '../mockups/mockups.css';
 
 const PROBLEM_KEYS = ['partial', 'closed', 'extra', 'car', 'handoff'];
@@ -52,6 +53,7 @@ export default function DriverCourse() {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
+  const [extraCleanOpen, setExtraCleanOpen] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
   const [printContext, setPrintContext] = useState({ dailyCosts: [], allTrips: [] });
@@ -113,6 +115,10 @@ export default function DriverCourse() {
     () => buildExtraCandidates({ entries, stops, trip, userName: user?.name }),
     [entries, stops, trip, user?.name],
   );
+  const otherRouteCleanCandidates = useMemo(
+    () => buildOtherRouteCleanCandidates({ entries, stops, trip }),
+    [entries, stops, trip],
+  );
   const canCompleteCurrent = current ? canCompleteStop(current) : false;
   const routeDisplay = useMemo(() => {
     if (!trip) return null;
@@ -173,6 +179,10 @@ export default function DriverCourse() {
     setProblemOpen(false);
     if (option.key === 'partial') {
       setPartialOpen(true);
+      return;
+    }
+    if (option.key === 'extra') {
+      setExtraCleanOpen(true);
       return;
     }
     if (option.key === 'car') {
@@ -410,25 +420,27 @@ export default function DriverCourse() {
 
   return (
     <section className="driver-phone live-driver-course" aria-labelledby="current-stop-title">
-      <div className="driver-top-bar live-course-context-bar">
-        <div className="live-course-context-col">
-          <span className="live-course-context-label">{t('course.driver.courseLabel')}</span>
-          <span className="driver-route-pill">
-            {routeDisplay != null && (
-              <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
-            )}
-            {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
-          </span>
+      <div className="live-course-context-card">
+        <div className="driver-top-bar live-course-context-bar">
+          <div className="live-course-context-col">
+            <span className="live-course-context-label">{t('course.driver.courseLabel')}</span>
+            <span className="driver-route-pill">
+              {routeDisplay != null && (
+                <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
+              )}
+              {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
+            </span>
+          </div>
+          <div className="live-course-context-col is-right">
+            <span className="live-course-context-label">{t('course.driver.statusLabel')}</span>
+            <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
+          </div>
         </div>
-        <div className="live-course-context-col is-right">
-          <span className="live-course-context-label">{t('course.driver.statusLabel')}</span>
-          <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
+        <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
+          <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
         </div>
+        <div className="driver-progress-label">{current ? t('course.driver.stopOf', { current: current.position, total: stops.length }) : t('course.driver.allStopsDone', { count: stops.length })}</div>
       </div>
-      <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
-        <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
-      </div>
-      <div className="driver-progress-label">{current ? t('course.driver.stopOf', { current: current.position, total: stops.length }) : t('course.driver.allStopsDone', { count: stops.length })}</div>
 
       {pickedNotDeliveredNames.length > 0 && (
         <div className="live-blocking-banner">
@@ -466,6 +478,34 @@ export default function DriverCourse() {
           <button className="driver-primary-btn" onClick={openFinish} disabled={pickedNotDeliveredNames.length > 0}><Gauge size={19} /> {t('course.driver.finishCourse')}</button>
         </div>
       )}
+
+      <div className="driver-focus-card live-extra-clean-panel">
+        <div className="live-extra-clean-head">
+          <Package size={18} aria-hidden="true" />
+          <div>
+            <strong>{t('course.driver.otherRouteCleanTitle')}</strong>
+            <span>{t('course.driver.otherRouteCleanSubtitle')}</span>
+          </div>
+        </div>
+        {otherRouteCleanCandidates.length === 0 ? (
+          <div className="live-dirty-empty">{t('course.driver.noOtherRouteClean')}</div>
+        ) : (
+          <div className="live-extra-clean-list is-compact">
+            {otherRouteCleanCandidates.slice(0, 4).map(candidate => (
+              <div className="live-extra-clean-row" key={candidate.client_name}>
+                <span className="live-extra-clean-info">
+                  <strong>{candidate.client_name}</strong>
+                  {candidate.kg ? ` · ${candidate.kg} kg` : ''}
+                </span>
+                <button type="button" className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button type="button" className="live-task-action is-secondary" onClick={() => setExtraCleanOpen(true)} disabled={busy}>
+          {t('course.driver.browseOtherRouteClean')}
+        </button>
+      </div>
 
       {extraCandidates.length > 0 && (
         <div className="driver-upcoming">
@@ -610,6 +650,19 @@ export default function DriverCourse() {
             <button className="ap-btn ap-btn-secondary" onClick={() => setEndOpen(false)}>{t('course.back')}</button>
           </div>
         </CourseSheet>
+      )}
+
+      {extraCleanOpen && (
+        <ExtraCleanPickupSheet
+          candidates={otherRouteCleanCandidates}
+          routeMap={routeMap}
+          busy={busy}
+          onClose={() => setExtraCleanOpen(false)}
+          onPick={async clientName => {
+            await addExtraClient(clientName);
+            setExtraCleanOpen(false);
+          }}
+        />
       )}
 
       {addEntryFor !== null && (

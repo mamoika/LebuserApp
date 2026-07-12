@@ -172,6 +172,35 @@ export function buildExtraCandidates({ entries = [], stops = [], trip, userName 
   }));
 }
 
+export function buildOtherRouteCleanCandidates({ entries = [], stops = [], trip }) {
+  if (!trip) return [];
+  const routeIds = parseRouteIds(trip.routes);
+  const extras = new Set(parseExtraClients(trip.extra_clients));
+  const shownClients = new Set(stops.map(stop => stop.client_name));
+  const candMap = new Map();
+
+  entries.forEach(entry => {
+    const pDate = pickupDateStr(entry);
+    const isToday = pDate === trip.trip_date;
+    const isPastBacklog = pDate < trip.trip_date && !entry.delivered;
+    if (entry.done || entry.delivered) return;
+    if (!isToday && !isPastBacklog) return;
+    if (!cleanLaundryReadyForEntry(entry)) return;
+    if (shownClients.has(entry.client_name) || extras.has(entry.client_name)) return;
+    if (routeIds.size > 0 && routeIds.has(entry.route_id)) return;
+
+    if (!candMap.has(entry.client_name)) candMap.set(entry.client_name, { route_id: entry.route_id, entries: [] });
+    candMap.get(entry.client_name).entries.push(entry);
+  });
+
+  return [...candMap.entries()].map(([client_name, value]) => ({
+    client_name,
+    route_id: value.route_id,
+    kg: Number(value.entries.reduce((sum, entry) => sum + (Number(entry.weight) || 0), 0).toFixed(1)),
+    isUrgent: value.entries.some(entry => entry.urgent),
+  }));
+}
+
 export function cleanLaundryReadyForEntry(entry) {
   if (entry?.done) return true;
   return Boolean(
