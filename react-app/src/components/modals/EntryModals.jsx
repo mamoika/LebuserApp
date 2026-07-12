@@ -789,21 +789,19 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             </div>
           </div>
 
-          <div className="live-entry-date-grid">
-            <div>
-              <div className="live-entry-field-label">{t('entry.pickupWeek')}</div>
-              <div className="live-entry-week-row">
-                <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                  <option value={0}>{t('entry.sameWeek')}</option>
-                  <option value={1}>{t('entry.nextWeek')}</option>
-                  {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                    <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1))})</option>
-                  ))}
-                </select>
-                {isAdmin && !isDriverStopFlow && (
-                  <button type="button" className="live-entry-week-plus" title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
-                )}
-              </div>
+          <div style={{ marginBottom: '12px' }}>
+            <div className="live-entry-field-label">{t('entry.pickupWeek')}</div>
+            <div className="live-entry-week-row">
+              <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
+                <option value={0}>{t('entry.sameWeek')}</option>
+                <option value={1}>{t('entry.nextWeek')}</option>
+                {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
+                  <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1))})</option>
+                ))}
+              </select>
+              {isAdmin && !isDriverStopFlow && (
+                <button type="button" className="live-entry-week-plus" title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+              )}
             </div>
           </div>
 
