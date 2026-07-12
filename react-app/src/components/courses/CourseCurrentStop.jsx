@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
@@ -73,6 +73,11 @@ export default function CourseCurrentStop({
   onReload,
   onComplete,
   canComplete,
+  stopViewStatus = 'pending',
+  onPrevStop,
+  onNextStop,
+  canPrevStop = false,
+  canNextStop = false,
   partialOpen: partialOpenExternal = false,
   onPartialOpenChange,
 }) {
@@ -109,11 +114,12 @@ export default function CourseCurrentStop({
   const showDelivery = clean.delivery.length > 0 && clean.pendingPickup.length === 0;
 
   const completeHint = useMemo(() => {
+    if (stopViewStatus !== 'pending') return t('course.driver.stopViewDone');
     if (canComplete) return '';
     if (clean.pendingPickup.length > 0) return t('course.currentStop.completeHintPickup');
     if (clean.pendingDelivery.length > 0) return t('course.currentStop.completeHintDelivery');
     return t('course.driver.completeStopFirst');
-  }, [canComplete, clean.pendingDelivery.length, clean.pendingPickup.length, t]);
+  }, [canComplete, clean.pendingDelivery.length, clean.pendingPickup.length, stopViewStatus, t]);
 
   const dirtyTypes = useMemo(() => ({
     hasP: dirtyToday.some(entry => (entry.type || 'P') === 'P'),
@@ -399,7 +405,15 @@ export default function CourseCurrentStop({
       {!canComplete && completeHint && (
         <p className="live-stop-complete-hint" role="status">{completeHint}</p>
       )}
-      <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete}>
+      <div className="live-stop-nav-row">
+        <button type="button" className="live-stop-nav-btn" onClick={onPrevStop} disabled={busy || !canPrevStop}>
+          <ChevronLeft size={18} aria-hidden="true" /> {t('course.driver.prevStop')}
+        </button>
+        <button type="button" className="live-stop-nav-btn" onClick={onNextStop} disabled={busy || !canNextStop}>
+          {t('course.driver.nextStop')} <ChevronRight size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete || stopViewStatus !== 'pending'}>
         <CheckCircle2 size={20} aria-hidden="true" /> {t('course.driver.completeStop')}
       </button>
 

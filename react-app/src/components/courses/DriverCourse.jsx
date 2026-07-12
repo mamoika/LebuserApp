@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Minus, Package, PlayCircle, Plus, Printer, RefreshCw, ShoppingCart, UserCheck,
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gauge, LoaderCircle, Minus, Package, PlayCircle, Plus, Printer, RefreshCw, ShoppingCart, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -55,6 +55,7 @@ export default function DriverCourse() {
   const [partialOpen, setPartialOpen] = useState(false);
   const [extraCleanOpen, setExtraCleanOpen] = useState(false);
   const [otherCleanExpanded, setOtherCleanExpanded] = useState(false);
+  const [viewStopId, setViewStopId] = useState(null);
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
   const [printContext, setPrintContext] = useState({ dailyCosts: [], allTrips: [] });
@@ -107,8 +108,29 @@ export default function DriverCourse() {
 
   const trip = data.trip;
   const stops = data.stops;
+  const orderedStops = useMemo(
+    () => [...stops].sort((a, b) => (a.position || 0) - (b.position || 0)),
+    [stops],
+  );
   const completedStops = stops.filter(stop => stop.status !== 'pending').length;
-  const current = stops.find(stop => stop.status === 'pending') || null;
+  const hasPendingStops = stops.some(stop => stop.status === 'pending');
+
+  useEffect(() => {
+    if (!orderedStops.length) {
+      setViewStopId(null);
+      return;
+    }
+    setViewStopId(prev => {
+      if (prev && orderedStops.some(stop => stop.id === prev)) return prev;
+      return orderedStops.find(stop => stop.status === 'pending')?.id ?? orderedStops[0]?.id ?? null;
+    });
+  }, [orderedStops, trip?.id]);
+
+  const viewStop = orderedStops.find(stop => stop.id === viewStopId)
+    ?? orderedStops.find(stop => stop.status === 'pending')
+    ?? orderedStops[0]
+    ?? null;
+  const viewStopIndex = viewStop ? orderedStops.findIndex(stop => stop.id === viewStop.id) : -1;
   const hasProgress = useMemo(() => tripHasProgress(stops, user?.name), [stops, user?.name]);
   const pickedNotDelivered = useMemo(() => pickedNotDeliveredStops(stops, user, trip), [stops, user, trip]);
   const pickedNotDeliveredNames = useMemo(() => pickedNotDelivered.map(stop => stop.client_name).filter(Boolean), [pickedNotDelivered]);
@@ -120,7 +142,7 @@ export default function DriverCourse() {
     () => buildOtherRouteCleanCandidates({ entries, stops, trip }),
     [entries, stops, trip],
   );
-  const canCompleteCurrent = current ? canCompleteStop(current) : false;
+  const canCompleteCurrent = viewStop?.status === 'pending' ? canCompleteStop(viewStop) : false;
   const routeDisplay = useMemo(() => {
     if (!trip) return null;
     if (trip.route_display != null) return trip.route_display;
@@ -144,12 +166,43 @@ export default function DriverCourse() {
     return [...new Set(blocking.map(entry => entry.client_name).filter(Boolean))];
   };
 
+  const goPrevStop = () => {
+    if (viewStopIndex > 0) setViewStopId(orderedStops[viewStopIndex - 1].id);
+  };
+
+  const goNextStop = () => {
+    if (viewStopIndex >= 0 && viewStopIndex < orderedStops.length - 1) {
+      setViewStopId(orderedStops[viewStopIndex + 1].id);
+    }
+  };
+
   const completeStop = async () => {
+    if (!viewStop || viewStop.status !== 'pending') {
+      toastError(t('course.driver.stopAlreadyDone'));
+      return;
+    }
+    const completedId = viewStop.id;
+    const completedPosition = viewStop.position;
     try {
       setBusy(true);
-      await completeCourseStop(sessionToken, current.id);
-      toastSuccess(`Zakończono przystanek: ${current.client_name}`);
-      await reloadAll();
+      await completeCourseStop(sessionToken, completedId);
+      toastSuccess(t('course.driver.stopCompleted', { name: viewStop.client_name }));
+      const next = await getDriverCourse(sessionToken);
+      setData({
+        trip: next.trip || null,
+        stops: next.stops || [],
+        employee: next.employee || null,
+        workTimeReport: next.work_time_report || null,
+      });
+      await refetch();
+      const freshOrdered = [...(next.stops || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
+      const nextPending = freshOrdered.find(stop => stop.position > completedPosition && stop.status === 'pending')
+        ?? freshOrdered.find(stop => stop.status === 'pending');
+      if (nextPending) setViewStopId(nextPending.id);
+      else {
+        const idx = freshOrdered.findIndex(stop => stop.id === completedId);
+        if (idx >= 0 && idx < freshOrdered.length - 1) setViewStopId(freshOrdered[idx + 1].id);
+      }
     } catch (error) {
       toastError(error.message);
     } finally {
@@ -208,7 +261,7 @@ export default function DriverCourse() {
       return;
     }
     try {
-      await reportCourseProblem(sessionToken, trip.id, current?.id || null, option.key, option.label);
+      await reportCourseProblem(sessionToken, trip.id, viewStop?.id || null, option.key, option.label);
       toastSuccess('Zdarzenie zapisane w dzienniku kursu');
       await loadCourse();
     } catch (error) {
@@ -440,7 +493,11 @@ export default function DriverCourse() {
         <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
           <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
         </div>
-        <div className="driver-progress-label">{current ? t('course.driver.stopOf', { current: current.position, total: stops.length }) : t('course.driver.allStopsDone', { count: stops.length })}</div>
+        <div className="driver-progress-label">
+          {viewStop
+            ? t('course.driver.stopOf', { current: viewStop.position, total: stops.length })
+            : t('course.driver.allStopsDone', { count: stops.length })}
+        </div>
       </div>
 
       {pickedNotDeliveredNames.length > 0 && (
@@ -449,10 +506,10 @@ export default function DriverCourse() {
         </div>
       )}
 
-      {current ? (
+      {viewStop ? (
         <>
           <CourseCurrentStop
-            stop={current}
+            stop={viewStop}
             trip={trip}
             stops={stops}
             allTrips={allTrips}
@@ -466,6 +523,11 @@ export default function DriverCourse() {
             onReload={reloadAll}
             onComplete={completeStop}
             canComplete={canCompleteCurrent}
+            stopViewStatus={viewStop.status}
+            onPrevStop={goPrevStop}
+            onNextStop={goNextStop}
+            canPrevStop={viewStopIndex > 0}
+            canNextStop={viewStopIndex >= 0 && viewStopIndex < orderedStops.length - 1}
             partialOpen={partialOpen}
             onPartialOpenChange={setPartialOpen}
           />
@@ -476,6 +538,11 @@ export default function DriverCourse() {
           <CheckCircle2 size={48} color="var(--accent-green)" />
           <h1 id="current-stop-title">{t('course.driver.allDoneTitle')}</h1>
           <p>{t('course.driver.allDoneHint')}</p>
+        </div>
+      )}
+
+      {!hasPendingStops && orderedStops.length > 0 && (
+        <div className="driver-focus-card live-all-stops-done" style={{ marginTop: viewStop ? '14px' : 0 }}>
           <button className="driver-primary-btn" onClick={openFinish} disabled={pickedNotDeliveredNames.length > 0}><Gauge size={19} /> {t('course.driver.finishCourse')}</button>
         </div>
       )}
@@ -542,17 +609,21 @@ export default function DriverCourse() {
         </div>
       )}
 
-      {current && (
+      {viewStop && (
         <div className="driver-upcoming">
           <div className="driver-upcoming-title">{t('course.driver.remainingStops')}</div>
-          {stops.filter(stop => stop.status === 'pending' && stop.id !== current.id).map(stop => (
-            <div className="driver-upcoming-row" key={stop.id}><span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}</div>
+          {orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop.id).map(stop => (
+            <button type="button" className="driver-upcoming-row is-clickable" key={stop.id} onClick={() => setViewStopId(stop.id)}>
+              <span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}
+            </button>
           ))}
-          {stops.filter(stop => stop.status === 'pending' && stop.id !== current.id).length === 0 && <div className="driver-empty-row">{t('course.driver.lastStop')}</div>}
+          {orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop.id).length === 0 && (
+            <div className="driver-empty-row">{t('course.driver.lastStop')}</div>
+          )}
         </div>
       )}
 
-      {!current && (
+      {!viewStop && (
         <button className="driver-secondary-btn" onClick={() => setAddEntryFor('')} disabled={busy}><ShoppingCart size={15} /> {t('course.driver.addDirty')}</button>
       )}
       {!hasProgress && (
