@@ -511,11 +511,31 @@ export default function DriverCourse() {
         <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
           <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
         </div>
-        <div className="driver-progress-label">
-          {viewStop
-            ? t('course.driver.stopOf', { current: viewStop.position, total: stops.length })
-            : t('course.driver.allStopsDone', { count: stops.length })}
-        </div>
+        {orderedStops.length > 0 ? (
+          <div className="live-stop-picker" role="tablist" aria-label={t('course.driver.stopPicker')}>
+            {orderedStops.map(stop => {
+              const isActive = viewStop?.id === stop.id;
+              const tone = stop.status === 'completed' ? 'is-done'
+                : stop.status === 'skipped' ? 'is-skipped'
+                  : isActive ? 'is-active' : '';
+              return (
+                <button
+                  key={stop.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-label={t('course.driver.jumpToStop', { n: stop.position, name: stop.client_name })}
+                  className={`live-stop-picker-btn ${tone}`}
+                  onClick={() => setViewStopId(stop.id)}
+                >
+                  {stop.position}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="driver-progress-label">{t('course.driver.allStopsDone', { count: stops.length })}</div>
+        )}
       </div>
 
       {pickedNotDeliveredNames.length > 0 && (

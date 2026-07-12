@@ -720,6 +720,8 @@
       "statusLabel": "Status",
       "progress": "Kursfortschritt",
       "stopOf": "Haltestelle {{current}} von {{total}}",
+      "stopPicker": "Haltestelle wechseln",
+      "jumpToStop": "Haltestelle {{n}}: {{name}}",
       "allStopsDone": "Alle {{count}} Haltestellen abgeschlossen",
       "finishCourse": "Kurs beenden",
       "finishTitle": "Kurs beenden",

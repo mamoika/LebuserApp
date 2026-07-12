@@ -913,6 +913,50 @@
 }
 .live-course-context-card .driver-progress-track { margin-bottom: 6px; }
 .live-course-context-card .driver-progress-label { margin-bottom: 0; }
+.live-stop-picker {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.live-stop-picker::-webkit-scrollbar { display: none; }
+.live-stop-picker-btn {
+  flex: 0 0 auto;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-solid);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.live-stop-picker-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+}
+.live-stop-picker-btn.is-done:not(.is-active) {
+  background: var(--accent-green-light, #e8f8ee);
+  border-color: transparent;
+  color: #1a7a37;
+}
+.live-stop-picker-btn.is-skipped:not(.is-active) {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.live-stop-picker-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .live-extra-clean-bar {
   margin-bottom: 14px;
   border-radius: 14px;

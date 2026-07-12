@@ -730,6 +730,8 @@
       "statusLabel": "Status",
       "progress": "Postęp kursu",
       "stopOf": "Przystanek {{current}} z {{total}}",
+      "stopPicker": "Przełącz przystanek",
+      "jumpToStop": "Przystanek {{n}}: {{name}}",
       "allStopsDone": "Wszystkie {{count}} przystanków zakończone",
       "finishCourse": "Zakończ kurs",
       "finishTitle": "Zakończ kurs",
