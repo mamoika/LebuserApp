@@ -872,6 +872,158 @@
 .live-finish-summary span { color: var(--text-tertiary); }
 .live-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* ── Kierowca: karta bieżącego przystanku ── */
+.live-stop-focus { padding-bottom: 18px; }
+.live-stop-header { margin-bottom: 4px; }
+.live-stop-tasks { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.live-stop-task-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.live-stop-task-card.is-done {
+  border-color: rgba(52, 199, 89, .35);
+  background: rgba(52, 199, 89, .06);
+}
+.live-stop-task-card.is-waiting {
+  border-color: rgba(255, 149, 0, .28);
+  background: rgba(255, 149, 0, .05);
+}
+.live-stop-task-card.is-active {
+  border-color: rgba(0, 122, 255, .22);
+  background: var(--bg-card);
+}
+.live-stop-task-card.is-dirty { background: var(--bg-card); }
+.live-stop-task-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  flex-wrap: wrap;
+}
+.live-stop-task-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.live-stop-task-icon.tone-pickup { background: var(--accent-green-light); color: #1A7A37; }
+.live-stop-task-icon.tone-delivery { background: var(--accent-light); color: var(--accent); }
+.live-stop-task-icon.tone-dirty { background: var(--bg-tertiary); color: var(--text-secondary); }
+.live-stop-task-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.live-stop-task-title strong { font-size: 14px; font-weight: 800; color: var(--text-primary); }
+.live-stop-task-status {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+.live-stop-task-status.is-done { color: #19743a; }
+.live-stop-task-status.is-active { color: var(--accent); }
+.live-stop-task-status.is-waiting { color: var(--accent-orange-text); }
+.live-stop-task-status.is-pending { color: var(--text-tertiary); }
+.live-stop-task-done-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: #19743a;
+  margin-left: auto;
+}
+.live-stop-task-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+.live-stop-task-body .live-pack-badge { margin-top: 0; }
+.live-kg-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-solid);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  box-shadow: var(--shadow-sm);
+}
+.live-kg-chip strong { font-size: 22px; font-weight: 850; letter-spacing: -.02em; }
+.live-kg-chip span { font-size: 12px; font-weight: 700; color: var(--text-tertiary); }
+.live-kg-chip:disabled { opacity: .45; cursor: not-allowed; }
+.live-task-action.tone-delivery { background: var(--accent); }
+.live-dirty-empty {
+  padding: 14px 12px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--border);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+.live-dirty-list { display: grid; gap: 6px; }
+.live-stop-note-add {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: left;
+}
+.live-stop-note-add:active { opacity: .7; }
+.live-stop-complete-hint {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent-orange-text);
+  background: rgba(255, 149, 0, .1);
+  border: 1px solid rgba(255, 149, 0, .24);
+  line-height: 1.4;
+  text-align: center;
+}
+.driver-undo-btn.is-prominent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 122, 255, .28);
+  background: var(--accent-light);
+  color: #005FCC;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.driver-undo-btn.is-prominent:not(:disabled):active { transform: scale(.98); opacity: .88; }
+.driver-undo-btn.is-prominent:disabled {
+  border-color: var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  opacity: .55;
+  cursor: not-allowed;
+}
+.driver-note-block { margin-top: 10px; }
+
 .live-task-action:focus-visible,
 .live-board-actions input:focus-visible {
   outline: 3px solid var(--accent);

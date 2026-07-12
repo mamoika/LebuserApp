@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, LoaderCircle, Navigation2, Package, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
+import { formatPackInfoLabel } from '../../lib/courseLocale';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
 import { logAction } from '../../lib/logger';
 import {
@@ -64,7 +64,7 @@ export default function TripCourseStops({
   const [plannedStart, setPlannedStart] = useState('');
   const [printing, setPrinting] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const loadStops = useCallback(async () => {
     if (!sessionToken || !trip?.id || trip.isVirtual) return;
@@ -392,7 +392,7 @@ export default function TripCourseStops({
                 <Package size={14} />
                 <div className="live-stop-action-body">
                   <span>Odbiór z pralni</span>
-                  <div className={`live-pack-badge ${packInfo.isReady ? 'is-ready' : 'is-waiting'}`}>{packInfo.text}</div>
+                  <div className={`live-pack-badge ${packInfo.isReady ? 'is-ready' : 'is-waiting'}`}>{formatPackInfoLabel(packInfo, t, i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL')}</div>
                   {pickupDone ? (
                     <span className="live-task-action-meta">✓ {fmtTime(clean.pickup.find(task => task.completed_at)?.completed_at || clean.pickup[0]?.picked_at)}</span>
                   ) : (

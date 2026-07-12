@@ -82,18 +82,14 @@ export function cleanLaundryReadyForTask(task) {
 
 export function getPackInfo(tasks = []) {
   const packedAt = tasks.map(task => task.laundry_packed_at).find(Boolean);
-  const packedBy = tasks.map(task => task.metadata?.packed_by).find(Boolean);
   const trolleyNos = [...new Set(tasks.map(task => task.laundry_trolley_no).filter(value => value && value !== 'brak'))];
   if (!packedAt && !tasks.some(task => cleanLaundryReadyForTask(task))) {
-    return { text: 'Nie spakowano jeszcze', isReady: false };
+    return { kind: 'not_packed', isReady: false, packedAt: null, trolleyNos };
   }
   if (!packedAt && tasks.some(task => cleanLaundryReadyForTask(task))) {
-    return { text: 'Gotowe do odbioru', isReady: true };
+    return { kind: 'ready', isReady: true, packedAt: null, trolleyNos };
   }
-  return {
-    text: `Spakowano: ${fmtDateTime(packedAt)}${trolleyNos.length ? ` (wózek: ${trolleyNos.join(', ')})` : ''}`,
-    isReady: true,
-  };
+  return { kind: 'packed', isReady: true, packedAt, trolleyNos };
 }
 
 export function isTripDriver(user, trip) {
@@ -210,7 +206,7 @@ export function tripHasProgress(stops = [], userName) {
 
 export function canCompleteStop(stop) {
   const clean = splitCleanTasks(stop?.tasks || []);
-  return clean.pendingDelivery.length === 0;
+  return clean.pendingPickup.length === 0 && clean.pendingDelivery.length === 0;
 }
 
 export function stopLaundryMeta(tasks = [], dirtyEntries = []) {

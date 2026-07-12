@@ -14,6 +14,7 @@ import {
   buildExtraCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, tripDateInfo } from '../../lib/tripUiHelpers';
+import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import {
   addMinutesToClock, decimalHoursToMinutes, formatWorkDuration, minutesBetweenClocks,
@@ -113,6 +114,12 @@ export default function DriverCourse() {
     [entries, stops, trip, user?.name],
   );
   const canCompleteCurrent = current ? canCompleteStop(current) : false;
+  const routeDisplay = useMemo(() => {
+    if (!trip) return null;
+    if (trip.route_display != null) return trip.route_display;
+    const firstRouteId = String(trip.routes || '').split(',').map(value => Number(value.trim())).find(Boolean);
+    return routeMap[firstRouteId]?.num || firstRouteId || null;
+  }, [trip, routeMap]);
 
   const reloadAll = async () => {
     await loadCourse();
@@ -403,8 +410,13 @@ export default function DriverCourse() {
 
   return (
     <section className="driver-phone live-driver-course" aria-labelledby="current-stop-title">
-      <div className="live-course-topline">
-        <span>{routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}</span>
+      <div className="driver-top-bar">
+        <span className="driver-route-pill">
+          {routeDisplay != null && (
+            <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
+          )}
+          {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
+        </span>
         <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
       </div>
       <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
