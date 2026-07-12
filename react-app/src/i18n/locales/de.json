@@ -715,6 +715,8 @@
     },
     "driver": {
       "inRoute": "Unterwegs",
+      "courseLabel": "Kurs",
+      "statusLabel": "Status",
       "progress": "Kursfortschritt",
       "stopOf": "Haltestelle {{current}} von {{total}}",
       "allStopsDone": "Alle {{count}} Haltestellen abgeschlossen",
@@ -880,6 +882,7 @@
       "undoDeliverBeforePickup": "Zuerst Lieferung zurücknehmen",
       "navigate": "Navigation",
       "noAddress": "Keine gespeicherte Adresse",
+      "noNavLocation": "Keine gespeicherte Kundenadresse",
       "notePlaceholder": "Notiz zum Kunden…",
       "addNote": "Kundennotiz hinzufügen",
       "noteSaveError": "Fehler beim Speichern der Notiz: {{message}}",

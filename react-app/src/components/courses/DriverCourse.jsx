@@ -410,14 +410,20 @@ export default function DriverCourse() {
 
   return (
     <section className="driver-phone live-driver-course" aria-labelledby="current-stop-title">
-      <div className="driver-top-bar">
-        <span className="driver-route-pill">
-          {routeDisplay != null && (
-            <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
-          )}
-          {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
-        </span>
-        <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
+      <div className="driver-top-bar live-course-context-bar">
+        <div className="live-course-context-col">
+          <span className="live-course-context-label">{t('course.driver.courseLabel')}</span>
+          <span className="driver-route-pill">
+            {routeDisplay != null && (
+              <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
+            )}
+            {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
+          </span>
+        </div>
+        <div className="live-course-context-col is-right">
+          <span className="live-course-context-label">{t('course.driver.statusLabel')}</span>
+          <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
+        </div>
       </div>
       <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
         <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />

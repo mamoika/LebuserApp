@@ -875,6 +875,34 @@
 /* ── Kierowca: karta bieżącego przystanku ── */
 .live-stop-focus { padding-bottom: 18px; }
 .live-stop-header { margin-bottom: 4px; }
+.live-stop-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.live-stop-title-row .driver-client-name { margin: 0; flex: 1; min-width: 0; }
+.live-stop-title-row .driver-nav-btn { flex-shrink: 0; margin: 2px 0 0; }
+.driver-nav-btn.is-disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  pointer-events: none;
+  color: var(--text-quaternary);
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+}
+.live-course-context-bar { align-items: flex-end; gap: 16px; }
+.live-course-context-col { display: grid; gap: 4px; min-width: 0; }
+.live-course-context-col.is-right { text-align: right; align-items: flex-end; }
+.live-course-context-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.live-course-context-col .driver-route-pill { font-size: 13px; }
 .live-stop-tasks { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 .live-stop-task-card {
   border: 1px solid var(--border);

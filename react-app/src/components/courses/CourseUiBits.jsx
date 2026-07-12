@@ -82,3 +82,8 @@ export function mapsUrlForStop(stop) {
   }
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop?.address || stop?.client_name || '')}`;
 }
+
+export function stopHasNavLocation(stop) {
+  if (stop?.lat != null && stop?.lng != null && stop.lat !== '' && stop.lng !== '') return true;
+  return Boolean(String(stop?.address || '').trim());
+}

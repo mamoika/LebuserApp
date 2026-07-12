@@ -11,7 +11,7 @@ import {
 import { formatKg, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { AddEntryModal, ViewEditEntryModal } from '../modals/EntryModals';
-import { LaundryTypeChip, mapsUrlForStop } from './CourseUiBits';
+import { LaundryTypeChip, mapsUrlForStop, stopHasNavLocation } from './CourseUiBits';
 import DeliverPromptSheet from './sheets/DeliverPromptSheet';
 import PartialPickupSheet from './sheets/PartialPickupSheet';
 
@@ -228,17 +228,23 @@ export default function CourseCurrentStop({
 
   const pickupAt = clean.pickup.find(task => task.completed_at)?.completed_at;
   const deliveryAt = clean.delivery.find(task => task.completed_at)?.completed_at;
+  const canNavigate = stopHasNavLocation(stop);
 
   return (
     <>
       <article className="driver-focus-card live-stop-focus">
         <header className="live-stop-header">
-          <h1 id="current-stop-title" className="driver-client-name">{stop.client_name}</h1>
-          <div className="driver-address-row">
-            <span className="driver-address-text">{stop.address || stop.note || t('course.currentStop.noAddress')}</span>
-            <a className="driver-nav-btn" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer">
-              <Navigation2 size={15} aria-hidden="true" /> {t('course.currentStop.navigate')}
-            </a>
+          <div className="live-stop-title-row">
+            <h1 id="current-stop-title" className="driver-client-name">{stop.client_name}</h1>
+            {canNavigate ? (
+              <a className="driver-nav-btn" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer">
+                <Navigation2 size={15} aria-hidden="true" /> {t('course.currentStop.navigate')}
+              </a>
+            ) : (
+              <span className="driver-nav-btn is-disabled" aria-disabled="true" title={t('course.currentStop.noNavLocation')}>
+                <Navigation2 size={15} aria-hidden="true" /> {t('course.currentStop.navigate')}
+              </span>
+            )}
           </div>
           <div className="driver-note-block">
             {noteEdit !== null ? (

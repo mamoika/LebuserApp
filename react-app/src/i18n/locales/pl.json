@@ -725,6 +725,8 @@
     },
     "driver": {
       "inRoute": "W trasie",
+      "courseLabel": "Kurs",
+      "statusLabel": "Status",
       "progress": "Postęp kursu",
       "stopOf": "Przystanek {{current}} z {{total}}",
       "allStopsDone": "Wszystkie {{count}} przystanków zakończone",
@@ -890,6 +892,7 @@
       "undoDeliverBeforePickup": "Najpierw cofnij dostawę",
       "navigate": "Nawiguj",
       "noAddress": "Brak zapisanego adresu",
+      "noNavLocation": "Brak zapisanej lokalizacji klienta",
       "notePlaceholder": "Notatka do klienta…",
       "addNote": "Dodaj notatkę do klienta",
       "noteSaveError": "Błąd zapisu notatki: {{message}}",
