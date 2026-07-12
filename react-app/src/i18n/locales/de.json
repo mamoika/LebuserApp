@@ -863,7 +863,11 @@
       "undoDeliverFirst": "Zuerst Lieferung zurücknehmen",
       "pickupBy": "Abholung markiert von: {{name}}",
       "undoPickupOnly": "Abholung rückgängig machen kann nur: {{name}}",
-      "partialAffected": "Der Vorgang betraf nicht alle Einträge. Ansicht aktualisieren."
+      "partialAffected": "Der Vorgang betraf nicht alle Einträge. Ansicht aktualisieren.",
+      "nothingAffected": "Keine Einträge zum Aktualisieren. Ansicht aktualisieren oder Administrator kontaktieren.",
+      "noEntries": "Keine verknüpften Einträge im Plan.",
+      "undoPickupDone": "Abholung aus Wäscherei rückgängig gemacht",
+      "deliverDone": "Lieferung gespeichert"
     }
   },
   "admin": {

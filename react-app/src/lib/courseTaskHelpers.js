@@ -39,6 +39,24 @@ export function entryIdsForTasks(tasks = []) {
   return [...new Set(tasks.map(task => task.entry_id).filter(Boolean))];
 }
 
+export function completedEntryIdsForTasks(tasks = []) {
+  return [...new Set(
+    tasks
+      .filter(task => task.done || task.status === 'completed')
+      .map(task => task.entry_id)
+      .filter(Boolean),
+  )];
+}
+
+export function pendingEntryIdsForTasks(tasks = []) {
+  return [...new Set(
+    tasks
+      .filter(task => !task.delivered && task.status !== 'completed')
+      .map(task => task.entry_id)
+      .filter(Boolean),
+  )];
+}
+
 export function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });

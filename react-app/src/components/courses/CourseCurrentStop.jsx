@@ -4,8 +4,8 @@ import { AlertTriangle, CheckCircle2, Navigation2, Package, Truck } from 'lucide
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import {
-  assignedTripForEntry, canManagePickupTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
-  isTripDriver, splitCleanTasks, tasksDeliveredByUser,
+  assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
+  isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, tasksDeliveredByUser,
 } from '../../lib/courseTaskHelpers';
 import { formatKg } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -78,18 +78,27 @@ export default function CourseCurrentStop({
   const pickupReady = clean.pendingPickup.length === 0 || clean.pendingPickup.every(task => packInfo.isReady);
 
   const rpcEntries = async (fn, ids, success, logDetails) => {
+    if (!ids.length) {
+      toastError(t('course.currentStop.noEntries'));
+      return;
+    }
     try {
       setBusy(true);
       const { data, error } = await supabase.rpc(fn, { p_session_token: sessionToken, p_ids: ids });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if ((data?.affected ?? 0) !== ids.length) {
-        throw new Error(t('course.currentStop.partialAffected'));
+      const affected = data?.affected ?? 0;
+      if (affected === 0) {
+        throw new Error(t('course.currentStop.nothingAffected'));
+      }
+      if (affected < ids.length) {
+        toastError(t('course.currentStop.partialAffected'));
+      } else if (success) {
+        toastSuccess(success);
       }
       if (logDetails) {
         await logAction({ sessionToken, action: logDetails.action, clientName: stop.client_name, entryId: ids[0], details: logDetails.details });
       }
-      toastSuccess(success);
       await onReload();
     } catch (error) {
       toastError(error.message);
@@ -129,7 +138,7 @@ export default function CourseCurrentStop({
       toastError(t('course.currentStop.undoPickupOnly', { name: pickupOwner }));
       return;
     }
-    await rpcEntries('driver_undo_pickup', entryIdsForTasks(clean.pickup), 'Cofnięto odbiór z pralni', { action: 'undone', details: 'cofnięto odbiór z pralni' });
+    await rpcEntries('driver_undo_pickup', completedEntryIdsForTasks(clean.completedPickup), t('course.currentStop.undoPickupDone'), { action: 'undone', details: 'cofnięto odbiór z pralni' });
   };
 
   const undoDeliver = async () => {
@@ -142,7 +151,7 @@ export default function CourseCurrentStop({
 
   const deliverLaundry = () => {
     if (hasDeliveryTrolleys) setDeliverOpen(true);
-    else rpcEntries('driver_deliver_entries', entryIdsForTasks(clean.pendingDelivery), 'Dostawa zapisana', { action: 'delivered', details: 'dostawa do klienta' });
+    else rpcEntries('driver_deliver_entries', pendingEntryIdsForTasks(clean.pendingDelivery), t('course.currentStop.deliverDone'), { action: 'delivered', details: 'dostawa do klienta' });
   };
 
   const saveClientNote = async value => {

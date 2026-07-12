@@ -873,7 +873,11 @@
       "undoDeliverFirst": "Najpierw cofnij dostawę",
       "pickupBy": "Odbiór oznaczył: {{name}}",
       "undoPickupOnly": "Cofnąć odbiór może tylko: {{name}}",
-      "partialAffected": "Operacja nie objęła wszystkich wpisów. Odśwież widok."
+      "partialAffected": "Operacja nie objęła wszystkich wpisów. Odśwież widok.",
+      "nothingAffected": "Brak wpisów do zaktualizowania. Odśwież widok lub skontaktuj się z administratorem.",
+      "noEntries": "Brak powiązanych wpisów w harmonogramie.",
+      "undoPickupDone": "Cofnięto odbiór z pralni",
+      "deliverDone": "Dostawa zapisana"
     }
   },
   "admin": {
