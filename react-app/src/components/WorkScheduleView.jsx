@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarRange, Clock3, Settings } from 'lucide-react';
+import { CalendarRange, Clock3, History, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,13 +22,14 @@ function SectionLoader({ label }) {
 
 export default function WorkScheduleView() {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canViewAdminData } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState(() => {
     const requestedSection = sectionFromHash(location.hash);
     return requestedSection === 'settings' && !isAdmin ? 'schedule' : requestedSection;
   });
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     const requestedSection = sectionFromHash(location.hash);
@@ -36,6 +37,7 @@ export default function WorkScheduleView() {
   }, [isAdmin, location.hash]);
 
   const selectSection = (section) => {
+    setHistoryOpen(false);
     setActiveSection(section);
     navigate(
       {
@@ -100,6 +102,18 @@ export default function WorkScheduleView() {
           </div>
         </div>
         <div className="work-schedule-settings-wrapper">
+          {canViewAdminData && activeSection === 'schedule' && (
+            <button
+              type="button"
+              className={`work-schedule-settings-button ${historyOpen ? 'active' : ''}`}
+              aria-haspopup="dialog"
+              aria-expanded={historyOpen}
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History size={16} aria-hidden="true" />
+              {t('workSchedule.historyButton')}
+            </button>
+          )}
           {isAdmin && (
             <button
               type="button"
@@ -118,7 +132,7 @@ export default function WorkScheduleView() {
       {activeSection === 'schedule' && (
         <section id="harmonogram" className="work-schedule-section" aria-labelledby="work-schedule-current-title">
           <Suspense fallback={<SectionLoader label={t('grafik.loading')} />}>
-            <GrafikView />
+            <GrafikView historyOpen={historyOpen} onHistoryClose={() => setHistoryOpen(false)} />
           </Suspense>
         </section>
       )}

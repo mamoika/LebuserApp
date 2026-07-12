@@ -7,7 +7,7 @@ import { getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, History, Info, Printer, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
 import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
 import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 
@@ -268,10 +268,22 @@ function WorkTimeApprovalPanel({ reports, sessionToken, onChanged, canApprove })
   );
 }
 
-function WorkTimeDecisionHistory({ events }) {
+function WorkTimeDecisionHistory({ events, open, onClose }) {
   const { t, i18n } = useTranslation();
-  const [open, setOpen] = useState(false);
-  if (events.length === 0) return null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
 
   const eventColor = (type) => type === 'approved' ? '#15803D' : type === 'rejected' ? '#C24135' : '#B45309';
   const eventLabel = (type) => t(`workTime.event_${type}`, { defaultValue: type });
@@ -280,24 +292,25 @@ function WorkTimeDecisionHistory({ events }) {
   });
 
   return (
-    <section className="print-hide" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '12px 14px', boxShadow: 'var(--shadow-sm)' }}>
-      <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '10px', display: 'grid', placeItems: 'center', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}><History size={18} /></div>
+    <div className="work-time-history-backdrop print-hide" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="work-time-history-dialog" role="dialog" aria-modal="true" aria-labelledby="work-time-history-title">
+        <header className="work-time-history-header">
+          <div className="work-time-history-icon"><History size={19} aria-hidden="true" /></div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '14px', fontWeight: 800 }}>{t('workTime.decisionHistory')}</div>
+            <div id="work-time-history-title" style={{ fontSize: '16px', fontWeight: 800 }}>{t('workTime.decisionHistory')}</div>
           <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('workTime.decisionHistoryCount', { count: events.length })}</div>
         </div>
-        <ChevronDown size={18} style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
-      </button>
-      {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+          <button type="button" className="work-time-history-close" onClick={onClose} aria-label={t('common.close')} autoFocus><X size={18} /></button>
+        </header>
+        <div className="work-time-history-list">
+          {events.length === 0 && <div className="work-time-history-empty">{t('workTime.noDecisionHistory')}</div>}
           {events.map(event => {
             const color = eventColor(event.event_type);
             const range = event.work_start && event.work_end
               ? `${timeForInput(event.work_start)}-${timeForInput(event.work_end)}`
               : '—';
             return (
-              <div key={event.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,1fr) auto', gap: '10px', padding: '9px 10px', borderRadius: '10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)' }}>
+              <div key={event.id} className="work-time-history-item">
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '10px', fontWeight: 800, color, background: `${color}18`, padding: '2px 7px', borderRadius: '6px' }}>{eventLabel(event.event_type)}</span>
@@ -314,12 +327,12 @@ function WorkTimeDecisionHistory({ events }) {
             );
           })}
         </div>
-      )}
-    </section>
+      </section>
+    </div>
   );
 }
 
-export default function GrafikView() {
+export default function GrafikView({ historyOpen = false, onHistoryClose = () => {} }) {
   const { t } = useTranslation();
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
   const MONTH_NAMES = monthNames();
@@ -550,7 +563,7 @@ export default function GrafikView() {
       )}
 
       <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
-      <WorkTimeDecisionHistory events={workTimeEvents} />
+      <WorkTimeDecisionHistory events={workTimeEvents} open={historyOpen} onClose={onHistoryClose} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide" style={{ 

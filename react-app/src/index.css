@@ -6224,6 +6224,7 @@ button.laundry-metric:focus-visible {
   flex:1;
   display:flex;
   justify-content:flex-end;
+  gap:8px;
 }
 .work-schedule-settings-button {
   min-height:34px;
@@ -6387,6 +6388,83 @@ button.laundry-metric:focus-visible {
   min-width:0;
 }
 
+.work-time-history-backdrop {
+  position:fixed;
+  inset:0;
+  z-index:10050;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(15,23,42,.38);
+  backdrop-filter:blur(7px);
+  -webkit-backdrop-filter:blur(7px);
+}
+.work-time-history-dialog {
+  width:min(720px,100%);
+  max-height:min(760px,calc(100vh - 40px));
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--border-strong);
+  border-radius:18px;
+  background:var(--bg-card-solid);
+  box-shadow:0 24px 70px rgba(15,23,42,.28);
+}
+.work-time-history-header {
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+}
+.work-time-history-icon {
+  width:38px;
+  height:38px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
+}
+.work-time-history-close {
+  width:34px;
+  height:34px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:50%;
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
+  cursor:pointer;
+}
+.work-time-history-close:hover { color:var(--text-primary); background:var(--border); }
+.work-time-history-close:focus-visible { outline:3px solid rgba(0,122,255,.3); outline-offset:2px; }
+.work-time-history-list {
+  min-height:120px;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  padding:12px;
+}
+.work-time-history-item {
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) auto;
+  gap:10px;
+  padding:10px 11px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--bg-card);
+}
+.work-time-history-empty {
+  margin:auto;
+  color:var(--text-tertiary);
+  font-size:13px;
+  text-align:center;
+}
+
 @media(max-width:720px) {
   .costs-view-tabs {
     width:100%;
@@ -6403,7 +6481,8 @@ button.laundry-metric:focus-visible {
     padding:11px;
   }
   .work-schedule-tabs-wrapper { width: 100%; }
-  .work-schedule-settings-wrapper { width: 100%; }
+  .work-schedule-settings-wrapper { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .work-schedule-settings-wrapper > :only-child { grid-column:1 / -1; }
   .work-schedule-tabs {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -6413,6 +6492,9 @@ button.laundry-metric:focus-visible {
     background:rgba(118,118,128,.14);
   }
   .work-schedule-settings-button { width:100%; min-height:34px; }
+  .work-time-history-backdrop { padding:10px; place-items:end center; }
+  .work-time-history-dialog { max-height:calc(100vh - 20px); border-radius:18px 18px 12px 12px; }
+  .work-time-history-item { grid-template-columns:1fr; }
   .work-schedule-tabs button { min-height:34px; padding:6px 4px; font-size:12px; }
   .work-schedule-tabs button.active {
     background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
