@@ -144,6 +144,11 @@ export default function DriverCourse() {
     [entries, stops, trip],
   );
   const canCompleteCurrent = viewStop?.status === 'pending' ? canCompleteStop(viewStop) : false;
+  const otherPendingStops = useMemo(
+    () => orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop?.id),
+    [orderedStops, viewStop?.id],
+  );
+  const isLastStop = Boolean(viewStop && otherPendingStops.length === 0);
   const routeDisplay = useMemo(() => {
     if (!trip) return null;
     if (trip.route_display != null) return trip.route_display;
@@ -361,6 +366,12 @@ export default function DriverCourse() {
     setEndOpen(true);
   };
 
+  const completeCurrentStop = async () => {
+    const finishAfter = isLastStop && canCompleteCurrent;
+    await completeStop();
+    if (finishAfter) await openFinish();
+  };
+
   const durationMinutes = workMode === 'duration' ? decimalHoursToMinutes(workHours) : null;
   const effectiveWorkEnd = workMode === 'duration' && durationMinutes
     ? addMinutesToClock(workStart, durationMinutes)
@@ -528,16 +539,31 @@ export default function DriverCourse() {
             busy={busy}
             setBusy={setBusy}
             onReload={reloadAll}
-            onComplete={completeStop}
+            onComplete={isLastStop ? completeCurrentStop : completeStop}
             canComplete={canCompleteCurrent}
             stopViewStatus={viewStop.status}
             onPrevStop={goPrevStop}
             onNextStop={goNextStop}
             canPrevStop={viewStopIndex > 0}
             canNextStop={viewStopIndex >= 0 && viewStopIndex < orderedStops.length - 1}
+            isLastStop={isLastStop}
+            onFinishCourse={openFinish}
+            canFinishCourse={pickedNotDeliveredNames.length === 0}
             partialOpen={partialOpen}
             onPartialOpenChange={setPartialOpen}
           />
+
+          {!isLastStop && (
+            <div className="driver-upcoming live-stop-upcoming">
+              <div className="driver-upcoming-title">{t('course.driver.remainingStops')}</div>
+              {otherPendingStops.map(stop => (
+                <button type="button" className="driver-upcoming-row is-clickable" key={stop.id} onClick={() => setViewStopId(stop.id)}>
+                  <span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <button className="driver-secondary-btn" onClick={() => setProblemOpen(true)} disabled={busy}><AlertTriangle size={15} /> {t('course.driver.problemTitle')}</button>
         </>
       ) : (
@@ -545,12 +571,9 @@ export default function DriverCourse() {
           <CheckCircle2 size={48} color="var(--accent-green)" />
           <h1 id="current-stop-title">{t('course.driver.allDoneTitle')}</h1>
           <p>{t('course.driver.allDoneHint')}</p>
-        </div>
-      )}
-
-      {!hasPendingStops && orderedStops.length > 0 && (
-        <div className="driver-focus-card live-all-stops-done" style={{ marginTop: viewStop ? '14px' : 0 }}>
-          <button className="driver-primary-btn" onClick={openFinish} disabled={pickedNotDeliveredNames.length > 0}><Gauge size={19} /> {t('course.driver.finishCourse')}</button>
+          <button className="driver-primary-btn" onClick={openFinish} disabled={busy || pickedNotDeliveredNames.length > 0}>
+            <Gauge size={19} aria-hidden="true" /> {t('course.driver.finishCourse')}
+          </button>
         </div>
       )}
 
@@ -613,20 +636,6 @@ export default function DriverCourse() {
               <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
             </div>
           ))}
-        </div>
-      )}
-
-      {viewStop && (
-        <div className="driver-upcoming">
-          <div className="driver-upcoming-title">{t('course.driver.remainingStops')}</div>
-          {orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop.id).map(stop => (
-            <button type="button" className="driver-upcoming-row is-clickable" key={stop.id} onClick={() => setViewStopId(stop.id)}>
-              <span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}
-            </button>
-          ))}
-          {orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop.id).length === 0 && (
-            <div className="driver-empty-row">{t('course.driver.lastStop')}</div>
-          )}
         </div>
       )}
 

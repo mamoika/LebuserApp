@@ -1533,6 +1533,9 @@
 }
 .live-planning-start-btn { width: 100%; }
 
+.live-stop-upcoming { margin-top: 12px; margin-bottom: 4px; }
+.live-all-stops-done .driver-primary-btn { margin-top: 16px; width: 100%; }
+
 @media (max-width: 380px) {
   .live-start-car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

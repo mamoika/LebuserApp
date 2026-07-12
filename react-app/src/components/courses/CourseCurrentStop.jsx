@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
@@ -78,6 +78,9 @@ export default function CourseCurrentStop({
   onNextStop,
   canPrevStop = false,
   canNextStop = false,
+  isLastStop = false,
+  onFinishCourse,
+  canFinishCourse = true,
   partialOpen: partialOpenExternal = false,
   onPartialOpenChange,
 }) {
@@ -413,9 +416,21 @@ export default function CourseCurrentStop({
           {t('course.driver.nextStop')} <ChevronRight size={18} aria-hidden="true" />
         </button>
       </div>
-      <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete || stopViewStatus !== 'pending'}>
-        <CheckCircle2 size={20} aria-hidden="true" /> {t('course.driver.completeStop')}
-      </button>
+      {isLastStop && stopViewStatus !== 'pending' && (
+        <button className="driver-primary-btn" onClick={onFinishCourse} disabled={busy || !canFinishCourse}>
+          <Gauge size={20} aria-hidden="true" /> {t('course.driver.finishCourse')}
+        </button>
+      )}
+      {isLastStop && stopViewStatus === 'pending' && (
+        <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete}>
+          <Gauge size={20} aria-hidden="true" /> {t('course.driver.finishCourse')}
+        </button>
+      )}
+      {!isLastStop && stopViewStatus === 'pending' && (
+        <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete}>
+          <CheckCircle2 size={20} aria-hidden="true" /> {t('course.driver.completeStop')}
+        </button>
+      )}
 
       {partialOpen && (
         <PartialPickupSheet stop={stop} sessionToken={sessionToken} contextDate={trip.trip_date} onClose={() => setPartialOpen(false)} onDone={onReload} />
