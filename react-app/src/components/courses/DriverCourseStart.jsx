@@ -1,16 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PlayCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
 import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
 import { parseRouteIds, routeNamesForTrip, ymd } from '../../lib/tripUiHelpers';
-import { getRouteColorByDisplay } from '../../lib/visualSystem';
+import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
+import '../mockups/mockups.css';
+
+function StartSection({ label, children, hint }) {
+  return (
+    <section className="live-start-section">
+      <h2 className="live-start-section-label">{label}</h2>
+      {children}
+      {hint && <p className="live-start-section-hint">{hint}</p>}
+    </section>
+  );
+}
 
 export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
+  const { t } = useTranslation();
   const { user, sessionToken } = useAuth();
   const { allRoutes } = useAppData();
   const today = ymd();
@@ -55,23 +68,23 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
         }
         setAllTrips(trips || []);
       } catch (error) {
-        if (!cancelled) toastError(`Błąd ładowania: ${error.message}`);
+        if (!cancelled) toastError(t('course.start.loadError', { message: error.message }));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [loadTrips, plannedTrip, sessionToken, user?.id]);
+  }, [loadTrips, plannedTrip, sessionToken, t, user?.id]);
 
   const carsInUse = useMemo(() => {
     const map = new Map();
     allTrips.forEach(trip => {
       if (trip.status === 'active' && trip.car && trip.driver_id !== user?.id) {
-        map.set(trip.car, trip.driver_name || 'inny kierowca');
+        map.set(trip.car, trip.driver_name || t('course.start.otherDriver'));
       }
     });
     return map;
-  }, [allTrips, user?.id]);
+  }, [allTrips, t, user?.id]);
 
   const handoverPool = useMemo(
     () => allTrips.filter(trip => trip.status === 'handover' && trip.trip_date === today),
@@ -94,12 +107,12 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
 
   const startCourse = async () => {
     if (selectedRoutes.size === 0) {
-      toastError('Wybierz przynajmniej jedną trasę');
+      toastError(t('course.start.selectRoute'));
       return;
     }
     const occupiedBy = carsInUse.get(selectedCar);
     if (occupiedBy) {
-      toastError(`Auto ${VEHICLE_LABELS[selectedCar] || selectedCar} jest już w użyciu (${occupiedBy})`);
+      toastError(t('course.start.carInUse', { car: VEHICLE_LABELS[selectedCar] || selectedCar, driver: occupiedBy }));
       return;
     }
     try {
@@ -110,10 +123,10 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
         p_car: selectedCar,
         p_routes: [...selectedRoutes].join(','),
       });
-      toastSuccess('Kurs rozpoczęty');
+      toastSuccess(t('course.start.started'));
       await onStarted?.();
     } catch (error) {
-      toastError(`Błąd startu kursu: ${error.message}`);
+      toastError(t('course.start.startError', { message: error.message }));
     } finally {
       setBusy(false);
     }
@@ -121,7 +134,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
 
   const claimTrip = async poolTrip => {
     if (!poolTrip?.id) return;
-    if (!window.confirm(`Przejąć kurs ${routeNamesForTrip(poolTrip, routeMap)}?`)) return;
+    if (!window.confirm(t('course.start.claimConfirm', { name: routeNamesForTrip(poolTrip, routeMap) }))) return;
     try {
       setBusy(true);
       const { data, error } = await supabase.rpc('claim_loaded_trip', {
@@ -130,98 +143,126 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toastSuccess('Kurs przejęty');
+      toastSuccess(t('course.start.claimed'));
       await onStarted?.();
     } catch (error) {
-      toastError(`Błąd przejęcia: ${error.message}`);
+      toastError(t('course.start.claimError', { message: error.message }));
     } finally {
       setBusy(false);
     }
   };
 
-  if (loading) return <div className="live-board-loading">Ładowanie…</div>;
+  if (loading) {
+    return (
+      <div className="live-board-loading">
+        <LoaderCircle className="is-spinning" aria-hidden="true" /> {t('course.start.loading')}
+      </div>
+    );
+  }
+
+  const title = plannedTrip ? routeNamesForTrip(plannedTrip, routeMap) : t('course.start.beginCourse');
+  const kicker = plannedTrip ? t('course.start.ready') : t('course.start.dayStart');
 
   return (
-    <section className="driver-phone live-driver-course">
-      <div className="mock-kicker">{plannedTrip ? 'Kurs gotowy' : 'Start dnia'}</div>
-      <h1 className="mock-page-title">{plannedTrip ? routeNamesForTrip(plannedTrip, routeMap) : 'Rozpocznij kurs'}</h1>
-
-      {doneToday.length > 0 && (
-        <div className="live-sheet-copy" style={{ marginBottom: '12px' }}>
-          Dziś zakończone kursy: {doneToday.length} — możesz rozpocząć kolejny.
-        </div>
-      )}
+    <section className="driver-phone live-driver-start" aria-labelledby="driver-start-title">
+      <header className="live-start-header">
+        <p className="live-start-kicker">{kicker}</p>
+        <h1 id="driver-start-title" className="live-start-title">{title}</h1>
+        {doneToday.length > 0 && (
+          <p className="live-start-subtitle">{t('course.start.doneToday', { count: doneToday.length })}</p>
+        )}
+      </header>
 
       {plannedTrip && (
-        <div className="driver-focus-card live-ready-card" style={{ marginBottom: '14px' }}>
+        <div className="live-start-banner is-planned">
+          <UserCheck size={20} aria-hidden="true" />
           <div>
-            <strong>Administrator zaplanował kurs</strong>
-            <span>Sprawdź auto i trasy, potem rozpocznij.</span>
+            <strong>{t('course.start.adminPlanned')}</strong>
+            <span>{t('course.start.adminPlannedHint')}</span>
           </div>
         </div>
       )}
 
       {handoverPool.length > 0 && (
-        <div style={{ marginBottom: '16px' }}>
-          <div className="driver-upcoming-title">Kursy do przejęcia ({handoverPool.length})</div>
+        <div className="driver-focus-card live-start-handover">
+          <div className="live-start-handover-title">{t('course.start.handoverPool', { count: handoverPool.length })}</div>
           {handoverPool.map(trip => (
-            <div className="driver-upcoming-row" key={trip.id} style={{ justifyContent: 'space-between' }}>
-              <span>{VEHICLE_LABELS[trip.car] || trip.car} · {routeNamesForTrip(trip, routeMap)}</span>
-              <button className="driver-tool-btn" onClick={() => claimTrip(trip)} disabled={busy}>Przejmij</button>
+            <div className="live-start-handover-row" key={trip.id}>
+              <span className="live-start-handover-meta">
+                <Truck size={15} aria-hidden="true" />
+                {VEHICLE_LABELS[trip.car] || trip.car} · {routeNamesForTrip(trip, routeMap)}
+              </span>
+              <button type="button" className="live-start-claim-btn" onClick={() => claimTrip(trip)} disabled={busy}>
+                {t('course.start.claim')}
+              </button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="live-field-label">Auto na dziś</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-        {VEHICLES.map(vehicle => {
-          const active = selectedCar === vehicle.key;
-          const locked = carsInUse.has(vehicle.key);
-          return (
-            <button
-              key={vehicle.key}
-              type="button"
-              disabled={locked}
-              onClick={() => !locked && setSelectedCar(vehicle.key)}
-              style={{
-                flex: '1 1 110px', padding: '12px', borderRadius: '12px', cursor: locked ? 'not-allowed' : 'pointer', fontWeight: 700,
-                border: `2px solid ${locked ? 'var(--border)' : active ? 'var(--accent)' : 'var(--border)'}`,
-                background: locked ? 'var(--bg-tertiary)' : active ? 'var(--accent-light)' : 'var(--bg-card)',
-                color: locked ? 'var(--text-quaternary)' : active ? 'var(--accent)' : 'var(--text-secondary)',
-              }}
-            >
-              {vehicle.label}{defaultCar === vehicle.key ? ' ★' : ''}
-            </button>
-          );
-        })}
+      <div className="driver-focus-card live-start-card">
+        <StartSection label={t('course.start.carToday')}>
+          <div className="live-start-car-grid" role="group" aria-label={t('course.start.carToday')}>
+            {VEHICLES.map(vehicle => {
+              const active = selectedCar === vehicle.key;
+              const lockedBy = carsInUse.get(vehicle.key);
+              const isDefault = defaultCar === vehicle.key;
+              return (
+                <button
+                  key={vehicle.key}
+                  type="button"
+                  className={`live-start-car-chip ${active ? 'is-selected' : ''} ${lockedBy ? 'is-locked' : ''}`}
+                  disabled={Boolean(lockedBy)}
+                  onClick={() => !lockedBy && setSelectedCar(vehicle.key)}
+                  title={lockedBy ? t('course.start.carInUse', { car: vehicle.label, driver: lockedBy }) : undefined}
+                >
+                  <span className="live-start-car-label">{vehicle.label}</span>
+                  {isDefault && (
+                    <span className="live-start-default-mark" title={t('course.start.defaultCar')}>
+                      <Star size={11} aria-hidden="true" />
+                    </span>
+                  )}
+                  {lockedBy && <span className="live-start-car-lock">{lockedBy}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </StartSection>
+
+        <StartSection
+          label={t('course.start.routesToday')}
+          hint={selectedRoutes.size === 0 ? t('course.start.selectRoute') : null}
+        >
+          <div className="live-start-route-grid" role="group" aria-label={t('course.start.routesToday')}>
+            {allRoutes.map((route, index) => {
+              const active = selectedRoutes.has(route.id);
+              const display = index + 1;
+              const color = getRouteColorByDisplay(display);
+              return (
+                <button
+                  key={route.id}
+                  type="button"
+                  className={`live-start-route-chip ${active ? 'is-selected' : ''}`}
+                  onClick={() => toggleRoute(route.id)}
+                  style={active ? { borderColor: color, background: `${color}14` } : undefined}
+                >
+                  <span
+                    className="live-start-route-num"
+                    style={active ? routeBadgeStyle(display) : undefined}
+                  >
+                    T{display}
+                  </span>
+                  <span className="live-start-route-name">{route.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </StartSection>
       </div>
 
-      <div className="live-field-label">Trasy na dziś</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-        {allRoutes.map((route, index) => {
-          const active = selectedRoutes.has(route.id);
-          const color = getRouteColorByDisplay(index + 1);
-          return (
-            <button
-              key={route.id}
-              type="button"
-              onClick={() => toggleRoute(route.id)}
-              style={{
-                padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
-                border: `2px solid ${active ? color : 'var(--border)'}`,
-                background: active ? `${color}14` : 'var(--bg-card)',
-                color: active ? color : 'var(--text-secondary)',
-              }}
-            >
-              T{index + 1} {route.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <button className="driver-primary-btn" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
-        <PlayCircle size={20} /> {plannedTrip ? 'Rozpocznij kurs' : 'Rozpocznij trasę'}
+      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
+        <PlayCircle size={20} aria-hidden="true" />
+        {plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
       </button>
     </section>
   );

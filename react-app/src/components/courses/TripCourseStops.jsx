@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2, LoaderCircle, Navigation2, Package, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
+import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
 import { logAction } from '../../lib/logger';
 import {

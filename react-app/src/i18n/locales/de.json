@@ -787,7 +787,12 @@
       "carInUse": "Fahrzeug {{car}} bereits in Benutzung ({{driver}})",
       "started": "Kurs gestartet",
       "claimed": "Kurs übernommen",
-      "otherDriver": "anderer Fahrer"
+      "otherDriver": "anderer Fahrer",
+      "loading": "Wird geladen…",
+      "loadError": "Ladefehler: {{message}}",
+      "startError": "Fehler beim Start: {{message}}",
+      "claimError": "Fehler bei Übernahme: {{message}}",
+      "defaultCar": "Standardfahrzeug"
     },
     "history": {
       "title": "Kursverlauf",

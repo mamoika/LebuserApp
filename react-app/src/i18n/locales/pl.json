@@ -797,7 +797,12 @@
       "carInUse": "Auto {{car}} jest już w użyciu ({{driver}})",
       "started": "Kurs rozpoczęty",
       "claimed": "Kurs przejęty",
-      "otherDriver": "inny kierowca"
+      "otherDriver": "inny kierowca",
+      "loading": "Ładowanie…",
+      "loadError": "Błąd ładowania: {{message}}",
+      "startError": "Błąd startu kursu: {{message}}",
+      "claimError": "Błąd przejęcia: {{message}}",
+      "defaultCar": "Domyślne auto"
     },
     "history": {
       "title": "Historia kursów",
