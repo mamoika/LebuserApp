@@ -2,12 +2,18 @@ import { useEffect, useRef } from 'react';
 
 export default function CourseSheet({ titleId, title, onClose, busy = false, children }) {
   const sheetRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const previous = document.activeElement;
     sheetRef.current?.focus();
+    return () => { previous?.focus?.(); };
+  }, []);
+
+  useEffect(() => {
     const keydown = event => {
-      if (event.key === 'Escape' && !busy) onClose();
+      if (event.key === 'Escape' && !busy) onCloseRef.current();
       if (event.key === 'Tab' && sheetRef.current) {
         const focusable = [...sheetRef.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')];
         if (!focusable.length) return;
@@ -18,8 +24,8 @@ export default function CourseSheet({ titleId, title, onClose, busy = false, chi
       }
     };
     document.addEventListener('keydown', keydown);
-    return () => { document.removeEventListener('keydown', keydown); previous?.focus?.(); };
-  }, [busy, onClose]);
+    return () => { document.removeEventListener('keydown', keydown); };
+  }, [busy]);
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
