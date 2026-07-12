@@ -1340,6 +1340,9 @@ const ACTION_COLORS = {
   delivered: '#34C759',
   trip_start: '#5856D6',
   trip_end: '#5856D6',
+  work_time_submitted: '#B45309',
+  work_time_approved: '#15803D',
+  work_time_rejected: '#C24135',
 };
 
 const LOGS_PAGE_SIZE = 50;
@@ -1378,6 +1381,16 @@ function LogsSection() {
       + ' ' + d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
   };
 
+  const metadataSummary = (metadata) => {
+    if (!metadata || typeof metadata !== 'object') return '';
+    const parts = [];
+    if (metadata.work_date) parts.push(metadata.work_date);
+    if (metadata.work_start && metadata.work_end) parts.push(`${metadata.work_start}-${metadata.work_end}`);
+    if (metadata.work_minutes) parts.push(`${Math.floor(metadata.work_minutes / 60)} h ${metadata.work_minutes % 60 ? `${metadata.work_minutes % 60} min` : ''}`.trim());
+    if (metadata.note) parts.push(metadata.note);
+    return parts.join(' · ');
+  };
+
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingLogs')}</div>;
   if (error) return <div style={{ color: 'var(--accent-red)', fontSize: '13px', padding: '12px 0' }}>{t('admin.errLoadingLogs')} {error}</div>;
   if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noLogs')}</div>;
@@ -1391,6 +1404,8 @@ function LogsSection() {
         {logs.map(log => {
           const color = ACTION_COLORS[log.action] || '#636366';
           const label = t(`logActions.${log.action}`, { defaultValue: log.action });
+          const category = t(`logCategories.${log.category || 'general'}`, { defaultValue: log.category || t('logCategories.general') });
+          const structuredDetails = metadataSummary(log.metadata);
           return (
             <div key={log.id} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '10px 14px', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1402,6 +1417,13 @@ function LogsSection() {
               {log.details && (
                 <div style={{ marginTop: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>{log.details}</div>
               )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 10px', marginTop: '6px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                <span style={{ fontWeight: 700 }}>{category}</span>
+                {log.actor_role && <span>{t('admin.logRole')}: {roleLabel(t, log.actor_role)}</span>}
+                {log.entity_type && <span title={log.entity_id || undefined}>{t('admin.logObject')}: {log.entity_type}{log.entity_id ? ` #${String(log.entity_id).slice(0, 8)}` : ''}</span>}
+                {log.device_label && <span>{t('admin.logDevice')}: {log.device_label}</span>}
+              </div>
+              {structuredDetails && <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{structuredDetails}</div>}
             </div>
           );
         })}

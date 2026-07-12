@@ -7,7 +7,7 @@ import { getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, Info, Printer, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, History, Info, Printer, XCircle } from 'lucide-react';
 import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
 import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 
@@ -268,6 +268,57 @@ function WorkTimeApprovalPanel({ reports, sessionToken, onChanged, canApprove })
   );
 }
 
+function WorkTimeDecisionHistory({ events }) {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  if (events.length === 0) return null;
+
+  const eventColor = (type) => type === 'approved' ? '#15803D' : type === 'rejected' ? '#C24135' : '#B45309';
+  const eventLabel = (type) => t(`workTime.event_${type}`, { defaultValue: type });
+  const formatEventDate = (value) => new Date(value).toLocaleString(i18n.language, {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <section className="print-hide" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '12px 14px', boxShadow: 'var(--shadow-sm)' }}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}>
+        <div style={{ width: '36px', height: '36px', borderRadius: '10px', display: 'grid', placeItems: 'center', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}><History size={18} /></div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '14px', fontWeight: 800 }}>{t('workTime.decisionHistory')}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('workTime.decisionHistoryCount', { count: events.length })}</div>
+        </div>
+        <ChevronDown size={18} style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+          {events.map(event => {
+            const color = eventColor(event.event_type);
+            const range = event.work_start && event.work_end
+              ? `${timeForInput(event.work_start)}-${timeForInput(event.work_end)}`
+              : '—';
+            return (
+              <div key={event.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,1fr) auto', gap: '10px', padding: '9px 10px', borderRadius: '10px', background: 'var(--bg-card-solid)', border: '1px solid var(--border)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color, background: `${color}18`, padding: '2px 7px', borderRadius: '6px' }}>{eventLabel(event.event_type)}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 750 }}>{event.employee_name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{event.work_date}</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {event.actor_name || '—'} · {range}{event.work_minutes ? ` · ${formatWorkDuration(event.work_minutes)}` : ''}
+                  </div>
+                  {event.note && <div style={{ fontSize: '11px', color: '#C24135', marginTop: '3px' }}>{t('workTime.rejectionReason')}: {event.note}</div>}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap', alignSelf: 'center' }}>{formatEventDate(event.created_at)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function GrafikView() {
   const { t } = useTranslation();
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
@@ -280,6 +331,7 @@ export default function GrafikView() {
   const [groupData, setGroupData] = useState([]);
   const [entries, setEntries] = useState({});
   const [workTimeReports, setWorkTimeReports] = useState([]);
+  const [workTimeEvents, setWorkTimeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
   const containerRef = useRef(null);
@@ -312,6 +364,7 @@ export default function GrafikView() {
       setEmployees(data?.roster || []);
       setGroupData(data?.groups || []);
       setWorkTimeReports(data?.work_time_reports || []);
+      setWorkTimeEvents(data?.work_time_events || []);
       const map = {};
       (data?.schedule_entries || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
       setEntries(map);
@@ -497,6 +550,7 @@ export default function GrafikView() {
       )}
 
       <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
+      <WorkTimeDecisionHistory events={workTimeEvents} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide" style={{ 

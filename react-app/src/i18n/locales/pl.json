@@ -483,7 +483,16 @@
     "washed": "Wyprane",
     "unwashed": "Cofnięto pranie",
     "trip_start": "Start trasy",
-    "trip_end": "Koniec trasy"
+    "trip_end": "Koniec trasy",
+    "work_time_submitted": "Zgłoszono godziny",
+    "work_time_approved": "Zatwierdzono godziny",
+    "work_time_rejected": "Odrzucono godziny"
+  },
+  "logCategories": {
+    "general": "Ogólne",
+    "entries": "Wpisy pralni",
+    "routes": "Trasy",
+    "work_time": "Czas pracy"
   },
   "workTime": {
     "historyTitle": "Moje godziny i trasy",
@@ -533,7 +542,13 @@
     "approvalError": "Błąd zatwierdzania godzin:",
     "rejectPrompt": "Powód odrzucenia (opcjonalnie):",
     "rejectSuccess": "Zgłoszenie godzin odrzucone",
-    "rejectError": "Błąd odrzucania godzin:"
+    "rejectError": "Błąd odrzucania godzin:",
+    "decisionHistory": "Historia zgłoszeń i zatwierdzeń",
+    "decisionHistoryCount": "{{count}} zdarzeń w tym miesiącu",
+    "event_submitted": "Zgłoszono",
+    "event_approved": "Zatwierdzono",
+    "event_rejected": "Odrzucono",
+    "rejectionReason": "Powód"
   },
   "admin": {
     "rodoFullLink": "Pełna klauzula RODO",
@@ -676,6 +691,9 @@
     "groups": "Grupy",
     "employees": "Pracownicy",
     "logs": "Logi",
+    "logRole": "rola",
+    "logObject": "obiekt",
+    "logDevice": "urządzenie",
     "sessions": "Sesje",
     "settings": "Ustawienia",
     "usersWithCount": "Użytkownicy ({{count}})",
