@@ -13,6 +13,12 @@ import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
 import { getBlockingPickedLaundry, getDriverAppSettings, getDriverTripsData, getMyWorkTime } from '../lib/readRpc';
 import { addMinutesToClock, decimalHoursToMinutes, formatWorkDuration, minutesBetweenClocks, resolveWorkPlan, timeForInput } from '../lib/workTime';
+
+const tripLogContext = (tripId) => ({
+  category: 'routes',
+  entityType: 'trip',
+  entityId: tripId || null,
+});
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
@@ -922,7 +928,7 @@ export default function DriverRouteView({ manageMode = false }) {
       setTrip(data.trip);
       setPlannedTrip(null);
       await loadTrips();
-      await logAction({ sessionToken, action: 'trip_start', details: `Auto: ${VEHICLE_LABELS[selectedCar] || selectedCar}${plannedTrip ? ' (trasa zaplanowana)' : ''}` });
+      await logAction({ sessionToken, action: 'trip_start', ...tripLogContext(data.trip?.id), details: `Auto: ${VEHICLE_LABELS[selectedCar] || selectedCar}${plannedTrip ? ' (trasa zaplanowana)' : ''}` });
       toastSuccess('Trasa rozpoczęta');
     } catch (err) { toastError('Błąd startu trasy: ' + err.message); }
     finally { setBusy(false); }
@@ -935,7 +941,7 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       await attachClientToTrip(targetTrip, clientName);
-      await logAction({ sessionToken, action: 'edited', details: `Dorzucono przystanek ${clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(targetTrip.id), details: `Dorzucono przystanek ${clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})` });
       await loadTrips();
       setAddStopOpen(false);
       toastSuccess(`Dorzucono: ${clientName} → ${targetTrip.driver_name || 'kierowca'}`);
@@ -951,6 +957,7 @@ export default function DriverRouteView({ manageMode = false }) {
       await logAction({
         sessionToken,
         action: 'edited',
+        ...tripLogContext(targetTrip.id),
         details: `Dorzucono odbiór brudnego ${addedEntry.clientName} → trasa ${targetTrip.driver_name || 'kierowcy'} (${fmtDate(targetTrip.trip_date)})`,
       });
       await Promise.all([loadTrips(), refetch()]);
@@ -1077,7 +1084,7 @@ export default function DriverRouteView({ manageMode = false }) {
       const drv = driverOptions.find(d => String(d.id) === String(assignDriverId));
       if (!drv) { toastError('Wybierz kierowcę'); setBusy(false); return; }
       const plannedStartIso = assignPlannedStart ? new Date(assignPlannedStart).toISOString() : null;
-      await callTripRpc('admin_plan_driver_trip', {
+      const data = await callTripRpc('admin_plan_driver_trip', {
         p_driver_id: drv.id,
         p_trip_date: assignTrip.trip_date,
         p_car: assignCar,
@@ -1085,7 +1092,7 @@ export default function DriverRouteView({ manageMode = false }) {
         p_extra_clients: null,
         p_planned_start: plannedStartIso,
       });
-      await logAction({ sessionToken, action: 'edited', details: `Przypisano trasę ${routeNamesForTrip(assignTrip)} (${fmtDate(assignTrip.trip_date)}) → ${drv.name}, ${VEHICLE_LABELS[assignCar] || assignCar}${plannedStartIso ? ` · start ${fmtDateTime(plannedStartIso)}` : ''}` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(data.trip?.id), details: `Przypisano trasę ${routeNamesForTrip(assignTrip)} (${fmtDate(assignTrip.trip_date)}) → ${drv.name}, ${VEHICLE_LABELS[assignCar] || assignCar}${plannedStartIso ? ` · start ${fmtDateTime(plannedStartIso)}` : ''}` });
       setAssignTrip(null); setAssignDriverId('');
       await loadTrips();
       toastSuccess(`Przypisano: ${drv.name} · ${fmtDate(assignTrip.trip_date)}`);
@@ -1428,7 +1435,7 @@ export default function DriverRouteView({ manageMode = false }) {
       const hoursLog = shouldSubmitWorkTime
         ? `, godziny do zatwierdzenia: ${workStart}-${effectiveWorkEnd}`
         : workTimeAlreadyApproved ? ', godziny dnia były już zatwierdzone' : ', bez godzin (brak powiązania z grafikiem)';
-      await logAction({ sessionToken, action: 'trip_end', details: `Auto: ${VEHICLE_LABELS[trip.car] || trip.car}, licznik do zatwierdzenia: ${km} km${hoursLog}` });
+      await logAction({ sessionToken, action: 'trip_end', ...tripLogContext(trip.id), details: `Auto: ${VEHICLE_LABELS[trip.car] || trip.car}, licznik do zatwierdzenia: ${km} km${hoursLog}` });
       const finishedTrip = data.trip || { ...trip, ended_at: new Date().toISOString(), end_km: km, status: 'finished' };
       setTrip(finishedTrip);
       await Promise.all([loadTrips(), loadWorkTime(trip.trip_date || today)]);
@@ -1450,7 +1457,7 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       await callTripRpc('driver_cancel_trip', { p_trip_id: trip.id });
-      await logAction({ sessionToken, action: 'deleted', details: `Anulowano trasę (nic nie zrobiono): ${trip.driver_name || user.name}, ${fmtDate(trip.trip_date)}, ${routeNamesForTrip(trip)}` });
+      await logAction({ sessionToken, action: 'deleted', ...tripLogContext(trip.id), details: `Anulowano trasę (nic nie zrobiono): ${trip.driver_name || user.name}, ${fmtDate(trip.trip_date)}, ${routeNamesForTrip(trip)}` });
       setTrip(null);
       setPlannedTrip(null);
       setSelectedRoutes(parseRouteIds(user?.routes));
@@ -1478,7 +1485,7 @@ export default function DriverRouteView({ manageMode = false }) {
           p_trip_id: trip.id,
           p_car: newCar,
         });
-        await logAction({ sessionToken, action: 'edited', details: `Zmiana auta bez licznika: ${VEHICLE_LABELS[trip.car] || trip.car} → ${VEHICLE_LABELS[newCar] || newCar} (${fmtDate(trip.trip_date)})` });
+        await logAction({ sessionToken, action: 'edited', ...tripLogContext(trip.id), details: `Zmiana auta bez licznika: ${VEHICLE_LABELS[trip.car] || trip.car} → ${VEHICLE_LABELS[newCar] || newCar} (${fmtDate(trip.trip_date)})` });
         setTrip(data.trip || { ...trip, car: newCar });
         setSelectedCar(newCar);
         setChangeCarOpen(false);
@@ -1505,7 +1512,7 @@ export default function DriverRouteView({ manageMode = false }) {
         p_trip_id: trip.id,
         p_end_km: km,
       });
-      await logAction({ sessionToken, action: 'trip_end', details: `Zmiana auta — zamknięto nogę ${oldCarLabel}, licznik ${km} km; dalej ${VEHICLE_LABELS[newCar] || newCar}` });
+      await logAction({ sessionToken, action: 'trip_end', ...tripLogContext(trip.id), details: `Zmiana auta — zamknięto nogę ${oldCarLabel}, licznik ${km} km; dalej ${VEHICLE_LABELS[newCar] || newCar}` });
       await loadTrips();
       // Ekran startowy z nowym autem — kierowca wybiera trasy nowej nogi.
       setTrip(null);
@@ -1541,7 +1548,7 @@ export default function DriverRouteView({ manageMode = false }) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'edited', details: `Przekazano trasę ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car}) → ${data.driver}` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(handoffTrip.id), details: `Przekazano trasę ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car}) → ${data.driver}` });
       releaseOwnTripView(handoffTrip.id);
       setHandoffOpen(false); setHandoffTrip(null); setHandoffTarget('');
       await loadTrips();
@@ -1562,7 +1569,7 @@ export default function DriverRouteView({ manageMode = false }) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'edited', details: `Zostawiono trasę do przejęcia: ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car})` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(handoffTrip.id), details: `Zostawiono trasę do przejęcia: ${routeNamesForTrip(handoffTrip)} (auto ${VEHICLE_LABELS[handoffTrip.car] || handoffTrip.car})` });
       releaseOwnTripView(handoffTrip.id);
       setHandoffOpen(false); setHandoffTrip(null); setHandoffTarget('');
       await loadTrips();
@@ -1583,7 +1590,7 @@ export default function DriverRouteView({ manageMode = false }) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'edited', details: `Przejęto trasę ${routeNamesForTrip(poolTrip)} (auto ${VEHICLE_LABELS[poolTrip.car] || poolTrip.car})` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(poolTrip.id), details: `Przejęto trasę ${routeNamesForTrip(poolTrip)} (auto ${VEHICLE_LABELS[poolTrip.car] || poolTrip.car})` });
       const trips = await loadTrips();
       const claimed = (trips || []).find(t => t.id === poolTrip.id);
       if (claimed) { setTrip(claimed); setSelectedCar(claimed.car); }
@@ -1614,7 +1621,7 @@ export default function DriverRouteView({ manageMode = false }) {
         });
       }
       await upsertDailyCosts(sessionToken, [{ entry_date: sourceTrip.trip_date, [col]: km }]);
-      await logAction({ sessionToken, action: 'edited', details: `Zatwierdzono licznik (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${VEHICLE_LABELS[sourceTrip.car] || sourceTrip.car}, ${km} km${corrected ? ` (korekta z ${sourceTrip.end_km})` : ''}` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(sourceTrip.id), details: `Zatwierdzono licznik (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${VEHICLE_LABELS[sourceTrip.car] || sourceTrip.car}, ${km} km${corrected ? ` (korekta z ${sourceTrip.end_km})` : ''}` });
       await loadTrips();
       toastSuccess(`Licznik zatwierdzony — koszty dnia ${fmtDate(sourceTrip.trip_date)}`);
     } catch (err) {
@@ -1633,7 +1640,7 @@ export default function DriverRouteView({ manageMode = false }) {
       const next = Array.from(new Set([...kmResolvedIds, sourceTrip.id]));
       await upsertAppSetting(sessionToken, KM_RESOLVED_KEY, next);
       setKmResolvedIds(next);
-      await logAction({ sessionToken, action: 'edited', details: `Licznik zatwierdzony bez wpisu do kosztów (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${sourceTrip.end_km} km` });
+      await logAction({ sessionToken, action: 'edited', ...tripLogContext(sourceTrip.id), details: `Licznik zatwierdzony bez wpisu do kosztów (${fmtDate(sourceTrip.trip_date)}): ${sourceTrip.driver_name || 'kierowca'}, ${sourceTrip.end_km} km` });
       toastSuccess('Licznik załatwiony — bez zapisu do kosztów');
     } catch (err) { toastError('Błąd: ' + err.message); }
     finally { setBusy(false); }
@@ -1646,7 +1653,7 @@ export default function DriverRouteView({ manageMode = false }) {
     try {
       setBusy(true);
       await callTripRpc('admin_delete_driver_trip', { p_trip_id: sourceTrip.id });
-      await logAction({ sessionToken, action: 'deleted', details: `Usunięto trasę: ${sourceTrip.driver_name || 'kierowca'}, ${fmtDate(sourceTrip.trip_date)}, ${routeNamesForTrip(sourceTrip)}` });
+      await logAction({ sessionToken, action: 'deleted', ...tripLogContext(sourceTrip.id), details: `Usunięto trasę: ${sourceTrip.driver_name || 'kierowca'}, ${fmtDate(sourceTrip.trip_date)}, ${routeNamesForTrip(sourceTrip)}` });
       setDetailTrip(null);
       if (trip?.id === sourceTrip.id) setTrip(null);
       if (plannedTrip?.id === sourceTrip.id) setPlannedTrip(null);

@@ -11,10 +11,12 @@ async function callLogsRpc(sessionToken, fn, args = {}) {
   return data;
 }
 
-export async function getLogsPage(sessionToken, { limit, offset }) {
+export async function getLogsPage(sessionToken, { limit, offset, category, search }) {
   return callLogsRpc(sessionToken, 'get_logs_page', {
     p_limit: limit,
     p_offset: offset,
+    p_category: category || null,
+    p_search: search || null,
   });
 }
 

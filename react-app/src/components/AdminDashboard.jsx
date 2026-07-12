@@ -1343,23 +1343,78 @@ const ACTION_COLORS = {
   work_time_submitted: '#B45309',
   work_time_approved: '#15803D',
   work_time_rejected: '#C24135',
+  login_success: '#15803D',
+  login_failed: '#C24135',
+  password_changed: '#B45309',
+  session_revoked: '#C24135',
+  impersonation_started: '#5856D6',
+  client_merged: '#5856D6',
 };
 
 const LOGS_PAGE_SIZE = 50;
 
-function LogsSection() {
+function formatAuditValue(value, redactedLabel) {
+  if (value === undefined || value === null || value === '') return '—';
+  if (value === '[REDACTED]') return redactedLabel;
+  if (typeof value === 'boolean') return value ? '✓' : '✕';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function AuditChanges({ metadata }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const fields = Array.isArray(metadata?.changed_fields) ? metadata.changed_fields : [];
+  if (fields.length === 0) return null;
+  const before = metadata?.before || {};
+  const after = metadata?.after || {};
+  return (
+    <div style={{ marginTop: '7px' }}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} style={{ border: 0, background: 'transparent', color: 'var(--accent)', padding: 0, fontSize: '10px', fontWeight: 750, cursor: 'pointer' }}>
+        {open ? t('admin.hideLogChanges') : t('admin.showLogChanges', { count: fields.length })}
+      </button>
+      {open && (
+        <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {fields.map(field => {
+            const isPassword = field === 'password';
+            return (
+              <div key={field} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px,.8fr) minmax(70px,1fr) auto minmax(70px,1fr)', gap: '6px', alignItems: 'start', fontSize: '10px', padding: '5px 7px', borderRadius: '7px', background: 'var(--bg-tertiary)' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>{t(`auditFields.${field}`, { defaultValue: field })}</span>
+                <span style={{ color: 'var(--text-tertiary)', overflowWrap: 'anywhere' }}>{isPassword ? t('admin.redactedValue') : formatAuditValue(before[field], t('admin.redactedValue'))}</span>
+                <span style={{ color: 'var(--text-quaternary)' }}>→</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 650, overflowWrap: 'anywhere' }}>{isPassword ? t('admin.changedSecurely') : formatAuditValue(after[field], t('admin.redactedValue'))}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function auditActionLabel(t, i18n, action) {
+  if (i18n.exists(`logActions.${action}`)) return t(`logActions.${action}`);
+  const match = String(action || '').match(/^(.*)_(created|updated|deleted)$/);
+  if (!match) return action || '—';
+  return `${t(`auditOperations.${match[2]}`)} · ${t(`auditEntities.${match[1]}`, { defaultValue: match[1] })}`;
+}
+
+function LogsSection() {
+  const { t, i18n } = useTranslation();
   const { sessionToken } = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
+  const [category, setCategory] = useState('');
+  const [draftSearch, setDraftSearch] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     setLoading(true);
     const from = page * LOGS_PAGE_SIZE;
-    getLogsPage(sessionToken, { limit: LOGS_PAGE_SIZE, offset: from })
+    getLogsPage(sessionToken, { limit: LOGS_PAGE_SIZE, offset: from, category, search })
       .then(data => {
         setError(null);
         setLogs(data.logs || []);
@@ -1370,7 +1425,7 @@ function LogsSection() {
         setLogs([]);
       })
       .finally(() => setLoading(false));
-  }, [page, sessionToken]);
+  }, [page, sessionToken, category, search]);
 
   const totalPages = Math.max(1, Math.ceil(total / LOGS_PAGE_SIZE));
 
@@ -1393,17 +1448,27 @@ function LogsSection() {
 
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.loadingLogs')}</div>;
   if (error) return <div style={{ color: 'var(--accent-red)', fontSize: '13px', padding: '12px 0' }}>{t('admin.errLoadingLogs')} {error}</div>;
-  if (logs.length === 0) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noLogs')}</div>;
-
   return (
     <div>
+      <form onSubmit={event => { event.preventDefault(); setPage(0); setSearch(draftSearch.trim()); }} style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '10px' }}>
+        <select value={category} onChange={event => { setPage(0); setCategory(event.target.value); }} aria-label={t('admin.logCategoryFilter')} style={{ minWidth: '145px', padding: '7px 9px', border: '1px solid var(--border)', borderRadius: '9px', background: 'var(--bg-card-solid)', color: 'var(--text-primary)', fontSize: '12px' }}>
+          <option value="">{t('admin.allLogCategories')}</option>
+          {['security', 'schedule', 'routes', 'laundry', 'costs', 'settings', 'work_time', 'entries', 'general'].map(value => (
+            <option key={value} value={value}>{t(`logCategories.${value}`, { defaultValue: value })}</option>
+          ))}
+        </select>
+        <input value={draftSearch} onChange={event => setDraftSearch(event.target.value)} placeholder={t('admin.searchLogs')} aria-label={t('admin.searchLogs')} style={{ flex: '1 1 180px', minWidth: 0, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '9px', background: 'var(--bg-card-solid)', color: 'var(--text-primary)', fontSize: '12px' }} />
+        <button type="submit" style={{ padding: '7px 12px', border: 0, borderRadius: '9px', background: 'var(--accent)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}>{t('common.search')}</button>
+      </form>
       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
         {t('admin.logsCount', { count: total })}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {logs.length === 0 ? (
+        <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('admin.noLogs')}</div>
+      ) : <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {logs.map(log => {
           const color = ACTION_COLORS[log.action] || '#636366';
-          const label = t(`logActions.${log.action}`, { defaultValue: log.action });
+          const label = auditActionLabel(t, i18n, log.action);
           const category = t(`logCategories.${log.category || 'general'}`, { defaultValue: log.category || t('logCategories.general') });
           const structuredDetails = metadataSummary(log.metadata);
           return (
@@ -1424,10 +1489,11 @@ function LogsSection() {
                 {log.device_label && <span>{t('admin.logDevice')}: {log.device_label}</span>}
               </div>
               {structuredDetails && <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{structuredDetails}</div>}
+              <AuditChanges metadata={log.metadata} />
             </div>
           );
         })}
-      </div>
+      </div>}
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
           <button
