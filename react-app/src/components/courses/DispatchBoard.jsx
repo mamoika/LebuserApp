@@ -4,15 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
   AlertTriangle, CalendarDays, CheckCircle2, Clock3, Gauge, GripVertical,
-  History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X,
+  History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
+import { approveWorkTime, rejectWorkTime } from '../../lib/adminRpc';
 import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
 import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripJournal, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
+import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../../lib/workTime';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import AssignTripSheet from './sheets/AssignTripSheet';
@@ -158,11 +160,18 @@ function JournalPanel({
 function KmApprovalSheet({ trip, value, busy, onValue, onApprove, onClose }) {
   const { t } = useTranslation();
   const sheetRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     const previous = document.activeElement;
     sheetRef.current?.focus();
+    return () => { previous?.focus?.(); };
+  }, []);
+
+  useEffect(() => {
     const keydown = event => {
-      if (event.key === 'Escape' && !busy) onClose();
+      if (event.key === 'Escape' && !busy) onCloseRef.current();
       if (event.key === 'Tab' && sheetRef.current) {
         const focusable = [...sheetRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')];
         if (!focusable.length) return;
@@ -173,8 +182,8 @@ function KmApprovalSheet({ trip, value, busy, onValue, onApprove, onClose }) {
       }
     };
     document.addEventListener('keydown', keydown);
-    return () => { document.removeEventListener('keydown', keydown); previous?.focus?.(); };
-  }, [busy, onClose]);
+    return () => { document.removeEventListener('keydown', keydown); };
+  }, [busy]);
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
@@ -196,7 +205,79 @@ function KmApprovalSheet({ trip, value, busy, onValue, onApprove, onClose }) {
   );
 }
 
-function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onAssign, locale }) {
+function HoursApprovalSheet({ trip, start, end, busy, onStart, onEnd, onApprove, onReject, onClose }) {
+  const { t, i18n } = useTranslation();
+  const sheetRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const duration = minutesBetweenClocks(start, end);
+  const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
+
+  useEffect(() => {
+    const previous = document.activeElement;
+    sheetRef.current?.focus();
+    return () => { previous?.focus?.(); };
+  }, []);
+
+  useEffect(() => {
+    const keydown = event => {
+      if (event.key === 'Escape' && !busy) onCloseRef.current();
+      if (event.key === 'Tab' && sheetRef.current) {
+        const focusable = [...sheetRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => { document.removeEventListener('keydown', keydown); };
+  }, [busy]);
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
+      <div ref={sheetRef} className="ap-sheet" role="dialog" aria-modal="true" aria-labelledby="hours-title" tabIndex={-1} onPointerDown={event => event.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <h2 id="hours-title" className="ap-title">{t('course.board.hoursApproveTitle')}</h2>
+          <p className="live-sheet-copy">
+            {trip.employee_name || trip.driver_name || t('course.noDriver')}
+            {trip.reported_hours ? ` · ${t('workTime.driverReported')} ${trip.reported_hours}` : ''}
+          </p>
+          <div className="live-time-grid">
+            <label className="live-field-label" htmlFor="approved-hours-start">{t('workTime.start')}
+              <input id="approved-hours-start" className="ap-input" type="time" value={start} onChange={event => onStart(event.target.value)} disabled={busy} />
+            </label>
+            <label className="live-field-label" htmlFor="approved-hours-end">{t('workTime.end')}
+              <input id="approved-hours-end" className="ap-input" type="time" value={end} onChange={event => onEnd(event.target.value)} disabled={busy} />
+            </label>
+          </div>
+          <div className="live-worktime-preview">
+            {t('workTime.toApprove')}: <strong>{start || '—'}–{end || '—'}</strong>
+            {duration ? ` · ${formatWorkDuration(duration)}` : ` · ${t('workTime.invalid')}`}
+          </div>
+          {trip.trip_date && (
+            <p className="live-sheet-copy is-muted">
+              {new Date(`${trip.trip_date}T00:00:00`).toLocaleDateString(locale)}
+            </p>
+          )}
+          <div className="ap-btn-group">
+            <button className="ap-btn ap-btn-primary" onClick={onApprove} disabled={busy || !duration}>
+              <CheckCircle2 size={16} aria-hidden="true" /> {t('workTime.approveTitle')}
+            </button>
+            <button className="ap-btn ap-btn-secondary is-danger" onClick={onReject} disabled={busy}>
+              <XCircle size={16} aria-hidden="true" /> {t('workTime.rejectTitle')}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('course.cancel')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, onAssign, locale }) {
   const { t } = useTranslation();
   const progress = trip.stops_total ? Math.round((trip.stops_completed / trip.stops_total) * 100) : 0;
   const routeColor = getRouteColorByDisplay(trip.route_display || 1);
@@ -246,12 +327,21 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onAssign, locale 
             <>
               <div className="kurs-settlement-row">{trip.end_km ?? '—'} km · {trip.reported_hours || t('course.board.noReportedHours')}</div>
               <div className="kurs-approve-row">
-                <button className={`kurs-approve-btn ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`} disabled={!isAdmin || !trip.end_km} onClick={() => onApprove(trip)}>
+                <button
+                  className={`kurs-approve-btn ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`}
+                  disabled={!isAdmin || !trip.end_km}
+                  onClick={() => onApprove(trip)}
+                >
                   <Gauge size={13} /> km {trip.km_approval_status === 'approved' ? '✓' : ''}
                 </button>
-                <Link className={`kurs-approve-btn ${trip.hours_status === 'approved' ? 'is-approved' : ''}`} to="/grafik">
+                <button
+                  className={`kurs-approve-btn ${trip.hours_status === 'approved' ? 'is-approved' : ''}`}
+                  disabled={!isAdmin || !trip.work_time_report_id || trip.hours_status === 'approved'}
+                  title={!trip.work_time_report_id ? t('course.board.noReportedHours') : undefined}
+                  onClick={() => onApproveHours(trip)}
+                >
                   <Clock3 size={13} /> {t('workTime.workHours')} {trip.hours_status === 'approved' ? '✓' : ''}
-                </Link>
+                </button>
               </div>
             </>
           )}
@@ -279,6 +369,9 @@ export default function DispatchBoard() {
   const [assignTrip, setAssignTrip] = useState(null);
   const [planPickupOpen, setPlanPickupOpen] = useState(false);
   const [kmValue, setKmValue] = useState('');
+  const [hoursTrip, setHoursTrip] = useState(null);
+  const [hoursStart, setHoursStart] = useState('');
+  const [hoursEnd, setHoursEnd] = useState('');
   const [busy, setBusy] = useState(false);
 
   const boardColumns = useMemo(
@@ -376,6 +469,23 @@ export default function DispatchBoard() {
     setKmValue(String(tripToApprove.end_km || ''));
   };
 
+  const openHoursApproval = tripToApprove => {
+    setHoursTrip(tripToApprove);
+    if (tripToApprove.reported_start) {
+      setHoursStart(timeForInput(tripToApprove.reported_start) || '');
+      setHoursEnd(timeForInput(tripToApprove.reported_end) || '');
+      return;
+    }
+    if (tripToApprove.reported_hours?.includes('–')) {
+      const [start, end] = tripToApprove.reported_hours.split('–');
+      setHoursStart(timeForInput(start) || '');
+      setHoursEnd(timeForInput(end) || '');
+      return;
+    }
+    setHoursStart('');
+    setHoursEnd('');
+  };
+
   const approveKm = async (writeCosts = true) => {
     const value = Number(String(kmValue).replace(',', '.'));
     if (!Number.isFinite(value)) { toastError(t('course.board.invalidKm')); return; }
@@ -384,6 +494,36 @@ export default function DispatchBoard() {
       await approveCourseKm(sessionToken, kmTrip.id, value, writeCosts);
       setKmTrip(null);
       toastSuccess(writeCosts ? t('course.km.successWithCosts') : t('course.km.successNoCosts'));
+      await loadBoard();
+    } catch (error) { toastError(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const approveHours = async () => {
+    if (!hoursTrip?.work_time_report_id) return;
+    if (!minutesBetweenClocks(hoursStart, hoursEnd)) {
+      toastError(t('workTime.invalid'));
+      return;
+    }
+    try {
+      setBusy(true);
+      await approveWorkTime(sessionToken, hoursTrip.work_time_report_id, hoursStart, hoursEnd);
+      setHoursTrip(null);
+      toastSuccess(t('workTime.approvalSuccess'));
+      await loadBoard();
+    } catch (error) { toastError(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const rejectHours = async () => {
+    if (!hoursTrip?.work_time_report_id) return;
+    const note = window.prompt(t('workTime.rejectPrompt'), '');
+    if (note === null) return;
+    try {
+      setBusy(true);
+      await rejectWorkTime(sessionToken, hoursTrip.work_time_report_id, note);
+      setHoursTrip(null);
+      toastSuccess(t('workTime.rejectSuccess'));
       await loadBoard();
     } catch (error) { toastError(error.message); }
     finally { setBusy(false); }
@@ -452,7 +592,7 @@ export default function DispatchBoard() {
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.droppableProps} className={`dispatch-col-drop ${snapshot.isDraggingOver ? 'is-over' : ''}`}>
                             {items.map((trip, index) => (
-                              <CourseCard key={trip.id} trip={trip} index={index} isAdmin={isAdmin} locale={locale} onOpen={setOpenTrip} onApprove={openKmApproval} onAssign={setAssignTrip} />
+                              <CourseCard key={trip.id} trip={trip} index={index} isAdmin={isAdmin} locale={locale} onOpen={setOpenTrip} onApprove={openKmApproval} onApproveHours={openHoursApproval} onAssign={setAssignTrip} />
                             ))}
                             {items.length === 0 && <div className="dispatch-empty">{t('course.board.noCourses')}</div>}
                             {provided.placeholder}
@@ -491,6 +631,19 @@ export default function DispatchBoard() {
         />
       )}
       {kmTrip && <KmApprovalSheet trip={kmTrip} value={kmValue} busy={busy} onValue={setKmValue} onApprove={approveKm} onClose={() => setKmTrip(null)} />}
+      {hoursTrip && (
+        <HoursApprovalSheet
+          trip={hoursTrip}
+          start={hoursStart}
+          end={hoursEnd}
+          busy={busy}
+          onStart={setHoursStart}
+          onEnd={setHoursEnd}
+          onApprove={approveHours}
+          onReject={rejectHours}
+          onClose={() => setHoursTrip(null)}
+        />
+      )}
       {assignTrip && (
         <AssignTripSheet
           trip={assignTrip}

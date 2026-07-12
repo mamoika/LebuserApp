@@ -671,7 +671,8 @@
       "noNextStop": "brak kolejnego przystanku",
       "stopsProgress": "{{done}} z {{total}} · {{name}}",
       "stageChanged": "Etap kursu: {{label}}",
-      "invalidKm": "Podaj poprawny licznik"
+      "invalidKm": "Podaj poprawny licznik",
+      "hoursApproveTitle": "Zatwierdź godziny pracy"
     },
     "archive": {
       "kicker": "Panel administratora",

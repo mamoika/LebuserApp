@@ -661,7 +661,8 @@
       "noNextStop": "keine nächste Haltestelle",
       "stopsProgress": "{{done}} von {{total}} · {{name}}",
       "stageChanged": "Kursstadium: {{label}}",
-      "invalidKm": "Gültigen Kilometerstand eingeben"
+      "invalidKm": "Gültigen Kilometerstand eingeben",
+      "hoursApproveTitle": "Arbeitszeit bestätigen"
     },
     "archive": {
       "kicker": "Administratorpanel",
