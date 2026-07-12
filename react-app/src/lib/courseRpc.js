@@ -21,6 +21,10 @@ export const getTripJournal = (sessionToken, tripId) => callCourseRpc(
 
 export const getDriverCourse = sessionToken => callCourseRpc('get_driver_course', sessionToken);
 
+export const getTripCourse = (sessionToken, tripId) => callCourseRpc(
+  'get_trip_course', sessionToken, { p_trip_id: tripId }
+);
+
 export const setCourseStage = (sessionToken, tripId, stage) => callCourseRpc(
   'admin_set_course_stage', sessionToken, { p_trip_id: tripId, p_stage: stage }
 );

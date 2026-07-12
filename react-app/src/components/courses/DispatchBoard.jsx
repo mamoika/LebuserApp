@@ -15,6 +15,7 @@ import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import AssignTripSheet from './sheets/AssignTripSheet';
 import PlanPickupSheet from './sheets/PlanPickupSheet';
+import TripCourseStops from './TripCourseStops';
 import '../mockups/mockups.css';
 
 const BOARD_COLUMNS = [
@@ -76,7 +77,7 @@ function formatDate(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString('pl-PL', { weekday: 'long', day: '2-digit', month: 'long' });
 }
 
-function JournalPanel({ trip, sessionToken, isAdmin, onClose, onStageChange }) {
+function JournalPanel({ trip, sessionToken, isAdmin, entries, clients, routes, routeMap, drivers, allTrips, dailyCosts, busy, setBusy, onClose, onStageChange, onReload, onDeleted }) {
   const [journal, setJournal] = useState({ events: [], segments: [] });
   const [loading, setLoading] = useState(true);
   const panelRef = useRef(null);
@@ -142,6 +143,23 @@ function JournalPanel({ trip, sessionToken, isAdmin, onClose, onStageChange }) {
             ))}
           </div>
         )}
+
+        <TripCourseStops
+          trip={trip}
+          sessionToken={sessionToken}
+          isAdmin={isAdmin}
+          entries={entries}
+          clients={clients}
+          routes={routes}
+          routeMap={routeMap}
+          drivers={drivers}
+          allTrips={allTrips}
+          dailyCosts={dailyCosts}
+          busy={busy}
+          setBusy={setBusy}
+          onReload={onReload}
+          onDeleted={onDeleted}
+        />
 
         <div className="live-journal-section-title">Dziennik kursu</div>
         {loading && <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> Ładowanie…</div>}
@@ -233,6 +251,7 @@ export default function DispatchBoard() {
   const [tripDate, setTripDate] = useState(() => ymd());
   const [trips, setTrips] = useState([]);
   const [allTrips, setAllTrips] = useState([]);
+  const [dailyCosts, setDailyCosts] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openTrip, setOpenTrip] = useState(null);
@@ -257,6 +276,7 @@ export default function DispatchBoard() {
       const boardTrips = data.trips || [];
       const storedTrips = tripsData?.trips || [];
       setAllTrips(storedTrips);
+      setDailyCosts(tripsData?.daily_costs || []);
       const virtualTrips = buildVirtualPlannedTrips({
         entries,
         allTrips: storedTrips,
@@ -353,7 +373,26 @@ export default function DispatchBoard() {
         </DragDropContext>
       )}
 
-      {openTrip && !openTrip.isVirtual && <JournalPanel trip={openTrip} sessionToken={sessionToken} isAdmin={isAdmin} onClose={() => setOpenTrip(null)} onStageChange={moveStage} />}
+      {openTrip && !openTrip.isVirtual && (
+        <JournalPanel
+          trip={openTrip}
+          sessionToken={sessionToken}
+          isAdmin={isAdmin}
+          entries={entries}
+          clients={clients}
+          routes={allRoutes}
+          routeMap={routeMap}
+          drivers={drivers}
+          allTrips={allTrips}
+          dailyCosts={dailyCosts}
+          busy={busy}
+          setBusy={setBusy}
+          onClose={() => setOpenTrip(null)}
+          onStageChange={moveStage}
+          onReload={async () => { await loadBoard(); await refetch(); }}
+          onDeleted={() => { setOpenTrip(null); loadBoard(); }}
+        />
+      )}
       {kmTrip && <KmApprovalSheet trip={kmTrip} value={kmValue} busy={busy} onValue={setKmValue} onApprove={approveKm} onClose={() => setKmTrip(null)} />}
       {assignTrip && (
         <AssignTripSheet

@@ -801,6 +801,59 @@
 .live-task-action.is-secondary { margin-top: 8px; border: 1px solid var(--accent-green); color: #19743a; background: var(--accent-green-light); }
 .live-task-action:disabled { cursor: not-allowed; opacity: .48; }
 .live-delivery-actions { display: grid; }
+.live-task-action-row { display: grid; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.live-task-action-row:last-of-type { border-bottom: 0; }
+.live-task-action-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.live-task-action-head strong { font-size: 14px; }
+.live-task-action-meta { color: var(--accent-green); font-size: 12px; font-weight: 650; }
+.live-pack-badge { margin-top: 4px; padding: 7px 10px; border-radius: 10px; font-size: 12px; font-weight: 650; line-height: 1.35; }
+.live-pack-badge.is-ready { color: #19743a; background: var(--accent-green-light); border: 1px solid rgba(52, 199, 89, .28); }
+.live-pack-badge.is-waiting { color: var(--accent-orange-text); background: rgba(255, 149, 0, .12); border: 1px solid rgba(255, 149, 0, .28); }
+.live-dirty-block { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.live-note-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); font: inherit; font-size: 13px; resize: vertical; }
+.live-extra-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.live-extra-row:last-child { border-bottom: 0; }
+.live-blocking-banner { font-size: 12px; color: var(--accent-orange-text); background: rgba(255, 149, 0, .12); border: 1px solid rgba(255, 149, 0, .28); border-radius: 10px; padding: 9px 11px; margin-bottom: 14px; font-weight: 650; line-height: 1.4; }
+.live-trip-stops { display: grid; gap: 10px; margin: 14px 0; }
+.live-planned-start-row { display: grid; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.live-add-stop-block { display: grid; gap: 8px; margin-bottom: 12px; }
+.live-add-stop-list { display: grid; gap: 4px; padding: 8px 0; }
+.live-stop-card { position: relative; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-card); display: grid; gap: 8px; }
+.live-stop-card.is-done { opacity: .82; }
+.live-stop-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.live-stop-card-head strong { flex: 1; min-width: 0; font-size: 14px; }
+.live-stop-status { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.live-stop-status.is-pending { color: var(--accent-orange-text); background: rgba(255, 149, 0, .12); }
+.live-stop-status.is-done { color: #19743a; background: var(--accent-green-light); }
+.live-stop-status.is-skipped { color: var(--text-tertiary); background: var(--bg-secondary); }
+.live-stop-action { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.live-stop-action-body { flex: 1; display: grid; gap: 4px; font-size: 13px; }
+.live-stop-waiting { font-size: 12px; color: var(--text-tertiary); }
+.live-stop-dirty { font-size: 12px; color: var(--text-secondary); padding-top: 4px; }
+.live-stop-done-icon { position: absolute; top: 12px; right: 12px; }
+.live-admin-action { margin-left: auto; flex-shrink: 0; padding: 5px 10px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.live-admin-action.is-undo { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+.live-admin-action:disabled { opacity: .45; cursor: not-allowed; }
+.live-trip-admin-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.live-delete-btn { color: var(--accent-red) !important; border-color: rgba(255, 59, 48, .35) !important; }
+.live-route-chip { font-size: 10px; padding: 2px 7px; border-radius: 999px; }
+.live-stop-nav { padding: 4px 8px; min-height: auto; }
+.live-trip-progress { margin: 8px 0; }
+.live-trip-metrics { margin-bottom: 12px; }
+.live-history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.live-history-nav { display: flex; gap: 6px; }
+.live-worktime-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.live-worktime-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.live-worktime-row-title { font-size: 13px; font-weight: 800; }
+.live-worktime-row-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+.live-worktime-status { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 999px; flex-shrink: 0; }
+.live-worktime-status.is-approved { background: rgba(52, 199, 89, .12); color: #15803d; }
+.live-worktime-status.is-pending { background: rgba(255, 149, 0, .12); color: #b45309; }
+.live-worktime-status.is-rejected { background: rgba(255, 59, 48, .1); color: #c24135; }
+.live-worktime-missing { color: var(--accent-orange-text); }
+.live-history-trip-row { align-items: center; }
+.live-history-km { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+.live-history-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 .live-primary-link { text-decoration: none; }
 .live-empty-course,
 .live-all-stops-done,
