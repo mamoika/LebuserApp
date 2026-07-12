@@ -38,7 +38,7 @@ const roleLabel = (t, role) => ({
   admin: t('admin.roleAdmin'),
 }[role] || role);
 
-const canAssignDriverSettings = (role) => role === 'driver' || role === 'admin_viewer_driver';
+const canAssignDriverSettings = (role) => ['admin', 'driver', 'admin_viewer_driver'].includes(role);
 const SESSION_KEEP_ACTIVE = 10;
 const LAUNDRY_TROLLEY_COUNT_KEY = 'laundry_trolley_count';
 
