@@ -25,6 +25,7 @@ import { AddEntryModal } from '../modals/EntryModals';
 import CourseCurrentStop from './CourseCurrentStop';
 import CourseSheet from './CourseSheet';
 import DriverCourseStart from './DriverCourseStart';
+import DriverCoursePlanning from './DriverCoursePlanning';
 import DriverCourseHistory from './DriverCourseHistory';
 import ExtraCleanPickupSheet from './sheets/ExtraCleanPickupSheet';
 import '../mockups/mockups.css';
@@ -467,7 +468,13 @@ export default function DriverCourse() {
   }
 
   if (trip.status === 'planned') {
-    return <DriverCourseStart plannedTrip={trip} onStarted={loadCourse} />;
+    return (
+      <DriverCoursePlanning
+        trip={trip}
+        stops={stops}
+        onUpdated={loadCourse}
+      />
+    );
   }
 
   const addEntryInfo = tripDateInfo(trip.trip_date);

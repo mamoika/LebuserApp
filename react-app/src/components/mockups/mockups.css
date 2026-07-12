@@ -1400,6 +1400,139 @@
 }
 .live-start-submit { margin-top: 2px; }
 
+/* ── Driver: mini-planowanie przed przejazdem ── */
+.live-driver-planning { padding-bottom: 24px; }
+.live-planning-summary { margin-bottom: 14px; }
+.live-planning-count {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.driver-status-pill.is-planning {
+  background: var(--accent-amber-light, #fff4e0);
+  color: #9a6700;
+}
+.live-planning-section {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.live-planning-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.live-planning-section-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.live-planning-list { display: grid; gap: 0; }
+.live-planning-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle, rgba(0,0,0,.06));
+}
+.live-planning-row:first-child { border-top: 0; padding-top: 0; }
+.live-planning-row.is-skipped { opacity: 0.72; }
+.live-planning-row-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.live-planning-row-main strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.live-planning-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.live-planning-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-muted, #f3f4f6);
+  color: var(--text-secondary);
+}
+.live-planning-text-btn,
+.live-planning-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-muted, #f3f4f6);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.live-planning-text-btn.is-warn,
+.live-planning-skip-btn {
+  color: #9a3412;
+  background: #fff1eb;
+}
+.live-planning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.live-planning-reasons {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 2px;
+}
+.live-planning-reasons-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.live-planning-reason-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-planning-reason-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-subtle, rgba(0,0,0,.08));
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.live-planning-reason-btn.is-muted {
+  color: var(--text-tertiary);
+}
+.live-planning-skipped-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.live-planning-footer {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.live-planning-start-btn { width: 100%; }
+
 @media (max-width: 380px) {
   .live-start-car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

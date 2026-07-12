@@ -172,6 +172,24 @@ export function buildExtraCandidates({ entries = [], stops = [], trip, userName 
   }));
 }
 
+export function summarizeStopTasks(stop) {
+  const tasks = stop?.tasks || [];
+  return {
+    hasDirty: tasks.some(task => task.task_type === 'pickup_dirty' && task.status === 'pending'),
+    hasCleanPickup: tasks.some(task => task.task_type === 'pickup_clean' && task.status === 'pending'),
+    hasDeliver: tasks.some(task => task.task_type === 'deliver_clean' && task.status === 'pending'),
+  };
+}
+
+export function declinedCleanClientsFromEvents(events = []) {
+  return new Set(
+    (events || [])
+      .filter(event => event.event_type === 'declined_pickup')
+      .map(event => event.data?.client_name || event.details?.replace(/^.*:\s*/, ''))
+      .filter(Boolean),
+  );
+}
+
 export function buildOtherRouteCleanCandidates({ entries = [], stops = [], trip }) {
   if (!trip) return [];
   const routeIds = parseRouteIds(trip.routes);

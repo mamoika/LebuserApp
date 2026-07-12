@@ -123,7 +123,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted }) {
         p_car: selectedCar,
         p_routes: [...selectedRoutes].join(','),
       });
-      toastSuccess(t('course.start.started'));
+      toastSuccess(t('course.start.planned'));
       await onStarted?.();
     } catch (error) {
       toastError(t('course.start.startError', { message: error.message }));

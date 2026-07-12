@@ -49,3 +49,21 @@ export const changeCourseVehicle = (sessionToken, tripId, car, endKm = null) => 
 );
 
 export const callExistingTripRpc = (fn, sessionToken, args = {}) => callCourseRpc(fn, sessionToken, args);
+
+export const skipPlannedStop = (sessionToken, stopId, reason) => callCourseRpc(
+  'driver_skip_planned_stop', sessionToken, { p_stop_id: stopId, p_reason: reason }
+);
+
+export const unskipPlannedStop = (sessionToken, stopId) => callCourseRpc(
+  'driver_unskip_planned_stop', sessionToken, { p_stop_id: stopId }
+);
+
+export const declineCleanPickup = (sessionToken, tripId, clientName, reason) => callCourseRpc(
+  'driver_decline_clean_pickup', sessionToken,
+  { p_trip_id: tripId, p_client_name: clientName, p_reason: reason }
+);
+
+export const removeTripExtraClient = (sessionToken, tripId, clientName) => callCourseRpc(
+  'driver_remove_trip_extra_client', sessionToken,
+  { p_trip_id: tripId, p_client_name: clientName }
+);
