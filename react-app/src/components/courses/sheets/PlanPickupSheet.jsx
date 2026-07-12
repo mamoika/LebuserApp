@@ -6,6 +6,7 @@ import { formatWeekKey } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { VEHICLES } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
+import ArrivalTrolleyPicker, { arrivalTrolleyPayload } from '../../modals/ArrivalTrolleyPicker';
 
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 
@@ -75,7 +76,8 @@ export default function PlanPickupSheet({
     routeId: firstClient?.route_id ? String(firstClient.route_id) : '',
     type: 'P',
     weight: '',
-    trolleys: 1,
+    trolleyMode: 'trolley',
+    selectedTrolleys: [],
     urgent: false,
     driverId: '',
     car: '',
@@ -110,6 +112,11 @@ export default function PlanPickupSheet({
       toastError('Wybierz datę, klienta i trasę');
       return;
     }
+    if (draft.trolleyMode === 'trolley' && draft.selectedTrolleys.length === 0) {
+      toastError('Wybierz numery wózków');
+      return;
+    }
+    const trolleyData = arrivalTrolleyPayload(draft.trolleyMode, draft.selectedTrolleys);
     const dirty = tripDateInfo(draft.dirtyDate);
     const clean = tripDateInfo(draft.cleanDate || plannedPickupDateFor(draft.dirtyDate, routeId));
     const driver = drivers.find(item => String(item.id) === String(draft.driverId));
@@ -127,7 +134,8 @@ export default function PlanPickupSheet({
         p_route_id: routeId,
         p_type: draft.type || 'P',
         p_weight: draft.weight ? parseFloat(String(draft.weight).replace(',', '.')) : null,
-        p_trolleys: draft.trolleys !== '' ? Number(draft.trolleys) : 1,
+        p_trolleys: trolleyData.trolleys,
+        p_arrival_trolley_nos: trolleyData.arrival_trolley_nos,
         p_urgent: !!draft.urgent,
         p_added_by: userName,
       });
@@ -195,11 +203,16 @@ export default function PlanPickupSheet({
             <option value="R">Odzież robocza</option>
           </select>
         </div>
-        <div>
-          <label style={pfLabel} htmlFor="plan-trolleys">Wózki</label>
-          <input id="plan-trolleys" className="ap-input" type="number" min="0" value={draft.trolleys} onChange={event => setField('trolleys', event.target.value ? Number(event.target.value) : '')} />
-        </div>
       </div>
+      <ArrivalTrolleyPicker
+        sessionToken={sessionToken}
+        clientName={draft.clientName}
+        mode={draft.trolleyMode}
+        onModeChange={value => setField('trolleyMode', value)}
+        selected={draft.selectedTrolleys}
+        onSelectedChange={value => setField('selectedTrolleys', value)}
+        disabled={busy}
+      />
       <label style={pfLabel} htmlFor="plan-weight">Waga (kg)</label>
       <input id="plan-weight" className="ap-input" type="text" inputMode="decimal" value={draft.weight} onChange={event => setField('weight', event.target.value)} placeholder="np. 150.5" />
       <label style={pfLabel} htmlFor="plan-clean-date">Odbiór czystego z pralni</label>

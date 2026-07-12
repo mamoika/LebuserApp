@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
+import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
 function getDefaultPickInfo(arrDay, schedule = 'other') {
@@ -132,6 +133,8 @@ function buildEditDiff(entry, updates, routes, t) {
     { key: 'pick_week_key', label: t('entry.diffPickupWeek'), fmt: v => (v ?? '') === '' ? '—' : String(v) },
     { key: 'urgent',       label: t('entry.diffUrgent'),     fmt: v => v ? t('entry.yes') : t('entry.no') },
     { key: 'route_id',     label: t('entry.diffRoute'),      fmt: v => (routes || []).find(r => r.id === v)?.name || '—' },
+    { key: 'trolleys',     label: t('entry.trolleys'),       fmt: v => String(v ?? 0) },
+    { key: 'arrival_trolley_nos', label: t('entry.trolleyNumbers'), fmt: v => (v ?? '') === '' ? '—' : String(v) },
   ];
   const norm = v => (v === null || v === undefined) ? '' : (typeof v === 'number' ? String(v) : String(v).trim());
   const changes = [];
@@ -514,7 +517,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [arrDay, setArrDay] = useState(defaultArrDay || 1);
   const [pickDay, setPickDay] = useState(defaultArrDay || 1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next
-  const [trolleys, setTrolleys] = useState(1);
+  const [trolleyMode, setTrolleyMode] = useState('trolley');
+  const [selectedTrolleys, setSelectedTrolleys] = useState([]);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [explicitRouteId, setExplicitRouteId] = useState('');
@@ -576,7 +580,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setClientListOpen(false);
       setWeight('');
       setType(isWorkwear ? 'R' : (defaultType || 'P'));
-      setTrolleys(1);
+      setTrolleyMode('trolley');
+      setSelectedTrolleys([]);
       setUrgent(false);
       setExplicitRouteId('');
     }
@@ -603,7 +608,11 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setLoading(true);
       const client = clients.find(c => c.name === clientName);
       if (!client) throw new Error(t('entry.selectClient'));
+      if (trolleyMode === 'trolley' && selectedTrolleys.length === 0) {
+        throw new Error(t('entry.trolleyRequired'));
+      }
       const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
+      const trolleyData = arrivalTrolleyPayload(trolleyMode, selectedTrolleys);
 
       // Calculate pick_week_key — offset 0/1 (kierowca) lub dalej (admin)
       const pickWeekKey = addWeeks(resolvedWeekKey, Number(pickWeek) || 0);
@@ -622,15 +631,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         p_route_id: routeId,
         p_type: type,
         p_weight: weight ? parseFloat(weight.replace(',', '.')) : null,
-        p_trolleys: trolleys !== '' ? Number(trolleys) : 1,
+        p_trolleys: trolleyData.trolleys,
+        p_arrival_trolley_nos: trolleyData.arrival_trolley_nos,
         p_urgent: urgent,
         p_added_by: user.name,
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'R' ? t('entry.workwear') : type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}` });
-      await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys });
+      const trolleyLabel = trolleyData.arrival_trolley_nos || t('entry.trolleyNoneShort');
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'R' ? t('entry.workwear') : type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}, ${t('entry.trolleys')}: ${trolleyLabel}` });
+      await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys: trolleyData.trolleys, arrival_trolley_nos: trolleyData.arrival_trolley_nos });
       onClose();
     } catch (err) {
       toastError(t('entry.errAdding') + ' ' + err.message);
@@ -794,11 +805,17 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                 )}
               </div>
             </div>
-            <div>
-              <div className="live-entry-field-label">{t('entry.trolleys')}</div>
-              <input type="number" className="ap-input" value={trolleys} onChange={e => setTrolleys(e.target.value ? Number(e.target.value) : '')} min="0" />
-            </div>
           </div>
+
+          <ArrivalTrolleyPicker
+            sessionToken={sessionToken}
+            clientName={clientName}
+            mode={trolleyMode}
+            onModeChange={setTrolleyMode}
+            selected={selectedTrolleys}
+            onSelectedChange={setSelectedTrolleys}
+            disabled={loading}
+          />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '4px', cursor: 'pointer' }}>
             <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} />
@@ -825,7 +842,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [arrDay, setArrDay] = useState(1);
   const [pickDay, setPickDay] = useState(1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next week
-  const [trolleys, setTrolleys] = useState(1);
+  const [trolleyMode, setTrolleyMode] = useState('trolley');
+  const [selectedTrolleys, setSelectedTrolleys] = useState([]);
   const [urgent, setUrgent] = useState(false);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -844,7 +862,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setArrDay(entry.arr_day || 1);
       setPickDay(entry.pick_day || 1);
       setPickWeek(weeksBetween(entry.week_key, entry.pick_week_key));
-      setTrolleys(entry.trolleys ?? 1);
+      const trolleyState = arrivalTrolleyModeFromEntry(entry);
+      setTrolleyMode(trolleyState.mode);
+      setSelectedTrolleys(trolleyState.numbers);
       setUrgent(entry.urgent || false);
       // Komentarz klienta (wspólna notatka) — preferuj clients.note, fallback na stary entry.comment
       const clientNote = (clients || []).find(c => c.name === entry.client_name)?.note;
@@ -1087,6 +1107,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     const handleSaveEdit = async () => {
     try {
       setLoading(true);
+      if (trolleyMode === 'trolley' && selectedTrolleys.length === 0) {
+        throw new Error(t('entry.trolleyRequired'));
+      }
 
       const pickWeekKey = addWeeks(targetEntry.week_key, Number(pickWeek) || 0);
 
@@ -1095,6 +1118,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const nextRouteId = canChangeClient
         ? (routeId || effectiveClient?.route_id || targetEntry.route_id || null)
         : (targetEntry.route_id || null);
+      const trolleyData = arrivalTrolleyPayload(trolleyMode, selectedTrolleys);
 
       let updates = {
         client_name: effectiveClientName,
@@ -1103,7 +1127,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         arr_day: parseInt(arrDay),
         pick_day: parseInt(pickDay),
         pick_week_key: pickWeekKey,
-        trolleys: trolleys !== '' ? Number(trolleys) : 1,
+        trolleys: trolleyData.trolleys,
+        arrival_trolley_nos: trolleyData.arrival_trolley_nos,
         urgent,
         route_id: nextRouteId
         // comment usunięty z entries — teraz w clients.note (wspólna notatka)
@@ -1119,7 +1144,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         p_pick_week_key: pickWeekKey,
         p_route_id: nextRouteId,
         p_weight: weight ? parseFloat(String(weight).replace(',', '.')) : null,
-        p_trolleys: trolleys !== '' ? Number(trolleys) : 1,
+        p_trolleys: trolleyData.trolleys,
+        p_arrival_trolley_nos: trolleyData.arrival_trolley_nos,
         p_urgent: urgent,
       });
       if (error) throw error;
@@ -1419,11 +1445,17 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   )}
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
-                <input type="number" className="ap-input" value={trolleys} onChange={e => setTrolleys(e.target.value ? Number(e.target.value) : '')} min="0" />
-              </div>
             </div>
+
+            <ArrivalTrolleyPicker
+              sessionToken={sessionToken}
+              clientName={clientName || targetEntry.client_name}
+              mode={trolleyMode}
+              onModeChange={setTrolleyMode}
+              selected={selectedTrolleys}
+              onSelectedChange={setSelectedTrolleys}
+              disabled={loading}
+            />
 
             {isAdmin && (
               <div className="ap-field" style={{ marginBottom: '14px' }}>
@@ -1481,7 +1513,12 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                 : (pickupPendingWeight ? `${Number(pickupPendingWeight.toFixed(1))} kg` : '—'))
               : (entry.weight ? `${entry.weight} kg` : '—')}
           />
-          {!isGroupedPickup && <ROW label={t('entry.trolleys')} value={entry.trolleys ?? 1} />}
+          {!isGroupedPickup && (
+            <ROW
+              label={t('entry.trolleys')}
+              value={entry.arrival_trolley_nos || (entry.trolleys ? String(entry.trolleys) : t('entry.trolleyNoneShort'))}
+            />
+          )}
           {isGroupedPickup && <ROW label={t('entry.entriesField')} value={t('entry.arrivalsCount', { count: pickupEntries.length })} />}
           <ROW label={isGroupedPickup ? t('entry.arrivals') : t('entry.arrival')} value={isGroupedPickup ? pickupArrivalDays : daysFull[entry.arr_day - 1]} />
           <ROW label={t('entry.pickup')} value={daysFull[entry.pick_day - 1]} />

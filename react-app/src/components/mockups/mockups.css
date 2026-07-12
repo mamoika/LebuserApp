@@ -1807,8 +1807,109 @@
   font-weight: 800;
   cursor: pointer;
 }
+.live-arrival-trolleys { margin-bottom: 12px; }
+.live-arrival-trolley-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  margin-bottom: 10px;
+}
+.live-arrival-trolley-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.live-arrival-trolley-tab.is-active {
+  background: var(--bg-card-solid);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.live-arrival-trolley-body { display: grid; gap: 10px; }
+.live-arrival-trolley-scan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+.live-arrival-trolley-scan-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.live-arrival-trolley-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+.live-arrival-trolley-manual { display: grid; gap: 6px; }
+.live-arrival-trolley-manual-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+.live-arrival-trolley-manual-row { display: flex; gap: 8px; }
+.live-arrival-trolley-chips {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+.live-arrival-trolley-chips-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.live-arrival-trolley-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.live-arrival-trolley-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-solid);
+  font-size: 14px;
+  font-weight: 700;
+}
+.live-arrival-trolley-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.live-arrival-trolley-none {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.live-arrival-trolley-error { margin-top: 8px; }
 @media (max-width: 480px) {
   .live-entry-date-grid { grid-template-columns: 1fr; }
+  .live-arrival-trolley-manual-row { flex-direction: column; }
 }
 
 .live-task-action:focus-visible,
