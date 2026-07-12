@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Package, PlayCircle, Printer, RefreshCw, ShoppingCart, UserCheck,
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Minus, Package, PlayCircle, Plus, Printer, RefreshCw, ShoppingCart, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -54,6 +54,7 @@ export default function DriverCourse() {
   const [endOpen, setEndOpen] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
   const [extraCleanOpen, setExtraCleanOpen] = useState(false);
+  const [otherCleanExpanded, setOtherCleanExpanded] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
   const [printContext, setPrintContext] = useState({ dailyCosts: [], allTrips: [] });
@@ -479,32 +480,50 @@ export default function DriverCourse() {
         </div>
       )}
 
-      <div className="driver-focus-card live-extra-clean-panel">
-        <div className="live-extra-clean-head">
+      <div className={`live-extra-clean-bar ${otherCleanExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+        <button
+          type="button"
+          className="live-extra-clean-bar-main"
+          onClick={() => setOtherCleanExpanded(value => !value)}
+          aria-expanded={otherCleanExpanded}
+        >
           <Package size={18} aria-hidden="true" />
-          <div>
+          <span className="live-extra-clean-bar-copy">
             <strong>{t('course.driver.otherRouteCleanTitle')}</strong>
-            <span>{t('course.driver.otherRouteCleanSubtitle')}</span>
-          </div>
-        </div>
-        {otherRouteCleanCandidates.length === 0 ? (
-          <div className="live-dirty-empty">{t('course.driver.noOtherRouteClean')}</div>
-        ) : (
-          <div className="live-extra-clean-list is-compact">
-            {otherRouteCleanCandidates.slice(0, 4).map(candidate => (
-              <div className="live-extra-clean-row" key={candidate.client_name}>
-                <span className="live-extra-clean-info">
-                  <strong>{candidate.client_name}</strong>
-                  {candidate.kg ? ` · ${candidate.kg} kg` : ''}
-                </span>
-                <button type="button" className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
+            {otherRouteCleanCandidates.length > 0 && (
+              <span className="live-extra-clean-count">{otherRouteCleanCandidates.length}</span>
+            )}
+            {otherCleanExpanded && (
+              <small>{t('course.driver.otherRouteCleanSubtitle')}</small>
+            )}
+          </span>
+          <span className="live-extra-clean-toggle" aria-hidden="true">
+            {otherCleanExpanded ? <Minus size={18} /> : <Plus size={18} />}
+          </span>
+        </button>
+
+        {otherCleanExpanded && (
+          <div className="live-extra-clean-body">
+            {otherRouteCleanCandidates.length === 0 ? (
+              <div className="live-dirty-empty">{t('course.driver.noOtherRouteClean')}</div>
+            ) : (
+              <div className="live-extra-clean-list is-compact">
+                {otherRouteCleanCandidates.map(candidate => (
+                  <div className="live-extra-clean-row" key={candidate.client_name}>
+                    <span className="live-extra-clean-info">
+                      <strong>{candidate.client_name}</strong>
+                      {candidate.kg ? ` · ${candidate.kg} kg` : ''}
+                    </span>
+                    <button type="button" className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <button type="button" className="live-task-action is-secondary" onClick={() => setExtraCleanOpen(true)} disabled={busy}>
+              {t('course.driver.browseOtherRouteClean')}
+            </button>
           </div>
         )}
-        <button type="button" className="live-task-action is-secondary" onClick={() => setExtraCleanOpen(true)} disabled={busy}>
-          {t('course.driver.browseOtherRouteClean')}
-        </button>
       </div>
 
       {extraCandidates.length > 0 && (
