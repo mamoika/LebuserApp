@@ -1,4 +1,7 @@
 -- Dwufazowy start kierowcy: planned (mini-planowanie) → active (przejazd).
+-- Wymaga: started_at nullable (patrz driver_trips_started_at_nullable.sql).
+
+alter table public.driver_trips alter column started_at drop not null;
 
 create or replace function public.driver_start_trip(
   p_session_token text,
