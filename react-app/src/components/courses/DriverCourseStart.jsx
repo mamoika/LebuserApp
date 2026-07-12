@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { History, LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -6,7 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
 import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
-import { parseRouteIds, routeNamesForTrip, ymd } from '../../lib/tripUiHelpers';
+import { parseRouteIds, routeNamesForTrip, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
+import { operationalYmd } from '../../lib/dateUtils';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
@@ -26,7 +27,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   const { t } = useTranslation();
   const { user, sessionToken } = useAuth();
   const { allRoutes } = useAppData();
-  const today = ymd();
+  const today = operationalYmd();
   const [allTrips, setAllTrips] = useState([]);
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
@@ -96,6 +97,20 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     [allTrips, today, user?.id],
   );
 
+  const existingPlanned = useMemo(
+    () => findDriverPlannedTrip(allTrips, user?.id, user?.name),
+    [allTrips, user?.id, user?.name],
+  );
+
+  const autoResumed = useRef(false);
+
+  useEffect(() => {
+    if (!loading && existingPlanned && !plannedTrip && !autoResumed.current) {
+      autoResumed.current = true;
+      onStarted?.();
+    }
+  }, [loading, existingPlanned, plannedTrip, onStarted]);
+
   const toggleRoute = routeId => {
     setSelectedRoutes(prev => {
       const next = new Set(prev);
@@ -106,6 +121,10 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   };
 
   const startCourse = async () => {
+    if (existingPlanned && !plannedTrip) {
+      await onStarted?.();
+      return;
+    }
     if (selectedRoutes.size === 0) {
       toastError(t('course.start.selectRoute'));
       return;
@@ -180,6 +199,16 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           </button>
         </div>
       </header>
+
+      {existingPlanned && !plannedTrip && (
+        <div className="live-start-banner is-planned">
+          <UserCheck size={20} aria-hidden="true" />
+          <div>
+            <strong>{t('course.start.continuePlanning')}</strong>
+            <p>{t('course.start.planningExists')}</p>
+          </div>
+        </div>
+      )}
 
       {plannedTrip && (
         <div className="live-start-banner is-planned">
@@ -268,9 +297,11 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
         </StartSection>
       </div>
 
-      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
+      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || (!existingPlanned && selectedRoutes.size === 0)}>
         <PlayCircle size={20} aria-hidden="true" />
-        {plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
+        {existingPlanned && !plannedTrip
+          ? t('course.start.continuePlanning')
+          : plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
       </button>
     </section>
   );

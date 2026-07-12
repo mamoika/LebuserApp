@@ -8,6 +8,7 @@ import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { useAuth } from '../context/AuthContext';
 import { getRouteColorByIndex } from '../lib/visualSystem';
+import { operationalWeekday } from '../lib/dateUtils';
 
 const BASE_LAT = 52.7229319;
 const BASE_LNG = 15.2520164;
@@ -100,7 +101,7 @@ export default function MapView() {
   useEffect(() => {
     if (routes.length > 0 && !initialized) {
       const hidden = new Set();
-      const day = new Date().getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+      const day = operationalWeekday();
       routes.forEach(r => {
         const schedule = r.schedule || 'other';
         let isActive = true;

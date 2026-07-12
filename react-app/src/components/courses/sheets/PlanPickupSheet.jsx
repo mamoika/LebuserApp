@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { parseExtraClients, parseRouteIds, tripDateInfo, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
-import { formatWeekKey } from '../../../lib/dateUtils';
+import { formatWeekKey, operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { VEHICLES } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
@@ -70,7 +70,7 @@ export default function PlanPickupSheet({
   };
 
   const [draft, setDraft] = useState(() => ({
-    dirtyDate: dates[0]?.value || ymd(),
+    dirtyDate: dates[0]?.value || operationalYmd(),
     cleanDate: '',
     clientName: firstClient?.name || '',
     routeId: firstClient?.route_id ? String(firstClient.route_id) : '',

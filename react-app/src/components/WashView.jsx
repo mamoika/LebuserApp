@@ -30,6 +30,7 @@ import {
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 import PackingModal from './modals/PackingModal';
+import { operationalYmd } from '../lib/dateUtils';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -305,7 +306,7 @@ function StagePill({ stage }) {
 export default function WashView() {
   const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver } = useAuth();
   const { entries, routes, clients, loading, error, refetch } = useAppData();
-  const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
   const [trolleys, setTrolleys] = useState([]);
   const [workflowLoading, setWorkflowLoading] = useState(true);
   const [workflowError, setWorkflowError] = useState('');
@@ -758,7 +759,7 @@ export default function WashView() {
         <div className="laundry-toolbar-actions">
           <div className="laundry-date-nav">
             <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>‹</button>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value || ymd(new Date()))} />
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value || operationalYmd())} />
             <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>›</button>
           </div>
           <button className="laundry-icon-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Package } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils';
+import { dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
@@ -527,7 +527,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const resolvedWeekKey = useMemo(() => {
     if (weekKey) return weekKey;
     const anchor = new Date();
-    const day = defaultArrDay || Math.min(5, Math.max(1, (anchor.getDay() + 6) % 7 + 1));
+    const day = defaultArrDay || operationalWeekday(anchor);
     const monday = new Date(anchor);
     monday.setDate(anchor.getDate() - (day - 1));
     return formatWeekKey(monday);

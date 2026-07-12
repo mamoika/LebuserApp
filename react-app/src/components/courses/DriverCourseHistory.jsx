@@ -1,31 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Gauge, Printer } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight, Clock3, Gauge, LoaderCircle, Printer, Route } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
+import { formatCourseShortDate, formatCourseTime } from '../../lib/courseLocale';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
 import { getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
-import { routeNamesForTrip } from '../../lib/tripUiHelpers';
+import { parseRouteIds, routeNamesForTrip } from '../../lib/tripUiHelpers';
+import { dateInMonth } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../../lib/workTime';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
+import { routeBadgeStyle } from '../../lib/visualSystem';
+import '../mockups/mockups.css';
 
-function fmtDate(value) {
-  if (!value) return '';
-  return new Date(`${value}T00:00:00`).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function fmtTime(value) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+function routeDisplayForTrip(trip, routeMap) {
+  const firstRouteId = [...parseRouteIds(trip?.routes)][0];
+  return routeMap[firstRouteId]?.num || firstRouteId || null;
 }
 
 export default function DriverCourseHistory({ routeMap, onBack }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const { sessionToken, user } = useAuth();
   const { entries } = useAppData();
   const [allTrips, setAllTrips] = useState([]);
   const [dailyCosts, setDailyCosts] = useState([]);
-  const [historyTrips, setHistoryTrips] = useState([]);
   const [workTimeData, setWorkTimeData] = useState({ employee: null, reports: [] });
   const [workPeriod, setWorkPeriod] = useState(() => {
     const now = new Date();
@@ -42,12 +43,8 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
         getDriverTripsData(sessionToken),
         getMyWorkTime(sessionToken, workPeriod.year, workPeriod.month),
       ]);
-      const trips = tripsData?.trips || [];
-      setAllTrips(trips);
+      setAllTrips(tripsData?.trips || []);
       setDailyCosts(tripsData?.daily_costs || []);
-      setHistoryTrips(trips
-        .filter(trip => trip.driver_id === user?.id && trip.status === 'finished')
-        .sort((a, b) => `${b.trip_date}`.localeCompare(`${a.trip_date}`) || `${b.ended_at || ''}`.localeCompare(`${a.ended_at || ''}`)));
       setWorkTimeData({
         employee: workData?.employee || null,
         reports: workData?.reports || [],
@@ -55,20 +52,34 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, user?.id, workPeriod.month, workPeriod.year]);
+  }, [sessionToken, workPeriod.month, workPeriod.year]);
 
   useEffect(() => { load(); }, [load]);
 
+  const monthTrips = useMemo(() => allTrips
+    .filter(trip => String(trip.driver_id) === String(user?.id)
+      && trip.status === 'finished'
+      && dateInMonth(trip.trip_date, workPeriod.year, workPeriod.month))
+    .sort((a, b) => `${b.trip_date}`.localeCompare(`${a.trip_date}`)
+      || `${b.ended_at || ''}`.localeCompare(`${a.ended_at || ''}`)),
+  [allTrips, user?.id, workPeriod.month, workPeriod.year]);
+
   const myWorkReports = useMemo(
-    () => [...(workTimeData.reports || [])].sort((a, b) => `${b.work_date}`.localeCompare(`${a.work_date}`)),
-    [workTimeData.reports],
+    () => [...(workTimeData.reports || [])]
+      .filter(report => dateInMonth(report.work_date, workPeriod.year, workPeriod.month))
+      .sort((a, b) => `${b.work_date}`.localeCompare(`${a.work_date}`)),
+    [workTimeData.reports, workPeriod.month, workPeriod.year],
   );
+
   const approvedWorkMinutes = myWorkReports
     .filter(report => report.status === 'approved')
     .reduce((sum, report) => sum + (Number(report.approved_minutes) || 0), 0);
   const pendingWorkMinutes = myWorkReports
     .filter(report => report.status === 'pending')
     .reduce((sum, report) => sum + (Number(report.reported_minutes) || 0), 0);
+
+  const isCurrentMonth = workPeriod.year === new Date().getFullYear()
+    && workPeriod.month === new Date().getMonth() + 1;
 
   const changeMonth = delta => {
     setWorkPeriod(current => {
@@ -85,7 +96,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
     const normalizedStart = timeForInput(start);
     const normalizedEnd = timeForInput(end);
     if (!minutesBetweenClocks(normalizedStart, normalizedEnd)) {
-      toastError('Podaj poprawny zakres godzin');
+      toastError(t('course.history.invalidRange'));
       return;
     }
     try {
@@ -94,7 +105,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
         p_work_start: normalizedStart,
         p_work_end: normalizedEnd,
       });
-      toastSuccess('Godziny wysłane ponownie');
+      toastSuccess(t('course.history.resubmitted'));
       await load();
     } catch (error) {
       toastError(`Błąd: ${error.message}`);
@@ -121,106 +132,166 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
   };
 
   const monthLabel = new Date(workPeriod.year, workPeriod.month - 1, 1)
-    .toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+    .toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 
   return (
-    <section className="driver-phone live-driver-course">
-      <div className="live-course-topline">
-        <span>Historia kursów</span>
-        <button className="driver-tool-btn" onClick={onBack}>Wróć</button>
+    <section className="driver-phone live-driver-history" aria-labelledby="driver-history-title">
+      <header className="live-history-header">
+        <div className="live-history-heading">
+          <p className="live-start-kicker">{t('course.driver.courseHistory')}</p>
+          <h1 id="driver-history-title" className="live-start-title">{monthLabel}</h1>
+        </div>
+        <button type="button" className="live-start-history-btn" onClick={onBack}>
+          {t('course.history.back')}
+        </button>
+      </header>
+
+      <div className="live-history-month-nav" role="group" aria-label={monthLabel}>
+        <button
+          type="button"
+          className="live-history-month-btn"
+          onClick={() => changeMonth(-1)}
+          aria-label={t('course.history.prevMonth')}
+        >
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+        <span className="live-history-month-label">{monthLabel}</span>
+        <button
+          type="button"
+          className="live-history-month-btn"
+          onClick={() => changeMonth(1)}
+          disabled={isCurrentMonth}
+          aria-label={t('course.history.nextMonth')}
+        >
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
       </div>
 
-      <section className="driver-history-panel">
-        <div className="driver-section-toolbar live-history-toolbar">
-          <div className="driver-section-title">Godziny pracy · {monthLabel}</div>
-          <div className="live-history-nav">
-            <button type="button" className="driver-tool-btn" onClick={() => changeMonth(-1)} aria-label="Poprzedni miesiąc">←</button>
-            <button
-              type="button"
-              className="driver-tool-btn"
-              onClick={() => changeMonth(1)}
-              disabled={workPeriod.year === new Date().getFullYear() && workPeriod.month === new Date().getMonth() + 1}
-              aria-label="Następny miesiąc"
-            >
-              →
-            </button>
+      {loading ? (
+        <div className="live-board-loading">
+          <LoaderCircle className="is-spinning" aria-hidden="true" />
+          {t('course.history.loading')}
+        </div>
+      ) : (
+        <>
+          <div className="live-history-summary">
+            <div className="live-history-stat">
+              <Route size={16} aria-hidden="true" />
+              <span className="live-history-stat-val">{monthTrips.length}</span>
+              <span className="live-history-stat-label">{t('course.history.tripsCount')}</span>
+            </div>
+            <div className="live-history-stat">
+              <Clock3 size={16} aria-hidden="true" />
+              <span className="live-history-stat-val">{formatWorkDuration(approvedWorkMinutes)}</span>
+              <span className="live-history-stat-label">{t('course.history.approved')}</span>
+            </div>
+            <div className="live-history-stat is-pending">
+              <Clock3 size={16} aria-hidden="true" />
+              <span className="live-history-stat-val">{formatWorkDuration(pendingWorkMinutes)}</span>
+              <span className="live-history-stat-label">{t('course.history.pending')}</span>
+            </div>
           </div>
-        </div>
 
-        {!workTimeData.employee ? (
-          <div className="driver-empty-row live-worktime-missing">Brak powiązania z profilem pracownika — godziny widzi administrator w Grafiku.</div>
-        ) : (
-          <>
-            <div className="live-worktime-summary">
-              <div className="trip-metric"><span className="trip-metric-val">{formatWorkDuration(approvedWorkMinutes)}</span><span className="trip-metric-label">zatwierdzone</span></div>
-              <div className="trip-metric tone-dirty"><span className="trip-metric-val">{formatWorkDuration(pendingWorkMinutes)}</span><span className="trip-metric-label">oczekuje</span></div>
-              <div className="trip-metric"><span className="trip-metric-val">{myWorkReports.length}</span><span className="trip-metric-label">dni</span></div>
+          <section className="driver-history-panel live-history-section">
+            <div className="live-history-section-head">
+              <h2 className="live-history-section-title">{t('course.history.finishedCourses')}</h2>
+              <span className="live-history-section-count">{monthTrips.length}</span>
             </div>
-            <div className="driver-trip-list">
-              {myWorkReports.length === 0 && <div className="driver-empty-row">Brak zgłoszeń w tym miesiącu</div>}
-              {myWorkReports.map(report => {
-                const approved = report.status === 'approved';
-                const rejected = report.status === 'rejected';
-                const start = timeForInput(approved ? report.approved_start : report.reported_start);
-                const end = timeForInput(approved ? report.approved_end : report.reported_end);
-                const minutes = approved ? report.approved_minutes : report.reported_minutes;
-                return (
-                  <div key={report.id} className="driver-trip-row live-worktime-row">
-                    <div>
-                      <div className="live-worktime-row-title">{fmtDate(report.work_date)} · {start}–{end}</div>
-                      <div className="live-worktime-row-meta">
-                        {formatWorkDuration(minutes)}
-                        {approved && report.approved_by_name ? ` · ${report.approved_by_name}` : ''}
-                        {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
+            {monthTrips.length === 0 ? (
+              <div className="driver-empty-row">{t('course.history.noFinishedMonth')}</div>
+            ) : (
+              <div className="driver-trip-list live-history-list">
+                {monthTrips.map(trip => {
+                  const routeNum = routeDisplayForTrip(trip, routeMap);
+                  return (
+                    <article className="driver-trip-row live-history-trip-card" key={trip.id}>
+                      <div className="live-history-trip-main">
+                        <div className="live-history-trip-title-row">
+                          {routeNum != null && (
+                            <span className="kurs-route-badge" style={routeBadgeStyle(routeNum)}>T{routeNum}</span>
+                          )}
+                          <span className="driver-trip-row-title">{routeNamesForTrip(trip, routeMap)}</span>
+                        </div>
+                        <div className="live-history-trip-meta">
+                          <span>{formatCourseShortDate(trip.trip_date, locale)}</span>
+                          {trip.car && <span>{VEHICLE_LABELS[trip.car] || trip.car}</span>}
+                          {trip.started_at && <span>{formatCourseTime(trip.started_at, locale)}</span>}
+                          {trip.end_km != null && <span>{trip.end_km} km</span>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="live-history-actions">
-                      <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
-                        {approved ? 'zatwierdzone' : rejected ? 'odrzucone' : 'oczekuje'}
-                      </span>
-                      {rejected && (
-                        <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>Popraw</button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </section>
+                      <div className="live-history-actions">
+                        {trip.end_km != null && (
+                          <span className={`live-history-km ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`}>
+                            <Gauge size={13} aria-hidden="true" />
+                            {trip.km_approval_status === 'approved' ? '✓' : '⏳'}
+                          </span>
+                        )}
+                        <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'trip')}>
+                          <Printer size={13} aria-hidden="true" />
+                          {t('course.history.printTrip')}
+                        </button>
+                        <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'day')}>
+                          {t('course.history.printDay')}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-      <section className="driver-history-panel">
-        <div className="driver-section-title">Zakończone kursy</div>
-        {loading && <div className="driver-empty-row">Ładowanie…</div>}
-        {!loading && historyTrips.length === 0 && <div className="driver-empty-row">Brak zakończonych kursów</div>}
-        <div className="driver-trip-list">
-          {historyTrips.map(trip => (
-            <div className="driver-trip-row live-history-trip-row" key={trip.id}>
-              <div>
-                <div className="live-worktime-row-title">{routeNamesForTrip(trip, routeMap)}</div>
-                <div className="live-worktime-row-meta">
-                  {fmtDate(trip.trip_date)}
-                  {trip.car ? ` · ${VEHICLE_LABELS[trip.car] || trip.car}` : ''}
-                  {trip.started_at ? ` · ${fmtTime(trip.started_at)}` : ''}
-                  {trip.end_km ? ` · ${trip.end_km} km` : ''}
-                </div>
-              </div>
-              <div className="live-history-actions">
-                {trip.end_km != null && (
-                  <span className="live-history-km"><Gauge size={13} /> {trip.km_approval_status === 'approved' ? '✓' : '⏳'}</span>
-                )}
-                <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'trip')}>
-                  <Printer size={13} /> Karta
-                </button>
-                <button type="button" className="driver-tool-btn" disabled={printing} onClick={() => printTrip(trip, 'day')}>
-                  Dzień
-                </button>
-              </div>
+          <section className="driver-history-panel live-history-section">
+            <div className="live-history-section-head">
+              <h2 className="live-history-section-title">{t('course.history.workHours')}</h2>
+              <span className="live-history-section-count">{myWorkReports.length}</span>
             </div>
-          ))}
-        </div>
-      </section>
+            {!workTimeData.employee ? (
+              <div className="driver-empty-row live-worktime-missing">{t('course.history.noEmployee')}</div>
+            ) : myWorkReports.length === 0 ? (
+              <div className="driver-empty-row">{t('course.history.noReports')}</div>
+            ) : (
+              <div className="driver-trip-list live-history-list">
+                {myWorkReports.map(report => {
+                  const approved = report.status === 'approved';
+                  const rejected = report.status === 'rejected';
+                  const start = timeForInput(approved ? report.approved_start : report.reported_start);
+                  const end = timeForInput(approved ? report.approved_end : report.reported_end);
+                  const minutes = approved ? report.approved_minutes : report.reported_minutes;
+                  return (
+                    <article key={report.id} className="driver-trip-row live-history-work-card">
+                      <div className="live-history-work-main">
+                        <div className="live-worktime-row-title">
+                          {formatCourseShortDate(report.work_date, locale)} · {start}–{end}
+                        </div>
+                        <div className="live-worktime-row-meta">
+                          {formatWorkDuration(minutes)}
+                          {approved && report.approved_by_name ? ` · ${report.approved_by_name}` : ''}
+                          {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
+                        </div>
+                      </div>
+                      <div className="live-history-actions">
+                        <span className={`live-worktime-status ${approved ? 'is-approved' : rejected ? 'is-rejected' : 'is-pending'}`}>
+                          {approved
+                            ? t('course.history.statusApproved')
+                            : rejected
+                              ? t('course.history.statusRejected')
+                              : t('course.history.statusPending')}
+                        </span>
+                        {rejected && (
+                          <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>
+                            {t('course.history.fix')}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </section>
   );
 }

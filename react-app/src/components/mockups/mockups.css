@@ -993,6 +993,146 @@
 .live-history-trip-row { align-items: center; }
 .live-history-km { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
 .live-history-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── Kierowca: historia kursów ── */
+.live-driver-history {
+  max-width: 760px;
+  padding-top: 8px;
+  display: grid;
+  gap: 14px;
+}
+.live-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.live-history-heading { min-width: 0; }
+.live-history-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card-solid);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+.live-history-month-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.live-history-month-btn:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.live-history-month-btn:active:not(:disabled) { transform: scale(.97); }
+.live-history-month-btn:disabled { opacity: .4; cursor: not-allowed; }
+.live-history-month-label {
+  min-width: 160px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+.live-history-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.live-history-stat {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card-solid);
+  color: var(--text-tertiary);
+}
+.live-history-stat.is-pending { border-color: rgba(255, 149, 0, .22); }
+.live-history-stat-val {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.live-history-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.live-history-section { margin: 0; }
+.live-history-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.live-history-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.live-history-section-count {
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+}
+.live-history-list { margin-top: 0; }
+.live-history-trip-card,
+.live-history-work-card {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .live-history-trip-card,
+  .live-history-work-card {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+.live-history-trip-main,
+.live-history-work-main { min-width: 0; flex: 1; }
+.live-history-trip-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.live-history-trip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.live-history-km.is-approved { color: #15803d; }
+
 .live-primary-link { text-decoration: none; }
 .live-empty-course,
 .live-all-stops-done,

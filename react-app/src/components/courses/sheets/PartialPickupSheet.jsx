@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { formatKg, nextWorkDateAfter, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
+import { operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';
 
@@ -13,7 +14,7 @@ export default function PartialPickupSheet({ stop, sessionToken, contextDate, on
     .toFixed(1));
   const [value, setValue] = useState(String(totalKg || ''));
   const [baskets, setBaskets] = useState('1');
-  const [remainingDate, setRemainingDate] = useState(nextWorkDateAfter(contextDate || ymd()));
+  const [remainingDate, setRemainingDate] = useState(nextWorkDateAfter(contextDate || operationalYmd()));
   const [busy, setBusy] = useState(false);
 
   const pickupKg = parseFloat(String(value).replace(',', '.'));
@@ -66,7 +67,7 @@ export default function PartialPickupSheet({ stop, sessionToken, contextDate, on
         <>
           <label style={pfLabel} htmlFor="partial-remaining">Reszta kg do odbioru dnia</label>
           <select id="partial-remaining" className="ap-input" value={remainingDate} onChange={event => setRemainingDate(event.target.value)}>
-            {workDateOptions(21).filter(opt => opt.value > (contextDate || ymd())).map(opt => (
+            {workDateOptions(21).filter(opt => opt.value > (contextDate || operationalYmd())).map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>

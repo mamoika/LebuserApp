@@ -1,4 +1,4 @@
-import { formatWeekKey } from './dateUtils';
+import { formatWeekKey, operationalDate, operationalYmd } from './dateUtils';
 
 export function ymd(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -16,6 +16,21 @@ export function parseExtraClients(raw) {
   } catch {
     return [];
   }
+}
+
+/** Aktywny kurs w fazie planowania kierowcy — toleruje różnicę daty kalendarzowej vs operacyjnej. */
+export function findDriverPlannedTrip(trips = [], userId, userName = null) {
+  if (!userId && !userName) return null;
+  const preferredDates = new Set([operationalYmd(), ymd()]);
+  const mine = trips.filter(trip => {
+    if (trip.status !== 'planned') return false;
+    if (userId && trip.driver_id != null && String(trip.driver_id) === String(userId)) return true;
+    return Boolean(userName && trip.driver_name === userName);
+  });
+  if (!mine.length) return null;
+  const preferred = mine.find(trip => preferredDates.has(trip.trip_date));
+  if (preferred) return preferred;
+  return [...mine].sort((a, b) => `${b.trip_date}`.localeCompare(`${a.trip_date}`))[0];
 }
 
 /** Numer kolejności klienta na trasie (sort_order), nie pozycja 1..n w kursie. */
@@ -71,8 +86,7 @@ export function trolleyLabel(count) {
 
 export function daysSinceDate(dateStr) {
   if (!dateStr) return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = operationalDate();
   const then = new Date(dateStr);
   then.setHours(0, 0, 0, 0);
   return Math.max(0, Math.floor((today - then) / (1000 * 60 * 60 * 24)));
@@ -117,7 +131,7 @@ export function arrivalDateStr(entry) {
 }
 
 export function tripDateInfo(dateStr) {
-  const dt = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  const dt = dateStr ? new Date(`${dateStr}T00:00:00`) : operationalDate();
   const day = Math.min(5, Math.max(1, (dt.getDay() + 6) % 7 + 1));
   const monday = new Date(dt);
   monday.setDate(dt.getDate() - (day - 1));
@@ -135,10 +149,10 @@ export function routeNamesForTrip(sourceTrip, routeMap = {}) {
 
 export function buildVirtualPlannedTrips({ entries, allTrips, horizonDays = 14, tripDate = null }) {
   const horizonSet = new Set();
+  const anchor = operationalDate();
   for (let i = 0; i < horizonDays; i += 1) {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + i);
+    const d = new Date(anchor);
+    d.setDate(anchor.getDate() + i);
     const wd = (d.getDay() + 6) % 7 + 1;
     if (wd <= 5) horizonSet.add(ymd(d));
   }

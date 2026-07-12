@@ -13,6 +13,7 @@ import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
 import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
+import { operationalYmd } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../../lib/workTime';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
@@ -41,10 +42,6 @@ const EVENT_ICONS = {
   hours_approved: CheckCircle2,
   hours_rejected: AlertTriangle,
 };
-
-function ymd(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
 
 function JournalPanel({
   trip, sessionToken, isAdmin, entries, clients, routes, routeMap, drivers, allTrips, dailyCosts,
@@ -396,7 +393,7 @@ export default function DispatchBoard() {
   const { sessionToken, isAdmin, user } = useAuth();
   const { entries, allRoutes, clients, refetch } = useAppData();
   const [viewMode, setViewMode] = useState('day');
-  const [tripDate, setTripDate] = useState(() => ymd());
+  const [tripDate, setTripDate] = useState(() => operationalYmd());
   const [trips, setTrips] = useState([]);
   const [allTrips, setAllTrips] = useState([]);
   const [dailyCosts, setDailyCosts] = useState([]);

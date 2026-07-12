@@ -21,7 +21,7 @@ import {
   getDriverAppSettings,
   getDriverTripsData,
 } from '../lib/readRpc';
-import { currentLocale, monthNames } from '../lib/dateUtils';
+import { currentLocale, monthNames, operationalYmd } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
@@ -42,10 +42,7 @@ const canAssignDriverSettings = (role) => ['admin', 'driver', 'admin_viewer_driv
 const SESSION_KEEP_ACTIVE = 10;
 const LAUNDRY_TROLLEY_COUNT_KEY = 'laundry_trolley_count';
 
-const todayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const todayKey = () => operationalYmd();
 
 const panelBaseStyle = {
   background: 'var(--bg-card)',

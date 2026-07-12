@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
-import { getCurrentMonday, formatWeekKey, dayNamesFull } from '../lib/dateUtils';
+import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate, operationalYmd } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { supabase } from '../lib/supabaseClient';
@@ -259,7 +259,7 @@ export default function ScheduleView() {
   
   const w1End = addDays(currentMonday, 4);
   const w2End = addDays(nextMonday, 4);
-  const mobileAnchor = addWorkdays(new Date(), mobileDayOffset);
+  const mobileAnchor = addWorkdays(operationalDate(), mobileDayOffset);
 
   const slotForDate = (date) => {
     const d = normalizeWorkday(date);
@@ -457,7 +457,7 @@ export default function ScheduleView() {
   };
 
   const renderDayColumn = (dayName, dayIndex, dayDate, weekKey) => {
-    const isToday = new Date().toDateString() === dayDate.toDateString();
+    const isToday = operationalDate().toDateString() === dayDate.toDateString();
 
     const arrived = entries
       .filter(e => e.arr_day === (dayIndex + 1) && e.week_key === weekKey)

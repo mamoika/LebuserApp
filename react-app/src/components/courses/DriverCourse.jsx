@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import {
   callExistingTripRpc, changeCourseVehicle, completeCourseStop, getDriverCourse,
+  getTripCourse,
   reportCourseProblem,
 } from '../../lib/courseRpc';
 import { getBlockingPickedLaundry, getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
@@ -13,7 +14,8 @@ import { printTripWorkCard } from '../../lib/coursePrint';
 import {
   canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
-import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
+import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
+import { operationalYmd } from '../../lib/dateUtils';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import {
@@ -73,11 +75,32 @@ export default function DriverCourse() {
 
   const loadCourse = useCallback(async () => {
     if (!sessionToken) return;
+    setLoading(true);
     try {
-      const next = await getDriverCourse(sessionToken);
+      const [next, tripsData] = await Promise.all([
+        getDriverCourse(sessionToken),
+        getDriverTripsData(sessionToken),
+      ]);
+      const trips = tripsData?.trips || [];
+      setAllTrips(trips);
+
+      let trip = next.trip || null;
+      let stops = next.stops || [];
+
+      if (trip?.status !== 'active' && trip?.status !== 'handover') {
+        const planned = findDriverPlannedTrip(trips, user?.id, user?.name);
+        if (planned?.id) {
+          const plannedCourse = await getTripCourse(sessionToken, planned.id);
+          if (plannedCourse.trip?.status === 'planned') {
+            trip = plannedCourse.trip;
+            stops = plannedCourse.stops || [];
+          }
+        }
+      }
+
       setData({
-        trip: next.trip || null,
-        stops: next.stops || [],
+        trip,
+        stops,
         employee: next.employee || null,
         workTimeReport: next.work_time_report || null,
       });
@@ -86,14 +109,9 @@ export default function DriverCourse() {
     } finally {
       setLoading(false);
     }
-  }, [sessionToken]);
+  }, [sessionToken, user?.id, user?.name]);
 
   useEffect(() => { loadCourse(); }, [loadCourse]);
-
-  useEffect(() => {
-    if (!sessionToken) return;
-    getDriverTripsData(sessionToken).then(tripsData => setAllTrips(tripsData?.trips || [])).catch(() => {});
-  }, [sessionToken]);
 
   const trip = data.trip;
   const stops = useMemo(
@@ -308,7 +326,7 @@ export default function DriverCourse() {
       toastError(t('course.driver.blockingLaundry', { names: pickedNotDeliveredNames.join(', ') }));
       return;
     }
-    const tripDate = trip?.trip_date || ymdToday();
+    const tripDate = trip?.trip_date || operationalYmd();
     let wtData;
     try {
       wtData = await getMyWorkTime(sessionToken, Number(tripDate.slice(0, 4)), Number(tripDate.slice(5, 7)));
@@ -342,9 +360,9 @@ export default function DriverCourse() {
   const effectiveWorkMinutes = workMode === 'duration'
     ? durationMinutes
     : minutesBetweenClocks(workStart, workEnd);
-  const currentWorkReport = workTimeData.reports?.find(report => report.work_date === (trip?.trip_date || ymdToday()));
+  const currentWorkReport = workTimeData.reports?.find(report => report.work_date === (trip?.trip_date || operationalYmd()));
   const workTimeAlreadyApproved = currentWorkReport?.status === 'approved';
-  const modalWorkDay = Number(String(trip?.trip_date || ymdToday()).slice(8, 10));
+  const modalWorkDay = Number(String(trip?.trip_date || operationalYmd()).slice(8, 10));
   const modalScheduleValue = workTimeData.schedule_entries?.find(entry => Number(entry.day) === modalWorkDay)?.value;
   const modalWorkPlan = resolveWorkPlan(workTimeData.employee, modalScheduleValue);
 
@@ -396,12 +414,6 @@ export default function DriverCourse() {
       setBusy(false);
     }
   };
-
-  function ymdToday() {
-    const date = new Date();
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  }
-
   if (loading) return <div className="live-board-loading"><LoaderCircle className="is-spinning" /> {t('course.driver.loadingCourse')}</div>;
 
   if (showHistory) {
