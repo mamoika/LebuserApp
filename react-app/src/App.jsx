@@ -44,7 +44,7 @@ function useModalScrollLock() {
     const body = document.body;
     const root = document.documentElement;
 
-    const hasVisibleModal = () => [...document.querySelectorAll('.ap-overlay, .overlay')]
+    const hasVisibleModal = () => [...document.querySelectorAll('.ap-overlay, .overlay, .journal-overlay')]
       .some(el => {
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';

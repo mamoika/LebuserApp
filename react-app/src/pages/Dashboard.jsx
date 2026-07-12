@@ -14,6 +14,8 @@ import ToastContainer from '../components/ToastContainer';
 // eksport Excela, pobierają się dopiero przy wejściu na dany widok.
 const ScheduleView = lazy(() => import('../components/ScheduleView'));
 const DriverRouteView = lazy(() => import('../components/DriverRouteView'));
+const DriverCourse = lazy(() => import('../components/courses/DriverCourse'));
+const DispatchBoard = lazy(() => import('../components/courses/DispatchBoard'));
 const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
 const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
 const MapView = lazy(() => import('../components/MapView'));
@@ -21,6 +23,9 @@ const HistoryView = lazy(() => import('../components/HistoryView'));
 const WorkScheduleView = lazy(() => import('../components/WorkScheduleView'));
 const CostsView = lazy(() => import('../components/CostsView'));
 const WashView = lazy(() => import('../components/WashView'));
+const MockupsHome = lazy(() => import('../components/mockups/MockupsHome'));
+const DispatchBoardMock = lazy(() => import('../components/mockups/DispatchBoardMock'));
+const DriverRouteCardMock = lazy(() => import('../components/mockups/DriverRouteCardMock'));
 
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
 const PAGE_KEYS = {
@@ -28,7 +33,9 @@ const PAGE_KEYS = {
   '/schedule': 'home',
   '/tunnel': 'tunnel',
   '/route': 'route',
+  '/route/operations': 'route',
   '/routes': 'routes',
+  '/routes/plan': 'routes',
   '/clients': 'clients',
   '/map': 'map',
   '/history': 'history',
@@ -38,6 +45,9 @@ const PAGE_KEYS = {
   '/wash': 'wash',
   '/admin': 'admin',
   '/rodo': 'rodo',
+  '/mock': 'routes',
+  '/mock/dyspozytornia': 'routes',
+  '/mock/kierowca': 'route',
 };
 
 function PrivacyNoticeModal() {
@@ -109,6 +119,7 @@ export default function Dashboard() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Przejdź do głównej treści</a>
 
       {/* Baner impersonacji */}
       {isImpersonating && (
@@ -170,13 +181,15 @@ export default function Dashboard() {
       <Navigation />
 
       {/* Kontent główny */}
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading', 'Ładowanie…')}</div>}>
         <Routes>
           <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
           <Route path="/schedule" element={<ScheduleView />} />
-          <Route path="/route" element={<DriverRouteView />} />
-          <Route path="/routes" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
+          <Route path="/route" element={<DriverCourse />} />
+          <Route path="/route/operations" element={<DriverRouteView />} />
+          <Route path="/routes" element={canViewAdminData ? <DispatchBoard /> : <Navigate to="/" replace />} />
+          <Route path="/routes/plan" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />
@@ -186,6 +199,9 @@ export default function Dashboard() {
           <Route path="/costs" element={<CostsView />} />
           <Route path="/wash" element={canViewLaundry ? <WashView /> : <Navigate to="/" replace />} />
           <Route path="/rodo" element={<RodoNotice />} />
+          <Route path="/mock" element={<MockupsHome />} />
+          <Route path="/mock/dyspozytornia" element={canViewAdminData ? <DispatchBoardMock /> : <Navigate to="/mock/kierowca" replace />} />
+          <Route path="/mock/kierowca" element={<DriverRouteCardMock />} />
           <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
         </Routes>
         </Suspense>

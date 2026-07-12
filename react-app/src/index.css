@@ -59,6 +59,21 @@ body{
   width:min(100%, 1440px);
   margin:0 auto;
 }
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 10000;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #fff;
+  background: #005FCC;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+.skip-link:focus { transform: translateY(0); outline: 3px solid #fff; outline-offset: 2px; }
+#main-content:focus { outline: none; }
 
 /* ── HEADER ── */
 .app-header {
