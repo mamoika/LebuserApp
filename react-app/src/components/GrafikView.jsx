@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
 import { getWorkScheduleMonth } from '../lib/readRpc';
-import { toastError } from '../lib/toast';
+import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { ChevronLeft, ChevronRight, Download, Printer, Info } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, Info, Printer, XCircle } from 'lucide-react';
+import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
+import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 
 const VALUE_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
@@ -62,6 +64,14 @@ function parseHours(value) {
   
   if (v.includes('-')) {
     const parts = v.split('-');
+    if (parts.length === 2 && (parts[0].includes(':') || parts[1].includes(':'))) {
+      const startMinutes = clockToMinutes(parts[0]);
+      const endMinutes = clockToMinutes(parts[1]);
+      if (startMinutes != null && endMinutes != null) {
+        const minutes = endMinutes >= startMinutes ? endMinutes - startMinutes : 1440 - startMinutes + endMinutes;
+        return minutes / 60;
+      }
+    }
     const st = parseFloat(parts[0].replace(',', '.'));
     const en = parseFloat(parts[1].replace(',', '.'));
     if (!isNaN(st) && !isNaN(en)) {
@@ -178,6 +188,86 @@ function formatDiff(diff) {
   return `${sign}${rounded}`;
 }
 
+function WorkTimeApprovalRow({ report, sessionToken, onChanged }) {
+  const { t, i18n } = useTranslation();
+  const [start, setStart] = useState(timeForInput(report.reported_start));
+  const [end, setEnd] = useState(timeForInput(report.reported_end));
+  const [busy, setBusy] = useState(false);
+  const duration = minutesBetweenClocks(start, end);
+
+  const approve = async () => {
+    if (!start || !end || !duration) return;
+    setBusy(true);
+    try {
+      await approveWorkTime(sessionToken, report.id, start, end);
+      toastSuccess(t('workTime.approvalSuccess'));
+      await onChanged();
+    } catch (error) {
+      toastError(t('workTime.approvalError') + ' ' + error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    const note = window.prompt(t('workTime.rejectPrompt'), report.rejection_note || '');
+    if (note === null) return;
+    setBusy(true);
+    try {
+      await rejectWorkTime(sessionToken, report.id, note);
+      toastSuccess(t('workTime.rejectSuccess'));
+      await onChanged();
+    } catch (error) {
+      toastError(t('workTime.rejectError') + ' ' + error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="work-time-approval-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,1fr) auto auto', gap: '10px', alignItems: 'center', padding: '11px 12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card-solid)' }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: 750, color: 'var(--text-primary)' }}>{report.employee_name}</div>
+        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+          {new Date(`${report.work_date}T00:00:00`).toLocaleDateString(i18n.language)} · {t('workTime.driverReported')} {formatWorkDuration(report.reported_minutes)}
+        </div>
+      </div>
+      <div className="work-time-approval-inputs" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <input aria-label={t('workTime.start')} type="time" value={start} onChange={e => setStart(e.target.value)} disabled={busy} style={{ width: '105px', padding: '8px', border: '1px solid var(--border)', borderRadius: '9px', fontWeight: 700 }} />
+        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+        <input aria-label={t('workTime.end')} type="time" value={end} onChange={e => setEnd(e.target.value)} disabled={busy} style={{ width: '105px', padding: '8px', border: '1px solid var(--border)', borderRadius: '9px', fontWeight: 700 }} />
+        <span style={{ minWidth: '58px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>{duration ? formatWorkDuration(duration) : '—'}</span>
+      </div>
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <button type="button" onClick={approve} disabled={busy || !duration} title={t('workTime.approveTitle')} style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', border: 0, borderRadius: '9px', background: 'rgba(52,199,89,.13)', color: '#15803D', cursor: 'pointer' }}><CheckCircle2 size={18} /></button>
+        <button type="button" onClick={reject} disabled={busy} title={t('workTime.rejectTitle')} style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', border: 0, borderRadius: '9px', background: 'rgba(255,59,48,.11)', color: '#C24135', cursor: 'pointer' }}><XCircle size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+function WorkTimeApprovalPanel({ reports, sessionToken, onChanged, canApprove }) {
+  const { t } = useTranslation();
+  const actionable = reports.filter(report => report.status === 'pending');
+  if (actionable.length === 0) return null;
+  return (
+    <section className="print-hide" style={{ background: 'var(--bg-card)', border: '1px solid rgba(255,149,0,.28)', borderRadius: '16px', padding: '14px', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '11px' }}>
+        <div style={{ width: '36px', height: '36px', borderRadius: '10px', display: 'grid', placeItems: 'center', background: 'rgba(255,149,0,.13)', color: '#B45309' }}><Clock3 size={18} /></div>
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 800 }}>{t('workTime.pendingTitle', { count: actionable.length })}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{canApprove ? t('workTime.checkHint') : t('workTime.viewOnlyHint')}</div>
+        </div>
+      </div>
+      {canApprove ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {actionable.map(report => <WorkTimeApprovalRow key={`${report.id}-${report.updated_at}`} report={report} sessionToken={sessionToken} onChanged={onChanged} />)}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function GrafikView() {
   const { t } = useTranslation();
   const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
@@ -189,6 +279,7 @@ export default function GrafikView() {
   const [employees, setEmployees] = useState([]);
   const [groupData, setGroupData] = useState([]);
   const [entries, setEntries] = useState({});
+  const [workTimeReports, setWorkTimeReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
   const containerRef = useRef(null);
@@ -220,6 +311,7 @@ export default function GrafikView() {
       const data = await getWorkScheduleMonth(sessionToken, year, month);
       setEmployees(data?.roster || []);
       setGroupData(data?.groups || []);
+      setWorkTimeReports(data?.work_time_reports || []);
       const map = {};
       (data?.schedule_entries || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
       setEntries(map);
@@ -403,6 +495,8 @@ export default function GrafikView() {
           onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
         />
       )}
+
+      <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide" style={{ 

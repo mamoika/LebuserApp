@@ -6,8 +6,8 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
-import { VEHICLES, DRIVER_CARS_KEY, vehicleEndColumn } from '../lib/vehicles';
-import { pruneUserSessions, revokeUserSession, upsertAppSetting } from '../lib/adminRpc';
+import { VEHICLES, vehicleEndColumn } from '../lib/vehicles';
+import { pruneUserSessions, revokeUserSession, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
@@ -432,12 +432,13 @@ function AddUserModal({ onClose, onSave }) {
   );
 }
 
-function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
+function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
   const { t } = useTranslation();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [routes, setRoutes] = useState(user.routes || '');
   const [car, setCar] = useState(defaultCar || '');
+  const [employeeId, setEmployeeId] = useState(user.employee_id || '');
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
@@ -445,7 +446,7 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(user.id, name.trim(), role, routes.trim(), car);
+    await onSave(user.id, name.trim(), role, routes.trim(), car, canAssignDriverSettings(role) ? employeeId : '');
     setSaving(false);
   };
 
@@ -493,6 +494,16 @@ function EditUserModal({ user, defaultCar, onClose, onSave, onResetPassword, onD
 
           {canAssignDriverSettings(role) && (
             <>
+              <div style={LABEL_STYLE}>{t('admin.linkedEmployee')}</div>
+              <select className="ap-input" value={employeeId} onChange={e => setEmployeeId(e.target.value)} style={{ marginBottom: '12px' }}>
+                <option value="">{t('admin.noLinkedEmployee')}</option>
+                {employees.map(employee => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}{employee.active === false ? ` (${t('admin.inactive')})` : ''}
+                  </option>
+                ))}
+              </select>
+
               <div style={LABEL_STYLE}>{t('admin.assignedRoutes')}</div>
               <RoutesPicker value={routes} onChange={setRoutes} />
 
@@ -1743,6 +1754,7 @@ export default function AdminDashboard() {
   const { t } = useTranslation();
   const { impersonate, isAdmin, sessionToken } = useAuth();
   const [users, setUsers] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addUserOpen, setAddUserOpen] = useState(false);
@@ -1759,6 +1771,7 @@ export default function AdminDashboard() {
     try {
       const data = await withRetry(() => getAdminUsersData(sessionToken), { label: 'użytkownicy' });
       setUsers(data?.users || []);
+      setEmployees(data?.employees || []);
       setDriverCars(data?.driver_cars || {});
       setError(null);
     } catch (err) {
@@ -1786,20 +1799,15 @@ export default function AdminDashboard() {
     return { ok: true };
   };
 
-  const handleSaveUser = async (userId, name, role, routes, car) => {
-    const { data: d1, error: e1 } = await supabase.rpc('update_user_role', { p_session_token: sessionToken, p_user_id: userId, p_role: role });
-    if (e1 || d1?.error) { toastError(t('admin.errSaveRole') + ' ' + (e1?.message || d1?.error)); return; }
-    const { data: d2, error: e2 } = await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: userId, p_routes: routes });
-    if (e2 || d2?.error) { toastError(t('admin.errSaveRoutes') + ' ' + (e2?.message || d2?.error)); return; }
-    // Domyślne auto kierowcy → app_settings (jeden wiersz 'driver_cars')
-    const nextCars = { ...driverCars };
-    if (car) nextCars[userId] = car; else delete nextCars[userId];
+  const handleSaveUser = async (userId, name, role, routes, car, employeeId) => {
     try {
-      await upsertAppSetting(sessionToken, DRIVER_CARS_KEY, nextCars);
-    } catch (e3) {
-      toastError(t('admin.errSaveCar') + ' ' + e3.message);
+      await updateAdminUserProfile(sessionToken, userId, name, role, routes, employeeId, car);
+    } catch (saveError) {
+      toastError(t('admin.errSaveRole') + ' ' + saveError.message);
       return;
     }
+    const nextCars = { ...driverCars };
+    if (car) nextCars[userId] = car; else delete nextCars[userId];
     setDriverCars(nextCars);
     setEditUser(null);
     toastSuccess(t('admin.saved'));
@@ -1890,6 +1898,11 @@ export default function AdminDashboard() {
                 @{u.username} · {roleLabel(t, u.role)}
                 {u.routes ? ` · ${t('admin.routes')}: ${u.routes}` : ''}
               </div>
+              {canAssignDriverSettings(u.role) && (
+                <div style={{ fontSize: '11px', color: u.employee_id ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
+                  {u.employee_id ? t('admin.linkedWithEmployee', { name: u.employee_name }) : t('admin.employeeLinkMissing')}
+                </div>
+              )}
               <div style={{ fontSize: '11px', color: u.privacy_notice_ack_version ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
                 {t('admin.rodo')}: {u.privacy_notice_ack_version ? t('admin.rodoConfirmed', { version: u.privacy_notice_ack_version }) : t('admin.rodoMissing')}
               </div>
@@ -1913,6 +1926,7 @@ export default function AdminDashboard() {
       {editUser && (
         <EditUserModal
           user={editUser}
+          employees={employees}
           defaultCar={driverCars[editUser.id] || ''}
           onClose={() => setEditUser(null)}
           onSave={handleSaveUser}

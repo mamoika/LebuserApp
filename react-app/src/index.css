@@ -3115,6 +3115,12 @@ button.add-route-btn:active {
   #interactiveMap{height:62vh;min-height:360px}
 }
 
+@media(max-width:640px){
+  .work-time-approval-row{grid-template-columns:1fr!important}
+  .work-time-approval-inputs{flex-wrap:wrap}
+  .work-time-entry-grid{grid-template-columns:1fr!important}
+}
+
 html.phone-layout {
   overflow-x: hidden;
 }

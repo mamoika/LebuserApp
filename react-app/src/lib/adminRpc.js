@@ -41,3 +41,36 @@ export function revokeUserSession(sessionToken, sessionId) {
     p_user_session_id: sessionId,
   });
 }
+
+export function linkUserEmployee(sessionToken, userId, employeeId) {
+  return callAdminRpc(sessionToken, 'admin_link_user_employee', {
+    p_user_id: userId,
+    p_employee_id: employeeId || null,
+  });
+}
+
+export function updateAdminUserProfile(sessionToken, userId, name, role, routes, employeeId, car) {
+  return callAdminRpc(sessionToken, 'admin_update_user_profile', {
+    p_user_id: userId,
+    p_name: name,
+    p_role: role,
+    p_routes: routes,
+    p_employee_id: employeeId || null,
+    p_car: car || null,
+  });
+}
+
+export function approveWorkTime(sessionToken, reportId, workStart, workEnd) {
+  return callAdminRpc(sessionToken, 'admin_approve_work_time', {
+    p_report_id: reportId,
+    p_work_start: workStart,
+    p_work_end: workEnd,
+  });
+}
+
+export function rejectWorkTime(sessionToken, reportId, note) {
+  return callAdminRpc(sessionToken, 'admin_reject_work_time', {
+    p_report_id: reportId,
+    p_note: note || null,
+  });
+}

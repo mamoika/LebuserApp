@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
@@ -10,7 +11,8 @@ import { routeBadgeStyle, getRouteColorByDisplay } from '../lib/visualSystem';
 import { formatWeekKey } from '../lib/dateUtils';
 import { VEHICLES, VEHICLE_LABELS, vehicleEndColumn } from '../lib/vehicles';
 import { upsertAppSetting, upsertDailyCosts } from '../lib/adminRpc';
-import { getBlockingPickedLaundry, getDriverAppSettings, getDriverTripsData } from '../lib/readRpc';
+import { getBlockingPickedLaundry, getDriverAppSettings, getDriverTripsData, getMyWorkTime } from '../lib/readRpc';
+import { addMinutesToClock, decimalHoursToMinutes, formatWorkDuration, minutesBetweenClocks, resolveWorkPlan, timeForInput } from '../lib/workTime';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
@@ -245,6 +247,7 @@ function nextWorkDateAfter(dateStr) {
 }
 
 export default function DriverRouteView({ manageMode = false }) {
+  const { t, i18n } = useTranslation();
   const { user, isAdmin, sessionToken } = useAuth();
   const { entries: rawEntries, allRoutes, clients, loading, error, refetch } = useAppData();
 
@@ -277,6 +280,15 @@ export default function DriverRouteView({ manageMode = false }) {
 
   const [endOpen, setEndOpen] = useState(false);
   const [endKm, setEndKm] = useState('');
+  const [workTimeData, setWorkTimeData] = useState({ employee: null, reports: [], schedule_entries: [] });
+  const [workTimePeriod, setWorkTimePeriod] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
+  const [workMode, setWorkMode] = useState('range');
+  const [workStart, setWorkStart] = useState('07:00');
+  const [workEnd, setWorkEnd] = useState('15:00');
+  const [workHours, setWorkHours] = useState('8');
   const [changeCarOpen, setChangeCarOpen] = useState(false);
   const [changeCarTarget, setChangeCarTarget] = useState(null);
   const [changeCarKm, setChangeCarKm] = useState('');
@@ -376,6 +388,26 @@ export default function DriverRouteView({ manageMode = false }) {
     }
   }, [sessionToken]);
 
+  const loadWorkTime = useCallback(async (dateStr = today) => {
+    if (!sessionToken || !dateStr) return { employee: null, reports: [], schedule_entries: [] };
+    const date = new Date(`${dateStr}T00:00:00`);
+    try {
+      const data = await getMyWorkTime(sessionToken, date.getFullYear(), date.getMonth() + 1);
+      const next = {
+        employee: data?.employee || null,
+        reports: data?.reports || [],
+        schedule_entries: data?.schedule_entries || [],
+        events: data?.events || [],
+      };
+      setWorkTimeData(next);
+      setWorkTimePeriod({ year: date.getFullYear(), month: date.getMonth() + 1 });
+      return next;
+    } catch (workTimeError) {
+      captureError(workTimeError, { feature: 'DriverRouteView.workTime' });
+      return { employee: null, reports: [], schedule_entries: [], events: [], error: workTimeError.message };
+    }
+  }, [sessionToken, today]);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -384,6 +416,7 @@ export default function DriverRouteView({ manageMode = false }) {
         const [trips, settings] = await Promise.all([
           loadTrips(),
           getDriverAppSettings(sessionToken),
+          loadWorkTime(today),
         ]);
         if (cancelled) return;
         const carsSetting = settings?.driver_cars || {};
@@ -419,7 +452,7 @@ export default function DriverRouteView({ manageMode = false }) {
     };
     if (user?.id && sessionToken) load();
     return () => { cancelled = true; };
-  }, [user?.id, user?.role, today, sessionToken, loadTrips, manageMode]);
+  }, [user?.id, user?.role, today, sessionToken, loadTrips, loadWorkTime, manageMode]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);
@@ -754,6 +787,76 @@ export default function DriverRouteView({ manageMode = false }) {
   // Panel zarządzania (wszystkie trasy) jest osobno, w zakładce "Trasy na żywo".
   const historyTrips = allTrips.filter(t => t.status === 'finished' && t.driver_id === user?.id).slice(0, 12);
   const pendingKmTrips = allTrips.filter(t => t.status === 'finished' && t.end_km && !tripKmApproval(t).approved);
+  const myWorkReports = workTimeData.reports || [];
+  const approvedWorkMinutes = myWorkReports
+    .filter(report => report.status === 'approved')
+    .reduce((sum, report) => sum + (Number(report.approved_minutes) || 0), 0);
+  const pendingWorkMinutes = myWorkReports
+    .filter(report => report.status === 'pending')
+    .reduce((sum, report) => sum + (Number(report.reported_minutes) || 0), 0);
+  const durationMinutes = workMode === 'duration' ? decimalHoursToMinutes(workHours) : null;
+  const effectiveWorkEnd = workMode === 'duration' && durationMinutes
+    ? addMinutesToClock(workStart, durationMinutes)
+    : workEnd;
+  const effectiveWorkMinutes = workMode === 'duration'
+    ? durationMinutes
+    : minutesBetweenClocks(workStart, workEnd);
+  const modalWorkDay = Number(String(trip?.trip_date || today).slice(8, 10));
+  const modalScheduleValue = workTimeData.schedule_entries.find(entry => Number(entry.day) === modalWorkDay)?.value;
+  const modalWorkPlan = resolveWorkPlan(workTimeData.employee, modalScheduleValue);
+  const currentWorkReport = workTimeData.reports.find(report => report.work_date === (trip?.trip_date || today));
+  const workTimeAlreadyApproved = currentWorkReport?.status === 'approved';
+
+  const openEndTrip = async () => {
+    if (!trip) return;
+    const data = await loadWorkTime(trip.trip_date || today);
+    if (data.error) {
+      toastError(t('workTime.loadError'));
+      return;
+    }
+    const day = Number(String(trip.trip_date || today).slice(8, 10));
+    const scheduleValue = data.schedule_entries.find(entry => Number(entry.day) === day)?.value;
+    const plan = resolveWorkPlan(data.employee, scheduleValue);
+    const existing = data.reports.find(report => report.work_date === trip.trip_date);
+
+    setEndKm('');
+    setWorkMode('range');
+    setWorkStart(existing ? timeForInput(existing.reported_start) : plan.start);
+    setWorkEnd(existing ? timeForInput(existing.reported_end) : plan.end);
+    setWorkHours(String(((existing?.reported_minutes || plan.minutes) / 60).toFixed(2)).replace(/\.00$/, ''));
+    setEndOpen(true);
+  };
+
+  const changeWorkTimeMonth = async (delta) => {
+    const date = new Date(workTimePeriod.year, workTimePeriod.month - 1 + delta, 1);
+    const current = new Date();
+    if (date > new Date(current.getFullYear(), current.getMonth(), 1)) return;
+    await loadWorkTime(ymd(date));
+  };
+
+  const resubmitWorkTime = async (report) => {
+    const start = window.prompt(t('workTime.resubmitStartPrompt'), timeForInput(report.reported_start));
+    if (start === null) return;
+    const end = window.prompt(t('workTime.resubmitEndPrompt'), timeForInput(report.reported_end));
+    if (end === null) return;
+    const normalizedStart = timeForInput(start);
+    const normalizedEnd = timeForInput(end);
+    if (!minutesBetweenClocks(normalizedStart, normalizedEnd)) {
+      toastError(t('workTime.invalid'));
+      return;
+    }
+    try {
+      await callTripRpc('driver_resubmit_work_time', {
+        p_report_id: report.id,
+        p_work_start: normalizedStart,
+        p_work_end: normalizedEnd,
+      });
+      await loadWorkTime(report.work_date);
+      toastSuccess(t('workTime.resubmitSuccess'));
+    } catch (resubmitError) {
+      toastError(t('workTime.resubmitError') + ' ' + resubmitError.message);
+    }
+  };
 
   const toggleRoute = (id) => setSelectedRoutes(prev => {
     const next = new Set(prev);
@@ -1298,6 +1401,10 @@ export default function DriverRouteView({ manageMode = false }) {
     }
     const km = parseFloat(String(endKm).replace(',', '.'));
     if (!endKm || isNaN(km)) { toastError('Podaj końcowy stan licznika (km)'); return; }
+    if (workTimeData.employee && !workTimeAlreadyApproved && (!workStart || !effectiveWorkEnd || !effectiveWorkMinutes)) {
+      toastError(t('workTime.invalid'));
+      return;
+    }
     try {
       setBusy(true);
       const freshBlockingNames = await findBlockingPickedLaundry();
@@ -1306,16 +1413,31 @@ export default function DriverRouteView({ manageMode = false }) {
         await refetch();
         return;
       }
-      const data = await callTripRpc('driver_finish_trip', {
-        p_trip_id: trip.id,
-        p_end_km: km,
-      });
-      await logAction({ sessionToken, action: 'trip_end', details: `Auto: ${VEHICLE_LABELS[trip.car] || trip.car}, licznik do zatwierdzenia: ${km} km` });
+      const shouldSubmitWorkTime = workTimeData.employee && !workTimeAlreadyApproved;
+      const data = shouldSubmitWorkTime
+        ? await callTripRpc('driver_finish_trip_with_time', {
+            p_trip_id: trip.id,
+            p_end_km: km,
+            p_work_start: workStart,
+            p_work_end: effectiveWorkEnd,
+          })
+        : await callTripRpc('driver_finish_trip', {
+            p_trip_id: trip.id,
+            p_end_km: km,
+          });
+      const hoursLog = shouldSubmitWorkTime
+        ? `, godziny do zatwierdzenia: ${workStart}-${effectiveWorkEnd}`
+        : workTimeAlreadyApproved ? ', godziny dnia były już zatwierdzone' : ', bez godzin (brak powiązania z grafikiem)';
+      await logAction({ sessionToken, action: 'trip_end', details: `Auto: ${VEHICLE_LABELS[trip.car] || trip.car}, licznik do zatwierdzenia: ${km} km${hoursLog}` });
       const finishedTrip = data.trip || { ...trip, ended_at: new Date().toISOString(), end_km: km, status: 'finished' };
       setTrip(finishedTrip);
-      await loadTrips();
+      await Promise.all([loadTrips(), loadWorkTime(trip.trip_date || today)]);
       setEndOpen(false); setEndKm('');
-      toastSuccess('Trasa zakończona, licznik czeka na zatwierdzenie admina');
+      toastSuccess(shouldSubmitWorkTime
+        ? t('workTime.finishSuccessBoth')
+        : workTimeAlreadyApproved
+          ? t('workTime.finishSuccessApproved')
+          : t('workTime.finishSuccessUnlinked'));
     } catch (err) { toastError('Błąd zakończenia trasy: ' + err.message); }
     finally { setBusy(false); }
   };
@@ -2665,11 +2787,67 @@ export default function DriverRouteView({ manageMode = false }) {
         <div className="driver-history-header">
           <div>
             <div className="driver-trip-kicker">Kierowca</div>
-            <div className="driver-trip-title">Moja historia tras</div>
+            <div className="driver-trip-title">{t('workTime.historyTitle')}</div>
             <div className="driver-trip-subtitle">{user?.name}</div>
           </div>
           <button className="driver-tool-btn" onClick={() => setRouteView('current')}>← Wróć</button>
         </div>
+
+        <section className="driver-history-panel" style={{ marginBottom: '14px' }}>
+          <div className="driver-section-toolbar" style={{ marginBottom: '10px', gap: '10px' }}>
+            <div className="driver-section-title">
+              {t('workTime.hoursMonth', { month: new Date(workTimePeriod.year, workTimePeriod.month - 1, 1).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }) })}
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button type="button" className="driver-tool-btn" onClick={() => changeWorkTimeMonth(-1)} aria-label={t('workTime.previousMonth')}>←</button>
+              <button type="button" className="driver-tool-btn" onClick={() => changeWorkTimeMonth(1)} disabled={workTimePeriod.year === new Date().getFullYear() && workTimePeriod.month === new Date().getMonth() + 1} aria-label={t('workTime.nextMonth')}>→</button>
+            </div>
+          </div>
+          {!workTimeData.employee ? (
+            <div className="driver-empty-row" style={{ color: 'var(--accent-orange-text)' }}>
+              {t('workTime.linkMissing')}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '8px', marginBottom: '12px' }}>
+                <div className="trip-metric"><span className="trip-metric-val">{formatWorkDuration(approvedWorkMinutes)}</span><span className="trip-metric-label">{t('workTime.approved')}</span></div>
+                <div className="trip-metric tone-dirty"><span className="trip-metric-val">{formatWorkDuration(pendingWorkMinutes)}</span><span className="trip-metric-label">{t('workTime.pending')}</span></div>
+                <div className="trip-metric"><span className="trip-metric-val">{myWorkReports.length}</span><span className="trip-metric-label">{t('workTime.reportedDays')}</span></div>
+              </div>
+              <div className="driver-trip-list">
+                {myWorkReports.length === 0 && <div className="driver-empty-row">{t('workTime.noReports')}</div>}
+                {myWorkReports.map(report => {
+                  const approved = report.status === 'approved';
+                  const rejected = report.status === 'rejected';
+                  const start = timeForInput(approved ? report.approved_start : report.reported_start);
+                  const end = timeForInput(approved ? report.approved_end : report.reported_end);
+                  const minutes = approved ? report.approved_minutes : report.reported_minutes;
+                  return (
+                    <div key={report.id} className="driver-trip-row" style={{ alignItems: 'center' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 800 }}>{fmtDate(report.work_date)} · {start}-{end}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
+                          {approved && (timeForInput(report.reported_start) !== start || timeForInput(report.reported_end) !== end)
+                            ? `${t('workTime.reported')}: ${timeForInput(report.reported_start)}-${timeForInput(report.reported_end)} · ${t('workTime.approved')}: ${start}-${end} · `
+                            : ''}
+                          {formatWorkDuration(minutes)}
+                          {approved && report.approved_by_name ? ` · ${t('workTime.approvedBy')}: ${report.approved_by_name}` : ''}
+                          {rejected && report.rejection_note ? ` · ${report.rejection_note}` : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderRadius: '999px', background: approved ? 'rgba(52,199,89,.12)' : rejected ? 'rgba(255,59,48,.1)' : 'rgba(255,149,0,.12)', color: approved ? '#15803D' : rejected ? '#C24135' : '#B45309' }}>
+                          {approved ? t('workTime.statusApproved') : rejected ? t('workTime.statusRejected') : t('workTime.statusPending')}
+                        </span>
+                        {rejected && <button type="button" className="driver-tool-btn" onClick={() => resubmitWorkTime(report)}>{t('workTime.fixAndResubmit')}</button>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </section>
 
         <section className="driver-history-panel">
           <div className="driver-section-toolbar" style={{ marginBottom: '10px' }}>
@@ -2849,7 +3027,7 @@ export default function DriverRouteView({ manageMode = false }) {
             {trip.status === 'active' && !tripHasProgress && (
               <button className="driver-tool-btn" onClick={cancelTrip} disabled={busy} style={{ color: 'var(--danger, #DC2626)', borderColor: 'var(--danger, #DC2626)' }}>Anuluj trasę</button>
             )}
-            {trip.status === 'active' && <button className="driver-end-btn" onClick={() => { setEndOpen(true); setEndKm(''); }}>■ Zakończ</button>}
+            {trip.status === 'active' && <button className="driver-end-btn" onClick={openEndTrip}>■ Zakończ</button>}
           </div>
         </div>
       )}
@@ -3103,7 +3281,7 @@ export default function DriverRouteView({ manageMode = false }) {
               }}>🧺 Dodaj brudne pranie do pralni</button>
 
               {/* ZAKOŃCZ TRASĘ (czerwony) — drugi przycisk na dole */}
-              <button onClick={() => { setEndOpen(true); setEndKm(''); }} className="driver-end-btn" style={{
+              <button onClick={openEndTrip} className="driver-end-btn" style={{
                 width: '100%', padding: '14px', fontSize: '15px',
               }}>■ Zakończ trasę</button>
             </div>
@@ -3192,9 +3370,60 @@ export default function DriverRouteView({ manageMode = false }) {
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Końcowy stan licznika (km)</label>
               <input className="ap-input" type="text" inputMode="decimal" autoFocus value={endKm}
                 onChange={ev => setEndKm(ev.target.value)} placeholder="np. 379978" style={{ marginTop: '6px', marginBottom: '16px' }} />
+
+              {workTimeData.employee && !workTimeAlreadyApproved ? (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '15px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 750, color: 'var(--text-primary)' }}>{t('workTime.workHours')}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('workTime.employee')}: {workTimeData.employee.name}</div>
+                    </div>
+                    <button type="button" onClick={() => { setWorkMode('range'); setWorkStart(modalWorkPlan.start); setWorkEnd(modalWorkPlan.end); setWorkHours(String(modalWorkPlan.minutes / 60)); }} style={{ border: '1px solid var(--accent-border)', borderRadius: '9px', background: 'var(--accent-light)', color: 'var(--accent)', padding: '7px 9px', fontSize: '11px', fontWeight: 750, cursor: 'pointer' }}>
+                      {t('workTime.asScheduled')} {modalWorkPlan.start}-{modalWorkPlan.end}
+                    </button>
+                  </div>
+
+                  <div className="segmented-control" style={{ marginBottom: '11px' }}>
+                    <button type="button" className={`seg-btn ${workMode === 'range' ? 'active' : ''}`} onClick={() => setWorkMode('range')}>{t('workTime.rangeMode')}</button>
+                    <button type="button" className={`seg-btn ${workMode === 'duration' ? 'active' : ''}`} onClick={() => setWorkMode('duration')}>{t('workTime.durationMode')}</button>
+                  </div>
+
+                  {workMode === 'range' ? (
+                    <div className="work-time-entry-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+                      <label style={pfLabel}>{t('workTime.start')}
+                        <input className="ap-input" type="time" value={workStart} onChange={ev => setWorkStart(ev.target.value)} />
+                      </label>
+                      <label style={pfLabel}>{t('workTime.end')}
+                        <input className="ap-input" type="time" value={workEnd} onChange={ev => setWorkEnd(ev.target.value)} />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="work-time-entry-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+                      <label style={pfLabel}>{t('workTime.start')}
+                        <input className="ap-input" type="time" value={workStart} onChange={ev => setWorkStart(ev.target.value)} />
+                      </label>
+                      <label style={pfLabel}>{t('workTime.hoursWorked')}
+                        <input className="ap-input" type="text" inputMode="decimal" value={workHours} onChange={ev => setWorkHours(ev.target.value)} placeholder="np. 8" />
+                      </label>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '10px', padding: '9px 11px', borderRadius: '10px', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 650 }}>
+                    {t('workTime.toApprove')}: <strong>{workStart || '—'}-{effectiveWorkEnd || '—'}</strong> · {effectiveWorkMinutes ? formatWorkDuration(effectiveWorkMinutes) : t('workTime.invalid')}
+                  </div>
+                </div>
+              ) : workTimeAlreadyApproved ? (
+                <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '10px', background: 'rgba(52,199,89,.11)', border: '1px solid rgba(52,199,89,.25)', color: '#15803D', fontSize: '12px', fontWeight: 650, lineHeight: 1.4 }}>
+                  {t('workTime.alreadyApproved', { start: timeForInput(currentWorkReport.approved_start), end: timeForInput(currentWorkReport.approved_end) })}
+                </div>
+              ) : (
+                <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '10px', background: 'rgba(255,149,0,.12)', border: '1px solid rgba(255,149,0,.28)', color: 'var(--accent-orange-text)', fontSize: '12px', fontWeight: 650, lineHeight: 1.4 }}>
+                  {t('workTime.finishUnlinkedHint')}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setEndOpen(false)} disabled={busy} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 600 }}>Anuluj</button>
-                <button onClick={endTrip} disabled={busy} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{busy ? 'Zapisywanie…' : 'Zakończ i zgłoś licznik'}</button>
+                <button onClick={endTrip} disabled={busy || (workTimeData.employee && !workTimeAlreadyApproved && !effectiveWorkMinutes)} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, opacity: busy || (workTimeData.employee && !workTimeAlreadyApproved && !effectiveWorkMinutes) ? .65 : 1 }}>{busy ? t('common.saving') : workTimeData.employee && !workTimeAlreadyApproved ? t('workTime.finishWithBoth') : t('workTime.finishKmOnly')}</button>
               </div>
             </div>
           </div>

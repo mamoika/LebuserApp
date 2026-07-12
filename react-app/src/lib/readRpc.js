@@ -122,6 +122,14 @@ export function getDriverTripsData(sessionToken) {
   });
 }
 
+export function getMyWorkTime(sessionToken, year, month) {
+  return callReadRpc('get_my_work_time', {
+    p_session_token: sessionToken,
+    p_year: year,
+    p_month: month,
+  });
+}
+
 export function getDriverAppSettings(sessionToken) {
   return callReadRpc('get_driver_app_settings', {
     p_session_token: sessionToken,
