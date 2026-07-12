@@ -27,10 +27,6 @@
   --accent-border: rgba(0, 122, 255, 0.22);
   --accent-orange-text: #B45309;
   --accent-orange-border: rgba(255, 149, 0, 0.28);
-  --schedule-accent: #64748B;
-  --schedule-accent-soft: rgba(100, 116, 139, 0.045);
-  --schedule-accent-line: rgba(100, 116, 139, 0.42);
-  --schedule-accent-text: #475569;
   --radius-sm: 8px;
   --radius-md: 11px;
   --radius-lg: 14px;
@@ -683,7 +679,6 @@ body{
   position:relative;
   overflow:hidden;
 }
-.metric-chip::before { content:''; position:absolute; top:0; left:7px; right:7px; height:1px; border-radius:0 0 4px 4px; background:var(--schedule-accent-line); }
 .metric-chip-label {
   width:100%;
   font-size:10px;
@@ -693,7 +688,9 @@ body{
   opacity:.82;
   text-align:center;
 }
-.metric-chip .metric-chip-label { color:var(--schedule-accent-text); }
+.metric-chip.arr .metric-chip-label { color:#0055CC; }
+.metric-chip.towash .metric-chip-label { color:#B26A00; }
+.metric-chip.wash .metric-chip-label { color:#1A7A37; }
 .metric-chip-val {
   font-size:13px;
   font-weight:800;
@@ -711,7 +708,9 @@ body{
   font-weight:700;
   opacity:0.7;
 }
-.metric-chip .metric-chip-val { color:var(--text-primary); }
+.metric-chip.arr .metric-chip-val { color:#0055CC; }
+.metric-chip.towash .metric-chip-val { color:#B26A00; }
+.metric-chip.wash .metric-chip-val { color:#1A7A37; }
 
 
 /* ── SECTION LABELS ── */
@@ -774,16 +773,14 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
 .tag:active { transform: scale(0.97); opacity: 0.85; }
 .tag:active{transform:scale(0.96);filter:brightness(0.92)}
 .tag-arr {
-  background:var(--schedule-accent-soft);
-  border-left:3px solid var(--schedule-accent-line);
+  background:rgba(0,122,255,.045);
 }
-.tag-arr .tag-name { color:var(--schedule-accent-text); }
+.tag-arr .tag-name { color:#0055CC; }
 
 .tag-pick {
-  background:var(--schedule-accent-soft);
-  border-left:3px solid var(--schedule-accent-line);
+  background:rgba(52,199,89,.05);
 }
-.tag-pick .tag-name { color:var(--schedule-accent-text); }
+.tag-pick .tag-name { color:#1A7A37; }
 
 .tag-done {
   background: #F2F2F7;
