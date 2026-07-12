@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gauge, LoaderCircle, Minus, Package, PlayCircle, Plus, Printer, RefreshCw, ShoppingCart, UserCheck,
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Printer, ShoppingCart, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -11,7 +11,7 @@ import {
 import { getBlockingPickedLaundry, getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
 import { printTripWorkCard } from '../../lib/coursePrint';
 import {
-  buildExtraCandidates, buildOtherRouteCleanCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
+  canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
@@ -27,19 +27,9 @@ import CourseSheet from './CourseSheet';
 import DriverCourseStart from './DriverCourseStart';
 import DriverCoursePlanning from './DriverCoursePlanning';
 import DriverCourseHistory from './DriverCourseHistory';
-import ExtraCleanPickupSheet from './sheets/ExtraCleanPickupSheet';
 import '../mockups/mockups.css';
 
 const PROBLEM_KEYS = ['partial', 'closed', 'extra', 'car', 'handoff'];
-
-function localTime(value) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-}
-
-function nowTime() {
-  return new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-}
 
 export default function DriverCourse() {
   const { t } = useTranslation();
@@ -54,8 +44,6 @@ export default function DriverCourse() {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
-  const [extraCleanOpen, setExtraCleanOpen] = useState(false);
-  const [otherCleanExpanded, setOtherCleanExpanded] = useState(false);
   const [viewStopId, setViewStopId] = useState(null);
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
@@ -108,13 +96,15 @@ export default function DriverCourse() {
   }, [sessionToken]);
 
   const trip = data.trip;
-  const stops = data.stops;
+  const stops = useMemo(
+    () => (data.stops || []).filter(stop => stop.status !== 'skipped'),
+    [data.stops],
+  );
   const orderedStops = useMemo(
     () => [...stops].sort((a, b) => (a.position || 0) - (b.position || 0)),
     [stops],
   );
-  const completedStops = stops.filter(stop => stop.status !== 'pending').length;
-  const hasPendingStops = stops.some(stop => stop.status === 'pending');
+  const completedStops = stops.filter(stop => stop.status === 'completed').length;
 
   useEffect(() => {
     if (!orderedStops.length) {
@@ -135,14 +125,6 @@ export default function DriverCourse() {
   const hasProgress = useMemo(() => tripHasProgress(stops, user?.name), [stops, user?.name]);
   const pickedNotDelivered = useMemo(() => pickedNotDeliveredStops(stops, user, trip), [stops, user, trip]);
   const pickedNotDeliveredNames = useMemo(() => pickedNotDelivered.map(stop => stop.client_name).filter(Boolean), [pickedNotDelivered]);
-  const extraCandidates = useMemo(
-    () => buildExtraCandidates({ entries, stops, trip, userName: user?.name }),
-    [entries, stops, trip, user?.name],
-  );
-  const otherRouteCleanCandidates = useMemo(
-    () => buildOtherRouteCleanCandidates({ entries, stops, trip }),
-    [entries, stops, trip],
-  );
   const canCompleteCurrent = viewStop?.status === 'pending' ? canCompleteStop(viewStop) : false;
   const otherPendingStops = useMemo(
     () => orderedStops.filter(stop => stop.status === 'pending' && stop.id !== viewStop?.id),
@@ -216,25 +198,6 @@ export default function DriverCourse() {
     }
   };
 
-  const addExtraClient = async clientName => {
-    if (!trip || !clientName) return;
-    const extras = parseExtraClients(trip.extra_clients);
-    const next = JSON.stringify([...new Set([...extras, clientName])]);
-    try {
-      setBusy(true);
-      await callExistingTripRpc('driver_set_trip_extra_clients', sessionToken, {
-        p_trip_id: trip.id,
-        p_extra_clients: next,
-      });
-      toastSuccess(`Dodano przystanek: ${clientName}`);
-      await reloadAll();
-    } catch (error) {
-      toastError(error.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const chooseProblem = async option => {
     setProblemOpen(false);
     if (option.key === 'partial') {
@@ -242,7 +205,7 @@ export default function DriverCourse() {
       return;
     }
     if (option.key === 'extra') {
-      setExtraCleanOpen(true);
+      setAddEntryFor('');
       return;
     }
     if (option.key === 'car') {
@@ -346,7 +309,7 @@ export default function DriverCourse() {
       return;
     }
     const tripDate = trip?.trip_date || ymdToday();
-    let wtData = { employee: null, reports: [], schedule_entries: [] };
+    let wtData;
     try {
       wtData = await getMyWorkTime(sessionToken, Number(tripDate.slice(0, 4)), Number(tripDate.slice(5, 7)));
     } catch {
@@ -552,7 +515,6 @@ export default function DriverCourse() {
           <CourseCurrentStop
             stop={viewStop}
             trip={trip}
-            stops={stops}
             allTrips={allTrips}
             user={user}
             sessionToken={sessionToken}
@@ -597,68 +559,6 @@ export default function DriverCourse() {
           <button className="driver-primary-btn" onClick={openFinish} disabled={busy || pickedNotDeliveredNames.length > 0}>
             <Gauge size={19} aria-hidden="true" /> {t('course.driver.finishCourse')}
           </button>
-        </div>
-      )}
-
-      <div className={`live-extra-clean-bar ${otherCleanExpanded ? 'is-expanded' : 'is-collapsed'}`}>
-        <button
-          type="button"
-          className="live-extra-clean-bar-main"
-          onClick={() => setOtherCleanExpanded(value => !value)}
-          aria-expanded={otherCleanExpanded}
-        >
-          <Package size={18} aria-hidden="true" />
-          <span className="live-extra-clean-bar-copy">
-            <strong>{t('course.driver.otherRouteCleanTitle')}</strong>
-            {otherRouteCleanCandidates.length > 0 && (
-              <span className="live-extra-clean-count">{otherRouteCleanCandidates.length}</span>
-            )}
-            {otherCleanExpanded && (
-              <small>{t('course.driver.otherRouteCleanSubtitle')}</small>
-            )}
-          </span>
-          <span className="live-extra-clean-toggle" aria-hidden="true">
-            {otherCleanExpanded ? <Minus size={18} /> : <Plus size={18} />}
-          </span>
-        </button>
-
-        {otherCleanExpanded && (
-          <div className="live-extra-clean-body">
-            {otherRouteCleanCandidates.length === 0 ? (
-              <div className="live-dirty-empty">{t('course.driver.noOtherRouteClean')}</div>
-            ) : (
-              <div className="live-extra-clean-list is-compact">
-                {otherRouteCleanCandidates.map(candidate => (
-                  <div className="live-extra-clean-row" key={candidate.client_name}>
-                    <span className="live-extra-clean-info">
-                      <strong>{candidate.client_name}</strong>
-                      {candidate.kg ? ` · ${candidate.kg} kg` : ''}
-                    </span>
-                    <button type="button" className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button type="button" className="live-task-action is-secondary" onClick={() => setExtraCleanOpen(true)} disabled={busy}>
-              {t('course.driver.browseOtherRouteClean')}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {extraCandidates.length > 0 && (
-        <div className="driver-upcoming">
-          <div className="driver-upcoming-title">{t('course.driver.extraStops')}</div>
-          {extraCandidates.map(candidate => (
-            <div className="live-extra-row" key={candidate.client_name}>
-              <span>
-                {candidate.client_name}
-                {candidate.kg ? ` · ${candidate.kg} kg` : ''}
-                {candidate.isUrgent ? ' · pilne' : ''}
-              </span>
-              <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
-            </div>
-          ))}
         </div>
       )}
 
@@ -779,19 +679,6 @@ export default function DriverCourse() {
             <button className="ap-btn ap-btn-secondary" onClick={() => setEndOpen(false)}>{t('course.back')}</button>
           </div>
         </CourseSheet>
-      )}
-
-      {extraCleanOpen && (
-        <ExtraCleanPickupSheet
-          candidates={otherRouteCleanCandidates}
-          routeMap={routeMap}
-          busy={busy}
-          onClose={() => setExtraCleanOpen(false)}
-          onPick={async clientName => {
-            await addExtraClient(clientName);
-            setExtraCleanOpen(false);
-          }}
-        />
       )}
 
       {addEntryFor !== null && (

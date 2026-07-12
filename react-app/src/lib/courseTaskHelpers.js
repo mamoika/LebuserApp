@@ -144,7 +144,7 @@ export function splitCleanTasks(tasks = []) {
   };
 }
 
-export function buildExtraCandidates({ entries = [], stops = [], trip, userName }) {
+export function buildExtraCandidates({ entries = [], stops = [], trip }) {
   if (!trip) return [];
   const routeIds = parseRouteIds(trip.routes);
   const extras = new Set(parseExtraClients(trip.extra_clients));
@@ -170,6 +170,106 @@ export function buildExtraCandidates({ entries = [], stops = [], trip, userName 
     kg: Number(value.entries.reduce((sum, entry) => sum + (Number(entry.weight) || 0), 0).toFixed(1)),
     isUrgent: value.entries.some(entry => entry.urgent),
   }));
+}
+
+function trolleyNumbersFromEntry(entry) {
+  return String(entry?.laundry_trolley_no || '')
+    .split(/[,;]/)
+    .map(value => value.trim())
+    .filter(value => value && value !== 'brak');
+}
+
+function entryWasPickedByTripDriver(entry, trip) {
+  return Boolean(entry?.done && entry?.picked_by && entry.picked_by === trip?.driver_name);
+}
+
+function cleanLaundryPackedForPickup(entry) {
+  return Boolean(
+    entry?.laundry_ready_at
+    || entry?.laundry_packed_at
+    || ['packed', 'released'].includes(entry?.laundry_status)
+  );
+}
+
+export function buildReadyCleanGroups({ entries = [], trip, scope = 'own' }) {
+  if (!trip) return [];
+  const routeIds = parseRouteIds(trip.routes);
+  const groups = new Map();
+
+  entries.forEach(entry => {
+    if (!entry || entry.deleted_at || entry.delivered) return;
+    const isOwnRoute = routeIds.size === 0 || routeIds.has(entry.route_id);
+    if (scope === 'own' ? !isOwnRoute : isOwnRoute) return;
+    if (pickupDateStr(entry) > trip.trip_date) return;
+    if (!cleanLaundryPackedForPickup(entry)) return;
+    if (entry.done && !entryWasPickedByTripDriver(entry, trip)) return;
+
+    if (!groups.has(entry.client_name)) {
+      groups.set(entry.client_name, {
+        client_name: entry.client_name,
+        route_id: entry.route_id,
+        entries: [],
+      });
+    }
+    groups.get(entry.client_name).entries.push(entry);
+  });
+
+  return [...groups.values()].map(group => {
+    const pending = group.entries.filter(entry => !entry.done);
+    const loaded = group.entries.filter(entry => entryWasPickedByTripDriver(entry, trip));
+    const packedBy = [...new Set(group.entries.map(entry => entry.laundry_packed_by).filter(Boolean))];
+    const packedAt = group.entries
+      .map(entry => entry.laundry_packed_at || entry.laundry_ready_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) || null;
+    const trolleyNos = [...new Set(group.entries.flatMap(trolleyNumbersFromEntry))]
+      .sort((a, b) => Number(a) - Number(b));
+
+    return {
+      client_name: group.client_name,
+      route_id: group.route_id,
+      entryIds: group.entries.map(entry => entry.id),
+      pendingIds: pending.map(entry => entry.id),
+      loadedIds: loaded.map(entry => entry.id),
+      kg: Number(group.entries.reduce((sum, entry) => sum + (Number(entry.weight) || 0), 0).toFixed(1)),
+      isUrgent: group.entries.some(entry => entry.urgent),
+      packedBy,
+      packedAt,
+      trolleyNos,
+      hasPhysicalTrolley: trolleyNos.length > 0,
+      isLoaded: pending.length === 0 && loaded.length > 0,
+    };
+  });
+}
+
+export function buildDirtyOnlyCandidates({ clients = [], stops = [], trip, cleanClientNames = new Set() }) {
+  if (!trip) return [];
+  const routeIds = parseRouteIds(trip.routes);
+  const existing = new Set(
+    stops
+      .filter(stop =>
+        stop.status === 'pending'
+        && (
+          stop.stop_kind === 'dirty_only'
+          || (stop.tasks || []).some(task => task.task_type === 'pickup_dirty' && task.status === 'pending')
+        )
+      )
+      .map(stop => stop.client_name)
+  );
+
+  return clients
+    .filter(client => routeIds.size === 0 || routeIds.has(client.route_id))
+    .filter(client => !cleanClientNames.has(client.name) && !existing.has(client.name))
+    .sort((a, b) =>
+      (a.route_id || 0) - (b.route_id || 0)
+      || (a.sort_order ?? 9999) - (b.sort_order ?? 9999)
+      || a.name.localeCompare(b.name, 'pl')
+    )
+    .map(client => ({
+      client_name: client.name,
+      route_id: client.route_id,
+    }));
 }
 
 export function summarizeStopTasks(stop) {
@@ -252,6 +352,7 @@ export function tripHasProgress(stops = [], userName) {
 }
 
 export function canCompleteStop(stop) {
+  if (stop?.stop_kind === 'dirty_only') return true;
   const clean = splitCleanTasks(stop?.tasks || []);
   return clean.pendingPickup.length === 0 && clean.pendingDelivery.length === 0;
 }
@@ -272,9 +373,12 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
 }
 
 export function statsFromCourseStops(stops = [], entries = [], tripDate) {
-  const deliveryStops = stops.filter(stop => (stop.tasks || []).some(task =>
-    task.task_type === 'pickup_clean' || task.task_type === 'deliver_clean'
-  ));
+  const deliveryStops = stops.filter(stop =>
+    stop.stop_kind !== 'dirty_only'
+    && (stop.tasks || []).some(task =>
+      task.task_type === 'pickup_clean' || task.task_type === 'deliver_clean'
+    )
+  );
   let picked = 0;
   let delivered = 0;
   let kg = 0;

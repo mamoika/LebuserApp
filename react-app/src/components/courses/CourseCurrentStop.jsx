@@ -61,7 +61,6 @@ function StopTaskCard({
 export default function CourseCurrentStop({
   stop,
   trip,
-  stops,
   allTrips = [],
   user,
   sessionToken,
@@ -283,7 +282,7 @@ export default function CourseCurrentStop({
         </header>
 
         <div className="live-stop-tasks">
-          {clean.pickup.length > 0 && (
+          {stop.stop_kind !== 'dirty_only' && clean.pendingPickup.length > 0 && (
             <StopTaskCard
               icon={Package}
               tone="pickup"
@@ -356,7 +355,7 @@ export default function CourseCurrentStop({
             </StopTaskCard>
           )}
 
-          {clean.delivery.length > 0 && clean.pendingPickup.length > 0 && (
+          {stop.stop_kind !== 'dirty_only' && clean.delivery.length > 0 && clean.pendingPickup.length > 0 && (
             <StopTaskCard
               icon={Truck}
               tone="delivery"

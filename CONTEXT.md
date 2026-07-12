@@ -19,6 +19,14 @@ Wizyta u klienta w określonej pozycji kursu dziennego.
 Jedna czynność do wykonania na przystanku, na przykład dostawa czystego prania albo odbiór brudnego.
 _Unikaj_: Wpis, akcja
 
+**Załadunek kursu**:
+Fizyczne odebranie przez kierowcę gotowego i spakowanego czystego prania z pralni przed rozpoczęciem przejazdu. Dopiero załadowane pranie tworzy dostawę w kursie.
+_Unikaj_: Dodanie czystego do trasy
+
+**Punkt tylko po brudne**:
+Planowany przystanek u klienta bez dostawy czystego prania, dodany po to, aby kierowca zarejestrował na miejscu odbiór brudnego.
+_Unikaj_: Pusty przystanek
+
 **Odcinek kursu**:
 Część kursu dziennego wykonywana bez zmiany kierowcy i auta. Zmiana kierowcy lub auta zamyka bieżący odcinek i otwiera następny.
 _Unikaj_: Nowy kurs

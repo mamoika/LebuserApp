@@ -1683,7 +1683,10 @@
 }
 
 /* ── Driver: mini-planowanie przed przejazdem ── */
-.live-driver-planning { padding-bottom: 24px; }
+.live-driver-planning {
+  max-width: 560px;
+  padding-bottom: 24px;
+}
 .live-planning-summary { margin-bottom: 14px; }
 .live-planning-count {
   margin: 10px 0 0;
@@ -1814,12 +1817,101 @@
   margin-top: 8px;
 }
 .live-planning-start-btn { width: 100%; }
+.live-load-list { display: grid; gap: 10px; }
+.live-load-card {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg-card-solid);
+}
+.live-load-card.is-loaded {
+  border-color: rgba(52, 199, 89, .28);
+  background: rgba(52, 199, 89, .06);
+}
+.live-load-card-main { min-width: 0; }
+.live-load-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.live-load-card-title strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-load-urgent {
+  color: var(--accent-red);
+  font-size: 11px;
+  font-weight: 800;
+}
+.live-load-card-meta,
+.live-load-packed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.live-load-card-meta span,
+.live-load-packed-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.live-load-packed-meta {
+  margin-top: 5px;
+  color: var(--text-tertiary);
+}
+.live-load-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.live-load-actions .live-start-claim-btn,
+.live-load-card > .live-start-claim-btn {
+  min-height: 42px;
+}
+.live-load-status {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  background: rgba(52, 199, 89, .12);
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 800;
+}
+.live-dirty-plan-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.live-dirty-plan-add .live-start-claim-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .live-stop-upcoming { margin-top: 12px; margin-bottom: 4px; }
 .live-all-stops-done .driver-primary-btn { margin-top: 16px; width: 100%; }
 
 @media (max-width: 380px) {
   .live-start-car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .live-load-actions { grid-template-columns: 1fr; }
+  .live-dirty-plan-add { grid-template-columns: 1fr; }
 }
 
 /* ── Modal: brudne pranie (kierowca) ── */
