@@ -1,4 +1,39 @@
+import { VEHICLE_LABELS } from './vehicles';
 import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers';
+
+export function tripContainsEntryClient(sourceTrip, entry) {
+  if (!sourceTrip || !entry) return false;
+  const routeIds = parseRouteIds(sourceTrip.routes);
+  const extras = new Set(parseExtraClients(sourceTrip.extra_clients));
+  return routeIds.size === 0 || routeIds.has(entry.route_id) || extras.has(entry.client_name);
+}
+
+export function assignedTripForEntry(entry, { allTrips = [], trip = null, focusTrip = null } = {}) {
+  if (!entry) return null;
+  const date = arrivalDateStr(entry);
+  const candidates = [
+    focusTrip,
+    trip,
+    ...allTrips
+      .filter(item => item.trip_date === date && item.status !== 'finished')
+      .sort((a, b) => (a.status === 'active' ? -1 : 0) - (b.status === 'active' ? -1 : 0)),
+    ...allTrips.filter(item => item.trip_date === date && item.status === 'finished'),
+  ].filter(Boolean);
+  const assignedTrip = candidates.find(item => tripContainsEntryClient(item, entry));
+  if (!assignedTrip) return null;
+  const driver = assignedTrip.driver_name || 'nieprzypisane';
+  const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
+  const statusKey = assignedTrip.status === 'planned' ? 'planned' : assignedTrip.status === 'active' ? 'active' : 'finished';
+  return { trip: assignedTrip, label: `${driver}${car}`, statusKey };
+}
+
+export function entryAssignmentCaption(assigned) {
+  if (!assigned) return null;
+  const status = assigned.trip?.status;
+  if (status === 'finished') return 'brought';
+  if (status === 'active') return 'carrying';
+  return 'willBring';
+}
 
 export function entryIdsForTasks(tasks = []) {
   return [...new Set(tasks.map(task => task.entry_id).filter(Boolean))];

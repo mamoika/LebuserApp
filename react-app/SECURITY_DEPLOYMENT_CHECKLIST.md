@@ -99,7 +99,7 @@ After deploying the frontend that uses it, verify:
 - Labels update after starting/finishing/changing a driver trip.
 - Realtime refresh still triggers without a page reload.
 
-Do not revoke `select` on `driver_trips` yet: `DriverRouteView` still has
+Do not revoke `select` on `driver_trips` yet: legacy route views were removed in favor of `DriverCourse` / `DispatchBoard`.
 remaining direct reads that must be migrated first.
 
 Final remaining read-hardening migration:

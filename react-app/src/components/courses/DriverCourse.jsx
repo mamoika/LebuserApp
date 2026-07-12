@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, PlayCircle, Printer, RefreshCw, ShoppingCart, UserCheck,
+import { useTranslation } from 'react-i18next';
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, PlayCircle, Printer, RefreshCw, ShoppingCart, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -7,13 +8,17 @@ import {
   callExistingTripRpc, changeCourseVehicle, completeCourseStop, getDriverCourse,
   reportCourseProblem,
 } from '../../lib/courseRpc';
-import { getBlockingPickedLaundry, getDriverTripsData } from '../../lib/readRpc';
+import { getBlockingPickedLaundry, getDriverTripsData, getMyWorkTime } from '../../lib/readRpc';
 import { printTripWorkCard } from '../../lib/coursePrint';
 import {
   buildExtraCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
+import {
+  addMinutesToClock, decimalHoursToMinutes, formatWorkDuration, minutesBetweenClocks,
+  resolveWorkPlan, timeForInput,
+} from '../../lib/workTime';
 import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import { AddEntryModal } from '../modals/EntryModals';
 import CourseCurrentStop from './CourseCurrentStop';
@@ -22,13 +27,7 @@ import DriverCourseStart from './DriverCourseStart';
 import DriverCourseHistory from './DriverCourseHistory';
 import '../mockups/mockups.css';
 
-const PROBLEMS = [
-  { key: 'partial', label: 'Częściowy odbiór', hint: 'Odbierz tylko część kg z pralni' },
-  { key: 'closed', label: 'Klient zamknięty / nieobecny', hint: 'Pomiń przystanek i zapisz zdarzenie' },
-  { key: 'extra', label: 'Dodatkowy postój', hint: 'Zapisz zmianę w dzienniku kursu' },
-  { key: 'car', label: 'Zmiana auta', hint: 'Zamknij odcinek i otwórz kolejny' },
-  { key: 'handoff', label: 'Przekaż kierowcy', hint: 'Kurs zostaje ten sam' },
-];
+const PROBLEM_KEYS = ['partial', 'closed', 'extra', 'car', 'handoff'];
 
 function localTime(value) {
   if (!value) return '';
@@ -40,6 +39,7 @@ function nowTime() {
 }
 
 export default function DriverCourse() {
+  const { t } = useTranslation();
   const { sessionToken, user } = useAuth();
   const { clients, allRoutes, entries, refetch } = useAppData();
   const [data, setData] = useState({ trip: null, stops: [], employee: null });
@@ -54,6 +54,7 @@ export default function DriverCourse() {
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
   const [printContext, setPrintContext] = useState({ dailyCosts: [], allTrips: [] });
+  const [allTrips, setAllTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [targetDriver, setTargetDriver] = useState('');
   const [nextCar, setNextCar] = useState('');
@@ -61,6 +62,15 @@ export default function DriverCourse() {
   const [endKm, setEndKm] = useState('');
   const [workStart, setWorkStart] = useState('');
   const [workEnd, setWorkEnd] = useState('');
+  const [workMode, setWorkMode] = useState('range');
+  const [workHours, setWorkHours] = useState('');
+  const [workTimeData, setWorkTimeData] = useState({ employee: null, reports: [], schedule_entries: [] });
+
+  const problems = useMemo(() => PROBLEM_KEYS.map(key => ({
+    key,
+    label: t(`course.driver.problems.${key}.label`),
+    hint: t(`course.driver.problems.${key}.hint`),
+  })), [t]);
 
   const routeMap = useMemo(
     () => Object.fromEntries(allRoutes.map((route, index) => [route.id, { num: index + 1, name: route.name }])),
@@ -85,6 +95,11 @@ export default function DriverCourse() {
   }, [sessionToken]);
 
   useEffect(() => { loadCourse(); }, [loadCourse]);
+
+  useEffect(() => {
+    if (!sessionToken) return;
+    getDriverTripsData(sessionToken).then(tripsData => setAllTrips(tripsData?.trips || [])).catch(() => {});
+  }, [sessionToken]);
 
   const trip = data.trip;
   const stops = data.stops;
@@ -248,41 +263,84 @@ export default function DriverCourse() {
     }
   };
 
-  const openFinish = () => {
+  const openFinish = async () => {
     if (pickedNotDeliveredNames.length > 0) {
-      toastError(`Najpierw dostarcz albo cofnij odbiór: ${pickedNotDeliveredNames.join(', ')}`);
+      toastError(t('course.driver.blockingLaundry', { names: pickedNotDeliveredNames.join(', ') }));
       return;
     }
+    const tripDate = trip?.trip_date || ymdToday();
+    let wtData = { employee: null, reports: [], schedule_entries: [] };
+    try {
+      wtData = await getMyWorkTime(sessionToken, Number(tripDate.slice(0, 4)), Number(tripDate.slice(5, 7)));
+    } catch {
+      toastError(t('workTime.loadError'));
+      return;
+    }
+    const day = Number(String(tripDate).slice(8, 10));
+    const scheduleValue = (wtData.schedule_entries || []).find(entry => Number(entry.day) === day)?.value;
+    const plan = resolveWorkPlan(wtData.employee, scheduleValue);
+    const existing = (wtData.reports || []).find(report => report.work_date === tripDate);
+    setWorkTimeData(wtData);
+    setWorkMode('range');
     setEndKm('');
-    setWorkStart(localTime(trip.started_at) || '07:00');
-    setWorkEnd(nowTime());
+    setWorkStart(existing ? timeForInput(existing.reported_start) : plan.start);
+    setWorkEnd(existing ? timeForInput(existing.reported_end) : plan.end);
+    setWorkHours(String(((existing?.reported_minutes || plan.minutes) / 60).toFixed(2)).replace(/\.00$/, ''));
     setEndOpen(true);
   };
 
+  const durationMinutes = workMode === 'duration' ? decimalHoursToMinutes(workHours) : null;
+  const effectiveWorkEnd = workMode === 'duration' && durationMinutes
+    ? addMinutesToClock(workStart, durationMinutes)
+    : workEnd;
+  const effectiveWorkMinutes = workMode === 'duration'
+    ? durationMinutes
+    : minutesBetweenClocks(workStart, workEnd);
+  const currentWorkReport = workTimeData.reports?.find(report => report.work_date === (trip?.trip_date || ymdToday()));
+  const workTimeAlreadyApproved = currentWorkReport?.status === 'approved';
+  const modalWorkDay = Number(String(trip?.trip_date || ymdToday()).slice(8, 10));
+  const modalScheduleValue = workTimeData.schedule_entries?.find(entry => Number(entry.day) === modalWorkDay)?.value;
+  const modalWorkPlan = resolveWorkPlan(workTimeData.employee, modalScheduleValue);
+
   const finishCourse = async () => {
     if (pickedNotDeliveredNames.length > 0) {
-      toastError(`Najpierw dostarcz albo cofnij odbiór: ${pickedNotDeliveredNames.join(', ')}`);
+      toastError(t('course.driver.blockingLaundry', { names: pickedNotDeliveredNames.join(', ') }));
       return;
     }
     const km = Number(String(endKm).replace(',', '.'));
     if (!Number.isFinite(km)) {
-      toastError('Podaj poprawny licznik');
+      toastError(t('course.board.invalidKm'));
+      return;
+    }
+    if (workTimeData.employee && !workTimeAlreadyApproved && !effectiveWorkMinutes) {
+      toastError(t('workTime.invalid'));
       return;
     }
     try {
       setBusy(true);
       const freshBlocking = await findBlockingPickedLaundry();
       if (freshBlocking.length > 0) {
-        toastError(`Najpierw dostarcz albo cofnij odbiór: ${freshBlocking.join(', ')}`);
+        toastError(t('course.driver.blockingLaundry', { names: freshBlocking.join(', ') }));
         await refetch();
         return;
       }
-      const result = data.employee
-        ? await callExistingTripRpc('driver_finish_trip_with_time', sessionToken, { p_trip_id: trip.id, p_end_km: km, p_work_start: workStart, p_work_end: workEnd })
+      const result = workTimeData.employee && !workTimeAlreadyApproved
+        ? await callExistingTripRpc('driver_finish_trip_with_time', sessionToken, {
+          p_trip_id: trip.id,
+          p_end_km: km,
+          p_work_start: workStart,
+          p_work_end: effectiveWorkEnd,
+        })
         : await callExistingTripRpc('driver_finish_trip', sessionToken, { p_trip_id: trip.id, p_end_km: km });
       setEndOpen(false);
-      setFinished({ trip: result.trip || trip, km, start: workStart, end: workEnd, withTime: !!data.employee });
-      toastSuccess('Kurs zakończony i przekazany do rozliczenia');
+      setFinished({
+        trip: result.trip || trip,
+        km,
+        start: workStart,
+        end: effectiveWorkEnd,
+        withTime: !!(workTimeData.employee && !workTimeAlreadyApproved),
+      });
+      toastSuccess(t('course.driver.finishSuccess'));
       const tripsData = await getDriverTripsData(sessionToken);
       setPrintContext({ dailyCosts: tripsData?.daily_costs || [], allTrips: tripsData?.trips || [] });
       await loadCourse();
@@ -293,7 +351,12 @@ export default function DriverCourse() {
     }
   };
 
-  if (loading) return <div className="live-board-loading"><LoaderCircle className="is-spinning" /> Ładowanie kursu…</div>;
+  function ymdToday() {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  if (loading) return <div className="live-board-loading"><LoaderCircle className="is-spinning" /> {t('course.driver.loadingCourse')}</div>;
 
   if (showHistory) {
     return <DriverCourseHistory routeMap={routeMap} onBack={() => setShowHistory(false)} />;
@@ -304,14 +367,14 @@ export default function DriverCourse() {
       <section className="driver-phone">
         <div className="driver-focus-card driver-finished-screen">
           <CheckCircle2 size={56} color="var(--accent-green)" />
-          <h1>Kurs zakończony</h1>
-          <p>{routeNamesForTrip(finished.trip, routeMap)} · {stops.length} przystanków</p>
+          <h1>{t('course.driver.finishedTitle')}</h1>
+          <p>{routeNamesForTrip(finished.trip, routeMap)} · {stops.length} {t('course.board.stops')}</p>
           <div className="live-finish-summary">
-            Licznik: <strong>{finished.km} km</strong>
-            {finished.withTime && <><br />Godziny: <strong>{finished.start}–{finished.end}</strong></>}
-            <br /><span>Czeka na zatwierdzenie w Dyspozytorni.</span>
+            {t('course.driver.counterLabel')}: <strong>{finished.km} km</strong>
+            {finished.withTime && <><br />{t('course.driver.hoursLabel')}: <strong>{finished.start}–{finished.end}</strong></>}
+            <br /><span>{t('course.driver.finishedHint')}</span>
           </div>
-          <button className="driver-primary-btn" onClick={() => { setFinished(null); loadCourse(); }}>Gotowe</button>
+          <button className="driver-primary-btn" onClick={() => { setFinished(null); loadCourse(); }}>{t('course.driver.finishedDone')}</button>
           <button className="driver-secondary-btn" onClick={async () => {
             await printTripWorkCard({
               sessionToken,
@@ -321,8 +384,8 @@ export default function DriverCourse() {
               driverName: user?.name,
               dailyCosts: printContext.dailyCosts,
             });
-          }}><Printer size={17} /> Drukuj kartę kursu</button>
-          <button className="driver-secondary-btn" onClick={() => { setFinished(null); setShowHistory(true); }}>Historia kursów</button>
+          }}><Printer size={17} /> {t('course.driver.printCard')}</button>
+          <button className="driver-secondary-btn" onClick={() => { setFinished(null); setShowHistory(true); }}>{t('course.driver.courseHistory')}</button>
         </div>
       </section>
     );
@@ -342,16 +405,16 @@ export default function DriverCourse() {
     <section className="driver-phone live-driver-course" aria-labelledby="current-stop-title">
       <div className="live-course-topline">
         <span>{routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}</span>
-        <span className="driver-status-pill">W trasie</span>
+        <span className="driver-status-pill">{t('course.driver.inRoute')}</span>
       </div>
-      <div className="driver-progress-track" role="progressbar" aria-label="Postęp kursu" aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
+      <div className="driver-progress-track" role="progressbar" aria-label={t('course.driver.progress')} aria-valuemin="0" aria-valuemax={stops.length} aria-valuenow={completedStops}>
         <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
       </div>
-      <div className="driver-progress-label">{current ? `Przystanek ${current.position} z ${stops.length}` : `Wszystkie ${stops.length} przystanków zakończone`}</div>
+      <div className="driver-progress-label">{current ? t('course.driver.stopOf', { current: current.position, total: stops.length }) : t('course.driver.allStopsDone', { count: stops.length })}</div>
 
       {pickedNotDeliveredNames.length > 0 && (
         <div className="live-blocking-banner">
-          Masz pranie odebrane z pralni: {pickedNotDeliveredNames.join(', ')}. Dostarcz je albo cofnij odbiór przed zakończeniem kursu.
+          {t('course.driver.blockingLaundry', { names: pickedNotDeliveredNames.join(', ') })}
         </div>
       )}
 
@@ -361,6 +424,7 @@ export default function DriverCourse() {
             stop={current}
             trip={trip}
             stops={stops}
+            allTrips={allTrips}
             user={user}
             sessionToken={sessionToken}
             entries={entries}
@@ -374,20 +438,20 @@ export default function DriverCourse() {
             partialOpen={partialOpen}
             onPartialOpenChange={setPartialOpen}
           />
-          <button className="driver-secondary-btn" onClick={() => setProblemOpen(true)} disabled={busy}><AlertTriangle size={15} /> Problem lub zmiana</button>
+          <button className="driver-secondary-btn" onClick={() => setProblemOpen(true)} disabled={busy}><AlertTriangle size={15} /> {t('course.driver.problemTitle')}</button>
         </>
       ) : (
         <div className="driver-focus-card live-all-stops-done">
           <CheckCircle2 size={48} color="var(--accent-green)" />
-          <h1 id="current-stop-title">Wszystkie przystanki zakończone</h1>
-          <p>Podaj licznik i godziny, aby przekazać kurs do rozliczenia.</p>
-          <button className="driver-primary-btn" onClick={openFinish} disabled={pickedNotDeliveredNames.length > 0}><Gauge size={19} /> Zakończ kurs</button>
+          <h1 id="current-stop-title">{t('course.driver.allDoneTitle')}</h1>
+          <p>{t('course.driver.allDoneHint')}</p>
+          <button className="driver-primary-btn" onClick={openFinish} disabled={pickedNotDeliveredNames.length > 0}><Gauge size={19} /> {t('course.driver.finishCourse')}</button>
         </div>
       )}
 
       {extraCandidates.length > 0 && (
         <div className="driver-upcoming">
-          <div className="driver-upcoming-title">Dodatkowe przystanki</div>
+          <div className="driver-upcoming-title">{t('course.driver.extraStops')}</div>
           {extraCandidates.map(candidate => (
             <div className="live-extra-row" key={candidate.client_name}>
               <span>
@@ -395,7 +459,7 @@ export default function DriverCourse() {
                 {candidate.kg ? ` · ${candidate.kg} kg` : ''}
                 {candidate.isUrgent ? ' · pilne' : ''}
               </span>
-              <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>Dodaj</button>
+              <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('course.add')}</button>
             </div>
           ))}
         </div>
@@ -403,88 +467,127 @@ export default function DriverCourse() {
 
       {current && (
         <div className="driver-upcoming">
-          <div className="driver-upcoming-title">Pozostałe przystanki</div>
+          <div className="driver-upcoming-title">{t('course.driver.remainingStops')}</div>
           {stops.filter(stop => stop.status === 'pending' && stop.id !== current.id).map(stop => (
             <div className="driver-upcoming-row" key={stop.id}><span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}</div>
           ))}
-          {stops.filter(stop => stop.status === 'pending' && stop.id !== current.id).length === 0 && <div className="driver-empty-row">To ostatni przystanek.</div>}
+          {stops.filter(stop => stop.status === 'pending' && stop.id !== current.id).length === 0 && <div className="driver-empty-row">{t('course.driver.lastStop')}</div>}
         </div>
       )}
 
-      <button className="driver-secondary-btn" onClick={() => setAddEntryFor('')} disabled={busy}><ShoppingCart size={15} /> Dodaj brudne pranie</button>
+      <button className="driver-secondary-btn" onClick={() => setAddEntryFor('')} disabled={busy}><ShoppingCart size={15} /> {t('course.driver.addDirty')}</button>
       {!hasProgress && (
-        <button className="driver-secondary-btn" onClick={cancelTrip} disabled={busy}>Anuluj pusty kurs</button>
+        <button className="driver-secondary-btn" onClick={cancelTrip} disabled={busy}>{t('course.driver.cancelEmpty')}</button>
       )}
-      <button className="driver-secondary-btn" onClick={() => setShowHistory(true)}><Clock3 size={15} /> Historia kursów</button>
+      <button className="driver-secondary-btn" onClick={() => setShowHistory(true)}><Clock3 size={15} /> {t('course.driver.courseHistory')}</button>
 
       {problemOpen && (
-        <CourseSheet titleId="problem-title" title="Problem lub zmiana" onClose={() => setProblemOpen(false)}>
-          <p className="live-sheet-copy">Wybierz zdarzenie dla bieżącego przystanku.</p>
-          {PROBLEMS.map(option => (
+        <CourseSheet titleId="problem-title" title={t('course.driver.problemTitle')} onClose={() => setProblemOpen(false)}>
+          <p className="live-sheet-copy">{t('course.driver.problemHint')}</p>
+          {problems.map(option => (
             <button key={option.key} className="driver-problem-option" onClick={() => chooseProblem(option)}>
               <span><span className="driver-problem-option-label">{option.label}</span><span className="driver-problem-option-hint">{option.hint}</span></span>
               <ChevronRight size={17} />
             </button>
           ))}
-          <div className="ap-btn-group"><button className="ap-btn ap-btn-secondary" onClick={() => setProblemOpen(false)}>Zamknij</button></div>
+          <div className="ap-btn-group"><button className="ap-btn ap-btn-secondary" onClick={() => setProblemOpen(false)}>{t('common.close')}</button></div>
         </CourseSheet>
       )}
 
       {changeCarOpen && (
-        <CourseSheet titleId="change-car-title" title="Zmień auto" onClose={() => !busy && setChangeCarOpen(false)} busy={busy}>
+        <CourseSheet titleId="change-car-title" title={t('course.driver.changeCarTitle')} onClose={() => !busy && setChangeCarOpen(false)} busy={busy}>
           {pickedNotDeliveredNames.length > 0 && (
-            <div className="live-blocking-banner">Masz pranie w aucie: {pickedNotDeliveredNames.join(', ')}. Najpierw je dostarcz albo cofnij odbiór.</div>
+            <div className="live-blocking-banner">{t('course.driver.blockingLaundryShort', { names: pickedNotDeliveredNames.join(', ') })}</div>
           )}
-          <p className="live-sheet-copy">Zmiana zamknie bieżący odcinek, ale nie zakończy kursu.</p>
-          <label className="live-field-label" htmlFor="next-car">Nowe auto</label>
+          <p className="live-sheet-copy">{t('course.driver.changeCarHint')}</p>
+          <label className="live-field-label" htmlFor="next-car">{t('course.driver.newCar')}</label>
           <select id="next-car" className="ap-input" value={nextCar} onChange={event => setNextCar(event.target.value)}>
             {VEHICLES.filter(vehicle => vehicle.key !== trip.car).map(vehicle => <option value={vehicle.key} key={vehicle.key}>{vehicle.label}</option>)}
           </select>
-          <label className="live-field-label" htmlFor="segment-km">Licznik starego auta — opcjonalnie</label>
+          <label className="live-field-label" htmlFor="segment-km">{t('course.driver.segmentKm')}</label>
           <input id="segment-km" className="ap-input" inputMode="decimal" value={segmentKm} onChange={event => setSegmentKm(event.target.value)} />
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={changeVehicle} disabled={busy || !nextCar || pickedNotDeliveredNames.length > 0}>Zmień auto</button>
-            <button className="ap-btn ap-btn-secondary" onClick={() => setChangeCarOpen(false)}>Anuluj</button>
+            <button className="ap-btn ap-btn-primary" onClick={changeVehicle} disabled={busy || !nextCar || pickedNotDeliveredNames.length > 0}>{t('course.driver.changeCarBtn')}</button>
+            <button className="ap-btn ap-btn-secondary" onClick={() => setChangeCarOpen(false)}>{t('course.cancel')}</button>
           </div>
         </CourseSheet>
       )}
 
       {handoffOpen && (
-        <CourseSheet titleId="handoff-title" title="Przekaż kierowcy" onClose={() => !busy && setHandoffOpen(false)} busy={busy}>
-          <p className="live-sheet-copy">Kurs zachowa historię. Możesz wskazać kierowcę albo zostawić auto do przejęcia.</p>
-          <label className="live-field-label" htmlFor="target-driver">Nowy kierowca</label>
+        <CourseSheet titleId="handoff-title" title={t('course.driver.handoffTitle')} onClose={() => !busy && setHandoffOpen(false)} busy={busy}>
+          <p className="live-sheet-copy">{t('course.driver.handoffHint')}</p>
+          <label className="live-field-label" htmlFor="target-driver">{t('course.driver.selectDriver')}</label>
           <select id="target-driver" className="ap-input" value={targetDriver} onChange={event => setTargetDriver(event.target.value)}>
-            <option value="">Wybierz kierowcę</option>
+            <option value="">{t('course.driver.selectDriver')}</option>
             {drivers.map(driver => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
           </select>
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handoff} disabled={busy || !targetDriver}><UserCheck size={17} /> Przekaż wskazanemu</button>
+            <button className="ap-btn ap-btn-primary" onClick={handoff} disabled={busy || !targetDriver}><UserCheck size={17} /> {t('course.driver.handoffAssign')}</button>
           </div>
-          <p className="live-sheet-copy">Nie masz komu teraz dać? Zostaw kurs do przejęcia — auto z praniem poczeka w puli.</p>
+          <p className="live-sheet-copy">{t('course.driver.handoffPoolHint')}</p>
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-secondary" onClick={parkTrip} disabled={busy}>Zostaw do przejęcia</button>
-            <button className="ap-btn ap-btn-secondary" onClick={() => setHandoffOpen(false)}>Anuluj</button>
+            <button className="ap-btn ap-btn-secondary" onClick={parkTrip} disabled={busy}>{t('course.driver.leaveForClaim')}</button>
+            <button className="ap-btn ap-btn-secondary" onClick={() => setHandoffOpen(false)}>{t('course.cancel')}</button>
           </div>
         </CourseSheet>
       )}
 
       {endOpen && (
-        <CourseSheet titleId="finish-title" title="Zakończ kurs" onClose={() => !busy && setEndOpen(false)} busy={busy}>
+        <CourseSheet titleId="finish-title" title={t('course.driver.finishTitle')} onClose={() => !busy && setEndOpen(false)} busy={busy}>
           {pickedNotDeliveredNames.length > 0 && (
-            <div className="live-blocking-banner">Masz pranie w aucie: {pickedNotDeliveredNames.join(', ')}. Dostarcz je albo cofnij odbiór.</div>
+            <div className="live-blocking-banner">{t('course.driver.blockingLaundryShort', { names: pickedNotDeliveredNames.join(', ') })}</div>
           )}
-          <p className="live-sheet-copy">Kilometry i godziny będą zatwierdzane osobno przez administratora.</p>
-          <label className="live-field-label" htmlFor="course-end-km">Końcowy stan licznika</label>
+          <p className="live-sheet-copy">{t('course.driver.finishHint')}</p>
+          <label className="live-field-label" htmlFor="course-end-km">{t('course.driver.endKm')}</label>
           <input id="course-end-km" className="ap-input" inputMode="decimal" value={endKm} onChange={event => setEndKm(event.target.value)} />
-          {data.employee && (
-            <div className="live-time-grid">
-              <label className="live-field-label" htmlFor="course-work-start">Start pracy<input id="course-work-start" className="ap-input" type="time" value={workStart} onChange={event => setWorkStart(event.target.value)} /></label>
-              <label className="live-field-label" htmlFor="course-work-end">Koniec pracy<input id="course-work-end" className="ap-input" type="time" value={workEnd} onChange={event => setWorkEnd(event.target.value)} /></label>
+
+          {workTimeData.employee && !workTimeAlreadyApproved ? (
+            <div className="live-worktime-finish">
+              <div className="live-worktime-finish-head">
+                <div>
+                  <strong>{t('workTime.workHours')}</strong>
+                  <div className="live-worktime-employee">{t('workTime.employee')}: {workTimeData.employee.name}</div>
+                </div>
+                <button type="button" className="driver-tool-btn" onClick={() => { setWorkMode('range'); setWorkStart(modalWorkPlan.start); setWorkEnd(modalWorkPlan.end); setWorkHours(String(modalWorkPlan.minutes / 60)); }}>
+                  {t('workTime.asScheduled')} {modalWorkPlan.start}-{modalWorkPlan.end}
+                </button>
+              </div>
+              <div className="segmented-control">
+                <button type="button" className={`seg-btn ${workMode === 'range' ? 'active' : ''}`} onClick={() => setWorkMode('range')}>{t('workTime.rangeMode')}</button>
+                <button type="button" className={`seg-btn ${workMode === 'duration' ? 'active' : ''}`} onClick={() => setWorkMode('duration')}>{t('workTime.durationMode')}</button>
+              </div>
+              {workMode === 'range' ? (
+                <div className="live-time-grid">
+                  <label className="live-field-label" htmlFor="course-work-start">{t('workTime.start')}<input id="course-work-start" className="ap-input" type="time" value={workStart} onChange={event => setWorkStart(event.target.value)} /></label>
+                  <label className="live-field-label" htmlFor="course-work-end">{t('workTime.end')}<input id="course-work-end" className="ap-input" type="time" value={workEnd} onChange={event => setWorkEnd(event.target.value)} /></label>
+                </div>
+              ) : (
+                <div className="live-time-grid">
+                  <label className="live-field-label" htmlFor="course-work-start">{t('workTime.start')}<input id="course-work-start" className="ap-input" type="time" value={workStart} onChange={event => setWorkStart(event.target.value)} /></label>
+                  <label className="live-field-label" htmlFor="course-work-hours">{t('workTime.hoursWorked')}<input id="course-work-hours" className="ap-input" inputMode="decimal" value={workHours} onChange={event => setWorkHours(event.target.value)} placeholder="8" /></label>
+                </div>
+              )}
+              <div className="live-worktime-preview">
+                {t('workTime.toApprove')}: <strong>{workStart || '—'}-{effectiveWorkEnd || '—'}</strong> · {effectiveWorkMinutes ? formatWorkDuration(effectiveWorkMinutes) : t('workTime.invalid')}
+              </div>
             </div>
+          ) : workTimeAlreadyApproved ? (
+            <div className="live-worktime-approved-banner">
+              {t('workTime.alreadyApproved', { start: timeForInput(currentWorkReport.approved_start), end: timeForInput(currentWorkReport.approved_end) })}
+            </div>
+          ) : (
+            <div className="live-worktime-unlinked-banner">{t('workTime.finishUnlinkedHint')}</div>
           )}
+
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={finishCourse} disabled={busy || !endKm || pickedNotDeliveredNames.length > 0}>Zatwierdź i zakończ kurs</button>
-            <button className="ap-btn ap-btn-secondary" onClick={() => setEndOpen(false)}>Wróć</button>
+            <button
+              className="ap-btn ap-btn-primary"
+              onClick={finishCourse}
+              disabled={busy || !endKm || pickedNotDeliveredNames.length > 0 || (workTimeData.employee && !workTimeAlreadyApproved && !effectiveWorkMinutes)}
+            >
+              {busy ? t('common.saving') : workTimeData.employee && !workTimeAlreadyApproved ? t('workTime.finishWithBoth') : t('workTime.finishKmOnly')}
+            </button>
+            <button className="ap-btn ap-btn-secondary" onClick={() => setEndOpen(false)}>{t('course.back')}</button>
           </div>
         </CourseSheet>
       )}

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Navigation2, Package, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import {
-  dirtyEntriesForStop, entryIdsForTasks, fmtTime, getPackInfo,
+  assignedTripForEntry, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
   splitCleanTasks, tasksDeliveredByUser, tasksPickedByUser,
 } from '../../lib/courseTaskHelpers';
 import { formatKg } from '../../lib/tripUiHelpers';
@@ -37,6 +38,7 @@ export default function CourseCurrentStop({
   stop,
   trip,
   stops,
+  allTrips = [],
   user,
   sessionToken,
   entries,
@@ -50,6 +52,7 @@ export default function CourseCurrentStop({
   partialOpen: partialOpenExternal = false,
   onPartialOpenChange,
 }) {
+  const { t } = useTranslation();
   const [partialOpenLocal, setPartialOpenLocal] = useState(false);
   const partialOpen = partialOpenExternal || partialOpenLocal;
   const setPartialOpen = value => {
@@ -246,19 +249,26 @@ export default function CourseCurrentStop({
         <div className="live-dirty-block">
           <div className="driver-upcoming-title">Brudne pranie do pralni</div>
           {dirtyToday.length === 0 && <div className="driver-empty-row">Brak zarejestrowanych przyjazdów</div>}
-          {dirtyToday.map(entry => (
+          {dirtyToday.map(entry => {
+            const assigned = assignedTripForEntry(entry, { allTrips, trip });
+            const captionKey = entryAssignmentCaption(assigned);
+            return (
             <div className="driver-arrival-chip" key={entry.id}>
-              <span>{entry.type || 'P'}{entry.weight ? ` · ${entry.weight} kg` : ''}</span>
-              <button type="button" className="driver-tool-btn" onClick={() => setViewEntry(entry)}>Edytuj</button>
-              <button type="button" className="driver-tool-btn" onClick={() => deleteDirty(entry)} disabled={busy}>Usuń</button>
+              <span>
+                {entry.type || 'P'}{entry.weight ? ` · ${entry.weight} kg` : ''}
+                {captionKey && <span className="live-entry-assignment"> · {t(`course.assignment.${captionKey}`)}</span>}
+                {assigned?.label && <span className="live-entry-assignment-meta"> ({assigned.label})</span>}
+              </span>
+              <button type="button" className="driver-tool-btn" onClick={() => setViewEntry(entry)}>{t('course.edit')}</button>
+              <button type="button" className="driver-tool-btn" onClick={() => deleteDirty(entry)} disabled={busy}>{t('course.currentStop.delete')}</button>
             </div>
-          ))}
-          <button className="live-task-action is-secondary" onClick={() => setAddEntryFor(stop.client_name)} disabled={busy}>Dodaj przyjazd brudnego</button>
+          );})}
+          <button className="live-task-action is-secondary" onClick={() => setAddEntryFor(stop.client_name)} disabled={busy}>{t('course.currentStop.addDirtyArrival')}</button>
         </div>
       </article>
 
       <button className="driver-primary-btn" onClick={onComplete} disabled={busy || !canComplete}>
-        <CheckCircle2 size={20} /> {canComplete ? 'Zakończ przystanek' : 'Najpierw zakończ zadania na przystanku'}
+        <CheckCircle2 size={20} /> {canComplete ? t('course.driver.completeStop') : t('course.driver.completeStopFirst')}
       </button>
 
       {partialOpen && (
@@ -289,6 +299,11 @@ export default function CourseCurrentStop({
           onUpdated={async () => { setViewEntry(null); await onReload(); }}
           onDeleted={async () => { setViewEntry(null); await onReload(); }}
           initiallyEditing
+          entryAssignmentLabel={assignedTripForEntry(viewEntry, { allTrips, trip })?.label}
+          entryAssignmentCaption={(() => {
+            const key = entryAssignmentCaption(assignedTripForEntry(viewEntry, { allTrips, trip }));
+            return key ? t(`course.assignment.${key}`) : t('course.assignment.willBring');
+          })()}
         />
       )}
     </>

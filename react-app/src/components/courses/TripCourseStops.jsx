@@ -1,30 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, LoaderCircle, Navigation2, Package, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
 import { logAction } from '../../lib/logger';
 import {
-  buildExtraCandidates, dirtyEntriesForStop, entryIdsForTasks, fmtTime, getPackInfo,
+  assignedTripForEntry, buildExtraCandidates, dirtyEntriesForStop, entryAssignmentCaption,
+  entryIdsForTasks, fmtTime, getPackInfo,
   splitCleanTasks, statsFromCourseStops, stopLaundryMeta,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
+import { ViewEditEntryModal } from '../modals/EntryModals';
 import {
   LaundryTypeChip, mapsUrlForStop, RouteChip, TripMetricsPanel, TripProgressBar, UrgentChip,
 } from './CourseUiBits';
 import CourseSheet from './CourseSheet';
 import AddDirtyToTripSheet from './sheets/AddDirtyToTripSheet';
 
-const STOP_STATUS = {
-  pending: 'Oczekuje',
-  completed: 'Zakończony',
-  skipped: 'Pominięty',
+const STOP_STATUS_KEYS = {
+  pending: 'statusPending',
+  completed: 'statusCompleted',
+  skipped: 'statusSkipped',
 };
 
-function StopStatusBadge({ status }) {
+function StopStatusBadge({ status, t }) {
   const tone = status === 'completed' ? 'is-done' : status === 'skipped' ? 'is-skipped' : 'is-pending';
-  return <span className={`live-stop-status ${tone}`}>{STOP_STATUS[status] || status}</span>;
+  const label = t(`course.stops.${STOP_STATUS_KEYS[status] || 'statusPending'}`);
+  return <span className={`live-stop-status ${tone}`}>{label}</span>;
 }
 
 function AdminActionBtn({ label, onClick, disabled, tone = 'primary' }) {
@@ -59,6 +63,8 @@ export default function TripCourseStops({
   const [handoffTarget, setHandoffTarget] = useState('');
   const [plannedStart, setPlannedStart] = useState('');
   const [printing, setPrinting] = useState(false);
+  const [viewEntry, setViewEntry] = useState(null);
+  const { t } = useTranslation();
 
   const loadStops = useCallback(async () => {
     if (!sessionToken || !trip?.id || trip.isVirtual) return;
@@ -378,7 +384,7 @@ export default function TripCourseStops({
               <a className="driver-nav-btn live-stop-nav" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer" aria-label="Nawiguj">
                 <Navigation2 size={14} />
               </a>
-              <StopStatusBadge status={stop.status} />
+              <StopStatusBadge status={stop.status} t={t} />
             </div>
 
             {clean.pickup.length > 0 && (
@@ -422,7 +428,23 @@ export default function TripCourseStops({
 
             {dirtyToday.length > 0 && (
               <div className="live-stop-dirty">
-                Brudne: {dirtyToday.map(entry => `${entry.type || 'P'}${entry.weight ? ` ${entry.weight} kg` : ''}`).join(' · ')}
+                {t('course.stops.dirty')}: {dirtyToday.map(entry => {
+                  const assigned = assignedTripForEntry(entry, { allTrips, trip, focusTrip: trip });
+                  const captionKey = entryAssignmentCaption(assigned);
+                  return (
+                    <button
+                      type="button"
+                      key={entry.id}
+                      className="live-dirty-entry-btn"
+                      onClick={() => isAdmin && setViewEntry(entry)}
+                      disabled={!isAdmin}
+                    >
+                      {entry.type || 'P'}{entry.weight ? ` ${entry.weight} kg` : ''}
+                      {captionKey ? ` · ${t(`course.assignment.${captionKey}`)}` : ''}
+                      {isAdmin ? ` (${t('course.edit')})` : ''}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -456,6 +478,24 @@ export default function TripCourseStops({
           routes={routes}
           onClose={() => setDirtyOpen(false)}
           onAdded={async () => { await loadStops(); await onReload?.(); }}
+        />
+      )}
+
+      {viewEntry && (
+        <ViewEditEntryModal
+          isOpen
+          entry={viewEntry}
+          routes={routes}
+          clients={clients}
+          onClose={() => setViewEntry(null)}
+          onUpdated={async () => { setViewEntry(null); await loadStops(); await onReload?.(); }}
+          onDeleted={async () => { setViewEntry(null); await loadStops(); await onReload?.(); }}
+          initiallyEditing={isAdmin}
+          entryAssignmentLabel={assignedTripForEntry(viewEntry, { allTrips, trip, focusTrip: trip })?.label}
+          entryAssignmentCaption={(() => {
+            const key = entryAssignmentCaption(assignedTripForEntry(viewEntry, { allTrips, trip, focusTrip: trip }));
+            return key ? t(`course.assignment.${key}`) : t('course.assignment.willBring');
+          })()}
         />
       )}
     </div>
