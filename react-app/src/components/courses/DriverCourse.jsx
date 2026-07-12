@@ -106,7 +106,7 @@ export default function DriverCourse() {
   const completedStops = stops.filter(stop => stop.status !== 'pending').length;
   const current = stops.find(stop => stop.status === 'pending') || null;
   const hasProgress = useMemo(() => tripHasProgress(stops, user?.name), [stops, user?.name]);
-  const pickedNotDelivered = useMemo(() => pickedNotDeliveredStops(stops, user?.name), [stops, user?.name]);
+  const pickedNotDelivered = useMemo(() => pickedNotDeliveredStops(stops, user, trip), [stops, user, trip]);
   const pickedNotDeliveredNames = useMemo(() => pickedNotDelivered.map(stop => stop.client_name).filter(Boolean), [pickedNotDelivered]);
   const extraCandidates = useMemo(
     () => buildExtraCandidates({ entries, stops, trip, userName: user?.name }),

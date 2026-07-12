@@ -869,7 +869,11 @@
       "otherDriver": "inny kierowca",
       "undo": "↩ cofnij",
       "addDirtyArrival": "Dodaj przyjazd brudnego",
-      "delete": "Usuń"
+      "delete": "Usuń",
+      "undoDeliverFirst": "Najpierw cofnij dostawę",
+      "pickupBy": "Odbiór oznaczył: {{name}}",
+      "undoPickupOnly": "Cofnąć odbiór może tylko: {{name}}",
+      "partialAffected": "Operacja nie objęła wszystkich wpisów. Odśwież widok."
     }
   },
   "admin": {

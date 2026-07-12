@@ -859,7 +859,11 @@
       "otherDriver": "anderer Fahrer",
       "undo": "↩ zurück",
       "addDirtyArrival": "Schmutzanlieferung hinzufügen",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "undoDeliverFirst": "Zuerst Lieferung zurücknehmen",
+      "pickupBy": "Abholung markiert von: {{name}}",
+      "undoPickupOnly": "Abholung rückgängig machen kann nur: {{name}}",
+      "partialAffected": "Der Vorgang betraf nicht alle Einträge. Ansicht aktualisieren."
     }
   },
   "admin": {

@@ -4,8 +4,8 @@ import { AlertTriangle, CheckCircle2, Navigation2, Package, Truck } from 'lucide
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import {
-  assignedTripForEntry, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
-  splitCleanTasks, tasksDeliveredByUser, tasksPickedByUser,
+  assignedTripForEntry, canManagePickupTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
+  isTripDriver, splitCleanTasks, tasksDeliveredByUser,
 } from '../../lib/courseTaskHelpers';
 import { formatKg } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -70,10 +70,11 @@ export default function CourseCurrentStop({
   const hasPhysicalTrolley = clean.pickup.some(task => task.laundry_trolley_no && task.laundry_trolley_no !== 'brak');
   const hasDeliveryTrolleys = clean.pendingDelivery.some(task => task.laundry_trolley_cycle_id);
   const dirtyToday = useMemo(() => dirtyEntriesForStop(entries, stop.client_name, trip.trip_date), [entries, stop.client_name, trip.trip_date]);
-  const pickupOwner = clean.pickup.map(task => task.picked_by).find(Boolean) || 'inny kierowca';
-  const deliveryOwner = clean.delivery.map(task => task.delivered_by).find(Boolean) || 'inny kierowca';
-  const pickedByMe = tasksPickedByUser(clean.pickup, user?.name);
-  const deliveredByMe = tasksDeliveredByUser(clean.delivery, user?.name);
+  const pickupOwner = clean.pickup.map(task => task.picked_by).find(Boolean) || t('course.currentStop.otherDriver');
+  const deliveryOwner = clean.delivery.map(task => task.delivered_by).find(Boolean) || t('course.currentStop.otherDriver');
+  const canManagePickup = canManagePickupTasks(clean.pickup, user, trip);
+  const canManageDelivery = canManagePickup && clean.completedPickup.length > 0;
+  const deliveredByMe = tasksDeliveredByUser(clean.delivery, user?.name) || isTripDriver(user, trip);
   const pickupReady = clean.pendingPickup.length === 0 || clean.pendingPickup.every(task => packInfo.isReady);
 
   const rpcEntries = async (fn, ids, success, logDetails) => {
@@ -82,7 +83,9 @@ export default function CourseCurrentStop({
       const { data, error } = await supabase.rpc(fn, { p_session_token: sessionToken, p_ids: ids });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if ((data?.affected ?? 0) !== ids.length) throw new Error('Operacja nie objęła wszystkich wpisów. Odśwież widok.');
+      if ((data?.affected ?? 0) !== ids.length) {
+        throw new Error(t('course.currentStop.partialAffected'));
+      }
       if (logDetails) {
         await logAction({ sessionToken, action: logDetails.action, clientName: stop.client_name, entryId: ids[0], details: logDetails.details });
       }
@@ -122,8 +125,8 @@ export default function CourseCurrentStop({
       toastError('Najpierw cofnij dostawę');
       return;
     }
-    if (!pickedByMe) {
-      toastError(`Cofnąć odbiór może tylko: ${pickupOwner}`);
+    if (!canManagePickup) {
+      toastError(t('course.currentStop.undoPickupOnly', { name: pickupOwner }));
       return;
     }
     await rpcEntries('driver_undo_pickup', entryIdsForTasks(clean.pickup), 'Cofnięto odbiór z pralni', { action: 'undone', details: 'cofnięto odbiór z pralni' });
@@ -203,8 +206,8 @@ export default function CourseCurrentStop({
             done={clean.pendingPickup.length === 0 && clean.completedPickup.length > 0}
             at={clean.pickup.find(task => task.completed_at)?.completed_at}
             onUndo={clean.completedPickup.length > 0 ? undoPickup : null}
-            undoDisabled={clean.delivery.some(task => task.delivered) || !pickedByMe}
-            undoHint={clean.delivery.some(task => task.delivered) ? 'Najpierw cofnij dostawę' : `Odbiór oznaczył: ${pickupOwner}`}
+            undoDisabled={clean.delivery.some(task => task.delivered) || !canManagePickup}
+            undoHint={clean.delivery.some(task => task.delivered) ? t('course.currentStop.undoDeliverFirst') : t('course.currentStop.pickupBy', { name: pickupOwner })}
           >
             <div className={`live-pack-badge ${packInfo.isReady ? 'is-ready' : 'is-waiting'}`}>{packInfo.text}</div>
             {clean.pendingPickup.length > 0 && (
@@ -239,7 +242,7 @@ export default function CourseCurrentStop({
             undoHint={`Dostawę oznaczył: ${deliveryOwner}`}
           >
             {clean.pendingDelivery.length > 0 && (
-              <button className="live-task-action" onClick={deliverLaundry} disabled={busy || !clean.completedPickup.length || !pickedByMe}>
+              <button className="live-task-action" onClick={deliverLaundry} disabled={busy || !clean.completedPickup.length || !canManageDelivery}>
                 <Truck size={17} /> {hasDeliveryTrolleys ? 'Dostarcz — wybierz wózki' : 'Dostarcz czyste'}
               </button>
             )}

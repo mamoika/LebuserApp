@@ -78,15 +78,35 @@ export function getPackInfo(tasks = []) {
   };
 }
 
-export function stopHasPickedNotDelivered(stop, userName) {
+export function isTripDriver(user, trip) {
+  return Boolean(user?.id && trip?.driver_id && String(user.id) === String(trip.driver_id));
+}
+
+export function driverActingNames(user, trip) {
+  return new Set([user?.name, trip?.driver_name].filter(Boolean));
+}
+
+export function pickupOwnedByDriver(task, user, trip) {
+  if (!task?.done) return false;
+  if (isTripDriver(user, trip)) return true;
+  return driverActingNames(user, trip).has(task.picked_by);
+}
+
+export function canManagePickupTasks(tasks = [], user, trip) {
+  if (!tasks.length) return false;
+  if (isTripDriver(user, trip)) return true;
+  return tasksPickedByUser(tasks, user?.name);
+}
+
+export function stopHasPickedNotDelivered(stop, user, trip) {
   const tasks = stop?.tasks || [];
-  const picked = tasks.some(task => task.task_type === 'pickup_clean' && task.done && task.picked_by === userName);
+  const picked = tasks.some(task => task.task_type === 'pickup_clean' && task.done && pickupOwnedByDriver(task, user, trip));
   const undelivered = tasks.some(task => task.task_type === 'deliver_clean' && !task.delivered);
   return picked && undelivered;
 }
 
-export function pickedNotDeliveredStops(stops = [], userName) {
-  return stops.filter(stop => stopHasPickedNotDelivered(stop, userName));
+export function pickedNotDeliveredStops(stops = [], user, trip) {
+  return stops.filter(stop => stopHasPickedNotDelivered(stop, user, trip));
 }
 
 export function tasksPickedByUser(tasks = [], userName) {
