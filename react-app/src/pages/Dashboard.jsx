@@ -13,7 +13,6 @@ import ToastContainer from '../components/ToastContainer';
 // Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki, np. mapa i
 // eksport Excela, pobierają się dopiero przy wejściu na dany widok.
 const ScheduleView = lazy(() => import('../components/ScheduleView'));
-const DriverRouteView = lazy(() => import('../components/DriverRouteView'));
 const DriverCourse = lazy(() => import('../components/courses/DriverCourse'));
 const DispatchBoard = lazy(() => import('../components/courses/DispatchBoard'));
 const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
@@ -33,9 +32,7 @@ const PAGE_KEYS = {
   '/schedule': 'home',
   '/tunnel': 'tunnel',
   '/route': 'route',
-  '/route/operations': 'route',
   '/routes': 'routes',
-  '/routes/plan': 'routes',
   '/clients': 'clients',
   '/map': 'map',
   '/history': 'history',
@@ -187,9 +184,9 @@ export default function Dashboard() {
           <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
           <Route path="/schedule" element={<ScheduleView />} />
           <Route path="/route" element={<DriverCourse />} />
-          <Route path="/route/operations" element={<DriverRouteView />} />
+          <Route path="/route/operations" element={<Navigate to="/route" replace />} />
           <Route path="/routes" element={canViewAdminData ? <DispatchBoard /> : <Navigate to="/" replace />} />
-          <Route path="/routes/plan" element={canViewAdminData ? <DriverRouteView manageMode /> : <Navigate to="/" replace />} />
+          <Route path="/routes/plan" element={<Navigate to="/routes" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />
