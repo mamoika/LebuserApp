@@ -82,6 +82,11 @@ export const pickupPlannedClean = (sessionToken, tripId, entryIds, leaveTrolley,
   }
 );
 
+export const undoPlannedCleanPickup = (sessionToken, tripId, entryIds) => callCourseRpc(
+  'driver_undo_planned_clean', sessionToken,
+  { p_trip_id: tripId, p_ids: entryIds }
+);
+
 export const addDirtyPlannedStop = (sessionToken, tripId, clientName) => callCourseRpc(
   'driver_add_dirty_planned_stop', sessionToken,
   { p_trip_id: tripId, p_client_name: clientName }
@@ -94,4 +99,8 @@ export const removeDirtyPlannedStop = (sessionToken, tripId, clientName) => call
 
 export const finalizeDriverTripPlan = (sessionToken, tripId) => callCourseRpc(
   'driver_finalize_trip_plan', sessionToken, { p_trip_id: tripId }
+);
+
+export const startFinalizedDriverTrip = (sessionToken, tripId) => callCourseRpc(
+  'driver_start_finalized_trip', sessionToken, { p_trip_id: tripId }
 );

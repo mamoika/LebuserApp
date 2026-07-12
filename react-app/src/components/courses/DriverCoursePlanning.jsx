@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CheckCircle2, Clock3, LoaderCircle, MapPin, Package, PlayCircle, Plus, Truck, UserCheck, X,
+  CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Package, PlayCircle, Plus,
+  RotateCcw, Truck, UserCheck, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import {
-  addDirtyPlannedStop, callExistingTripRpc, finalizeDriverTripPlan,
-  pickupPlannedClean, removeDirtyPlannedStop,
+  addDirtyPlannedStop, callExistingTripRpc, pickupPlannedClean, removeDirtyPlannedStop,
+  startFinalizedDriverTrip, undoPlannedCleanPickup,
 } from '../../lib/courseRpc';
 import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
@@ -31,14 +32,15 @@ function formatPackedAt(value, language) {
   });
 }
 
-function ReadyCleanCard({ group, busy, language, onPickup, t }) {
+function ReadyCleanCard({ group, busy, language, onPickup, onUndo, t }) {
+  const hasLoaded = group.loadedIds.length > 0;
   const packedBy = group.packedBy.length ? group.packedBy.join(', ') : t('course.planning.packerUnknown');
   const trolleyLabel = group.trolleyNos.length
     ? t('course.planning.trolleyNumbers', { list: group.trolleyNos.join(', ') })
     : t('course.planning.noTrolley');
 
   return (
-    <article className={`live-load-card${group.isLoaded ? ' is-loaded' : ''}`}>
+    <article className={`live-load-card${hasLoaded ? ' is-loaded' : ''}`}>
       <div className="live-load-card-main">
         <div className="live-load-card-title">
           <strong>{group.client_name}</strong>
@@ -54,12 +56,20 @@ function ReadyCleanCard({ group, busy, language, onPickup, t }) {
         </div>
       </div>
 
-      {group.isLoaded ? (
-        <div className="live-load-status">
-          <CheckCircle2 size={17} aria-hidden="true" />
-          {t('course.planning.onVehicle')}
+      {hasLoaded && (
+        <div className="live-load-loaded-row">
+          <div className="live-load-status">
+            <CheckCircle2 size={17} aria-hidden="true" />
+            {t('course.planning.onVehicle')}
+          </div>
+          <button type="button" className="live-load-undo" onClick={() => onUndo(group)} disabled={busy}>
+            <RotateCcw size={14} aria-hidden="true" />
+            {t('course.planning.undoPickup')}
+          </button>
         </div>
-      ) : group.hasPhysicalTrolley ? (
+      )}
+
+      {group.pendingIds.length > 0 && (group.hasPhysicalTrolley ? (
         <div className="live-load-actions">
           <button type="button" className="live-start-claim-btn" onClick={() => onPickup(group, false)} disabled={busy}>
             {t('course.planning.pickupWithTrolley')}
@@ -72,7 +82,7 @@ function ReadyCleanCard({ group, busy, language, onPickup, t }) {
         <button type="button" className="live-start-claim-btn" onClick={() => onPickup(group, true)} disabled={busy}>
           {t('course.planning.pickup')}
         </button>
-      )}
+      ))}
     </article>
   );
 }
@@ -83,6 +93,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
   const { entries, clients, allRoutes, refetch } = useAppData();
   const [busy, setBusy] = useState(false);
   const [dirtyClient, setDirtyClient] = useState('');
+  const [otherReadyOpen, setOtherReadyOpen] = useState(false);
 
   const routeMap = useMemo(
     () => Object.fromEntries(allRoutes.map((route, index) => [route.id, { num: index + 1, name: route.name }])),
@@ -125,7 +136,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
   );
 
   const loadedGroups = useMemo(
-    () => [...ownReady, ...otherReady].filter(group => group.isLoaded),
+    () => [...ownReady, ...otherReady].filter(group => group.loadedIds.length > 0),
     [ownReady, otherReady],
   );
   const plannedClientNames = useMemo(
@@ -157,6 +168,20 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
         addOtherRoute ? group.client_name : null,
       );
       toastSuccess(t('course.planning.pickupSuccess', { name: group.client_name }));
+      await reload();
+    } catch (error) {
+      toastError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const undoPickup = async group => {
+    if (!group.loadedIds.length) return;
+    try {
+      setBusy(true);
+      await undoPlannedCleanPickup(sessionToken, trip.id, group.loadedIds);
+      toastSuccess(t('course.planning.undoPickupSuccess', { name: group.client_name }));
       await reload();
     } catch (error) {
       toastError(error.message);
@@ -198,12 +223,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!trip) return;
     try {
       setBusy(true);
-      await finalizeDriverTripPlan(sessionToken, trip.id);
-      await callExistingTripRpc('driver_start_trip', sessionToken, {
-        p_planned_trip_id: trip.id,
-        p_car: trip.car,
-        p_routes: trip.routes,
-      });
+      await startFinalizedDriverTrip(sessionToken, trip.id);
       toastSuccess(t('course.planning.driveStarted'));
       await onUpdated?.();
     } catch (error) {
@@ -283,6 +303,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
                 busy={busy}
                 language={i18n.language}
                 onPickup={(item, leave) => pickupClean(item, leave, false)}
+                onUndo={undoPickup}
                 t={t}
               />
             ))}
@@ -314,21 +335,28 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
         )}
 
         {dirtyStops.length === 0 ? (
-          <div className="live-dirty-empty">{t('course.planning.noDirtyStops')}</div>
+          <div className="live-dirty-plan-empty">{t('course.planning.noDirtyStops')}</div>
         ) : (
-          <div className="live-planning-list">
+          <div className="live-dirty-plan-list">
             {dirtyStops.map(stop => (
-              <div className="live-planning-row" key={stop.id}>
-                <div className="live-planning-row-main">
+              <div className="live-dirty-plan-item" key={stop.id}>
+                <span className="live-dirty-plan-pin" aria-hidden="true"><MapPin size={16} /></span>
+                <div className="live-dirty-plan-copy">
                   <strong>{stop.client_name}</strong>
-                  <RouteChip routeId={stop.route_id} routeMap={routeMap} />
-                  {stop.stop_kind !== 'dirty_only' && (
-                    <span className="live-planning-tag">{t('course.planning.dirtyReported')}</span>
-                  )}
+                  <span>
+                    <RouteChip routeId={stop.route_id} routeMap={routeMap} />
+                    {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
+                  </span>
                 </div>
                 {stop.stop_kind === 'dirty_only' && (
-                  <button type="button" className="live-planning-text-btn is-warn" onClick={() => removeDirtyStop(stop)} disabled={busy}>
-                    <X size={14} aria-hidden="true" /> {t('course.planning.remove')}
+                  <button
+                    type="button"
+                    className="live-dirty-plan-remove"
+                    onClick={() => removeDirtyStop(stop)}
+                    disabled={busy}
+                    aria-label={t('course.planning.removeDirtyAria', { name: stop.client_name })}
+                  >
+                    <X size={16} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -337,26 +365,42 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
         )}
       </div>
 
-      <div className="driver-focus-card live-planning-section">
-        <h2 className="live-planning-section-title">
-          <Truck size={16} aria-hidden="true" />
-          {t('course.planning.otherReadyTitle')}
-        </h2>
-        <p className="live-planning-section-hint">{t('course.planning.otherReadyHint')}</p>
-        {otherReady.length === 0 ? (
-          <div className="live-dirty-empty">{t('course.planning.noOtherReady')}</div>
-        ) : (
-          <div className="live-load-list">
-            {otherReady.map(group => (
-              <ReadyCleanCard
-                key={group.client_name}
-                group={group}
-                busy={busy}
-                language={i18n.language}
-                onPickup={(item, leave) => pickupClean(item, leave, !item.isLoaded)}
-                t={t}
-              />
-            ))}
+      <div className={`live-other-ready${otherReadyOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="live-other-ready-trigger"
+          onClick={() => setOtherReadyOpen(value => !value)}
+          aria-expanded={otherReadyOpen}
+        >
+          <span className="live-other-ready-icon"><Truck size={18} aria-hidden="true" /></span>
+          <span className="live-other-ready-copy">
+            <strong>{t('course.planning.otherReadyTitle')}</strong>
+            <small>
+              {otherReady.length > 0
+                ? t('course.planning.otherReadyCount', { count: otherReady.length })
+                : t('course.planning.noOtherReady')}
+            </small>
+          </span>
+          <span className="live-other-ready-count">{otherReady.length}</span>
+          <ChevronDown className="live-other-ready-chevron" size={18} aria-hidden="true" />
+        </button>
+
+        {otherReadyOpen && otherReady.length > 0 && (
+          <div className="live-other-ready-body">
+            <p className="live-planning-section-hint">{t('course.planning.otherReadyHint')}</p>
+            <div className="live-load-list">
+              {otherReady.map(group => (
+                <ReadyCleanCard
+                  key={group.client_name}
+                  group={group}
+                  busy={busy}
+                  language={i18n.language}
+                  onPickup={(item, leave) => pickupClean(item, leave, item.loadedIds.length === 0)}
+                  onUndo={undoPickup}
+                  t={t}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

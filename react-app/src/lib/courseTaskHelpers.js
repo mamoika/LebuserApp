@@ -180,7 +180,12 @@ function trolleyNumbersFromEntry(entry) {
 }
 
 function entryWasPickedByTripDriver(entry, trip) {
-  return Boolean(entry?.done && entry?.picked_by && entry.picked_by === trip?.driver_name);
+  return Boolean(
+    entry?.done
+    && entry?.picked_by
+    && entry.picked_by === trip?.driver_name
+    && entry.driver_pickup_trip_id === trip?.id
+  );
 }
 
 function cleanLaundryPackedForPickup(entry) {
