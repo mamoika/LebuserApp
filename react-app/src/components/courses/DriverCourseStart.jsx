@@ -166,11 +166,19 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   return (
     <section className="driver-phone live-driver-start" aria-labelledby="driver-start-title">
       <header className="live-start-header">
-        <p className="live-start-kicker">{kicker}</p>
-        <h1 id="driver-start-title" className="live-start-title">{title}</h1>
-        {doneToday.length > 0 && (
-          <p className="live-start-subtitle">{t('course.start.doneToday', { count: doneToday.length })}</p>
-        )}
+        <div className="live-start-heading-row">
+          <div>
+            <p className="live-start-kicker">{kicker}</p>
+            <h1 id="driver-start-title" className="live-start-title">{title}</h1>
+            {doneToday.length > 0 && (
+              <p className="live-start-subtitle">{t('course.start.doneToday', { count: doneToday.length })}</p>
+            )}
+          </div>
+          <button type="button" className="live-start-history-btn" onClick={onHistory} disabled={busy}>
+            <History size={17} aria-hidden="true" />
+            <span>{t('course.driver.courseHistory')}</span>
+          </button>
+        </div>
       </header>
 
       {plannedTrip && (
@@ -263,10 +271,6 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
         <PlayCircle size={20} aria-hidden="true" />
         {plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
-      </button>
-      <button type="button" className="driver-secondary-btn live-start-history" onClick={onHistory} disabled={busy}>
-        <History size={17} aria-hidden="true" />
-        {t('course.driver.courseHistory')}
       </button>
     </section>
   );
