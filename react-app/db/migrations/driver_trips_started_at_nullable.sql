@@ -35,7 +35,7 @@ begin
       and role in ('admin', 'driver');
 
     if v_driver_id is null then
-      return json_build_object('error', 'Nieznaleziono kierowcy');
+      return json_build_object('error', 'Nie znaleziono kierowcy');
     end if;
   end if;
 
