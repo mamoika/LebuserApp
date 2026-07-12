@@ -13,7 +13,7 @@ import { printTripWorkCard } from '../../lib/coursePrint';
 import {
   buildExtraCandidates, buildOtherRouteCleanCandidates, canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
-import { parseExtraClients, pickupDateStr, routeNamesForTrip, tripDateInfo } from '../../lib/tripUiHelpers';
+import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import {
@@ -515,20 +515,23 @@ export default function DriverCourse() {
           <div className="live-stop-picker" role="tablist" aria-label={t('course.driver.stopPicker')}>
             {orderedStops.map(stop => {
               const isActive = viewStop?.id === stop.id;
-              const tone = stop.status === 'completed' ? 'is-done'
-                : stop.status === 'skipped' ? 'is-skipped'
-                  : isActive ? 'is-active' : '';
+              const displayNo = stopDisplayOrder(stop, clients);
+              const tone = [
+                stop.status === 'completed' ? 'is-done' : '',
+                stop.status === 'skipped' ? 'is-skipped' : '',
+                isActive ? 'is-active' : '',
+              ].filter(Boolean).join(' ');
               return (
                 <button
                   key={stop.id}
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  aria-label={t('course.driver.jumpToStop', { n: stop.position, name: stop.client_name })}
+                  aria-label={t('course.driver.jumpToStop', { n: displayNo, name: stop.client_name })}
                   className={`live-stop-picker-btn ${tone}`}
                   onClick={() => setViewStopId(stop.id)}
                 >
-                  {stop.position}
+                  {displayNo}
                 </button>
               );
             })}
@@ -578,7 +581,7 @@ export default function DriverCourse() {
               <div className="driver-upcoming-title">{t('course.driver.remainingStops')}</div>
               {otherPendingStops.map(stop => (
                 <button type="button" className="driver-upcoming-row is-clickable" key={stop.id} onClick={() => setViewStopId(stop.id)}>
-                  <span className="driver-upcoming-index">{stop.position}</span>{stop.client_name}
+                  <span className="driver-upcoming-index">{stopDisplayOrder(stop, clients)}</span>{stop.client_name}
                 </button>
               ))}
             </div>

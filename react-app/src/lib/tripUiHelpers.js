@@ -18,6 +18,15 @@ export function parseExtraClients(raw) {
   }
 }
 
+/** Numer kolejności klienta na trasie (sort_order), nie pozycja 1..n w kursie. */
+export function stopDisplayOrder(stop, clients = []) {
+  if (!stop) return null;
+  const client = clients.find(item => (
+    (stop.client_id && item.id === stop.client_id) || item.name === stop.client_name
+  ));
+  return client?.sort_order ?? stop.position ?? null;
+}
+
 export function workDateOptions(days = 14) {
   const opts = [];
   const start = new Date();

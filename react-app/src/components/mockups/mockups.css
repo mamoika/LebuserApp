@@ -883,6 +883,11 @@
   margin-bottom: 10px;
 }
 .live-stop-title-row .driver-client-name { margin: 0; flex: 1; min-width: 0; }
+.live-stop-order-no {
+  margin-right: 0.35em;
+  color: var(--accent);
+  font-weight: 800;
+}
 .live-stop-title-row .driver-nav-btn { flex-shrink: 0; margin: 2px 0 0; }
 .driver-nav-btn.is-disabled {
   opacity: 0.42;
@@ -939,18 +944,29 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .live-stop-picker-btn.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: var(--bg-card-solid);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
 }
 .live-stop-picker-btn.is-done:not(.is-active) {
   background: var(--accent-green-light, #e8f8ee);
-  border-color: transparent;
+  border: 1px solid transparent;
   color: #1a7a37;
+}
+.live-stop-picker-btn.is-done.is-active {
+  background: var(--accent-green-light, #e8f8ee);
+  border: 2px solid var(--accent);
+  color: #1a7a37;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
 }
 .live-stop-picker-btn.is-skipped:not(.is-active) {
   opacity: 0.45;
+  text-decoration: line-through;
+}
+.live-stop-picker-btn.is-skipped.is-active {
+  opacity: 1;
+  border: 2px solid var(--accent);
   text-decoration: line-through;
 }
 .live-stop-picker-btn:focus-visible {

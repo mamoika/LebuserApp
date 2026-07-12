@@ -8,7 +8,7 @@ import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
   isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
 } from '../../lib/courseTaskHelpers';
-import { formatKg, tripDateInfo } from '../../lib/tripUiHelpers';
+import { formatKg, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { AddEntryModal, ViewEditEntryModal } from '../modals/EntryModals';
 import { LaundryTypeChip, mapsUrlForStop, stopHasNavLocation } from './CourseUiBits';
@@ -238,13 +238,17 @@ export default function CourseCurrentStop({
   const pickupAt = clean.pickup.find(task => task.completed_at)?.completed_at;
   const deliveryAt = clean.delivery.find(task => task.completed_at)?.completed_at;
   const canNavigate = stopHasNavLocation(stop);
+  const displayNo = stopDisplayOrder(stop, clients);
 
   return (
     <>
       <article className="driver-focus-card live-stop-focus">
         <header className="live-stop-header">
           <div className="live-stop-title-row">
-            <h1 id="current-stop-title" className="driver-client-name">{stop.client_name}</h1>
+            <h1 id="current-stop-title" className="driver-client-name">
+              {displayNo != null && <span className="live-stop-order-no">{displayNo}.</span>}
+              {stop.client_name}
+            </h1>
             {canNavigate ? (
               <a className="driver-nav-btn" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer">
                 <Navigation2 size={15} aria-hidden="true" /> {t('course.currentStop.navigate')}
