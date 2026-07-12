@@ -8,7 +8,7 @@ import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
   isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
 } from '../../lib/courseTaskHelpers';
-import { formatKg } from '../../lib/tripUiHelpers';
+import { formatKg, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { AddEntryModal, ViewEditEntryModal } from '../modals/EntryModals';
 import { LaundryTypeChip, mapsUrlForStop } from './CourseUiBits';
@@ -96,6 +96,7 @@ export default function CourseCurrentStop({
   const hasPhysicalTrolley = clean.pickup.some(task => task.laundry_trolley_no && task.laundry_trolley_no !== 'brak');
   const hasDeliveryTrolleys = clean.pendingDelivery.some(task => task.laundry_trolley_cycle_id);
   const dirtyToday = useMemo(() => dirtyEntriesForStop(entries, stop.client_name, trip.trip_date), [entries, stop.client_name, trip.trip_date]);
+  const entryDateInfo = useMemo(() => tripDateInfo(trip.trip_date), [trip.trip_date]);
   const pickupOwner = clean.pickup.map(task => task.picked_by).find(Boolean) || t('course.currentStop.otherDriver');
   const deliveryOwner = clean.delivery.map(task => task.delivered_by).find(Boolean) || t('course.currentStop.otherDriver');
   const canManagePickup = canManagePickupTasks(clean.pickup, user, trip);
@@ -406,9 +407,9 @@ export default function CourseCurrentStop({
         <AddEntryModal
           isOpen
           onClose={() => setAddEntryFor(null)}
-          defaultArrDay={trip.trip_date ? new Date(`${trip.trip_date}T00:00:00`).getDay() : undefined}
+          defaultArrDay={entryDateInfo.arrDay}
           defaultClientName={addEntryFor}
-          weekKey={undefined}
+          weekKey={entryDateInfo.weekKey}
           clients={clients.filter(client => client.route_id)}
           routes={allRoutes}
           onAdded={async () => { setAddEntryFor(null); await onReload(); }}

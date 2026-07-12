@@ -1225,6 +1225,78 @@
   .live-start-car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ── Modal: brudne pranie (kierowca) ── */
+.ap-sheet.is-driver-dirty { max-width: 430px; }
+.live-entry-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.live-entry-modal-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #1A7A37;
+  background: var(--accent-green-light);
+  box-shadow: 0 3px 10px rgba(52, 199, 89, 0.22);
+}
+.live-entry-modal-title {
+  text-align: left !important;
+  font-size: 19px !important;
+  margin-bottom: 1px !important;
+}
+.live-entry-modal-subtitle {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.live-entry-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.live-entry-date-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.live-entry-locked-day {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+.live-entry-week-row { display: flex; gap: 6px; }
+.live-entry-week-plus {
+  width: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .live-entry-date-grid { grid-template-columns: 1fr; }
+}
+
 .live-task-action:focus-visible,
 .live-board-actions input:focus-visible {
   outline: 3px solid var(--accent);

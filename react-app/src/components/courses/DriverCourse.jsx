@@ -487,7 +487,9 @@ export default function DriverCourse() {
         </div>
       )}
 
-      <button className="driver-secondary-btn" onClick={() => setAddEntryFor('')} disabled={busy}><ShoppingCart size={15} /> {t('course.driver.addDirty')}</button>
+      {!current && (
+        <button className="driver-secondary-btn" onClick={() => setAddEntryFor('')} disabled={busy}><ShoppingCart size={15} /> {t('course.driver.addDirty')}</button>
+      )}
       {!hasProgress && (
         <button className="driver-secondary-btn" onClick={cancelTrip} disabled={busy}>{t('course.driver.cancelEmpty')}</button>
       )}

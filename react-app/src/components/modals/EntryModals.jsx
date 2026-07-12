@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Package } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { dayNamesFull, dayNamesShort, formatWeekKey } from '../../lib/dateUtils';
@@ -81,7 +82,16 @@ function weeksBetween(fromWeekKey, toWeekKey) {
 
 // Data dnia roboczego (1=Pn..5=Pt) w tygodniu zaczynającym się od weekKey (poniedziałek).
 function dateForDay(weekKey, day) {
-  const [y, m, d] = (weekKey || '').split('-').map(Number);
+  const parts = (weekKey || '').split('-').map(Number);
+  if (parts.length < 3 || parts.some(Number.isNaN)) {
+    const fallback = new Date();
+    const wd = Math.min(5, Math.max(1, Number(day) || 1));
+    const monday = new Date(fallback);
+    monday.setDate(fallback.getDate() - ((fallback.getDay() + 6) % 7));
+    monday.setDate(monday.getDate() + (wd - 1));
+    return monday;
+  }
+  const [y, m, d] = parts;
   const dt = new Date(y, (m || 1) - 1, d || 1);
   dt.setDate(dt.getDate() + (Number(day) - 1));
   return dt;
@@ -509,6 +519,15 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [loading, setLoading] = useState(false);
   const [explicitRouteId, setExplicitRouteId] = useState('');
   const isClientScoped = !!defaultClientName;
+  const resolvedWeekKey = useMemo(() => {
+    if (weekKey) return weekKey;
+    const anchor = new Date();
+    const day = defaultArrDay || Math.min(5, Math.max(1, (anchor.getDay() + 6) % 7 + 1));
+    const monday = new Date(anchor);
+    monday.setDate(anchor.getDate() - (day - 1));
+    return formatWeekKey(monday);
+  }, [weekKey, defaultArrDay]);
+  const isDriverStopFlow = isClientScoped && Boolean(weekKey) && isDriver;
 
   const assignedRouteIds = useMemo(() => parseRouteIds(user?.routes), [user?.routes]);
   const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
@@ -587,7 +606,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
 
       // Calculate pick_week_key — offset 0/1 (kierowca) lub dalej (admin)
-      const pickWeekKey = addWeeks(weekKey, Number(pickWeek) || 0);
+      const pickWeekKey = addWeeks(resolvedWeekKey, Number(pickWeek) || 0);
 
       // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
       // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
@@ -595,7 +614,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       const { data, error } = await supabase.rpc('admin_insert_entry', {
         p_session_token: sessionToken,
         p_id: newEntryId,
-        p_week_key: weekKey,
+        p_week_key: resolvedWeekKey,
         p_client_name: clientName,
         p_arr_day: parseInt(arrDay),
         p_pick_day: parseInt(pickDay),
@@ -622,16 +641,16 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }}>
-      <div className="ap-sheet">
+      <div className={`ap-sheet ${isDriverStopFlow ? 'is-driver-dirty' : ''}`}>
         <div className="ap-handle"></div>
         <div className="ap-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>📦</div>
+          <div className="live-entry-modal-head">
+            <div className="live-entry-modal-icon" aria-hidden="true"><Package size={22} /></div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>
+              <div className="ap-title live-entry-modal-title">
                 {isClientScoped ? (clientName || defaultClientName) : t('entry.addArrival')}
               </div>
-              <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)', fontWeight: 400 }}>
+              <div className="live-entry-modal-subtitle">
                 {isClientScoped ? t('entry.dirtyToLaundry') : user?.name}
               </div>
             </div>
@@ -713,7 +732,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             </>
           )}
 
-          {isAdmin && (
+          {isAdmin && !isDriverStopFlow && (
             <div style={{ marginBottom: '12px' }}>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.assignToRoute')}</div>
               <select className="ap-input" value={explicitRouteId} onChange={e => setExplicitRouteId(e.target.value)}>
@@ -740,39 +759,43 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weightOptional')}</div>
           <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          <div className="live-entry-date-grid">
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.arrivalDay')}</div>
-              <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
-                {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(weekKey, i + 1))}</option>)}
-              </select>
+              <div className="live-entry-field-label">{t('entry.arrivalDay')}</div>
+              {isDriverStopFlow ? (
+                <div className="live-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
+              ) : (
+                <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
+                  {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(resolvedWeekKey, i + 1))}</option>)}
+                </select>
+              )}
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupDay')}</div>
+              <div className="live-entry-field-label">{t('entry.pickupDay')}</div>
               <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
-                {buildPickDayOptions(weekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {buildPickDayOptions(resolvedWeekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          <div className="live-entry-date-grid">
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.pickupWeek')}</div>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="live-entry-field-label">{t('entry.pickupWeek')}</div>
+              <div className="live-entry-week-row">
                 <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
                   <option value={0}>{t('entry.sameWeek')}</option>
                   <option value={1}>{t('entry.nextWeek')}</option>
                   {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                    <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(weekKey, n), 1))})</option>
+                    <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1))})</option>
                   ))}
                 </select>
-                {isAdmin && (
-                  <button type="button" className="ap-input" style={{ width: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }} title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+                {isAdmin && !isDriverStopFlow && (
+                  <button type="button" className="live-entry-week-plus" title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
                 )}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.trolleys')}</div>
+              <div className="live-entry-field-label">{t('entry.trolleys')}</div>
               <input type="number" className="ap-input" value={trolleys} onChange={e => setTrolleys(e.target.value ? Number(e.target.value) : '')} min="0" />
             </div>
           </div>
