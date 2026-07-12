@@ -672,7 +672,12 @@
       "stopsProgress": "{{done}} z {{total}} · {{name}}",
       "stageChanged": "Etap kursu: {{label}}",
       "invalidKm": "Podaj poprawny licznik",
-      "hoursApproveTitle": "Zatwierdź godziny pracy"
+      "hoursApproveTitle": "Zatwierdź godziny pracy",
+      "hoursShort": "Godziny",
+      "kmApproved": "Kilometry zatwierdzone",
+      "hoursApprovedLabel": "Godziny zatwierdzone",
+      "settlementHint": "Zatwierdź km i godziny — kurs sam przejdzie do Zamknięte.",
+      "closedAutoHint": "Kolumna Zamknięte jest automatyczna. Zatwierdź km i godziny na karcie."
     },
     "archive": {
       "kicker": "Panel administratora",

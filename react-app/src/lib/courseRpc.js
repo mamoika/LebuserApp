@@ -29,6 +29,10 @@ export const setCourseStage = (sessionToken, tripId, stage) => callCourseRpc(
   'admin_set_course_stage', sessionToken, { p_trip_id: tripId, p_stage: stage }
 );
 
+export const getTripWorkTimeReport = (sessionToken, tripId) => callCourseRpc(
+  'admin_get_trip_work_time_report', sessionToken, { p_trip_id: tripId }
+);
+
 export const approveCourseKm = (sessionToken, tripId, endKm, writeCosts = true) => callCourseRpc(
   'admin_approve_course_km', sessionToken,
   { p_trip_id: tripId, p_end_km: endKm, p_write_costs: writeCosts }

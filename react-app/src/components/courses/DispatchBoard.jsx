@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
-  AlertTriangle, CalendarDays, CheckCircle2, Clock3, Gauge, GripVertical,
+  AlertTriangle, CalendarDays, CheckCircle2, ChevronRight, Clock3, Gauge, GripVertical,
   History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { approveWorkTime, rejectWorkTime } from '../../lib/adminRpc';
 import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
-import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripJournal, setCourseStage } from '../../lib/courseRpc';
+import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -239,12 +239,17 @@ function HoursApprovalSheet({ trip, start, end, busy, onStart, onEnd, onApprove,
     <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
       <div ref={sheetRef} className="ap-sheet" role="dialog" aria-modal="true" aria-labelledby="hours-title" tabIndex={-1} onPointerDown={event => event.stopPropagation()}>
         <div className="ap-handle" />
-        <div className="ap-content">
+        <div className="ap-content live-hours-approve-sheet">
           <h2 id="hours-title" className="ap-title">{t('course.board.hoursApproveTitle')}</h2>
-          <p className="live-sheet-copy">
-            {trip.employee_name || trip.driver_name || t('course.noDriver')}
-            {trip.reported_hours ? ` · ${t('workTime.driverReported')} ${trip.reported_hours}` : ''}
-          </p>
+          <div className="live-hours-approve-driver">
+            <div className="live-hours-approve-avatar" aria-hidden="true">
+              {(trip.driver_name || trip.employee_name || '?').split(' ').map(part => part[0]).join('').slice(0, 2)}
+            </div>
+            <div>
+              <strong>{trip.employee_name || trip.driver_name || t('course.noDriver')}</strong>
+              <span>{trip.reported_hours ? t('workTime.driverReported') + ` ${trip.reported_hours}` : t('course.board.noReportedHours')}</span>
+            </div>
+          </div>
           <div className="live-time-grid">
             <label className="live-field-label" htmlFor="approved-hours-start">{t('workTime.start')}
               <input id="approved-hours-start" className="ap-input" type="time" value={start} onChange={event => onStart(event.target.value)} disabled={busy} />
@@ -277,12 +282,37 @@ function HoursApprovalSheet({ trip, start, end, busy, onStart, onEnd, onApprove,
   );
 }
 
+function SettlementCheck({ icon: Icon, label, state, disabled, onClick, hint }) {
+  return (
+    <button
+      type="button"
+      className={`kurs-settlement-check is-${state}`}
+      disabled={disabled}
+      onClick={onClick}
+      title={hint}
+    >
+      <span className="kurs-settlement-check-icon" aria-hidden="true"><Icon size={15} /></span>
+      <span className="kurs-settlement-check-copy">
+        <strong>{label}</strong>
+        <small>{state === 'approved' ? '✓' : state === 'pending' ? '…' : '—'}</small>
+      </span>
+      {state === 'pending' && !disabled && <ChevronRight size={14} className="kurs-settlement-check-chevron" aria-hidden="true" />}
+    </button>
+  );
+}
+
 function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, onAssign, locale }) {
   const { t } = useTranslation();
   const progress = trip.stops_total ? Math.round((trip.stops_completed / trip.stops_total) * 100) : 0;
   const routeColor = getRouteColorByDisplay(trip.route_display || 1);
   const canAssign = isAdmin && (trip.isVirtual || (trip.board_status === 'planning' && !trip.driver_id));
   const isVirtual = !!trip.isVirtual;
+  const kmApproved = trip.km_approval_status === 'approved';
+  const hoursApproved = trip.hours_status === 'approved';
+  const hasHoursReport = Boolean(trip.work_time_report_id || trip.reported_hours);
+  const kmState = kmApproved ? 'approved' : trip.end_km ? 'pending' : 'missing';
+  const hoursState = hoursApproved ? 'approved' : hasHoursReport ? 'pending' : 'missing';
+  const settlementPending = (trip.board_status === 'settlement') && (!kmApproved || !hoursApproved);
   return (
     <Draggable draggableId={String(trip.id)} index={index} isDragDisabled={!isAdmin || isVirtual}>
       {(provided, snapshot) => (
@@ -324,26 +354,34 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
             </>
           )}
           {(trip.board_status === 'settlement' || trip.board_status === 'closed') && (
-            <>
-              <div className="kurs-settlement-row">{trip.end_km ?? '—'} km · {trip.reported_hours || t('course.board.noReportedHours')}</div>
-              <div className="kurs-approve-row">
-                <button
-                  className={`kurs-approve-btn ${trip.km_approval_status === 'approved' ? 'is-approved' : ''}`}
+            <div className="kurs-settlement-panel">
+              <div className="kurs-settlement-meta">
+                <span>{trip.end_km ?? '—'} km</span>
+                <span className="kurs-settlement-dot" aria-hidden="true">·</span>
+                <span>{trip.reported_hours || t('course.board.noReportedHours')}</span>
+              </div>
+              <div className="kurs-settlement-checks">
+                <SettlementCheck
+                  icon={Gauge}
+                  label="km"
+                  state={kmState}
                   disabled={!isAdmin || !trip.end_km}
                   onClick={() => onApprove(trip)}
-                >
-                  <Gauge size={13} /> km {trip.km_approval_status === 'approved' ? '✓' : ''}
-                </button>
-                <button
-                  className={`kurs-approve-btn ${trip.hours_status === 'approved' ? 'is-approved' : ''}`}
-                  disabled={!isAdmin || !trip.work_time_report_id || trip.hours_status === 'approved'}
-                  title={!trip.work_time_report_id ? t('course.board.noReportedHours') : undefined}
+                  hint={kmApproved ? t('course.board.kmApproved') : t('course.km.title')}
+                />
+                <SettlementCheck
+                  icon={Clock3}
+                  label={t('course.board.hoursShort')}
+                  state={hoursState}
+                  disabled={!isAdmin || hoursApproved || !hasHoursReport}
                   onClick={() => onApproveHours(trip)}
-                >
-                  <Clock3 size={13} /> {t('workTime.workHours')} {trip.hours_status === 'approved' ? '✓' : ''}
-                </button>
+                  hint={hoursApproved ? t('course.board.hoursApprovedLabel') : hasHoursReport ? t('course.board.hoursApproveTitle') : t('course.board.noReportedHours')}
+                />
               </div>
-            </>
+              {settlementPending && (
+                <p className="kurs-settlement-hint">{t('course.board.settlementHint')}</p>
+              )}
+            </div>
           )}
           {trip.problem_label && <div className="kurs-problem-badge"><AlertTriangle size={12} /> {trip.problem_label}</div>}
         </article>
@@ -461,6 +499,10 @@ export default function DispatchBoard() {
   const onDragEnd = result => {
     if (!isAdmin || !result.destination || result.source.droppableId === result.destination.droppableId) return;
     if (String(result.draggableId).startsWith('virtual_')) return;
+    if (result.destination.droppableId === 'closed') {
+      toastError(t('course.board.closedAutoHint'));
+      return;
+    }
     moveStage(result.draggableId, result.destination.droppableId);
   };
 
@@ -469,15 +511,41 @@ export default function DispatchBoard() {
     setKmValue(String(tripToApprove.end_km || ''));
   };
 
-  const openHoursApproval = tripToApprove => {
-    setHoursTrip(tripToApprove);
-    if (tripToApprove.reported_start) {
-      setHoursStart(timeForInput(tripToApprove.reported_start) || '');
-      setHoursEnd(timeForInput(tripToApprove.reported_end) || '');
+  const openHoursApproval = async tripToApprove => {
+    let enriched = { ...tripToApprove };
+    if (!enriched.work_time_report_id && enriched.id) {
+      try {
+        setBusy(true);
+        const data = await getTripWorkTimeReport(sessionToken, enriched.id);
+        if (data?.report?.id) {
+          enriched = {
+            ...enriched,
+            work_time_report_id: data.report.id,
+            hours_status: data.report.status || enriched.hours_status,
+            reported_start: data.report.reported_start || enriched.reported_start,
+            reported_end: data.report.reported_end || enriched.reported_end,
+            employee_name: data.report.employee_name || enriched.employee_name,
+          };
+        }
+      } catch (error) {
+        toastError(error.message);
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    if (!enriched.work_time_report_id && !enriched.reported_hours) {
+      toastError(t('course.board.noReportedHours'));
       return;
     }
-    if (tripToApprove.reported_hours?.includes('–')) {
-      const [start, end] = tripToApprove.reported_hours.split('–');
+    setHoursTrip(enriched);
+    if (enriched.reported_start) {
+      setHoursStart(timeForInput(enriched.reported_start) || '');
+      setHoursEnd(timeForInput(enriched.reported_end) || '');
+      return;
+    }
+    if (enriched.reported_hours?.includes('–')) {
+      const [start, end] = enriched.reported_hours.split('–');
       setHoursStart(timeForInput(start) || '');
       setHoursEnd(timeForInput(end) || '');
       return;
@@ -500,14 +568,26 @@ export default function DispatchBoard() {
   };
 
   const approveHours = async () => {
-    if (!hoursTrip?.work_time_report_id) return;
+    let reportId = hoursTrip?.work_time_report_id;
+    if (!reportId && hoursTrip?.id) {
+      try {
+        const data = await getTripWorkTimeReport(sessionToken, hoursTrip.id);
+        reportId = data?.report?.id;
+      } catch {
+        reportId = null;
+      }
+    }
+    if (!reportId) {
+      toastError(t('course.board.noReportedHours'));
+      return;
+    }
     if (!minutesBetweenClocks(hoursStart, hoursEnd)) {
       toastError(t('workTime.invalid'));
       return;
     }
     try {
       setBusy(true);
-      await approveWorkTime(sessionToken, hoursTrip.work_time_report_id, hoursStart, hoursEnd);
+      await approveWorkTime(sessionToken, reportId, hoursStart, hoursEnd);
       setHoursTrip(null);
       toastSuccess(t('workTime.approvalSuccess'));
       await loadBoard();
@@ -516,12 +596,24 @@ export default function DispatchBoard() {
   };
 
   const rejectHours = async () => {
-    if (!hoursTrip?.work_time_report_id) return;
+    let reportId = hoursTrip?.work_time_report_id;
+    if (!reportId && hoursTrip?.id) {
+      try {
+        const data = await getTripWorkTimeReport(sessionToken, hoursTrip.id);
+        reportId = data?.report?.id;
+      } catch {
+        reportId = null;
+      }
+    }
+    if (!reportId) {
+      toastError(t('course.board.noReportedHours'));
+      return;
+    }
     const note = window.prompt(t('workTime.rejectPrompt'), '');
     if (note === null) return;
     try {
       setBusy(true);
-      await rejectWorkTime(sessionToken, hoursTrip.work_time_report_id, note);
+      await rejectWorkTime(sessionToken, reportId, note);
       setHoursTrip(null);
       toastSuccess(t('workTime.rejectSuccess'));
       await loadBoard();
@@ -588,7 +680,7 @@ export default function DispatchBoard() {
                   return (
                     <div className="dispatch-col" key={column.key}>
                       <div className="dispatch-col-header"><span className="dispatch-col-title">{column.label}</span><span className="dispatch-col-count">{items.length}</span></div>
-                      <Droppable droppableId={column.key} isDropDisabled={!isAdmin}>
+                      <Droppable droppableId={column.key} isDropDisabled={!isAdmin || column.key === 'closed'}>
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.droppableProps} className={`dispatch-col-drop ${snapshot.isDraggingOver ? 'is-over' : ''}`}>
                             {items.map((trip, index) => (

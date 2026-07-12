@@ -662,7 +662,12 @@
       "stopsProgress": "{{done}} von {{total}} · {{name}}",
       "stageChanged": "Kursstadium: {{label}}",
       "invalidKm": "Gültigen Kilometerstand eingeben",
-      "hoursApproveTitle": "Arbeitszeit bestätigen"
+      "hoursApproveTitle": "Arbeitszeit bestätigen",
+      "hoursShort": "Zeiten",
+      "kmApproved": "Kilometer bestätigt",
+      "hoursApprovedLabel": "Zeiten bestätigt",
+      "settlementHint": "km und Zeiten bestätigen — der Kurs wechselt automatisch nach Geschlossen.",
+      "closedAutoHint": "Spalte Geschlossen ist automatisch. km und Zeiten auf der Karte bestätigen."
     },
     "archive": {
       "kicker": "Administratorpanel",

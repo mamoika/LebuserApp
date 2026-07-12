@@ -319,6 +319,107 @@
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
+.kurs-settlement-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,149,0,0.06) 0%, rgba(255,255,255,0) 100%);
+  border: 1px solid rgba(255,149,0,0.18);
+}
+.kurs-settlement-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.kurs-settlement-dot { opacity: 0.55; }
+.kurs-settlement-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.kurs-settlement-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-solid);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.kurs-settlement-check:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.kurs-settlement-check.is-pending:not(:disabled):hover {
+  border-color: rgba(255,149,0,0.45);
+  background: rgba(255,149,0,0.08);
+}
+.kurs-settlement-check.is-pending:not(:disabled) {
+  border-color: rgba(255,149,0,0.35);
+  box-shadow: inset 0 0 0 1px rgba(255,149,0,0.08);
+}
+.kurs-settlement-check.is-approved {
+  background: var(--accent-green-light);
+  border-color: rgba(52,199,89,0.35);
+  color: #1A7A37;
+}
+.kurs-settlement-check.is-missing {
+  background: var(--bg-tertiary);
+  border-style: dashed;
+}
+.kurs-settlement-check-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.04);
+  flex-shrink: 0;
+}
+.kurs-settlement-check.is-approved .kurs-settlement-check-icon {
+  background: rgba(52,199,89,0.14);
+}
+.kurs-settlement-check.is-pending .kurs-settlement-check-icon {
+  background: rgba(255,149,0,0.14);
+  color: #B45309;
+}
+.kurs-settlement-check-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.kurs-settlement-check-copy strong {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.kurs-settlement-check-copy small {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.kurs-settlement-check-chevron {
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+.kurs-settlement-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #B45309;
+  font-weight: 600;
+}
 .kurs-approve-row { display: flex; gap: 6px; margin-top: 6px; }
 .kurs-approve-btn {
   flex: 1;
@@ -771,6 +872,44 @@
 .live-segment small { grid-column: 2; color: var(--text-tertiary); font-size: 11px; }
 .live-journal-driver-link { margin-top: 18px; }
 .live-sheet-copy { margin: 0 0 16px; color: var(--text-tertiary); font-size: 13px; line-height: 1.5; text-align: center; }
+.live-hours-approve-sheet .ap-title { text-align: left; }
+.live-hours-approve-driver {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+}
+.live-hours-approve-driver strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.live-hours-approve-driver span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.live-hours-approve-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-light);
+  flex-shrink: 0;
+}
+.ap-btn.is-danger {
+  color: #C24135;
+  border-color: rgba(255,59,48,0.2);
+  background: rgba(255,59,48,0.08);
+}
 .live-field-label { display: grid; gap: 6px; margin: 12px 0 6px; color: var(--text-secondary); font-size: 12px; font-weight: 750; }
 
 .live-driver-course { padding-top: 8px; }
