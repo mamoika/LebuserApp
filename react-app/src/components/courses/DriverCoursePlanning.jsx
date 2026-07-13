@@ -33,7 +33,7 @@ function formatPackedAt(value, language) {
   });
 }
 
-function ReadyCleanCard({ group, busy, language, onPickup, onUndo, t }) {
+function ReadyCleanCard({ group, busy, readOnly, language, onPickup, onUndo, t }) {
   const hasLoaded = group.loadedIds.length > 0;
   const packedBy = group.packedBy.length ? group.packedBy.join(', ') : t('course.planning.packerUnknown');
   const trolleyLabel = group.trolleyNos.length
@@ -63,14 +63,16 @@ function ReadyCleanCard({ group, busy, language, onPickup, onUndo, t }) {
             <CheckCircle2 size={17} aria-hidden="true" />
             {t('course.planning.onVehicle')}
           </div>
-          <button type="button" className="live-load-undo" onClick={() => onUndo(group)} disabled={busy}>
-            <RotateCcw size={14} aria-hidden="true" />
-            {t('course.planning.undoPickup')}
-          </button>
+          {!readOnly && (
+            <button type="button" className="live-load-undo" onClick={() => onUndo(group)} disabled={busy}>
+              <RotateCcw size={14} aria-hidden="true" />
+              {t('course.planning.undoPickup')}
+            </button>
+          )}
         </div>
       )}
 
-      {group.pendingIds.length > 0 && (group.hasPhysicalTrolley ? (
+      {!readOnly && group.pendingIds.length > 0 && (group.hasPhysicalTrolley ? (
         <div className="live-load-actions">
           <button type="button" className="live-start-claim-btn" onClick={() => onPickup(group, false)} disabled={busy}>
             {t('course.planning.pickupWithTrolley')}
@@ -88,7 +90,7 @@ function ReadyCleanCard({ group, busy, language, onPickup, onUndo, t }) {
   );
 }
 
-export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
+export default function DriverCoursePlanning({ trip, stops = [], adminMode = false, readOnly = false, onUpdated, onCancelled }) {
   const { t, i18n } = useTranslation();
   const { sessionToken } = useAuth();
   const { entries, clients, allRoutes, refetch } = useAppData();
@@ -166,13 +168,22 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!group.pendingIds.length) return;
     try {
       setBusy(true);
-      await pickupPlannedClean(
-        sessionToken,
-        trip.id,
-        group.pendingIds,
-        leaveTrolley,
-        addOtherRoute ? group.client_name : null,
-      );
+      if (adminMode) {
+        await callExistingTripRpc('admin_pickup_planned_clean', sessionToken, {
+          p_trip_id: trip.id,
+          p_ids: group.pendingIds,
+          p_leave_trolley: leaveTrolley,
+          p_include_client: addOtherRoute ? group.client_name : null,
+        });
+      } else {
+        await pickupPlannedClean(
+          sessionToken,
+          trip.id,
+          group.pendingIds,
+          leaveTrolley,
+          addOtherRoute ? group.client_name : null,
+        );
+      }
       toastSuccess(t('course.planning.pickupSuccess', { name: group.client_name }));
       await reload();
     } catch (error) {
@@ -186,7 +197,14 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!group.loadedIds.length) return;
     try {
       setBusy(true);
-      await undoPlannedCleanPickup(sessionToken, trip.id, group.loadedIds);
+      if (adminMode) {
+        await callExistingTripRpc('admin_undo_planned_clean', sessionToken, {
+          p_trip_id: trip.id,
+          p_ids: group.loadedIds,
+        });
+      } else {
+        await undoPlannedCleanPickup(sessionToken, trip.id, group.loadedIds);
+      }
       toastSuccess(t('course.planning.undoPickupSuccess', { name: group.client_name }));
       await reload();
     } catch (error) {
@@ -200,7 +218,14 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!dirtyClient) return;
     try {
       setBusy(true);
-      await addDirtyPlannedStop(sessionToken, trip.id, dirtyClient);
+      if (adminMode) {
+        await callExistingTripRpc('admin_add_dirty_planned_stop', sessionToken, {
+          p_trip_id: trip.id,
+          p_client_name: dirtyClient,
+        });
+      } else {
+        await addDirtyPlannedStop(sessionToken, trip.id, dirtyClient);
+      }
       toastSuccess(t('course.planning.dirtyAdded', { name: dirtyClient }));
       setDirtyClient('');
       await reload();
@@ -215,7 +240,14 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (stop.stop_kind !== 'dirty_only') return;
     try {
       setBusy(true);
-      await removeDirtyPlannedStop(sessionToken, trip.id, stop.client_name);
+      if (adminMode) {
+        await callExistingTripRpc('admin_remove_dirty_planned_stop', sessionToken, {
+          p_trip_id: trip.id,
+          p_client_name: stop.client_name,
+        });
+      } else {
+        await removeDirtyPlannedStop(sessionToken, trip.id, stop.client_name);
+      }
       toastSuccess(t('course.planning.dirtyRemoved', { name: stop.client_name }));
       await reload();
     } catch (error) {
@@ -229,7 +261,11 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!trip) return;
     try {
       setBusy(true);
-      await startFinalizedDriverTrip(sessionToken, trip.id);
+      if (adminMode) {
+        await callExistingTripRpc('admin_start_planned_course', sessionToken, { p_trip_id: trip.id });
+      } else {
+        await startFinalizedDriverTrip(sessionToken, trip.id);
+      }
       toastSuccess(t('course.planning.driveStarted'));
       await onUpdated?.();
     } catch (error) {
@@ -243,9 +279,10 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     if (!window.confirm(t('course.planning.cancelConfirm'))) return;
     try {
       setBusy(true);
-      await callExistingTripRpc('driver_cancel_trip', sessionToken, { p_trip_id: trip.id });
+      await callExistingTripRpc(adminMode ? 'admin_cancel_planned_course' : 'driver_cancel_trip', sessionToken, { p_trip_id: trip.id });
       toastSuccess(t('course.planning.cancelled'));
-      await onUpdated?.();
+      await onCancelled?.();
+      if (!onCancelled) await onUpdated?.();
     } catch (error) {
       toastError(error.message);
     } finally {
@@ -307,6 +344,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
                 key={group.client_name}
                 group={group}
                 busy={busy}
+                readOnly={readOnly}
                 language={i18n.language}
                 onPickup={(item, leave) => pickupClean(item, leave, false)}
                 onUndo={undoPickup}
@@ -324,7 +362,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
         </h2>
         <p className="live-planning-section-hint">{t('course.planning.dirtyOnlyHint')}</p>
 
-        {dirtyCandidates.length > 0 && (
+        {!readOnly && dirtyCandidates.length > 0 && (
           <div className="live-dirty-plan-add">
             <select className="ap-input" value={dirtyClient} onChange={event => setDirtyClient(event.target.value)} disabled={busy}>
               <option value="">{t('course.planning.selectDirtyClient')}</option>
@@ -354,7 +392,7 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
                     {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
                   </span>
                 </div>
-                {stop.stop_kind === 'dirty_only' && (
+                {!readOnly && stop.stop_kind === 'dirty_only' && (
                   <button
                     type="button"
                     className="live-dirty-plan-remove"
@@ -398,8 +436,9 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
               {otherReady.map(group => (
                 <ReadyCleanCard
                   key={group.client_name}
-                  group={group}
-                  busy={busy}
+                group={group}
+                busy={busy}
+                readOnly={readOnly}
                   language={i18n.language}
                   onPickup={(item, leave) => pickupClean(item, leave, item.loadedIds.length === 0)}
                   onUndo={undoPickup}
@@ -411,15 +450,17 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
         )}
       </div>
 
-      <div className="live-planning-footer">
-        <button type="button" className="driver-primary-btn live-planning-start-btn" onClick={startDrive} disabled={busy || plannedClientNames.size === 0}>
-          {busy ? <LoaderCircle className="is-spinning" size={20} aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
-          {t('course.planning.startDrive')}
-        </button>
-        <button type="button" className="driver-secondary-btn" onClick={cancelPlanning} disabled={busy}>
-          {t('course.planning.cancelPlanning')}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="live-planning-footer">
+          <button type="button" className="driver-primary-btn live-planning-start-btn" onClick={startDrive} disabled={busy || plannedClientNames.size === 0}>
+            {busy ? <LoaderCircle className="is-spinning" size={20} aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
+            {t('course.planning.startDrive')}
+          </button>
+          <button type="button" className="driver-secondary-btn" onClick={cancelPlanning} disabled={busy}>
+            {t('course.planning.cancelPlanning')}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

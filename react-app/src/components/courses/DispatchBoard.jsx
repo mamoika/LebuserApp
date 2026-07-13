@@ -10,8 +10,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { approveWorkTime, rejectWorkTime } from '../../lib/adminRpc';
 import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
-import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
+import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripCourse, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
+import { dispatchCourseMode } from '../../lib/dispatchCourseMode';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
 import { operationalYmd } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -20,7 +21,7 @@ import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import AssignTripSheet from './sheets/AssignTripSheet';
 import DispatchTripArchive from './DispatchTripArchive';
-import PlanPickupSheet from './sheets/PlanPickupSheet';
+import DriverCoursePlanning from './DriverCoursePlanning';
 import TripCourseStops from './TripCourseStops';
 import '../mockups/mockups.css';
 
@@ -31,6 +32,9 @@ const EVENT_ICONS = {
   stop_completed: CheckCircle2,
   delivery_completed: CheckCircle2,
   laundry_pickup_completed: CheckCircle2,
+  pickup_undone: RefreshCw,
+  dirty_stop_added: Plus,
+  dirty_stop_removed: X,
   problem_reported: AlertTriangle,
   client_unavailable: AlertTriangle,
   partial_pickup: AlertTriangle,
@@ -43,6 +47,43 @@ const EVENT_ICONS = {
   hours_rejected: AlertTriangle,
 };
 
+function DispatchPlanningView({ trip, sessionToken, readOnly, onReload, onCancelled }) {
+  const [course, setCourse] = useState({ trip, stops: [] });
+  const [loading, setLoading] = useState(true);
+
+  const loadCourse = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getTripCourse(sessionToken, trip.id);
+      setCourse({ trip: data.trip || trip, stops: data.stops || [] });
+    } catch (error) {
+      toastError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, trip]);
+
+  useEffect(() => { loadCourse(); }, [loadCourse]);
+
+  const reload = async () => {
+    await loadCourse();
+    await onReload?.();
+  };
+
+  if (loading) return <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> Ładowanie planu…</div>;
+
+  return (
+    <DriverCoursePlanning
+      trip={course.trip}
+      stops={course.stops}
+      adminMode
+      readOnly={readOnly}
+      onUpdated={reload}
+      onCancelled={onCancelled}
+    />
+  );
+}
+
 function JournalPanel({
   trip, sessionToken, isAdmin, entries, clients, routes, routeMap, drivers, allTrips, dailyCosts,
   busy, setBusy, onClose, onStageChange, onReload, onDeleted, boardColumns, locale,
@@ -51,6 +92,7 @@ function JournalPanel({
   const [journal, setJournal] = useState({ events: [], segments: [] });
   const [loading, setLoading] = useState(true);
   const panelRef = useRef(null);
+  const courseMode = dispatchCourseMode(trip);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,13 +136,15 @@ function JournalPanel({
           <button className="journal-close" onClick={onClose} aria-label={t('course.closeJournal')}><X size={18} /></button>
         </div>
 
-        <div className="journal-status-control">
-          <label htmlFor="live-course-stage">{t('course.board.stageLabel')}</label>
-          <select id="live-course-stage" value={trip.board_status} disabled={!isAdmin} onChange={event => onStageChange(trip.id, event.target.value)}>
-            {boardColumns.map(column => <option key={column.key} value={column.key}>{column.label}</option>)}
-          </select>
-          <small>{isAdmin ? t('course.board.stageHintAdmin') : t('course.board.stageHintView')}</small>
-        </div>
+        {courseMode !== 'planning' && (
+          <div className="journal-status-control">
+            <label htmlFor="live-course-stage">{t('course.board.stageLabel')}</label>
+            <select id="live-course-stage" value={trip.board_status} disabled={!isAdmin} onChange={event => onStageChange(trip.id, event.target.value)}>
+              {boardColumns.map(column => <option key={column.key} value={column.key}>{column.label}</option>)}
+            </select>
+            <small>{isAdmin ? t('course.board.stageHintAdmin') : t('course.board.stageHintView')}</small>
+          </div>
+        )}
 
         {journal.segments.length > 0 && (
           <div className="live-segments">
@@ -114,22 +158,26 @@ function JournalPanel({
           </div>
         )}
 
-        <TripCourseStops
-          trip={trip}
-          sessionToken={sessionToken}
-          isAdmin={isAdmin}
-          entries={entries}
-          clients={clients}
-          routes={routes}
-          routeMap={routeMap}
-          drivers={drivers}
-          allTrips={allTrips}
-          dailyCosts={dailyCosts}
-          busy={busy}
-          setBusy={setBusy}
-          onReload={onReload}
-          onDeleted={onDeleted}
-        />
+        {courseMode === 'planning' ? (
+          <DispatchPlanningView trip={trip} sessionToken={sessionToken} readOnly={!isAdmin} onReload={onReload} onCancelled={onDeleted} />
+        ) : (
+          <TripCourseStops
+            trip={trip}
+            sessionToken={sessionToken}
+            isAdmin={isAdmin}
+            entries={entries}
+            clients={clients}
+            routes={routes}
+            routeMap={routeMap}
+            drivers={drivers}
+            allTrips={allTrips}
+            dailyCosts={dailyCosts}
+            busy={busy}
+            setBusy={setBusy}
+            onReload={onReload}
+            onDeleted={onDeleted}
+          />
+        )}
 
         <div className="live-journal-section-title">{t('course.board.journalTitle')}</div>
         {loading && <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> {t('course.loading')}</div>}
@@ -158,7 +206,8 @@ function KmApprovalSheet({ trip, value, busy, onValue, onApprove, onClose }) {
   const { t } = useTranslation();
   const sheetRef = useRef(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
     const previous = document.activeElement;
@@ -206,7 +255,7 @@ function HoursApprovalSheet({ trip, start, end, busy, onStart, onEnd, onApprove,
   const { t, i18n } = useTranslation();
   const sheetRef = useRef(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const duration = minutesBetweenClocks(start, end);
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
 
@@ -310,12 +359,19 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
   const kmState = kmApproved ? 'approved' : trip.end_km ? 'pending' : 'missing';
   const hoursState = hoursApproved ? 'approved' : hasHoursReport ? 'pending' : 'missing';
   const settlementPending = (trip.board_status === 'settlement') && (!kmApproved || !hoursApproved);
+  const openCourse = () => (isVirtual ? onAssign(trip) : onOpen(trip));
   return (
     <Draggable draggableId={String(trip.id)} index={index} isDragDisabled={!isAdmin || isVirtual}>
       {(provided, snapshot) => (
-        <article ref={provided.innerRef} {...provided.draggableProps} className={`kurs-card ${snapshot.isDragging ? 'is-dragging' : ''} ${trip.board_status === 'closed' ? 'kurs-closed' : ''}`} style={provided.draggableProps.style}>
+        <article
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          className={`kurs-card is-clickable ${snapshot.isDragging ? 'is-dragging' : ''} ${trip.board_status === 'closed' ? 'kurs-closed' : ''}`}
+          style={provided.draggableProps.style}
+          onClick={event => { if (!event.target.closest('button, a, input, select')) openCourse(); }}
+        >
           <div className="kurs-card-top">
-            <button className="kurs-title-button" onClick={() => !isVirtual && onOpen(trip)} disabled={isVirtual}>
+            <button className="kurs-title-button" onClick={openCourse}>
               <span className="kurs-route-badge" style={{ background: `${routeColor}1F`, color: routeColor }}>T{trip.route_display || '—'}</span>
               <span className="kurs-route-name">{trip.route_name || t('course.dailyCourse')}</span>
             </button>
@@ -390,7 +446,7 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
 export default function DispatchBoard() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
-  const { sessionToken, isAdmin, user } = useAuth();
+  const { sessionToken, isAdmin } = useAuth();
   const { entries, allRoutes, clients, refetch } = useAppData();
   const [viewMode, setViewMode] = useState('day');
   const [tripDate, setTripDate] = useState(() => operationalYmd());
@@ -402,7 +458,6 @@ export default function DispatchBoard() {
   const [openTrip, setOpenTrip] = useState(null);
   const [kmTrip, setKmTrip] = useState(null);
   const [assignTrip, setAssignTrip] = useState(null);
-  const [planPickupOpen, setPlanPickupOpen] = useState(false);
   const [kmValue, setKmValue] = useState('');
   const [hoursTrip, setHoursTrip] = useState(null);
   const [hoursStart, setHoursStart] = useState('');
@@ -638,7 +693,7 @@ export default function DispatchBoard() {
           )}
           <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>
           {isAdmin && viewMode === 'day' && (
-            <button className="driver-tool-btn" onClick={() => setPlanPickupOpen(true)}><Plus size={15} /> {t('course.planPickup')}</button>
+            <button className="driver-tool-btn" onClick={() => setAssignTrip({ id: `new_${tripDate}`, trip_date: tripDate, routes: '' })}><Plus size={15} /> {t('course.board.newCourse')}</button>
           )}
         </div>
       </div>
@@ -656,7 +711,7 @@ export default function DispatchBoard() {
           sessionToken={sessionToken}
           onOpenTrip={setOpenTrip}
           onApproveKm={openKmApproval}
-          onPlanPickup={isAdmin ? () => setPlanPickupOpen(true) : null}
+          onPlanPickup={null}
           onReload={loadBoard}
         />
       ) : (
@@ -738,21 +793,23 @@ export default function DispatchBoard() {
           trip={assignTrip}
           sessionToken={sessionToken}
           routeMap={routeMap}
+          routes={allRoutes}
           drivers={drivers}
           onClose={() => setAssignTrip(null)}
-          onAssigned={async () => { setAssignTrip(null); await loadBoard(); await refetch(); }}
-        />
-      )}
-      {planPickupOpen && (
-        <PlanPickupSheet
-          sessionToken={sessionToken}
-          userName={user?.name}
-          clients={clients}
-          routes={allRoutes}
-          allTrips={allTrips}
-          drivers={drivers}
-          onClose={() => setPlanPickupOpen(false)}
-          onPlanned={async () => { setPlanPickupOpen(false); await loadBoard(); await refetch(); }}
+          onAssigned={async createdTrip => {
+            setAssignTrip(null);
+            await loadBoard();
+            await refetch();
+            if (createdTrip?.id) {
+              const routeId = Number(String(createdTrip.routes || '').split(',').find(Boolean));
+              setOpenTrip({
+                ...createdTrip,
+                board_status: 'ready',
+                route_display: routeMap[routeId]?.num || routeId,
+                route_name: routeMap[routeId]?.name || `Trasa ${routeId}`,
+              });
+            }
+          }}
         />
       )}
     </section>

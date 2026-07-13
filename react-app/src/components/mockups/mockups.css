@@ -187,6 +187,8 @@
   cursor: pointer;
   transition: box-shadow 0.15s ease;
 }
+.kurs-card.is-clickable { cursor: pointer; }
+.kurs-card.is-clickable:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .kurs-card:hover { box-shadow: var(--shadow-hover); }
 .kurs-card.is-dragging { box-shadow: var(--shadow-hover); }
 .kurs-card-top {
