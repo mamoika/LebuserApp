@@ -1305,7 +1305,7 @@
   color: var(--accent);
   font-weight: 800;
 }
-.live-stop-title-row .driver-nav-btn { flex-shrink: 0; margin: 2px 0 0; }
+.live-stop-title-row .driver-nav-btn { width: auto; flex-shrink: 0; margin: 2px 0 0; }
 .driver-nav-btn.is-disabled {
   opacity: 0.42;
   cursor: not-allowed;
