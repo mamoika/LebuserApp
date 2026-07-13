@@ -1,14 +1,24 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Gauge, Plus } from 'lucide-react';
+import {
+  AlertTriangle, CalendarDays, CheckCircle2, Clock3, Gauge, RotateCcw,
+  Search, SlidersHorizontal, Truck, UserRound,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { bulkApprovePendingKm, pendingKmTrips, tripKmApproval } from '../../lib/courseKmHelpers';
-import { formatCourseShortDate, formatCourseTime } from '../../lib/courseLocale';
+import { formatCourseTime } from '../../lib/courseLocale';
+import {
+  ARCHIVE_STATUS,
+  archiveStatusCounts,
+  archiveTripMatches,
+  archiveTripStatus,
+  groupArchiveTripsByDate,
+} from '../../lib/dispatchArchiveHelpers';
 import { logAction } from '../../lib/logger';
 import { parseRouteIds } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { routeBadgeStyle } from '../../lib/visualSystem';
-import { TripMetricsPanel, TripProgressBar } from './CourseUiBits';
+import { TripProgressBar } from './CourseUiBits';
 import { statsFromCourseStops } from '../../lib/courseTaskHelpers';
 
 function RouteBadge({ routeId, routeMap }) {
@@ -21,67 +31,94 @@ function RouteBadge({ routeId, routeMap }) {
   );
 }
 
-function ArchiveTripRow({ trip, routeMap, dailyCosts, onOpen, onApproveKm, t, locale }) {
+function driverInitials(name, fallback) {
+  if (!name) return fallback;
+  return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function ArchiveTripCard({ trip, routeMap, dailyCosts, onOpen, onApproveKm, t, locale }) {
   const stats = trip._stats || { stops: 0, delivered: 0, picked: 0, kg: 0, dirtyTrolleys: 0, dirtyStops: 0, totalStops: 0 };
   const kmApproval = tripKmApproval(trip, dailyCosts);
   const routeIds = [...parseRouteIds(trip.routes)];
-  const statusClass = trip.isVirtual ? 'is-planned' : trip.status === 'active' ? 'is-live' : trip.status === 'finished' ? 'is-finished' : 'is-planned';
+  const status = archiveTripStatus(trip);
+  const canOpen = !trip.isVirtual && Boolean(onOpen);
+  const statusLabels = {
+    [ARCHIVE_STATUS.LIVE]: t('course.archive.statusLive'),
+    [ARCHIVE_STATUS.PLANNED]: t('course.archive.statusPlanned'),
+    [ARCHIVE_STATUS.FINISHED]: t('course.archive.statusFinished'),
+  };
+  const openTrip = () => { if (canOpen) onOpen(trip); };
+  const CourseMain = canOpen ? 'button' : 'div';
 
   return (
-    <div
-      className={`trip-card ${statusClass}`}
-      role="button"
-      tabIndex={0}
-      onClick={() => !trip.isVirtual && onOpen?.(trip)}
-      onKeyDown={event => { if (event.key === 'Enter' && !trip.isVirtual) onOpen?.(trip); }}
-      title={t('course.archive.openTrip')}
-    >
-      <div className="trip-card-head">
-        <span className={`trip-dot ${trip.status === 'active' ? 'live' : ''}`} />
-        <div className="trip-card-headtext">
-          <div className="trip-card-driver">{trip.driver_name || t('course.noDriver')}</div>
-          <div className="trip-card-meta">
-            {trip.car ? (VEHICLE_LABELS[trip.car] || trip.car) : (trip.isVirtual ? t('course.unassigned') : '—')}
-            {trip.status !== 'planned' && !trip.isVirtual && trip.started_at ? ` · ${formatCourseTime(trip.started_at, locale)}` : ''}
+    <article className={`archive-course-card is-${status} ${canOpen ? 'is-clickable' : ''}`}>
+      <CourseMain
+        className="archive-course-main"
+        {...(canOpen ? { type: 'button', onClick: openTrip, title: t('course.archive.openTrip') } : {})}
+      >
+        <div className="archive-course-card-top">
+          <div className="archive-course-routes">
+            {routeIds.length > 0
+              ? routeIds.map(id => <RouteBadge key={id} routeId={id} routeMap={routeMap} />)
+              : <span className="archive-course-route-name">{trip.route_name || t('course.dailyCourse')}</span>}
+            {trip.route_name && routeIds.length > 0 && <span className="archive-course-route-name">{trip.route_name}</span>}
+          </div>
+          <span className={`archive-status-pill is-${status}`}>
+            <span aria-hidden="true" />{statusLabels[status]}
+          </span>
+        </div>
+
+        <div className="archive-course-person">
+          <div className="archive-course-avatar" aria-hidden="true">
+            {driverInitials(trip.driver_name, trip.isVirtual ? '—' : '?')}
+          </div>
+          <div className="archive-course-person-copy">
+            <strong>{trip.driver_name || t('course.noDriver')}</strong>
+            <span>
+              <Truck size={13} aria-hidden="true" />
+              {trip.car ? (VEHICLE_LABELS[trip.car] || trip.car) : t('course.unassigned')}
+            </span>
+          </div>
+          <div className="archive-course-time">
+            <Clock3 size={13} aria-hidden="true" />
+            {trip.started_at ? formatCourseTime(trip.started_at, locale) : '—'}
             {trip.ended_at ? `–${formatCourseTime(trip.ended_at, locale)}` : ''}
           </div>
         </div>
-        <span className="trip-card-date">{formatCourseShortDate(trip.trip_date, locale)}</span>
-      </div>
 
-      <div className="trip-card-routes">
-        {routeIds.length > 0
-          ? routeIds.map(id => <RouteBadge key={id} routeId={id} routeMap={routeMap} />)
-          : <span className="trip-card-allroutes">{trip.route_name || t('course.dailyCourse')}</span>}
-      </div>
+        {!trip.isVirtual && stats.stops > 0 && (
+          <div className="archive-course-progress">
+            <div className="archive-course-progress-label">
+              <span>{t('course.archive.courseProgress')}</span>
+              <strong>{stats.delivered}/{stats.stops}</strong>
+            </div>
+            <TripProgressBar stats={stats} />
+          </div>
+        )}
+      </CourseMain>
 
-      {!trip.isVirtual && stats.stops > 0 && (
-        <>
-          <TripProgressBar stats={stats} />
-          <TripMetricsPanel stats={stats} />
-        </>
-      )}
-
-      {(trip.end_km || trip.status === 'finished' || trip.isVirtual) && (
-        <div className="trip-card-foot">
-          {trip.end_km && (
-            <span className="trip-card-km">
-              {trip.end_km} km
-              {kmApproval.approved ? ' ✓' : ' ⏳'}
-            </span>
-          )}
-          {trip.status === 'finished' && !kmApproval.approved && trip.end_km && onApproveKm && (
-            <button
-              type="button"
-              className="driver-tool-btn"
-              onClick={event => { event.stopPropagation(); onApproveKm(trip); }}
-            >
-              <Gauge size={13} /> km
-            </button>
-          )}
+      <div className="archive-course-footer">
+        <div className="archive-course-facts">
+          <span><strong>{stats.totalStops || 0}</strong> {t('course.archive.points')}</span>
+          {stats.kg > 0 && <span><strong>{stats.kg}</strong> kg</span>}
+          {stats.dirtyTrolleys > 0 && <span><strong>{stats.dirtyTrolleys}</strong> {t('course.archive.trolleys')}</span>}
         </div>
-      )}
-    </div>
+        {trip.end_km && (
+          <span className={`archive-km-state ${kmApproval.approved ? 'is-approved' : 'is-pending'}`}>
+            <Gauge size={13} aria-hidden="true" /> {trip.end_km} km {kmApproval.approved ? '✓' : '…'}
+          </span>
+        )}
+        {trip.status === 'finished' && !kmApproval.approved && trip.end_km && onApproveKm && (
+          <button
+            type="button"
+            className="archive-km-action"
+            onClick={() => onApproveKm(trip)}
+          >
+            {t('course.archive.approveKmShort')}
+          </button>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -97,15 +134,16 @@ export default function DispatchTripArchive({
   sessionToken,
   onOpenTrip,
   onApproveKm,
-  onPlanPickup,
   onReload,
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const unassignedLabel = t('course.unassignedDriver');
+  const [query, setQuery] = useState('');
   const [filterDriver, setFilterDriver] = useState('');
   const [filterCar, setFilterCar] = useState('');
   const [filterRoute, setFilterRoute] = useState('');
+  const [filterStatus, setFilterStatus] = useState(ARCHIVE_STATUS.ALL);
 
   const uniqueDrivers = useMemo(() => {
     const names = [...new Set(allTrips.map(trip => trip.driver_name || t('course.unknownDriver')).filter(Boolean))].sort();
@@ -120,30 +158,40 @@ export default function DispatchTripArchive({
 
   const enrichedTrips = useMemo(() => allTrips.map(trip => ({
     ...trip,
+    _archiveDriverName: trip.driver_name || t('course.unknownDriver'),
     _stats: statsFromCourseStops(trip.stops || [], entries, trip.trip_date),
-  })), [allTrips, entries]);
+  })), [allTrips, entries, t]);
 
-  const filteredTrips = useMemo(() => enrichedTrips.filter(trip => {
-    if (filterDriver && (trip.driver_name || t('course.unknownDriver')) !== filterDriver) return false;
-    if (filterCar && trip.car !== filterCar) return false;
-    if (filterRoute) {
-      const routeIds = parseRouteIds(trip.routes);
-      if (routeIds.size > 0 && !routeIds.has(Number(filterRoute))) return false;
-    }
-    return true;
-  }), [enrichedTrips, filterCar, filterDriver, filterRoute, t]);
-
-  const filteredVirtual = useMemo(() => virtualTrips.filter(trip => {
-    if (filterDriver && filterDriver !== unassignedLabel) return false;
-    if (filterCar) return false;
-    if (filterRoute && !parseRouteIds(trip.routes).has(Number(filterRoute))) return false;
-    return true;
-  }), [filterCar, filterDriver, filterRoute, virtualTrips]);
-
-  const liveTrips = filteredTrips.filter(trip => trip.status === 'active');
-  const plannedTrips = [...filteredVirtual, ...filteredTrips.filter(trip => trip.status === 'planned')];
-  const finishedTrips = filteredTrips.filter(trip => trip.status === 'finished').slice(0, 100);
+  const combinedTrips = useMemo(() => [
+    ...virtualTrips.map(trip => ({ ...trip, _archiveDriverName: trip.driver_name || unassignedLabel })),
+    ...enrichedTrips,
+  ], [enrichedTrips, unassignedLabel, virtualTrips]);
+  const counts = useMemo(() => archiveStatusCounts(combinedTrips), [combinedTrips]);
+  const filteredTrips = useMemo(() => combinedTrips.filter(trip => archiveTripMatches(trip, {
+    query,
+    driver: filterDriver,
+    car: filterCar,
+    route: filterRoute,
+    status: filterStatus,
+  })), [combinedTrips, filterCar, filterDriver, filterRoute, filterStatus, query]);
+  const groupedTrips = useMemo(() => groupArchiveTripsByDate(filteredTrips), [filteredTrips]);
   const pendingKm = useMemo(() => pendingKmTrips(allTrips, dailyCosts), [allTrips, dailyCosts]);
+  const filtersActive = Boolean(query || filterDriver || filterCar || filterRoute || filterStatus !== ARCHIVE_STATUS.ALL);
+
+  const statusTabs = [
+    [ARCHIVE_STATUS.ALL, t('course.archive.statusAll'), counts.all],
+    [ARCHIVE_STATUS.LIVE, t('course.archive.liveTrips'), counts.live],
+    [ARCHIVE_STATUS.PLANNED, t('course.archive.plannedTrips'), counts.planned],
+    [ARCHIVE_STATUS.FINISHED, t('course.archive.finishedTrips'), counts.finished],
+  ];
+
+  const clearFilters = () => {
+    setQuery('');
+    setFilterDriver('');
+    setFilterCar('');
+    setFilterRoute('');
+    setFilterStatus(ARCHIVE_STATUS.ALL);
+  };
 
   const approveAllKm = async () => {
     if (pendingKm.length === 0 || !sessionToken) return;
@@ -164,108 +212,139 @@ export default function DispatchTripArchive({
     }
   };
 
+  const formatGroupDate = date => {
+    if (!date || date === 'unknown') return t('course.archive.unknownDate');
+    return new Intl.DateTimeFormat(locale, {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }).format(new Date(`${date}T12:00:00`));
+  };
+
   return (
     <div className="live-dispatch-archive">
-      <div className="driver-history-header" style={{ marginBottom: '16px' }}>
-        <div>
-          <div className="driver-trip-kicker">{t('course.archive.kicker')}</div>
-          <div className="driver-trip-title">{t('course.archive.title')}</div>
-          <div className="driver-trip-subtitle">{t('course.archive.subtitle', { count: allTrips.length })}</div>
+      <div className="archive-overview" aria-label={t('course.archive.summary')}>
+        <div className="archive-overview-card is-total">
+          <span className="archive-overview-icon"><CalendarDays size={18} /></span>
+          <div><strong>{counts.all}</strong><span>{t('course.archive.allCourses')}</span></div>
+        </div>
+        <div className="archive-overview-card is-live">
+          <span className="archive-overview-icon"><Truck size={18} /></span>
+          <div><strong>{counts.live}</strong><span>{t('course.archive.liveTrips')}</span></div>
+        </div>
+        <div className="archive-overview-card is-planned">
+          <span className="archive-overview-icon"><Clock3 size={18} /></span>
+          <div><strong>{counts.planned}</strong><span>{t('course.archive.plannedTrips')}</span></div>
+        </div>
+        <div className="archive-overview-card is-finished">
+          <span className="archive-overview-icon"><CheckCircle2 size={18} /></span>
+          <div><strong>{counts.finished}</strong><span>{t('course.archive.finishedTrips')}</span></div>
         </div>
       </div>
 
       {pendingKm.length > 0 && (
-        <div className="route-alerts" style={{ marginBottom: '12px' }}>
-          <div className="route-alert info">{t('course.archive.pendingKmAlert', { count: pendingKm.length })}</div>
+        <div className="archive-attention-bar">
+          <div className="archive-attention-copy">
+            <span className="archive-attention-icon"><Gauge size={18} /></span>
+            <div><strong>{t('course.archive.pendingKmTitle')}</strong><span>{t('course.archive.pendingKmAlert', { count: pendingKm.length })}</span></div>
+          </div>
+          <button type="button" onClick={approveAllKm} disabled={busy}>
+            <CheckCircle2 size={15} /> {t('course.archive.approveAllKm', { count: pendingKm.length })}
+          </button>
         </div>
       )}
 
-      <div className="admin-filters-bar">
-        <div className="filter-group">
-          <span className="filter-label">{t('course.archive.filterDriver')}</span>
-          <select value={filterDriver} onChange={event => setFilterDriver(event.target.value)}>
-            <option value="">{t('course.archive.allDrivers')}</option>
-            {uniqueDrivers.map(name => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <span className="filter-label">{t('course.archive.filterCar')}</span>
-          <select value={filterCar} onChange={event => setFilterCar(event.target.value)}>
-            <option value="">{t('course.archive.allCars')}</option>
-            {uniqueCars.map(car => <option key={car} value={car}>{VEHICLE_LABELS[car] || car}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <span className="filter-label">{t('course.archive.filterRoute')}</span>
-          <select value={filterRoute} onChange={event => setFilterRoute(event.target.value)}>
-            <option value="">{t('course.archive.allRoutes')}</option>
-            {allRoutes.map(route => (
-              <option key={route.id} value={route.id}>
-                T{routeMap[route.id]?.num || route.id} - {route.name}
-              </option>
-            ))}
-          </select>
+      <section className="archive-workspace" aria-labelledby="archive-results-title">
+        <div className="archive-status-tabs" role="group" aria-label={t('course.archive.filterStatus')}>
+          {statusTabs.map(([status, label, count]) => (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={filterStatus === status}
+              className={filterStatus === status ? 'is-active' : ''}
+              onClick={() => setFilterStatus(status)}
+            >
+              {label}<span>{count}</span>
+            </button>
+          ))}
         </div>
 
-        {onPlanPickup && (
-          <button className="driver-add-primary" style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: '8px', minWidth: 'auto', width: 'auto', fontSize: '13px' }} onClick={onPlanPickup}>
-            <Plus size={14} /> {t('course.planPickup')}
-          </button>
+        <div className="archive-filter-panel">
+          <label className="archive-search-field">
+            <span className="sr-only">{t('course.archive.search')}</span>
+            <Search size={17} aria-hidden="true" />
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder={t('course.archive.searchPlaceholder')} />
+          </label>
+          <div className="archive-select-filters">
+            <span className="archive-filter-icon"><SlidersHorizontal size={16} aria-hidden="true" /></span>
+            <label><span className="sr-only">{t('course.archive.filterDriver')}</span>
+              <select value={filterDriver} onChange={event => setFilterDriver(event.target.value)}>
+                <option value="">{t('course.archive.allDrivers')}</option>
+                {uniqueDrivers.map(name => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </label>
+            <label><span className="sr-only">{t('course.archive.filterCar')}</span>
+              <select value={filterCar} onChange={event => setFilterCar(event.target.value)}>
+                <option value="">{t('course.archive.allCars')}</option>
+                {uniqueCars.map(car => <option key={car} value={car}>{VEHICLE_LABELS[car] || car}</option>)}
+              </select>
+            </label>
+            <label><span className="sr-only">{t('course.archive.filterRoute')}</span>
+              <select value={filterRoute} onChange={event => setFilterRoute(event.target.value)}>
+                <option value="">{t('course.archive.allRoutes')}</option>
+                {allRoutes.map(route => (
+                  <option key={route.id} value={route.id}>T{routeMap[route.id]?.num || route.id} · {route.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {filtersActive && (
+            <button type="button" className="archive-clear-filters" onClick={clearFilters}>
+              <RotateCcw size={14} /> {t('course.archive.clearFilters')}
+            </button>
+          )}
+        </div>
+
+        <div className="archive-results-heading">
+          <div>
+            <span className="archive-results-icon"><UserRound size={16} /></span>
+            <h2 id="archive-results-title">{t('course.archive.results')}</h2>
+          </div>
+          <span>{t('course.archive.resultsCount', { count: filteredTrips.length })}</span>
+        </div>
+
+        {groupedTrips.length > 0 ? (
+          <div className="archive-date-groups">
+            {groupedTrips.map(([date, trips]) => (
+              <section className="archive-date-group" key={date}>
+                <div className="archive-date-heading">
+                  <time dateTime={date === 'unknown' ? undefined : date}>{formatGroupDate(date)}</time>
+                  <span>{t('course.archive.coursesOnDate', { count: trips.length })}</span>
+                </div>
+                <div className="archive-course-grid">
+                  {trips.map(trip => (
+                    <ArchiveTripCard
+                      key={trip.id}
+                      trip={trip}
+                      routeMap={routeMap}
+                      dailyCosts={dailyCosts}
+                      onOpen={onOpenTrip}
+                      onApproveKm={onApproveKm}
+                      t={t}
+                      locale={locale}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="archive-empty-state">
+            <span><AlertTriangle size={22} /></span>
+            <strong>{t('course.archive.noMatches')}</strong>
+            <p>{t('course.archive.noMatchesHint')}</p>
+            {filtersActive && <button type="button" onClick={clearFilters}>{t('course.archive.clearFilters')}</button>}
+          </div>
         )}
-
-        {pendingKm.length > 0 && (
-          <button className="driver-tool-btn" onClick={approveAllKm} disabled={busy} style={{ background: 'var(--accent-green)', color: '#fff', border: 'none' }}>
-            ✓ {t('course.archive.approveAllKm', { count: pendingKm.length })}
-          </button>
-        )}
-      </div>
-
-      <div className="admin-section-grid">
-        <div className="admin-trip-group live">
-          <div className="admin-trip-group-header">
-            {t('course.archive.liveTrips')}
-            <span className="count-badge">{liveTrips.length}</span>
-          </div>
-          <div className="admin-trip-list-inner">
-            {liveTrips.length === 0 && <div className="driver-empty-row">{t('course.archive.noLive')}</div>}
-            {liveTrips.map(trip => (
-              <ArchiveTripRow key={trip.id} trip={trip} routeMap={routeMap} dailyCosts={dailyCosts} onOpen={onOpenTrip} onApproveKm={onApproveKm} t={t} locale={locale} />
-            ))}
-          </div>
-        </div>
-
-        <div className="admin-trip-group planned">
-          <div className="admin-trip-group-header">
-            {t('course.archive.plannedTrips')}
-            <span className="count-badge">{plannedTrips.length}</span>
-          </div>
-          <div className="admin-trip-list-inner">
-            {plannedTrips.length === 0 && <div className="driver-empty-row">{t('course.archive.noPlanned')}</div>}
-            {plannedTrips.map(trip => (
-              <ArchiveTripRow key={trip.id} trip={trip} routeMap={routeMap} dailyCosts={dailyCosts} onOpen={onOpenTrip} t={t} locale={locale} />
-            ))}
-          </div>
-        </div>
-
-        <div className="admin-trip-group finished">
-          <div className="admin-trip-group-header">
-            {t('course.archive.finishedTrips')}
-            <span className="count-badge">{finishedTrips.length}</span>
-          </div>
-          <div className="admin-trip-list-inner">
-            {finishedTrips.length === 0 && <div className="driver-empty-row">{t('course.archive.noFinished')}</div>}
-            {finishedTrips.map(trip => (
-              <ArchiveTripRow key={trip.id} trip={trip} routeMap={routeMap} dailyCosts={dailyCosts} onOpen={onOpenTrip} onApproveKm={onApproveKm} t={t} locale={locale} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {filteredTrips.length === 0 && filteredVirtual.length === 0 && (
-        <div className="driver-empty-row" style={{ marginTop: '16px' }}>
-          <AlertTriangle size={14} /> {t('course.archive.noMatches')}
-        </div>
-      )}
+      </section>
     </div>
   );
 }
