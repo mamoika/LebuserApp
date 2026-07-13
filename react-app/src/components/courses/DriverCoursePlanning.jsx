@@ -13,6 +13,7 @@ import {
 import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
 } from '../../lib/courseTaskHelpers';
+import { buildCourseStopComparator } from '../../lib/courseStopOrder';
 import { routeNamesForTrip } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -100,9 +101,14 @@ export default function DriverCoursePlanning({ trip, stops = [], onUpdated }) {
     [allRoutes],
   );
 
+  const compareStops = useMemo(
+    () => buildCourseStopComparator(clients, allRoutes),
+    [clients, allRoutes],
+  );
+
   const orderedStops = useMemo(
-    () => [...stops].sort((a, b) => (a.position || 0) - (b.position || 0)),
-    [stops],
+    () => [...stops].sort(compareStops),
+    [stops, compareStops],
   );
 
   const ownReady = useMemo(

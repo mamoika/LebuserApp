@@ -14,6 +14,7 @@ import { printTripWorkCard } from '../../lib/coursePrint';
 import {
   canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
+import { buildCourseStopComparator } from '../../lib/courseStopOrder';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
 import { operationalYmd } from '../../lib/dateUtils';
 import { routeBadgeStyle } from '../../lib/visualSystem';
@@ -118,9 +119,13 @@ export default function DriverCourse() {
     () => (data.stops || []).filter(stop => stop.status !== 'skipped'),
     [data.stops],
   );
+  const compareStops = useMemo(
+    () => buildCourseStopComparator(clients, allRoutes),
+    [clients, allRoutes],
+  );
   const orderedStops = useMemo(
-    () => [...stops].sort((a, b) => (a.position || 0) - (b.position || 0)),
-    [stops],
+    () => [...stops].sort(compareStops),
+    [stops, compareStops],
   );
   const completedStops = stops.filter(stop => stop.status === 'completed').length;
 
@@ -188,7 +193,6 @@ export default function DriverCourse() {
       return;
     }
     const completedId = viewStop.id;
-    const completedPosition = viewStop.position;
     try {
       setBusy(true);
       await completeCourseStop(sessionToken, completedId);
@@ -201,8 +205,9 @@ export default function DriverCourse() {
         workTimeReport: next.work_time_report || null,
       });
       await refetch();
-      const freshOrdered = [...(next.stops || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
-      const nextPending = freshOrdered.find(stop => stop.position > completedPosition && stop.status === 'pending')
+      const freshOrdered = [...(next.stops || [])].sort(compareStops);
+      const completedIndex = freshOrdered.findIndex(stop => stop.id === completedId);
+      const nextPending = freshOrdered.slice(completedIndex + 1).find(stop => stop.status === 'pending')
         ?? freshOrdered.find(stop => stop.status === 'pending');
       if (nextPending) setViewStopId(nextPending.id);
       else {
