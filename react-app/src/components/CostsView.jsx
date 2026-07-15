@@ -764,12 +764,12 @@ export default function CostsView() {
     // Arkusz 1: Koszty
     const costsHead = t('costs.exportCostsHead', { returnObjects: true });
     const costsRows = days.map((dStr, idx) => {
-      const c = calcDay(dStr, idx);
+      const c = calcDay(dStr, idx, { includeFuture: true });
       return [dayLabel(dStr), r2(c.fiat_km), r2(c.isuzu_km), r2(c.merc_km), r2(c.iveco_km), r2(c.transportCost),
         r2(c.elec_usage), r2(c.elec_cost), r2(c.gas_prod_usage), r2(c.gas_prod_cost), r2(c.gas_heat_usage), r2(c.gas_heat_cost),
         r2(c.water_usage), r2(c.water_cost), r2(c.worker_cost), r2(c.other_cost), r2(c.total_cost), c.pln_kg > 0 ? r2(c.pln_kg) : ''];
     });
-    const totalsForExport = monthlyTotals;
+    const totalsForExport = forecastTotals;
     const costsTotal = [t('costs.total'), r2(totalsForExport.kmFiat), r2(totalsForExport.kmIsuzu), r2(totalsForExport.kmMerc), r2(totalsForExport.kmIveco), r2(totalsForExport.transport), r2(totalsForExport.kWh), r2(totalsForExport.elec),
       r2(totalsForExport.m3GasProd), r2(totalsForExport.gasProd), r2(totalsForExport.m3GasHeat), r2(totalsForExport.gasHeat), r2(totalsForExport.m3Water), r2(totalsForExport.water), r2(totalsForExport.workers), r2(totalsForExport.other), r2(totalsForExport.total), perfTotals.kg > 0 ? r2(totalsForExport.total / perfTotals.kg) : ''];
     const costsData = [[t('costs.exportCostsTitle', { month: months[month - 1], year })], [], costsHead, ...costsRows, [], costsTotal];
@@ -876,7 +876,7 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} todayKey={currentDateStr} />
+            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={forecastTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} todayKey={currentDateStr} />
           )}
 
           {activeTab === 'performance' && (
@@ -1379,7 +1379,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               const isWe = d.getDay() === 0 || d.getDay() === 6;
               const isOff = isWe || !!isHol;
               const isToday = dStr === todayKey;
-              const c = calcDay(dStr, idx);
+              const c = calcDay(dStr, idx, { includeFuture: true });
               const dt = dailyData[dStr] || {};
               const rowBg = isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#EBEBEB' : '#FFFFFF';
               const dateCellBg = isToday ? IOS_THEME.accent : isOff ? '#D5D5D5' : '#FFFFFF';
@@ -1424,7 +1424,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.totalToDate')}</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.totalMonth')}</td>
               {footMeter(totals.kmFiat, 'km')}
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
@@ -1449,7 +1449,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
-                  {(() => { const kg = days.reduce((s, dStr) => { if (isFutureCalendarDate(dStr, todayKey)) return s; const d = dailyData[dStr] || {}; return s + decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
+                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
                 </div>
               </td>
             </tr>
