@@ -20,8 +20,9 @@ export const COST_SETTING_FIELDS = [
 ];
 
 export function parseMeterReading(raw) {
-  if (raw == null || String(raw).trim() === '') return { value: null, status: 'missing' };
-  const normalized = String(raw).trim().replace(',', '.');
+  const trimmed = raw == null ? '' : String(raw).trim();
+  if (trimmed === '' || trimmed === '-' || trimmed === '—') return { value: null, status: 'missing' };
+  const normalized = trimmed.replace(',', '.');
   if (!/^\d+(?:\.\d*)?$/.test(normalized)) return { value: null, status: 'invalid' };
   const value = Number(normalized);
   return Number.isFinite(value) && value >= 0

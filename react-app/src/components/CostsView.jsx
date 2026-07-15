@@ -721,6 +721,11 @@ export default function CostsView() {
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
   const accruedDays = countAccruedDays(days, currentDateStr);
   const avgPerDay = accruedDays > 0 ? monthlyTotals.total / accruedDays : 0;
+  const meaningfulMeterIssueCount = (integrityReport?.meter_issues || []).filter(issue => {
+    const raw = String(issue?.raw ?? '').trim();
+    return raw !== '' && raw !== '-' && raw !== '—';
+  }).length;
+  const courseIssueCount = integrityReport?.course_issue_count || 0;
 
   // Bieżący miesiąc jako punkt historii (z policzonych totali → spójny z KPI) + miesiące wstecz
   const currentPoint = {
@@ -854,9 +859,9 @@ export default function CostsView() {
       {/* RATES PANEL */}
       {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!isAdmin} />}
 
-      {isAdmin && integrityReport && ((integrityReport.meter_issue_count || 0) + (integrityReport.course_issue_count || 0) > 0) && (
+      {isAdmin && integrityReport && (meaningfulMeterIssueCount + courseIssueCount > 0) && (
         <div role="alert" style={{ ...cardStyle, padding: '12px 16px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.08)', color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
-          {t('costs.integrityWarning', { meter: integrityReport.meter_issue_count || 0, course: integrityReport.course_issue_count || 0 })}
+          {t('costs.integrityWarning', { meter: meaningfulMeterIssueCount, course: courseIssueCount })}
         </div>
       )}
 
@@ -1329,17 +1334,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
   })[status] || '';
   const reading = (dStr, dt, base, cons, unit, status) => valCell(
     meterIssueText(status) ? { ...newTdStyle, boxShadow: `inset 0 0 0 2px ${status === 'missing_baseline' ? IOS_THEME.warning : '#EF4444'}` } : newTdStyle,
-    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-      <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1, minWidth: 0 }}/>
-      <button
-        type="button"
-        disabled={readOnly || dt[`${base}_end`] == null || dt[`${base}_end`] === ''}
-        onClick={() => onChange(dStr, `${base}_reset`, !dt[`${base}_reset`])}
-        title={dt[`${base}_reset`] ? t('costs.cancelMeterReset') : t('costs.markMeterReset')}
-        aria-label={dt[`${base}_reset`] ? t('costs.cancelMeterReset') : t('costs.markMeterReset')}
-        style={{ border: 0, borderRadius: '6px', padding: '3px 5px', cursor: readOnly ? 'default' : 'pointer', color: dt[`${base}_reset`] ? '#FFFFFF' : IOS_THEME.textSecondary, background: dt[`${base}_reset`] ? IOS_THEME.warning : 'rgba(60,60,67,0.08)', fontWeight: 800 }}
-      >↺</button>
-    </div>,
+    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
     status === 'reset' ? t('costs.meterResetShort') : cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
     undefined,
     { title: meterIssueText(status) },

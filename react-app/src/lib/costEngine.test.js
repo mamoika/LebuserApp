@@ -24,6 +24,8 @@ test('an explicit meter reset starts a new baseline without creating negative us
 
 test('meter parser rejects partially numeric and negative values', () => {
   assert.deepEqual(parseMeterReading('00105,5'), { value: 105.5, status: 'ok' });
+  assert.equal(parseMeterReading('-').status, 'missing');
+  assert.equal(parseMeterReading('—').status, 'missing');
   assert.equal(parseMeterReading('105abc').status, 'invalid');
   assert.equal(parseMeterReading('-10').status, 'invalid');
 });
