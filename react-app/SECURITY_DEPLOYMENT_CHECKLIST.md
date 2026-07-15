@@ -12,6 +12,17 @@ Run these SQL files in Supabase:
 
 Then deploy the frontend that uses those RPCs.
 
+For the costs-table integrity fixes, run after the course-dispatch migrations are present:
+
+4. `db/migrations/costs_meter_integrity.sql`
+
+Smoke-test two finished courses using the same car on one day and a course that changes cars; the daily costs row must retain the greatest reported meter for every involved vehicle. Also verify:
+
+- historical approved-course readings are backfilled and the costs integrity warning is empty or actionable,
+- marking a meter reset gives zero usage on the reset day and a correct delta on the next day,
+- the overview separates costs to date, planned costs and the full-month forecast,
+- two simultaneous edits of the same costs row do not silently overwrite one another.
+
 ## Phase 2: Smoke Test
 
 Verify these flows in the app:

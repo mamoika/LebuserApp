@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { parseExtraClients, parseRouteIds, tripDateInfo, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
@@ -60,14 +60,14 @@ export default function PlanPickupSheet({
   const firstClient = useMemo(() => [...clients].filter(client => client.route_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0], [clients]);
   const dates = workDateOptions();
 
-  const plannedPickupDateFor = (dirtyDate, routeId) => {
+  const plannedPickupDateFor = useCallback((dirtyDate, routeId) => {
     const dirty = tripDateInfo(dirtyDate);
     const schedule = sortedRoutes.find(route => Number(route.id) === Number(routeId))?.schedule || 'other';
     const rule = defaultPickForSchedule(dirty.arrDay, schedule);
     const monday = parseMonday(rule.pickWeek ? nextWeekKey(dirty.weekKey) : dirty.weekKey);
     monday.setDate(monday.getDate() + (rule.pickDay - 1));
     return ymd(monday);
-  };
+  }, [sortedRoutes]);
 
   const [draft, setDraft] = useState(() => ({
     dirtyDate: dates[0]?.value || operationalYmd(),
@@ -87,7 +87,7 @@ export default function PlanPickupSheet({
   useEffect(() => {
     if (!draft.dirtyDate || !draft.routeId) return;
     setDraft(current => ({ ...current, cleanDate: plannedPickupDateFor(current.dirtyDate, current.routeId) }));
-  }, [draft.dirtyDate, draft.routeId]);
+  }, [draft.dirtyDate, draft.routeId, plannedPickupDateFor]);
 
   const setField = (field, value) => {
     setDraft(prev => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import { formatKg, nextWorkDateAfter, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
+import { formatKg, nextWorkDateAfter, workDateOptions } from '../../../lib/tripUiHelpers';
 import { operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';

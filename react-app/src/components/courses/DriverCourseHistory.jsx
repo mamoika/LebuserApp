@@ -24,7 +24,7 @@ function formatWeekday(dateStr, locale) {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString(locale, { weekday: 'short' });
 }
 
-function WorkHoursBlock({ row, locale, t, onResubmit }) {
+function WorkHoursBlock({ row, t, onResubmit }) {
   if (!row) return null;
 
   if (row.kind === 'report') {
@@ -324,7 +324,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
                     </header>
 
                     {day.work ? (
-                      <WorkHoursBlock row={day.work} locale={locale} t={t} onResubmit={resubmitWorkTime} />
+                      <WorkHoursBlock row={day.work} t={t} onResubmit={resubmitWorkTime} />
                     ) : (
                       <div className="live-history-day-no-hours">{t('course.history.noHoursDay')}</div>
                     )}

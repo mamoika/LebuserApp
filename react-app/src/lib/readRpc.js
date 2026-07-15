@@ -109,6 +109,12 @@ export function getCostsHistory(sessionToken, year, currentMonthKey) {
   });
 }
 
+export function getCostsIntegrityReport(sessionToken) {
+  return callReadRpc('get_costs_integrity_report', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getPerformanceProgi(sessionToken, monthKey) {
   return callReadRpc('get_performance_progi', {
     p_session_token: sessionToken,

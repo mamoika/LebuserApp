@@ -3,7 +3,10 @@ import { useEffect, useRef } from 'react';
 export default function CourseSheet({ titleId, title, onClose, busy = false, children }) {
   const sheetRef = useRef(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const previous = document.activeElement;

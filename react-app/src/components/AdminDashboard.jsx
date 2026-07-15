@@ -174,6 +174,7 @@ function AdminOverview({ users, driverCars, onOpenTab }) {
   const driversWithoutCar = users.filter(user => canAssignDriverSettings(user.role) && !driverCars[user.id]);
   const pendingKmTrips = data.trips.filter(trip => {
     if (trip.status !== 'finished' || !trip.end_km) return false;
+    if (trip.km_approval_status === 'approved') return false;
     if (data.kmResolvedIds.map(String).includes(String(trip.id))) return false;
     const field = vehicleEndColumn(trip.car);
     const row = data.dailyCosts.find(cost => cost.entry_date === trip.trip_date);

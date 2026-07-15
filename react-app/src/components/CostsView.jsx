@@ -3,14 +3,43 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
-import { getCostsHistory, getCostsMonth, getPerformanceProgi } from '../lib/readRpc';
+import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getPerformanceProgi } from '../lib/readRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import { exportSheetsAsXlsx } from '../lib/excelExport';
+import { isFutureCalendarDate } from '../lib/calendarDate';
+import {
+  buildDailyCostPatches,
+  countAccruedDays,
+  COST_METER_FIELDS,
+  invalidCostSettingFields,
+  meterUsageSeries,
+  parseMeterReading,
+} from '../lib/costEngine';
+import DataError from './DataError';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function useTodayKey() {
+  const [key, setKey] = useState(() => toDateStr(new Date()));
+  useEffect(() => {
+    let timer;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(24, 0, 0, 50);
+      timer = setTimeout(() => {
+        setKey(toDateStr(new Date()));
+        scheduleNextMidnight();
+      }, next.getTime() - now.getTime());
+    };
+    scheduleNextMidnight();
+    return () => clearTimeout(timer);
+  }, []);
+  return key;
 }
 
 // Parsuje godzinę z tekstu ("7", "6:30", "7,5") na liczbę
@@ -122,8 +151,6 @@ const opaqueTint = (hex, a = 0.08) => {
   return `rgb(${Math.round(r * a + bgR * (1 - a))}, ${Math.round(g * a + bgG * (1 - a))}, ${Math.round(b * a + bgB * (1 - a))})`;
 };
 
-const todayStr = toDateStr(new Date());
-
 // Performance thresholds (kg/rbh) — same as the old spreadsheet (PROGI)
 const PROGI_DEFAULT = {
   ZD1: { slaba: 4.0, srednia: 5.5, dobra: 8.0 },
@@ -191,19 +218,22 @@ function settingsForMonth(monthKey, settsAsc) {
   for (const s of settsAsc) { if (s.month_key <= monthKey) chosen = s; else break; }
   return { ...DEFAULT_SETTINGS, ...(chosen || {}) };
 }
-// Zużycie licznika kumulatywnego w miesiącu = ostatni odczyt w mies. − ostatni przed mies. (teleskopowo)
+// Zużycie licznika kumulatywnego, z obsługą jawnej wymiany/resetu licznika.
 function meterMonthUsage(base, costsAsc, monthStart, monthEnd) {
-  let before = null, firstIn = null, lastIn = null;
+  let previous = null, usage = 0;
   for (const c of costsAsc) {
     const raw = c[`${base}_end`];
     const n = (raw === '' || raw == null) ? null : parseFloat(String(raw).replace(',', '.'));
     if (n == null || isNaN(n)) continue;
-    if (c.entry_date < monthStart) before = n;
-    else if (c.entry_date <= monthEnd) { if (firstIn == null) firstIn = n; lastIn = n; }
+    if (c.entry_date > monthEnd) break;
+    if (c[`${base}_reset`]) {
+      previous = n;
+      continue;
+    }
+    if (c.entry_date >= monthStart && previous != null && n >= previous) usage += n - previous;
+    previous = n;
   }
-  if (lastIn == null) return 0;
-  const prev = before != null ? before : firstIn;
-  return Math.max(0, lastIn - prev);
+  return usage;
 }
 // Agregat kosztów jednego (przeszłego, zamkniętego) miesiąca — wszystkie dni „przeszłe", więc pełne koszty stałe
 function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
@@ -228,12 +258,13 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
     }
   }
   const total = transport + elec + gasProd + gasHeat + water + workers + other;
-  return { mk, year, month, transport, elec, gasProd, gasHeat, gas: gasProd + gasHeat, water, workers, other, total, kg, plnPerKg: kg > 0 ? total / kg : 0 };
+  return { mk, year, month, dayCount: daysInMonth, transport, elec, gasProd, gasHeat, gas: gasProd + gasHeat, water, workers, other, total, kg, plnPerKg: kg > 0 ? total / kg : 0 };
 }
 
 export default function CostsView() {
   const { t } = useTranslation();
   const { isAdmin, canViewAdminData, sessionToken } = useAuth();
+  const currentDateStr = useTodayKey();
 
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
@@ -243,6 +274,8 @@ export default function CostsView() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [integrityReport, setIntegrityReport] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'entry' | 'performance'
   const [showRates, setShowRates] = useState(false);
@@ -274,20 +307,28 @@ export default function CostsView() {
   const settingsRef = useRef(settings);
   useEffect(() => { dailyDataRef.current = dailyData; }, [dailyData]);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
-  const dirtyDays = useRef(new Set());
+  const dirtyFields = useRef(new Map());
   const dirtySettings = useRef(false);
   const dirtySettingsMonthKey = useRef(null);
   const saveTimer = useRef(null);
+  const fetchSequence = useRef(0);
 
   const fetchData = useCallback(async () => {
     if (!canViewAdminData) return;
+    const sequence = ++fetchSequence.current;
     setLoading(true);
+    setLoadError(null);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
 
     try {
-      const monthData = await getCostsMonth(sessionToken, monthKey);
+      const [monthData, report] = await Promise.all([
+        getCostsMonth(sessionToken, monthKey),
+        isAdmin ? getCostsIntegrityReport(sessionToken).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (sequence !== fetchSequence.current) return;
+      setIntegrityReport(report);
       const sets = monthData?.settings || null;
       const prevSet = monthData?.previous_settings || null;
       const costs = monthData?.daily_costs || [];
@@ -375,11 +416,11 @@ export default function CostsView() {
     });
     setTimelineStats(tStats);
     } catch (err) {
-      console.error('Error fetching CostsView data:', err);
+      if (sequence === fetchSequence.current) setLoadError(err?.message || String(err));
     } finally {
-      setLoading(false);
+      if (sequence === fetchSequence.current) setLoading(false);
     }
-  }, [currentDate, monthKey, canViewAdminData, sessionToken]);
+  }, [currentDate, monthKey, canViewAdminData, isAdmin, sessionToken]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -397,7 +438,9 @@ export default function CostsView() {
         sched.forEach(e => { const k = `${e.year}-${String(e.month).padStart(2, '0')}`; laborByMonth[k] = (laborByMonth[k] || 0) + scheduleDayHours(e.value); });
         const ctx = { costsAsc: data?.daily_costs || [], settsAsc: data?.settings || [], laborByMonth };
         const months = [];
-        for (let mm = 1; mm <= m - 1; mm++) {
+        const now = new Date();
+        const lastClosedMonth = y < now.getFullYear() ? 12 : y === now.getFullYear() ? now.getMonth() : 0;
+        for (let mm = 1; mm <= Math.min(m - 1, lastClosedMonth); mm++) {
           months.push(aggregateMonth(y, mm, ctx));
         }
         if (alive) setHistory(months);
@@ -434,32 +477,88 @@ export default function CostsView() {
   const flushSave = useCallback(async () => {
     if (!isAdmin) return;
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
-    const days = [...dirtyDays.current];
+    const dirtySnapshot = [...dirtyFields.current].map(([dateStr, fields]) => [dateStr, [...fields]]);
     const setDirty = dirtySettings.current;
     const setKey = dirtySettingsMonthKey.current;
-    if (!days.length && !setDirty) return;
-    dirtyDays.current.clear();
+    if (!dirtySnapshot.length && !setDirty) return true;
+
+    const patches = buildDailyCostPatches(dailyDataRef.current, dirtySnapshot);
+    const hasInvalidMeter = patches.some(row => COST_METER_FIELDS.some(field => (
+      field in row && row[field] != null && parseMeterReading(row[field]).status === 'invalid'
+    )));
+    if (hasInvalidMeter) {
+      setAutoSave('idle');
+      toastError(t('costs.errInvalidMeter'));
+      return false;
+    }
+    const hasInvalidTonnage = patches.some(row => ['ton_zd1', 'ton_zd2', 'ton_pralki'].some(field => (
+      field in row && row[field] != null && (!Number.isFinite(Number(row[field])) || Number(row[field]) < 0)
+    )));
+    if (hasInvalidTonnage) {
+      setAutoSave('idle');
+      toastError(t('costs.errInvalidTonnage'));
+      return false;
+    }
+    const hasInvalidOtherCost = patches.some(row => (
+      'other_costs' in row && row.other_costs != null && row.other_costs !== '' && parseDecimalInput(row.other_costs) == null
+    ));
+    if (hasInvalidOtherCost) {
+      setAutoSave('idle');
+      toastError(t('costs.errInvalidOtherCost'));
+      return false;
+    }
+    if (setDirty && invalidCostSettingFields(settingsRef.current).length) {
+      setAutoSave('idle');
+      toastError(t('costs.errInvalidRates'));
+      return false;
+    }
+
+    dirtySnapshot.forEach(([dateStr, fields]) => {
+      const current = dirtyFields.current.get(dateStr);
+      fields.forEach(field => current?.delete(field));
+      if (current?.size === 0) dirtyFields.current.delete(dateStr);
+    });
     dirtySettings.current = false;
     setAutoSave('saving');
     try {
       if (setDirty && setKey) {
-        await upsertCostSettings(sessionToken, { ...settingsRef.current, month_key: setKey });
+        const savedSettings = await upsertCostSettings(sessionToken, {
+          ...settingsRef.current,
+          month_key: setKey,
+          expected_updated_at: settingsRef.current.updated_at ?? null,
+        });
+        if (savedSettings?.updated_at) {
+          setSettings(prev => ({ ...prev, updated_at: savedSettings.updated_at }));
+        }
       }
-      const rows = days
-        .map(ds => dailyDataRef.current[ds])
-        .filter(d => d && Object.keys(d).length > 1)
-        .map(d => normalizeDailyCostRow({ ...d, updated_at: new Date().toISOString() }));
+      const rows = patches.map(normalizeDailyCostRow);
       if (rows.length) {
-        await upsertDailyCosts(sessionToken, rows);
+        const savedRows = await upsertDailyCosts(sessionToken, rows);
+        if (Array.isArray(savedRows)) {
+          setDailyData(prev => {
+            const next = { ...prev };
+            savedRows.forEach(row => {
+              next[row.entry_date] = { ...next[row.entry_date], updated_at: row.updated_at };
+            });
+            return next;
+          });
+        }
       }
       setAutoSave('saved');
       setTimeout(() => setAutoSave(s => (s === 'saved' ? 'idle' : s)), 1500);
-    } catch {
+      return true;
+    } catch (err) {
       // przywróć „brudne" wpisy, żeby ponowić zapis i pokaż błąd zamiast fałszywego „Zapisano"
-      days.forEach(d => dirtyDays.current.add(d));
+      dirtySnapshot.forEach(([dateStr, fields]) => {
+        const current = dirtyFields.current.get(dateStr) || new Set();
+        fields.forEach(field => current.add(field));
+        dirtyFields.current.set(dateStr, current);
+      });
       if (setDirty) { dirtySettings.current = true; dirtySettingsMonthKey.current = setKey; }
       setAutoSave('idle');
-      toastError(t('costs.errUnsavedChanges'));
+      const concurrent = /CONCURRENT_MODIFICATION|zmienione przez innego/i.test(err?.message || '');
+      toastError(t(concurrent ? 'costs.errConcurrentChange' : 'costs.errUnsavedChanges'));
+      return false;
     }
   }, [isAdmin, sessionToken, t]);
 
@@ -476,6 +575,8 @@ export default function CostsView() {
     let parsed = value;
     if (value === '') {
       parsed = null;
+    } else if (field.endsWith('_reset')) {
+      parsed = Boolean(value);
     } else if (field.endsWith('_end')) {
       parsed = value.trim(); // preserve leading zeros
     } else if (field === 'other_costs') {
@@ -488,7 +589,9 @@ export default function CostsView() {
       ...prev,
       [dateStr]: { ...prev[dateStr], entry_date: dateStr, [field]: parsed }
     }));
-    dirtyDays.current.add(dateStr);
+    const fields = dirtyFields.current.get(dateStr) || new Set();
+    fields.add(field);
+    dirtyFields.current.set(dateStr, fields);
     scheduleAutoSave();
   };
 
@@ -504,20 +607,12 @@ export default function CostsView() {
   const saveAll = async () => {
     if (!isAdmin) return;
     setSaving(true);
-    try {
-      await upsertCostSettings(sessionToken, { ...settings, month_key: monthKey });
-      const toSave = Object.values(dailyData).filter(d => Object.keys(d).length > 1);
-      if (toSave.length > 0) {
-        await upsertDailyCosts(sessionToken, toSave.map(normalizeDailyCostRow));
-      }
-    } catch {
-      setSaving(false);
-      toastError(t('costs.errSave'));
-      return;
-    }
+    dirtySettings.current = true;
+    dirtySettingsMonthKey.current = monthKey;
+    const saved = await flushSave();
     setSaving(false);
+    if (!saved) return;
     toastSuccess(t('admin.saved'));
-    fetchData();
   };
 
   if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
@@ -536,65 +631,50 @@ export default function CostsView() {
     return (v === 0 || v) ? v : null;
   };
 
-  const parseMeter = (val) => {
-    if (val == null || val === '') return null;
-    const n = parseFloat(String(val).replace(',', '.'));
-    return isNaN(n) ? null : n;
-  };
+  const meterBases = ['fiat', 'isuzu', 'merc', 'iveco', 'elec', 'gas_prod', 'gas_heat', 'water'];
+  const meterSeries = Object.fromEntries(meterBases.map(base => [
+    base,
+    meterUsageSeries(
+      days.map(day => getReading(day, base)),
+      prevReadings?.[`${base}_end`],
+      days.map(day => Boolean(dailyData[day]?.[`${base}_reset`])),
+    ),
+  ]));
+  const consumptionAt = (idx, base) => meterSeries[base]?.[idx]?.usage || 0;
+  const meterIssueAt = (idx, base) => meterSeries[base]?.[idx]?.status || 'missing';
 
-  const consumptionAt = (idx, base) => {
-    const curStr = getReading(days[idx], base);
-    const cur = parseMeter(curStr);
-    if (cur == null) return 0;
-    
-    let prev = null;
-    for (let j = idx - 1; j >= 0; j--) {
-      const r = parseMeter(getReading(days[j], base));
-      if (r != null) { prev = r; break; }
-    }
-    if (prev == null) {
-      const c = prevReadings?.[`${base}_end`];
-      prev = parseMeter(c);
-    }
-    if (prev == null) return 0; 
-    return Math.max(0, cur - prev);
-  };
-
-  const todayDate = new Date();
-  todayDate.setHours(0,0,0,0);
-
-  const calcDay = (dStr, idx) => {
+  const calcDay = (dStr, idx, { includeFuture = false } = {}) => {
     const d = dailyData[dStr] || {};
-    const fiat_km = consumptionAt(idx, 'fiat');
-    const isuzu_km = consumptionAt(idx, 'isuzu');
-    const merc_km = consumptionAt(idx, 'merc');
-    const iveco_km = consumptionAt(idx, 'iveco');
+    const suppressed = isFutureCalendarDate(dStr, currentDateStr) && !includeFuture;
+    const fiat_km = suppressed ? 0 : consumptionAt(idx, 'fiat');
+    const isuzu_km = suppressed ? 0 : consumptionAt(idx, 'isuzu');
+    const merc_km = suppressed ? 0 : consumptionAt(idx, 'merc');
+    const iveco_km = suppressed ? 0 : consumptionAt(idx, 'iveco');
     const total_km = fiat_km + isuzu_km + merc_km + iveco_km;
 
-    const isFuture = new Date(dStr) > todayDate;
-
-    const transportCost = ((fiat_km * settings.fiat_l_100km) + (isuzu_km * settings.isuzu_l_100km) + (merc_km * settings.merc_l_100km) + (iveco_km * settings.iveco_l_100km)) / 100 * settings.fuel_price;
-    const elec_usage = consumptionAt(idx, 'elec') * settings.elec_multiplier;
-    const elec_cost = elec_usage * settings.elec_price_kwh + (isFuture ? 0 : (settings.elec_fixed_monthly / daysInMonth));
-    const gas_prod_usage = consumptionAt(idx, 'gas_prod');
-    const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + (isFuture ? 0 : settings.gas_prod_fixed_daily);
-    const gas_heat_usage = consumptionAt(idx, 'gas_heat');
-    const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (isFuture ? 0 : (settings.gas_heat_fixed_monthly / daysInMonth));
-    const water_usage = consumptionAt(idx, 'water');
-    const water_cost = water_usage * settings.water_price_m3 + (isFuture ? 0 : (settings.water_fixed_monthly / daysInMonth));
+    const transportCost = suppressed ? 0 : ((fiat_km * settings.fiat_l_100km) + (isuzu_km * settings.isuzu_l_100km) + (merc_km * settings.merc_l_100km) + (iveco_km * settings.iveco_l_100km)) / 100 * settings.fuel_price;
+    const elec_usage = suppressed ? 0 : consumptionAt(idx, 'elec') * settings.elec_multiplier;
+    const elec_cost = elec_usage * settings.elec_price_kwh + (suppressed ? 0 : (settings.elec_fixed_monthly / daysInMonth));
+    const gas_prod_usage = suppressed ? 0 : consumptionAt(idx, 'gas_prod');
+    const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + (suppressed ? 0 : settings.gas_prod_fixed_daily);
+    const gas_heat_usage = suppressed ? 0 : consumptionAt(idx, 'gas_heat');
+    const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (suppressed ? 0 : (settings.gas_heat_fixed_monthly / daysInMonth));
+    const water_usage = suppressed ? 0 : consumptionAt(idx, 'water');
+    const water_cost = water_usage * settings.water_price_m3 + (suppressed ? 0 : (settings.water_fixed_monthly / daysInMonth));
     const hrs = laborHours[dStr] || 0; // łączne godziny z Grafiku pracy
-    const worker_cost = hrs * settings.worker_hourly_rate;
-    const other_cost = decimalValue(d.other_costs);
+    const worker_cost = suppressed ? 0 : hrs * settings.worker_hourly_rate;
+    const other_cost = suppressed ? 0 : decimalValue(d.other_costs);
     const total_cost = transportCost + elec_cost + gas_prod_cost + gas_heat_cost + water_cost + worker_cost + other_cost;
-    const ton = decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki);
+    const ton = suppressed ? 0 : decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki);
     const pln_kg = ton > 0 ? total_cost / ton : 0;
+    const meterIssues = Object.fromEntries(meterBases.map(base => [base, meterIssueAt(idx, base)]));
 
-    return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg };
+    return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg, meterIssues };
   };
 
   // Monthly totals
-  const monthlyTotals = days.reduce((acc, dStr, idx) => {
-    const c = calcDay(dStr, idx);
+  const calculateTotals = (includeFuture) => days.reduce((acc, dStr, idx) => {
+    const c = calcDay(dStr, idx, { includeFuture });
     acc.transport += c.transportCost;
     acc.elec += c.elec_cost;
     acc.gasProd += c.gas_prod_cost;
@@ -610,9 +690,13 @@ export default function CostsView() {
     return acc;
   }, { transport: 0, elec: 0, gasProd: 0, gasHeat: 0, gas: 0, water: 0, workers: 0, other: 0, total: 0,
        kmFiat: 0, kmIsuzu: 0, kmMerc: 0, kmIveco: 0, kWh: 0, m3GasProd: 0, m3GasHeat: 0, m3Water: 0 });
+  const monthlyTotals = calculateTotals(false);
+  const forecastTotals = calculateTotals(true);
+  const plannedCosts = Math.max(0, forecastTotals.total - monthlyTotals.total);
 
   // Performance totals
   const perfTotals = days.reduce((acc, dStr) => {
+    if (isFutureCalendarDate(dStr, currentDateStr)) return acc;
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
     const kgZd1 = decimalValue(dt.ton_zd1);
@@ -635,11 +719,12 @@ export default function CostsView() {
   perfTotals.kg = +perfTotals.kg.toFixed(10);
 
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
-  const avgPerDay = monthlyTotals.total / daysInMonth;
+  const accruedDays = countAccruedDays(days, currentDateStr);
+  const avgPerDay = accruedDays > 0 ? monthlyTotals.total / accruedDays : 0;
 
   // Bieżący miesiąc jako punkt historii (z policzonych totali → spójny z KPI) + miesiące wstecz
   const currentPoint = {
-    mk: monthKey, year, month,
+    mk: monthKey, year, month, dayCount: accruedDays,
     transport: monthlyTotals.transport, elec: monthlyTotals.elec, gasProd: monthlyTotals.gasProd, gasHeat: monthlyTotals.gasHeat,
     gas: monthlyTotals.gas, water: monthlyTotals.water, workers: monthlyTotals.workers, other: monthlyTotals.other,
     total: monthlyTotals.total, kg: perfTotals.kg, plnPerKg,
@@ -658,13 +743,17 @@ export default function CostsView() {
   const dailyTotals = days.map((d, idx) => { const c = calcDay(d, idx); return c.total_cost - c.other_cost; });
   // Dni wolne (weekendy + święta) — pomijane na krzywej, żeby trend nie skakał do zera
   const isDayOff = (dStr) => { const d = new Date(dStr); return d.getDay() === 0 || d.getDay() === 6 || !!isHoliday(d); };
-  const offFlags = days.map(isDayOff);
+  const offFlags = days.map(dStr => isDayOff(dStr) || isFutureCalendarDate(dStr, currentDateStr));
   const workVals = dailyTotals.filter((_, i) => !offFlags[i]);
   const trendAvg = workVals.length ? workVals.reduce((s, v) => s + v, 0) / workVals.length : 0;
 
   // Eksport do Excela (analogicznie do Grafiku) — arkusz Koszty + arkusz Wydajność
   const exportToExcel = async () => {
-    const r2 = (n) => Math.round((n || 0) * 100) / 100;
+    if (invalidCostSettingFields(settings).length) {
+      toastError(t('costs.errInvalidRates'));
+      return;
+    }
+    const r2 = (n) => Number.isFinite(n) ? Math.round(n * 100) / 100 : '';
     const dayLabel = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')}.${String(month).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
     // Arkusz 1: Koszty
@@ -765,20 +854,28 @@ export default function CostsView() {
       {/* RATES PANEL */}
       {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!isAdmin} />}
 
+      {isAdmin && integrityReport && ((integrityReport.meter_issue_count || 0) + (integrityReport.course_issue_count || 0) > 0) && (
+        <div role="alert" style={{ ...cardStyle, padding: '12px 16px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.08)', color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
+          {t('costs.integrityWarning', { meter: integrityReport.meter_issue_count || 0, course: integrityReport.course_issue_count || 0 })}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ ...cardStyle, padding: '60px', textAlign: 'center', color: IOS_THEME.textSecondary, fontSize: '15px' }}>{t('costs.loadingFinancialData')}</div>
+      ) : loadError ? (
+        <div style={{ ...cardStyle, padding: '32px' }}><DataError error={loadError} onRetry={fetchData} /></div>
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} />
+            <OverviewTab totals={monthlyTotals} forecastTotal={forecastTotals.total} plannedCosts={plannedCosts} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} />
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} />
+            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={monthlyTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} todayKey={currentDateStr} />
           )}
 
           {activeTab === 'performance' && (
-            <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} />
+            <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} todayKey={currentDateStr} />
           )}
         </>
       )}
@@ -787,7 +884,7 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [] }) {
+function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [] }) {
   const { t } = useTranslation();
   const cats = [
     { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
@@ -803,7 +900,7 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
   const H = monthsHistory;
   const cur = H[H.length - 1] || null;
   const prev = H.length > 1 ? H[H.length - 2] : null;
-  const dIM = (p) => new Date(p.year, p.month, 0).getDate();
+  const dIM = (p) => p.dayCount || new Date(p.year, p.month, 0).getDate();
   const momPct = (c, p) => (p != null && p > 0 && c > 0) ? ((c - p) / p) * 100 : null;
   const dTotal = (prev && prev.total > 0) ? ((cur.total - prev.total) / prev.total) * 100 : null;
   const dPpk = momPct(cur?.plnPerKg, prev?.plnPerKg);
@@ -818,7 +915,9 @@ function OverviewTab({ totals, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* KPI HERO — z porównaniem MoM i sparkline */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <KpiCard label={t('costs.kpiTotalCosts')} value={FMT(totals.total)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
+        <KpiCard label={t('costs.kpiCostsToDate')} value={FMT(totals.total)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
+        <KpiCard label={t('costs.kpiPlannedCosts')} value={FMT(plannedCosts)} unit={t('costs.currency')} icon={<CalendarDays size={22}/>} color={IOS_THEME.warning} />
+        <KpiCard label={t('costs.kpiMonthForecast')} value={FMT(forecastTotal)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={CAT.gas} />
         <KpiCard label={t('costs.kpiCostPerKg')} value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit={t('costs.currencyPerKg')} icon={<Scale size={22}/>} color={CAT.transport} delta={dPpk} goodWhenDown spark={sPpk} />
         <KpiCard label={t('costs.kpiTonnage')} value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} delta={dKg} spark={sKg} />
         <KpiCard label={t('costs.kpiAvgPerDay')} value={FMT(avgPerDay)} unit={t('costs.currency')} icon={<CalendarDays size={22}/>} color={CAT.water} delta={dAvg} goodWhenDown spark={sAvg} />
@@ -1191,7 +1290,7 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
               {g.fields.map(([field, label]) => (
                 <label key={field} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '13px' }}>
                   <span style={{ color: IOS_THEME.textSecondary }}>{label}</span>
-                  <input type="number" value={settings[field] ?? ''} onChange={(e) => onChange(field, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...rateInpStyle, opacity: readOnly ? 0.75 : 1 }} />
+                  <input type="number" min="0" step="any" value={settings[field] ?? ''} onChange={(e) => onChange(field, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...rateInpStyle, opacity: readOnly ? 0.75 : 1 }} />
                 </label>
               ))}
             </div>
@@ -1203,7 +1302,7 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false, laborHours = {} }) {
+function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false, laborHours = {}, todayKey }) {
   const { t } = useTranslation();
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label) => (
@@ -1223,10 +1322,27 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
       </div>
     </td>
   );
-  const reading = (dStr, dt, base, cons, unit) => valCell(
-    newTdStyle,
-    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
-    cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
+  const meterIssueText = (status) => ({
+    invalid: t('costs.invalidMeter'),
+    decreased: t('costs.decreasedMeter'),
+    missing_baseline: t('costs.missingMeterBaseline'),
+  })[status] || '';
+  const reading = (dStr, dt, base, cons, unit, status) => valCell(
+    meterIssueText(status) ? { ...newTdStyle, boxShadow: `inset 0 0 0 2px ${status === 'missing_baseline' ? IOS_THEME.warning : '#EF4444'}` } : newTdStyle,
+    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+      <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1, minWidth: 0 }}/>
+      <button
+        type="button"
+        disabled={readOnly || dt[`${base}_end`] == null || dt[`${base}_end`] === ''}
+        onClick={() => onChange(dStr, `${base}_reset`, !dt[`${base}_reset`])}
+        title={dt[`${base}_reset`] ? t('costs.cancelMeterReset') : t('costs.markMeterReset')}
+        aria-label={dt[`${base}_reset`] ? t('costs.cancelMeterReset') : t('costs.markMeterReset')}
+        style={{ border: 0, borderRadius: '6px', padding: '3px 5px', cursor: readOnly ? 'default' : 'pointer', color: dt[`${base}_reset`] ? '#FFFFFF' : IOS_THEME.textSecondary, background: dt[`${base}_reset`] ? IOS_THEME.warning : 'rgba(60,60,67,0.08)', fontWeight: 800 }}
+      >↺</button>
+    </div>,
+    status === 'reset' ? t('costs.meterResetShort') : cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
+    undefined,
+    { title: meterIssueText(status) },
   );
   const footMeter = (val, unit) => (
     <td style={{ ...footTdStyle, textAlign: 'center', color: IOS_THEME.textSecondary }}>
@@ -1267,7 +1383,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               const isHol = isHoliday(d);
               const isWe = d.getDay() === 0 || d.getDay() === 6;
               const isOff = isWe || !!isHol;
-              const isToday = dStr === todayStr;
+              const isToday = dStr === todayKey;
               const c = calcDay(dStr, idx);
               const dt = dailyData[dStr] || {};
               const rowBg = isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#EBEBEB' : '#FFFFFF';
@@ -1282,21 +1398,21 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
                     dateCellColor,
                     { className: 'sticky-col', title: isHol ? isHol.name : '' }
                   )}
-                  {reading(dStr, dt, 'fiat', c.fiat_km, 'km')}
-                  {reading(dStr, dt, 'isuzu', c.isuzu_km, 'km')}
-                  {reading(dStr, dt, 'merc', c.merc_km, 'km')}
-                  {reading(dStr, dt, 'iveco', c.iveco_km, 'km')}
+                  {reading(dStr, dt, 'fiat', c.fiat_km, 'km', c.meterIssues.fiat)}
+                  {reading(dStr, dt, 'isuzu', c.isuzu_km, 'km', c.meterIssues.isuzu)}
+                  {reading(dStr, dt, 'merc', c.merc_km, 'km', c.meterIssues.merc)}
+                  {reading(dStr, dt, 'iveco', c.iveco_km, 'km', c.meterIssues.iveco)}
                   {valCell(costCellStyle(CAT.transport),
                     FMT(c.transportCost),
                     c.total_km > 0 ? `${FMT0(c.total_km)} km` : (dt.fiat_end !== undefined || dt.isuzu_end !== undefined || dt.merc_end !== undefined || dt.iveco_end !== undefined) ? '0 km' : '',
                     CAT.transport)}
-                  {reading(dStr, dt, 'elec', c.elec_usage, 'kWh')}
+                  {reading(dStr, dt, 'elec', c.elec_usage, 'kWh', c.meterIssues.elec)}
                   {valCell(costCellStyle(CAT.elec), FMT(c.elec_cost), '')}
-                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³')}
+                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³', c.meterIssues.gas_prod)}
                   {valCell(costCellStyle(CAT.gas), FMT(c.gas_prod_cost), '')}
-                  {reading(dStr, dt, 'gas_heat', c.gas_heat_usage, 'm³')}
+                  {reading(dStr, dt, 'gas_heat', c.gas_heat_usage, 'm³', c.meterIssues.gas_heat)}
                   {valCell(costCellStyle('#4A148C'), FMT(c.gas_heat_cost), '')}
-                  {reading(dStr, dt, 'water', c.water_usage, 'm³')}
+                  {reading(dStr, dt, 'water', c.water_usage, 'm³', c.meterIssues.water)}
                   {valCell(costCellStyle(CAT.water), FMT(c.water_cost), '')}
                   {valCell(costCellStyle(CAT.workers), c.worker_cost > 0 ? FMT(c.worker_cost) : '—', (laborHours[dStr] || 0) > 0 ? `${FMT1(laborHours[dStr])} h` : '')}
                   {valCell(newTdStyle,
@@ -1313,7 +1429,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
           </tbody>
           <tfoot>
             <tr className="costs-foot">
-              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.total')}</td>
+              <td className="sticky-col" style={{ ...footTdStyle, textAlign: 'left', background: '#1E293B', color: '#FFFFFF' }}>{t('costs.totalToDate')}</td>
               {footMeter(totals.kmFiat, 'km')}
               {footMeter(totals.kmIsuzu, 'km')}
               {footMeter(totals.kmMerc, 'km')}
@@ -1338,7 +1454,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <td style={{ ...footTdStyle, background: '#2563EB', color: '#FFFFFF', fontWeight: 900, textAlign: 'center', borderLeft: '2px solid rgba(255,255,255,0.3)' }}>
                 <div style={{ fontSize: '15px' }}>{FMT(totals.total)}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8, marginTop: '3px' }}>
-                  {(() => { const kg = days.reduce((s, dStr) => { const d = dailyData[dStr] || {}; return s + decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
+                  {(() => { const kg = days.reduce((s, dStr) => { if (isFutureCalendarDate(dStr, todayKey)) return s; const d = dailyData[dStr] || {}; return s + decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki); }, 0); return kg > 0 ? `${FMT(totals.total / kg)} ${t('costs.currencyPerKg')}` : ''; })()}
                 </div>
               </td>
             </tr>
@@ -1430,7 +1546,7 @@ function ThresholdEditor({ band, progi, onChange, onClose, readOnly = false }) {
 }
 
 /* ───────────── PERFORMANCE GRID ───────────── */
-function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onChange, progi, onProgiChange, readOnly = false }) {
+function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onChange, progi, onProgiChange, readOnly = false, todayKey }) {
   const { t } = useTranslation();
   const [editBand, setEditBand] = useState(null); // id klikniętego pasma (kolor) lub null
   const effTd = (val, thr, perPerson) => {
@@ -1455,6 +1571,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   const effAllAvg = totals.h > 0 ? totals.kg / totals.h : 0;
   // monthly avg kg/person = mean of daily kg/os (days with crew > 0), like the old sheet
   const osAgg = days.reduce((a, dStr) => {
+    if (isFutureCalendarDate(dStr, todayKey)) return a;
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
     const kgZd1 = decimalValue(dt.ton_zd1);
@@ -1469,6 +1586,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
 
   // Dzienna wydajność Ogółem kg/h — do panelu (trend, rozkład pasm, najlepszy/najsłabszy dzień)
   const dayStats = days.map(dStr => {
+    if (isFutureCalendarDate(dStr, todayKey)) return { dStr, effAll: 0, t_suma: 0, h_suma: 0 };
     const dt = dailyData[dStr] || {};
     const ts = timelineStats[dStr]?.roles || {};
     const t_suma = decimalValue(dt.ton_zd1) + decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
@@ -1523,13 +1641,14 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               const isHol = isHoliday(d);
               const isWe = d.getDay() === 0 || d.getDay() === 6;
               const isOff = isWe || !!isHol;
-              const isToday = dStr === todayStr;
+              const isToday = dStr === todayKey;
+              const isFuture = isFutureCalendarDate(dStr, todayKey);
               const dt = dailyData[dStr] || {};
               const ts = timelineStats[dStr]?.roles || {};
-              const kgZd1 = decimalValue(dt.ton_zd1);
-              const kgZd2pr = decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
+              const kgZd1 = isFuture ? 0 : decimalValue(dt.ton_zd1);
+              const kgZd2pr = isFuture ? 0 : decimalValue(dt.ton_zd2) + decimalValue(dt.ton_pralki);
               const t_suma = kgZd1 + kgZd2pr;
-              const hZd1 = ts.ZD1?.hrs || 0, hZd2 = ts.ZD2?.hrs || 0, hKier = ts.Kierowcy?.hrs || 0;
+              const hZd1 = isFuture ? 0 : ts.ZD1?.hrs || 0, hZd2 = isFuture ? 0 : ts.ZD2?.hrs || 0, hKier = isFuture ? 0 : ts.Kierowcy?.hrs || 0;
               const h_suma = hZd1 + hZd2 + hKier;
               const pZd1 = ts.ZD1?.emp?.size || 0, pZd2 = ts.ZD2?.emp?.size || 0, pKier = ts.Kierowcy?.emp?.size || 0;
               const pAll = pZd1 + pZd2 + pKier;
@@ -1544,9 +1663,9 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
                       <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{weekdays[d.getDay()]}</span>
                     </div>
                   </td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
-                  <td style={newTdStyle}><input type="number" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
+                  <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_zd1 || ''} onChange={(e) => onChange(dStr, 'ton_zd1', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
+                  <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
+                  <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{t_suma > 0 ? FMT1(t_suma) : '—'}</td>
                   {hoursTd(hZd1, ts.ZD1?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(hZd2, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}

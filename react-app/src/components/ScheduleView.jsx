@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
-import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate, operationalYmd } from '../lib/dateUtils';
+import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { supabase } from '../lib/supabaseClient';
