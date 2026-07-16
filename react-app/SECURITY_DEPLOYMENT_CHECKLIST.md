@@ -15,6 +15,7 @@ Then deploy the frontend that uses those RPCs.
 For the costs-table integrity fixes, run after the course-dispatch migrations are present:
 
 4. `db/migrations/costs_meter_integrity.sql`
+5. `db/migrations/workforce_planning.sql`
 
 Smoke-test two finished courses using the same car on one day and a course that changes cars; the daily costs row must retain the greatest reported meter for every involved vehicle. Also verify:
 
@@ -22,6 +23,8 @@ Smoke-test two finished courses using the same car on one day and a course that 
 - marking a meter reset gives zero usage on the reset day and a correct delta on the next day,
 - the overview separates costs to date, planned costs and the full-month forecast,
 - two simultaneous edits of the same costs row do not silently overwrite one another.
+
+For workforce planning, verify that the new `Planowanie hali` tab loads people from the selected day in Grafik, excludes absences, saves station assignments and required staffing, and rejects a stale simultaneous save.
 
 ## Phase 2: Smoke Test
 
