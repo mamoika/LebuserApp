@@ -1,43 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Minus, Plus, Save, UserRound, UsersRound, X } from 'lucide-react';
+import { Minus, Plus, Save, UserRound, UsersRound, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { currentLocale } from '../lib/dateUtils';
-import {
-  buildPlanningRoster,
-  normalizeWorkforcePlan,
-  summarizeWorkforcePlan,
-  WORKFORCE_STATIONS,
-} from '../lib/workforcePlanning';
-import { getWorkforcePlan, saveWorkforcePlan } from '../lib/workforcePlanningRpc';
+import { normalizeWorkforcePlan, WORKFORCE_STATIONS } from '../lib/workforcePlanning';
+import { getWorkforceFloorPlan, saveWorkforceFloorPlan } from '../lib/workforcePlanningRpc';
 import DataError from './DataError';
 
-function ymd(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function dateFromYmd(value) {
-  const [year, month, day] = String(value).split('-').map(Number);
-  return new Date(year, month - 1, day, 12, 0, 0);
-}
-
-function moveDay(value, delta) {
-  const date = dateFromYmd(value);
-  date.setDate(date.getDate() + delta);
-  return ymd(date);
-}
-
-function shortTime(value) {
-  return String(value || '').slice(0, 5);
+function MachineShape({ station, label }) {
+  if (station.id === 'small_washers') {
+    return (
+      <div className="workforce-visual-machine-group is-washers">
+        <div><span/><span/></div>
+        <b>{label}</b>
+      </div>
+    );
+  }
+  if (station.id === 'dryers') {
+    return (
+      <div className="workforce-visual-machine-group is-dryers">
+        <div>{[0, 1, 2, 3, 4].map(unit => <span key={unit}/>)}</div>
+        <b>{label}</b>
+      </div>
+    );
+  }
+  return <div className="workforce-visual-machine" style={{ background: station.color }}><b>{label}</b></div>;
 }
 
 export default function WorkforcePlanningView() {
   const { t } = useTranslation();
   const { isAdmin, canViewAdminData, sessionToken } = useAuth();
-  const [workDate, setWorkDate] = useState(() => ymd(new Date()));
-  const [roster, setRoster] = useState([]);
+  const [people, setPeople] = useState([]);
   const [plan, setPlan] = useState(() => normalizeWorkforcePlan(null));
   const [updatedAt, setUpdatedAt] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
@@ -46,43 +41,34 @@ export default function WorkforcePlanningView() {
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadPlan = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!canViewAdminData || !sessionToken) return;
-    const date = dateFromYmd(workDate);
+    const now = new Date();
     setLoading(true);
     setError(null);
-    setSelectedEmployeeId(null);
     try {
       const [scheduleData, planData] = await Promise.all([
-        getWorkScheduleMonth(sessionToken, date.getFullYear(), date.getMonth() + 1),
-        getWorkforcePlan(sessionToken, workDate),
+        getWorkScheduleMonth(sessionToken, now.getFullYear(), now.getMonth() + 1),
+        getWorkforceFloorPlan(sessionToken),
       ]);
-      const people = buildPlanningRoster(scheduleData?.roster || [], scheduleData?.schedule_entries || [], workDate);
-      const availableIds = new Set(people.filter(person => person.available).map(person => String(person.id)));
-      setRoster(people);
-      setPlan(normalizeWorkforcePlan(planData?.plan, availableIds));
+      const roster = (scheduleData?.roster || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), currentLocale()));
+      setPeople(roster);
+      setPlan(normalizeWorkforcePlan(planData?.plan, new Set(roster.map(person => String(person.id)))));
       setUpdatedAt(planData?.updated_at || null);
       setDirty(false);
+      setSelectedEmployeeId(null);
     } catch (err) {
       setError(err?.message || String(err));
     } finally {
       setLoading(false);
     }
-  }, [canViewAdminData, sessionToken, workDate]);
+  }, [canViewAdminData, sessionToken]);
 
-  useEffect(() => { loadPlan(); }, [loadPlan]);
+  useEffect(() => { load(); }, [load]);
 
-  const availablePeople = useMemo(
-    () => roster.filter(person => person.available).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), currentLocale())),
-    [roster],
-  );
-  const absentPeople = useMemo(() => roster.filter(person => !person.available), [roster]);
-  const personById = useMemo(() => Object.fromEntries(roster.map(person => [String(person.id), person])), [roster]);
-  const unassignedPeople = useMemo(
-    () => availablePeople.filter(person => !plan.assignments[String(person.id)]),
-    [availablePeople, plan.assignments],
-  );
-  const summary = useMemo(() => summarizeWorkforcePlan(plan, availablePeople.length), [plan, availablePeople.length]);
+  const personById = useMemo(() => Object.fromEntries(people.map(person => [String(person.id), person])), [people]);
+  const unassignedPeople = useMemo(() => people.filter(person => !plan.assignments[String(person.id)]), [people, plan.assignments]);
+  const selectedPerson = selectedEmployeeId ? personById[selectedEmployeeId] : null;
 
   const updatePlan = (recipe) => {
     if (!isAdmin) return;
@@ -90,13 +76,10 @@ export default function WorkforcePlanningView() {
     setDirty(true);
   };
 
-  const assignPerson = (employeeId, stationId) => {
+  const assign = (employeeId, stationId) => {
     const id = String(employeeId);
-    if (!personById[id]?.available) return;
-    updatePlan(previous => ({
-      ...previous,
-      assignments: { ...previous.assignments, [id]: stationId },
-    }));
+    if (!personById[id]) return;
+    updatePlan(previous => ({ ...previous, assignments: { ...previous.assignments, [id]: stationId } }));
     setSelectedEmployeeId(null);
   };
 
@@ -108,12 +91,12 @@ export default function WorkforcePlanningView() {
     });
   };
 
-  const changeRequirement = (stationId, delta) => {
+  const changeNeed = (stationId, delta) => {
     updatePlan(previous => ({
       ...previous,
       requirements: {
         ...previous.requirements,
-        [stationId]: Math.max(0, Math.min(99, (Number(previous.requirements[stationId]) || 0) + delta)),
+        [stationId]: Math.max(0, Math.min(30, (Number(previous.requirements[stationId]) || 0) + delta)),
       },
     }));
   };
@@ -122,151 +105,95 @@ export default function WorkforcePlanningView() {
     if (!isAdmin || !dirty) return;
     setSaving(true);
     try {
-      const result = await saveWorkforcePlan(sessionToken, workDate, plan, updatedAt);
+      const result = await saveWorkforceFloorPlan(sessionToken, plan, updatedAt);
       setUpdatedAt(result?.updated_at || null);
       setDirty(false);
       toastSuccess(t('workforcePlanning.saved'));
     } catch (err) {
-      const concurrent = /CONCURRENT_MODIFICATION/i.test(err?.message || '');
-      toastError(t(concurrent ? 'workforcePlanning.concurrentError' : 'workforcePlanning.saveError'));
+      toastError(t(/CONCURRENT_MODIFICATION/i.test(err?.message || '') ? 'workforcePlanning.concurrentError' : 'workforcePlanning.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
-  const selectDate = (nextDate) => {
-    if (dirty && !window.confirm(t('workforcePlanning.discardConfirm'))) return;
-    setWorkDate(nextDate);
-  };
-
   if (!canViewAdminData) return <div className="workforce-planning-empty">{t('admin.noAccess')}</div>;
   if (loading) return <div className="loader workforce-planning-loader">{t('workforcePlanning.loading')}</div>;
-  if (error) return <DataError error={error} onRetry={loadPlan} />;
-
-  const selectedPerson = selectedEmployeeId ? personById[selectedEmployeeId] : null;
-  const dateLabel = dateFromYmd(workDate).toLocaleDateString(currentLocale(), {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  if (error) return <DataError error={error} onRetry={load} />;
 
   return (
-    <div className="workforce-planning">
-      <section className="workforce-planning-daybar">
-        <div className="workforce-planning-date-nav">
-          <button type="button" onClick={() => selectDate(moveDay(workDate, -1))} aria-label={t('workforcePlanning.previousDay')}><ChevronLeft size={18}/></button>
-          <label>
-            <span>{dateLabel}</span>
-            <input type="date" value={workDate} onChange={event => selectDate(event.target.value)} />
-          </label>
-          <button type="button" onClick={() => selectDate(moveDay(workDate, 1))} aria-label={t('workforcePlanning.nextDay')}><ChevronRight size={18}/></button>
-          <button type="button" className="workforce-planning-today" onClick={() => selectDate(ymd(new Date()))}>{t('workforcePlanning.today')}</button>
-        </div>
-        <div className={`workforce-planning-day-status ${summary.missing > 0 ? 'has-gap' : 'is-complete'}`}>
-          {summary.missing > 0 ? <AlertTriangle size={18}/> : <CheckCircle2 size={18}/>} 
-          <strong>{summary.missing > 0 ? t('workforcePlanning.missingPeople', { count: summary.missing }) : t('workforcePlanning.complete')}</strong>
+    <div className="workforce-visual">
+      <header className="workforce-visual-toolbar">
+        <div>
+          <h3>{t('workforcePlanning.generalPlanTitle')}</h3>
+          <p>{selectedPerson ? t('workforcePlanning.choosePlaceFor', { name: selectedPerson.name }) : t('workforcePlanning.generalPlanHint')}</p>
         </div>
         {isAdmin && (
-          <button type="button" className="workforce-planning-save" disabled={!dirty || saving} onClick={save}>
-            <Save size={17}/> {saving ? t('common.saving') : dirty ? t('workforcePlanning.save') : t('workforcePlanning.saved')}
+          <button type="button" disabled={!dirty || saving} onClick={save}>
+            <Save size={17}/>{saving ? t('common.saving') : dirty ? t('workforcePlanning.save') : t('workforcePlanning.saved')}
           </button>
         )}
+      </header>
+
+      <section className="workforce-visual-roster" aria-label={t('workforcePlanning.peopleFromSchedule')}>
+        <div className="workforce-visual-roster-label"><UsersRound size={17}/><span>{t('workforcePlanning.peopleFromSchedule')}</span><b>{people.length}</b></div>
+        <div className="workforce-visual-roster-list">
+          {unassignedPeople.map(person => (
+            <button
+              type="button"
+              key={person.id}
+              draggable={isAdmin}
+              className={selectedEmployeeId === String(person.id) ? 'is-selected' : ''}
+              onClick={() => isAdmin && setSelectedEmployeeId(current => current === String(person.id) ? null : String(person.id))}
+              onDragStart={event => event.dataTransfer.setData('text/plain', String(person.id))}
+            >
+              <span>{String(person.name || '?').trim().charAt(0)}</span>
+              <strong>{person.name}</strong>
+            </button>
+          ))}
+          {!unassignedPeople.length && <em>{t('workforcePlanning.everyoneOnFloor')}</em>}
+        </div>
       </section>
 
-      <section className="workforce-planning-stats" aria-label={t('workforcePlanning.balance')}>
-        <div><span>{t('workforcePlanning.fromSchedule')}</span><strong>{summary.available}</strong></div>
-        <div><span>{t('workforcePlanning.required')}</span><strong>{summary.required}</strong></div>
-        <div><span>{t('workforcePlanning.assigned')}</span><strong>{summary.assigned}</strong></div>
-        <div className={summary.unassigned > 0 ? 'is-warning' : ''}><span>{t('workforcePlanning.unassigned')}</span><strong>{summary.unassigned}</strong></div>
-        <div className={summary.missing > 0 ? 'is-danger' : 'is-success'}><span>{t('workforcePlanning.shortage')}</span><strong>{summary.missing}</strong></div>
-      </section>
-
-      <div className="workforce-planning-workspace">
-        <aside className="workforce-planning-roster">
-          <div className="workforce-planning-panel-title">
-            <span><UsersRound size={18}/> {t('workforcePlanning.peopleFromSchedule')}</span>
-            <b>{availablePeople.length}</b>
-          </div>
-          <p>{selectedPerson ? t('workforcePlanning.chooseStation', { name: selectedPerson.name }) : t('workforcePlanning.selectPersonHint')}</p>
-          <div className="workforce-planning-roster-section">
-            <h3>{t('workforcePlanning.unassignedWithCount', { count: unassignedPeople.length })}</h3>
-            <div className="workforce-planning-people">
-              {unassignedPeople.map(person => (
-                <button
-                  type="button"
-                  draggable={isAdmin}
-                  key={person.id}
-                  className={`workforce-person ${selectedEmployeeId === String(person.id) ? 'is-selected' : ''}`}
-                  onClick={() => isAdmin && setSelectedEmployeeId(current => current === String(person.id) ? null : String(person.id))}
-                  onDragStart={event => event.dataTransfer.setData('text/plain', String(person.id))}
-                >
-                  <span className="workforce-person-avatar">{String(person.name || '?').trim().charAt(0)}</span>
-                  <span><strong>{person.name}</strong><small>{shortTime(person.shift.start)}–{shortTime(person.shift.end)} · {person.group_name || t('workforcePlanning.noGroup')}</small></span>
-                </button>
-              ))}
-              {!unassignedPeople.length && <div className="workforce-planning-none">{t('workforcePlanning.everyoneAssigned')}</div>}
-            </div>
-          </div>
-          {!!absentPeople.length && (
-            <details className="workforce-planning-absent">
-              <summary>{t('workforcePlanning.absentWithCount', { count: absentPeople.length })}</summary>
-              {absentPeople.map(person => <div key={person.id}><span>{person.name}</span><b>{person.scheduleValue || '—'}</b></div>)}
-            </details>
-          )}
-        </aside>
-
-        <section className="workforce-floor" aria-label={t('workforcePlanning.floorPlan')}>
-          <div className="workforce-floor-hint">{selectedPerson ? t('workforcePlanning.clickStationNow') : t('workforcePlanning.floorHint')}</div>
+      <div className="workforce-visual-scroll">
+        <section className="workforce-visual-floor" aria-label={t('workforcePlanning.floorPlan')}>
           {WORKFORCE_STATIONS.map(station => {
-            const assignedIds = Object.entries(plan.assignments).filter(([, stationId]) => stationId === station.id).map(([employeeId]) => employeeId);
+            const assignedIds = Object.entries(plan.assignments).filter(([, value]) => value === station.id).map(([employeeId]) => employeeId);
             const required = Number(plan.requirements[station.id]) || 0;
             const missing = Math.max(0, required - assignedIds.length);
-            const status = required === 0 ? 'is-inactive' : missing === 0 ? 'is-complete' : assignedIds.length ? 'is-partial' : 'is-empty';
             return (
               <article
                 key={station.id}
-                className={`workforce-station ${status} ${selectedPerson ? 'can-assign' : ''}`}
-                style={{ '--station-color': station.color, gridArea: station.area }}
+                className={`workforce-visual-station ${selectedPerson ? 'can-place' : ''}`}
+                style={{ left: `${station.x}%`, top: `${station.y}%`, width: `${station.w}%`, height: `${station.h}%`, '--machine-color': station.color }}
                 role={selectedPerson ? 'button' : undefined}
                 tabIndex={selectedPerson ? 0 : undefined}
-                onClick={() => selectedPerson && assignPerson(selectedPerson.id, station.id)}
-                onKeyDown={event => { if (selectedPerson && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); assignPerson(selectedPerson.id, station.id); } }}
+                onClick={() => selectedPerson && assign(selectedPerson.id, station.id)}
+                onKeyDown={event => { if (selectedPerson && (event.key === 'Enter' || event.key === ' ')) assign(selectedPerson.id, station.id); }}
                 onDragOver={event => { if (isAdmin) event.preventDefault(); }}
-                onDrop={event => { event.preventDefault(); assignPerson(event.dataTransfer.getData('text/plain'), station.id); }}
+                onDrop={event => { event.preventDefault(); assign(event.dataTransfer.getData('text/plain'), station.id); }}
               >
-                <header>
-                  <div><span className="workforce-station-dot"/><h3>{t(`workforcePlanning.stations.${station.labelKey}`)}</h3></div>
-                  <span className="workforce-station-count">{assignedIds.length}/{required}</span>
-                </header>
-                <div className="workforce-station-people">
+                <MachineShape station={station} label={t(`workforcePlanning.stations.${station.labelKey}`)} />
+                <div className="workforce-visual-people">
                   {assignedIds.map(employeeId => {
                     const person = personById[employeeId];
                     if (!person) return null;
                     return (
-                      <div
-                        draggable={isAdmin}
-                        key={employeeId}
-                        className="workforce-station-person"
-                        role={isAdmin ? 'button' : undefined}
-                        tabIndex={isAdmin ? 0 : undefined}
-                        onClick={event => { event.stopPropagation(); if (isAdmin) setSelectedEmployeeId(employeeId); }}
-                        onKeyDown={event => { if (isAdmin && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelectedEmployeeId(employeeId); } }}
-                        onDragStart={event => { event.stopPropagation(); event.dataTransfer.setData('text/plain', employeeId); }}
-                      >
-                        <UserRound size={13}/><span>{person.name}</span>
-                        {isAdmin && <button type="button" aria-label={t('workforcePlanning.removeAssignment')} onClick={event => { event.stopPropagation(); removeAssignment(employeeId); }}><X size={12}/></button>}
+                      <div key={employeeId} className="workforce-visual-person" title={person.name} draggable={isAdmin} onDragStart={event => event.dataTransfer.setData('text/plain', employeeId)}>
+                        <button type="button" onClick={event => { event.stopPropagation(); if (isAdmin) setSelectedEmployeeId(employeeId); }}><UserRound size={14}/><span>{String(person.name || '?').trim().charAt(0)}</span></button>
+                        <small>{person.name}</small>
+                        {isAdmin && <button type="button" className="remove" aria-label={t('workforcePlanning.removeAssignment')} onClick={event => { event.stopPropagation(); removeAssignment(employeeId); }}><X size={11}/></button>}
                       </div>
                     );
                   })}
-                  {missing > 0 && <div className="workforce-station-missing"><Plus size={13}/> {t('workforcePlanning.needMore', { count: missing })}</div>}
+                  {Array.from({ length: missing }, (_, index) => (
+                    <button key={`missing-${index}`} type="button" className="workforce-visual-vacancy" title={t('workforcePlanning.extraPerson')} onClick={event => { event.stopPropagation(); changeNeed(station.id, -1); }}><Plus size={16}/></button>
+                  ))}
                 </div>
                 {isAdmin && (
-                  <footer onClick={event => event.stopPropagation()}>
-                    <span>{t('workforcePlanning.targetStaff')}</span>
-                    <div>
-                      <button type="button" onClick={() => changeRequirement(station.id, -1)} aria-label={t('workforcePlanning.decreaseRequirement')}><Minus size={14}/></button>
-                      <b>{required}</b>
-                      <button type="button" onClick={() => changeRequirement(station.id, 1)} aria-label={t('workforcePlanning.increaseRequirement')}><Plus size={14}/></button>
-                    </div>
-                  </footer>
+                  <button type="button" className="workforce-visual-add" title={t('workforcePlanning.addExtraPerson')} onClick={event => { event.stopPropagation(); changeNeed(station.id, 1); }}><Plus size={14}/></button>
+                )}
+                {isAdmin && required > assignedIds.length && (
+                  <button type="button" className="workforce-visual-less" title={t('workforcePlanning.removeExtraPerson')} onClick={event => { event.stopPropagation(); changeNeed(station.id, -1); }}><Minus size={12}/></button>
                 )}
               </article>
             );

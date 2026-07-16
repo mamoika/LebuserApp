@@ -6648,6 +6648,138 @@ button.laundry-metric:focus-visible {
 .workforce-station > footer button { width:24px; height:24px; display:grid; place-items:center; padding:0; border:1px solid rgba(15,23,42,.1); border-radius:7px; background:#fff; color:#475569; cursor:pointer; }
 .workforce-station > footer b { min-width:18px; color:#172033; text-align:center; font-size:11px; }
 
+/* General visual hall plan — deliberately mirrors the supplied floor sketch. */
+.workforce-visual { display:flex; flex-direction:column; gap:12px; }
+.workforce-visual-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:12px 15px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  background:var(--bg-card);
+  box-shadow:var(--shadow-sm);
+}
+.workforce-visual-toolbar h3 { margin:0; color:var(--text-primary); font-size:15px; font-weight:850; }
+.workforce-visual-toolbar p { margin:3px 0 0; color:var(--text-tertiary); font-size:11px; }
+.workforce-visual-toolbar > button {
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:0 15px;
+  border:0;
+  border-radius:10px;
+  background:var(--accent);
+  color:#fff;
+  font-family:var(--font);
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+}
+.workforce-visual-toolbar > button:disabled { opacity:.48; cursor:default; }
+.workforce-visual-roster {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:58px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--bg-card);
+  box-shadow:var(--shadow-sm);
+}
+.workforce-visual-roster-label { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:0 5px; color:var(--text-secondary); font-size:11px; font-weight:800; }
+.workforce-visual-roster-label b { min-width:24px; padding:2px 6px; border-radius:7px; background:var(--accent-light); color:var(--accent); text-align:center; }
+.workforce-visual-roster-list { min-width:0; display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px; scrollbar-width:thin; }
+.workforce-visual-roster-list > button {
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:36px;
+  padding:4px 9px 4px 5px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:#fff;
+  color:var(--text-primary);
+  font-family:var(--font);
+  font-size:11px;
+  cursor:pointer;
+}
+.workforce-visual-roster-list > button > span { width:27px; height:27px; display:grid; place-items:center; border-radius:50%; background:#43E600; color:#123A05; font-size:11px; font-weight:900; }
+.workforce-visual-roster-list > button.is-selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,122,255,.13); }
+.workforce-visual-roster-list em { padding:0 8px; color:var(--text-tertiary); font-size:11px; }
+.workforce-visual-scroll { overflow:auto; border:1px solid rgba(100,116,139,.22); border-radius:16px; box-shadow:var(--shadow-sm); }
+.workforce-visual-floor {
+  position:relative;
+  min-width:1100px;
+  height:570px;
+  overflow:hidden;
+  background:#D9D9D9;
+}
+.workforce-visual-floor::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.22;
+  background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.workforce-visual-station { position:absolute; overflow:visible; outline:0; }
+.workforce-visual-station.can-place { cursor:pointer; }
+.workforce-visual-station.can-place .workforce-visual-machine,
+.workforce-visual-station.can-place .workforce-visual-machine-group > div { box-shadow:0 0 0 4px rgba(0,122,255,.2),0 8px 20px rgba(15,23,42,.16); }
+.workforce-visual-machine { width:100%; height:100%; display:grid; place-items:center; box-shadow:0 5px 12px rgba(15,23,42,.12); }
+.workforce-visual-machine b,
+.workforce-visual-machine-group b { color:#101828; font-size:12px; font-weight:750; text-align:center; }
+.workforce-visual-machine-group { width:100%; height:100%; display:flex; flex-direction:column; gap:5px; }
+.workforce-visual-machine-group > div { flex:1; display:grid; gap:8px; }
+.workforce-visual-machine-group span { display:block; background:var(--machine-color); box-shadow:0 5px 12px rgba(15,23,42,.1); }
+.workforce-visual-machine-group.is-washers > div { grid-template-columns:repeat(2,1fr); }
+.workforce-visual-machine-group.is-dryers > div { grid-template-columns:repeat(5,1fr); }
+.workforce-visual-people {
+  position:absolute;
+  z-index:3;
+  left:50%;
+  top:calc(100% + 7px);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  gap:7px;
+  min-width:max-content;
+  transform:translateX(-50%);
+}
+.workforce-visual-person { position:relative; width:50px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.workforce-visual-person > button:first-child,
+.workforce-visual-vacancy {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:#43E600;
+  color:#123A05;
+  cursor:pointer;
+  box-shadow:0 3px 9px rgba(40,160,0,.25);
+}
+.workforce-visual-person > button:first-child svg { display:none; }
+.workforce-visual-person > button:first-child span { font-size:11px; font-weight:900; }
+.workforce-visual-person small { width:70px; overflow:hidden; color:#27364A; font-size:9px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+.workforce-visual-person .remove { position:absolute; top:-4px; right:3px; width:17px; height:17px; display:grid; place-items:center; padding:0; border:1px solid rgba(255,255,255,.8); border-radius:50%; background:#334155; color:#fff; cursor:pointer; }
+.workforce-visual-vacancy { border:2px dashed #39C900; background:rgba(255,255,255,.58); color:#269900; box-shadow:none; }
+.workforce-visual-add,
+.workforce-visual-less { position:absolute; z-index:5; top:5px; width:25px; height:25px; display:grid; place-items:center; padding:0; border:1px solid rgba(255,255,255,.7); border-radius:50%; background:rgba(17,24,39,.7); color:#fff; cursor:pointer; opacity:0; transition:opacity .15s; }
+.workforce-visual-add { right:5px; }
+.workforce-visual-less { right:34px; }
+.workforce-visual-station:hover .workforce-visual-add,
+.workforce-visual-station:hover .workforce-visual-less,
+.workforce-visual-add:focus-visible,
+.workforce-visual-less:focus-visible { opacity:1; }
+
 .work-time-history-backdrop {
   position:fixed;
   inset:0;

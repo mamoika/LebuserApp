@@ -1,12 +1,12 @@
 export const WORKFORCE_STATIONS = [
-  { id: 'small_washers', labelKey: 'smallWashers', color: '#F04444', area: 'washers', defaultRequired: 1 },
-  { id: 'dryers', labelKey: 'dryers', color: '#F97316', area: 'dryers', defaultRequired: 1 },
-  { id: 'folder', labelKey: 'folder', color: '#3730A3', area: 'folder', defaultRequired: 1 },
-  { id: 'tunnel', labelKey: 'tunnel', color: '#D81BDE', area: 'tunnel', defaultRequired: 2 },
-  { id: 'shaking', labelKey: 'shaking', color: '#26934F', area: 'shaking', defaultRequired: 3 },
-  { id: 'large_mangle', labelKey: 'largeMangle', color: '#087FCC', area: 'large-mangle', defaultRequired: 3 },
-  { id: 'small_mangle', labelKey: 'smallMangle', color: '#50A6E8', area: 'small-mangle', defaultRequired: 2 },
-  { id: 'packing', labelKey: 'packing', color: '#F04444', area: 'packing', defaultRequired: 1 },
+  { id: 'small_washers', labelKey: 'smallWashers', color: '#F04444', x: 8, y: 4, w: 17, h: 13, defaultRequired: 1 },
+  { id: 'dryers', labelKey: 'dryers', color: '#F04444', x: 28, y: 27, w: 37, h: 13, defaultRequired: 1 },
+  { id: 'folder', labelKey: 'folder', color: '#2727A8', x: 6, y: 47, w: 18, h: 15, defaultRequired: 1 },
+  { id: 'tunnel', labelKey: 'tunnel', color: '#E31EDB', x: 25, y: 82, w: 31, h: 12, defaultRequired: 2 },
+  { id: 'shaking', labelKey: 'shaking', color: '#26934F', x: 62, y: 45, w: 5, h: 37, defaultRequired: 3 },
+  { id: 'large_mangle', labelKey: 'largeMangle', color: '#0D84DB', x: 70, y: 33, w: 17, h: 50, defaultRequired: 3 },
+  { id: 'small_mangle', labelKey: 'smallMangle', color: '#55A7E8', x: 90, y: 38, w: 8, h: 34, defaultRequired: 2 },
+  { id: 'packing', labelKey: 'packing', color: '#F04444', x: 80, y: 8, w: 7, h: 13, defaultRequired: 1 },
 ];
 
 const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NN', 'END']);
