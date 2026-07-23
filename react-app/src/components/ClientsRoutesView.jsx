@@ -38,6 +38,7 @@ import {
   moveRouteToGridPosition,
   paginateRouteGridSlots,
 } from '../lib/routeGridLayout';
+import { fitRoutePagesForPrint } from '../lib/routePrintLayout';
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -644,6 +645,30 @@ export default function ClientsRoutesView() {
   useEffect(() => {
     setLocalRoutes(routes);
   }, [routes]);
+
+  useEffect(() => {
+    const preparePrintLayout = () => fitRoutePagesForPrint(document);
+    const printMedia = window.matchMedia?.('print');
+    const handlePrintMediaChange = event => {
+      if (event.matches) preparePrintLayout();
+    };
+
+    window.addEventListener('beforeprint', preparePrintLayout);
+    if (printMedia?.addEventListener) {
+      printMedia.addEventListener('change', handlePrintMediaChange);
+    } else {
+      printMedia?.addListener?.(handlePrintMediaChange);
+    }
+
+    return () => {
+      window.removeEventListener('beforeprint', preparePrintLayout);
+      if (printMedia?.removeEventListener) {
+        printMedia.removeEventListener('change', handlePrintMediaChange);
+      } else {
+        printMedia?.removeListener?.(handlePrintMediaChange);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!firstMatchingClientId) return undefined;
@@ -1290,6 +1315,7 @@ export default function ClientsRoutesView() {
                 <div
                   className={`route-grid-page ${maxClientsOnPage > 18 ? 'is-print-dense' : ''} ${maxClientsOnPage > 26 ? 'is-print-extra-dense' : ''} ${pageSlots.some(slot => slot.route) ? '' : 'is-print-empty'} ${pageIndex === lastPrintableRoutePageIndex ? 'is-last-print-page' : ''}`}
                   key={`route-grid-page-${pageIndex + 1}`}
+                  data-print-max-clients={maxClientsOnPage}
                   style={{
                     '--print-route-count': Math.max(
                       1,

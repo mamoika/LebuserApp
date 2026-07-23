@@ -5437,6 +5437,35 @@ select.ap-input {
     height:3.7mm;
     font-size:6pt;
   }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .route-card-header {
+    padding:1.2mm 1.5mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .route-card-heading .route-title {
+    font-size:8pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .route-service-summary {
+    padding:.4mm .8mm;
+    font-size:6pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .sortable-list {
+    gap:.1mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .tag-client {
+    padding:.2mm .6mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .client-details .client-name {
+    font-size:6.4pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .client-service-badge {
+    padding:.1mm .5mm;
+    font-size:4.8pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-ultra-dense .client-order {
+    min-width:3mm;
+    width:3mm;
+    height:3mm;
+    font-size:5pt;
+  }
 }
 
 /* ── TIMELINE STYLES (iOS 18 Premium UI) ── */

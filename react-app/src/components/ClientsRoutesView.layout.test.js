@@ -10,6 +10,10 @@ const stylesSource = await readFile(
   new URL('../index.css', import.meta.url),
   'utf8',
 );
+const printLayoutSource = await readFile(
+  new URL('../lib/routePrintLayout.js', import.meta.url),
+  'utf8',
+);
 const routeHeaderStart = componentSource.indexOf('<div className="col-header route-card-header"');
 const routeHeaderEnd = componentSource.indexOf('<Droppable', routeHeaderStart);
 const routeHeaderSource = componentSource.slice(routeHeaderStart, routeHeaderEnd);
@@ -106,6 +110,13 @@ test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(componentSource, /const maxClientsOnPage = pageSlots\.reduce/);
   assert.match(componentSource, /maxClientsOnPage > 18 \? 'is-print-dense'/);
   assert.match(componentSource, /maxClientsOnPage > 26 \? 'is-print-extra-dense'/);
+  assert.match(componentSource, /data-print-max-clients=\{maxClientsOnPage\}/);
+  assert.match(printLayoutSource, /function fitRoutePagesForPrint\(root = document\)/);
+  assert.match(printLayoutSource, /safeA4Height = pageRect\.width \* \(296 \/ 210\)/);
+  assert.match(componentSource, /window\.addEventListener\('beforeprint', preparePrintLayout\)/);
+  assert.match(componentSource, /window\.matchMedia\?\.\('print'\)/);
+  assert.match(printLayoutSource, /if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_DENSE_CLASS[\s\S]*?if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_EXTRA_DENSE_CLASS[\s\S]*?if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_ULTRA_DENSE_CLASS/);
+  assert.match(stylesSource, /\.route-grid-page\.is-print-ultra-dense \.tag-client\s*\{[\s\S]*?padding:\s*\.2mm \.6mm/);
   assert.match(stylesSource, /\.route-grid-slot\.is-print-empty-slot\s*\{[\s\S]*?display:\s*none/);
   assert.match(stylesSource, /\.clients-routes-view \.route-card\s*\{[\s\S]*?height:\s*auto[\s\S]*?min-height:\s*45mm/);
   assert.match(
