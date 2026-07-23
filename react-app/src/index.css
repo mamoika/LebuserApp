@@ -2138,6 +2138,20 @@ html.phone-layout .hist-grid {
   white-space:nowrap;
   margin-right:8px;
 }
+.client-details {
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:3px;
+  margin-right:8px;
+}
+.client-details .client-name {
+  flex:none;
+  width:100%;
+  margin-right:0;
+}
 .sortable-ghost{
   opacity:0.45;
   background:var(--accent-light) !important;
@@ -2410,6 +2424,9 @@ html.phone-layout .hist-grid {
   color:var(--accent);
   font-size:9px;
   font-weight:800;
+}
+.client-details .client-service-badge {
+  max-width:100%;
 }
 .client-archive-sheet {
   max-width:620px;

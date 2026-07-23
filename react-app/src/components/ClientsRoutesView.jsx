@@ -984,16 +984,18 @@ export default function ClientsRoutesView() {
                       >
                         {isAdmin && <span className="drag-handle">⠿</span>}
                         <span className="client-order">{index + 1}</span>
-                        <span className="client-name">{client.name}</span>
-                        <span
-                          className="client-service-badge"
-                          title={client.service_schedule_mode === 'disabled'
-                            ? t('clients.servicePlan.mode.disabled')
-                            : serviceScheduleSummary(clientRules, t)}
-                        >
-                          {client.service_schedule_mode === 'disabled'
-                            ? t('clients.servicePlan.offShort')
-                            : serviceScheduleSummary(clientRules, t)}
+                        <span className="client-details">
+                          <span className="client-name">{client.name}</span>
+                          <span
+                            className="client-service-badge"
+                            title={client.service_schedule_mode === 'disabled'
+                              ? t('clients.servicePlan.mode.disabled')
+                              : serviceScheduleSummary(clientRules, t)}
+                          >
+                            {client.service_schedule_mode === 'disabled'
+                              ? t('clients.servicePlan.offShort')
+                              : serviceScheduleSummary(clientRules, t)}
+                          </span>
                         </span>
                         <span
                           className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
