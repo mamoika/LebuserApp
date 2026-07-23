@@ -1025,6 +1025,12 @@ export default function ClientsRoutesView() {
   const sortedRoutes = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const routeGridSlots = buildRouteGridSlots(localRoutes);
   const routeGridPages = paginateRouteGridSlots(routeGridSlots);
+  const lastPrintableRoutePageIndex = routeGridPages.reduce(
+    (lastIndex, pageSlots, pageIndex) => (
+      pageSlots.some(slot => slot.route) ? pageIndex : lastIndex
+    ),
+    0,
+  );
 
   const renderRouteCol = route => {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
@@ -1041,7 +1047,7 @@ export default function ClientsRoutesView() {
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeClients.length > 9 ? 'is-print-dense' : ''} ${routeClients.length > 14 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
+        className={`col route-card ${routeClients.length > 28 ? 'is-print-dense' : ''} ${routeClients.length > 40 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
@@ -1263,7 +1269,10 @@ export default function ClientsRoutesView() {
         <div className="clients-route-grid-scroll">
           <div className={`grid clients-route-grid ${draggingRouteId ? 'is-route-dragging' : ''}`}>
             {routeGridPages.map((pageSlots, pageIndex) => (
-              <div className="route-grid-page" key={`route-grid-page-${pageIndex + 1}`}>
+              <div
+                className={`route-grid-page ${pageSlots.some(slot => slot.route) ? '' : 'is-print-empty'} ${pageIndex === lastPrintableRoutePageIndex ? 'is-last-print-page' : ''}`}
+                key={`route-grid-page-${pageIndex + 1}`}
+              >
                 {pageSlots.map(slot => (
                   <div
                     key={`slot-${slot.position}`}

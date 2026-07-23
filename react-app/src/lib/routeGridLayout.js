@@ -1,7 +1,7 @@
 export const ROUTE_GRID_COLUMNS = 4;
 export const ROUTE_GRID_MIN_ROWS = 3;
 export const ROUTE_GRID_MIN_SLOTS = ROUTE_GRID_COLUMNS * ROUTE_GRID_MIN_ROWS;
-export const ROUTE_GRID_PAGE_SLOTS = ROUTE_GRID_MIN_SLOTS;
+export const ROUTE_GRID_PAGE_SLOTS = ROUTE_GRID_COLUMNS;
 
 function positiveInteger(value) {
   const parsed = Number(value);

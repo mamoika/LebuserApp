@@ -92,14 +92,15 @@ test('routes render in a four-column visual grid without legacy schedule groups'
   assert.doesNotMatch(componentSource, /const groups = SCHEDULE_VALUES|clients\.groups\./);
 });
 
-test('route printout uses one four-by-three grid per landscape A4 page', () => {
+test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(componentSource, /const routeGridPages = paginateRouteGridSlots\(routeGridSlots\)/);
-  assert.match(componentSource, /className="route-grid-page"/);
-  assert.match(stylesSource, /@page\s*\{[\s\S]*?size:\s*A4 landscape[\s\S]*?margin:\s*8mm/);
+  assert.match(componentSource, /className=\{`route-grid-page[\s\S]*?is-print-empty[\s\S]*?is-last-print-page/);
+  assert.match(stylesSource, /@page\s*\{[\s\S]*?size:\s*A4 portrait[\s\S]*?margin:\s*8mm/);
   assert.match(
     stylesSource,
-    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?height:\s*194mm[\s\S]*?grid-template-columns:\s*repeat\(4,minmax\(0,1fr\)\)[\s\S]*?grid-template-rows:\s*repeat\(3,minmax\(0,1fr\)\)[\s\S]*?break-after:\s*page/,
+    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?height:\s*281mm[\s\S]*?grid-template-columns:\s*repeat\(4,minmax\(0,1fr\)\)[\s\S]*?grid-template-rows:\s*minmax\(0,1fr\)[\s\S]*?break-after:\s*page/,
   );
+  assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
 });
 
 test('full route days and empty rows keep their visual grid positions', () => {

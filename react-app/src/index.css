@@ -5197,7 +5197,7 @@ select.ap-input {
     page-break-after: auto;
   }
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 8mm;
   }
 
@@ -5223,16 +5223,19 @@ select.ap-input {
   .clients-routes-view .route-grid-page {
     display:grid;
     width:100%;
-    height:194mm;
+    height:281mm;
     grid-template-columns:repeat(4,minmax(0,1fr));
-    grid-template-rows:repeat(3,minmax(0,1fr));
-    gap:3mm;
+    grid-template-rows:minmax(0,1fr);
+    gap:2mm;
     page-break-after:always;
     break-after:page;
   }
-  .clients-routes-view .route-grid-page:last-child {
+  .clients-routes-view .route-grid-page.is-last-print-page {
     page-break-after:auto;
     break-after:auto;
+  }
+  .clients-routes-view .route-grid-page.is-print-empty {
+    display:none;
   }
   .clients-routes-view .route-grid-slot,
   .clients-routes-view .route-grid-spacer {
@@ -5320,8 +5323,11 @@ select.ap-input {
   }
   .clients-routes-view .client-details .client-name {
     min-width:0;
-    font-size:7.5pt;
-    line-height:1.1;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    font-size:8pt;
+    line-height:1.15;
   }
   .clients-routes-view .client-service-badge {
     max-width:42%;
