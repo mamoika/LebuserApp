@@ -25,3 +25,10 @@ test('client name and service schedule share one flexible details column', () =>
     /\.client-details\s+\.client-service-badge\s*\{[\s\S]*?max-width:\s*100%/,
   );
 });
+
+test('inherited route schedule is not repeated on every client row', () => {
+  assert.match(
+    componentSource,
+    /\(client\.service_schedule_mode \|\| 'inherit'\) !== 'inherit' && \(/,
+  );
+});
