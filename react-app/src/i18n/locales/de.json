@@ -370,6 +370,15 @@
   "clients": {
     "schedule": { "daily": "Täglich (Mo–Fr)", "mwf": "Mo – Mi – Fr", "tth": "Di – Do", "other": "Sonstige" },
     "groups": { "daily": "Tägliche Routen (Mo–Fr)", "mwf": "Routen Mo – Mi – Fr", "tth": "Routen Di – Do", "other": "Sonstige Routen" },
+    "layout": {
+      "edit": "Layout bearbeiten",
+      "finish": "Layout beenden",
+      "hint": "Route auswählen und dann das Zielfeld anklicken. Belegte Felder werden getauscht",
+      "empty": "Freies Feld",
+      "emptySlot": "Ausgewählte Route auf Feld {{position}} verschieben",
+      "select": "Route {{name}} auf Feld {{position}} auswählen",
+      "deselect": "Route {{name}} abwählen"
+    },
     "laundryOffer": {
       "title": "Wäschearten des Kunden",
       "hint": "Der Fahrer sieht nur die ausgewählten Wäschearten.",
@@ -389,6 +398,7 @@
       "frequency": "Häufigkeit",
       "everyWeek": "Jede Woche",
       "everyTwoWeeks": "Alle 2 Wochen",
+      "everyTwoWeeksShort": "alle 2 Wo.",
       "everyNWeeks": "alle {{count}} Wo.",
       "firstCycleWeek": "Erste Zykluswoche",
       "selectDay": "Mindestens einen Besuchstag auswählen.",
@@ -448,9 +458,9 @@
     "noGps": "kein GPS",
     "edit": "Bearbeiten",
     "addClientBtn": "+ Kunde hinzufügen",
-    "dragHint": "☰ Kunden zwischen Routen ziehen · Routen mit Pfeilen anordnen",
-    "moveUp": "Route nach links / oben verschieben",
-    "moveDown": "Route nach rechts / unten verschieben",
+    "dragHint": "☰ Kunden zwischen Routen ziehen · Pfeile ändern die T-Nummer",
+    "moveUp": "Vorherige Routennummer vergeben",
+    "moveDown": "Nächste Routennummer vergeben",
     "errAddRoute": "Fehler beim Hinzufügen der Route:",
     "errSaveRoute": "Fehler beim Speichern der Route:",
     "errDeleteRoute": "Fehler beim Löschen der Route:",
@@ -467,7 +477,8 @@
     "confirmMergeDuplicate": "Zusammenführung bestätigen",
     "mergeDone": "{{source}} → {{target}} zusammengeführt",
     "errMergeClient": "Fehler beim Zusammenführen der Kunden:",
-    "errSaveOrder": "Fehler beim Speichern der Reihenfolge:"
+    "errSaveOrder": "Fehler beim Speichern der Reihenfolge:",
+    "errSaveLayout": "Fehler beim Speichern des Routenlayouts:"
   },
   "timeline": {
     "loading": "Zeitleiste wird geladen…",

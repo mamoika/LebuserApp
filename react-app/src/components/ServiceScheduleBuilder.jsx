@@ -19,6 +19,24 @@ export function serviceScheduleSummary(rules, t) {
   }).join(' · ');
 }
 
+export function compactServiceScheduleSummary(rules, t) {
+  const normalized = normalizeServiceRules(rules);
+  if (!normalized.length) return t('clients.servicePlan.none');
+
+  const daysByInterval = new Map();
+  normalized.forEach(rule => {
+    const days = daysByInterval.get(rule.interval_weeks) || [];
+    days.push(t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`));
+    daysByInterval.set(rule.interval_weeks, days);
+  });
+
+  return [...daysByInterval.entries()].map(([intervalWeeks, days]) => (
+    intervalWeeks === 1
+      ? days.join('·')
+      : `${days.join('·')} ${t('clients.servicePlan.everyTwoWeeksShort')}`
+  )).join(' | ');
+}
+
 export default function ServiceScheduleBuilder({
   mode = 'custom',
   rules = [],

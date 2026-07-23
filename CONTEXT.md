@@ -8,6 +8,14 @@ Słownik pojęć używanych w planowaniu, realizacji i rozliczaniu transportu or
 Stały wzorzec kolejności klientów, z którego można utworzyć kurs dzienny.
 _Unikaj_: Trasa wirtualna
 
+**Numer trasy**:
+Pozycja szablonu trasy w kolejności operacyjnej, prezentowana jako T1, T2 i dalej. Nie określa miejsca karty na ekranie.
+_Unikaj_: Pozycja w siatce
+
+**Miejsce karty trasy**:
+Wybrane pole wizualnej tablicy tras, niezależne od numeru trasy i jej planu obsługi.
+_Unikaj_: Numer trasy, Kolejność operacyjna
+
 **Kurs dzienny**:
 Konkretna realizacja transportu w określonym dniu, zachowująca tożsamość mimo zmiany kierowcy lub auta.
 _Unikaj_: Sesja trasy, przejazd auta

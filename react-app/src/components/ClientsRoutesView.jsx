@@ -7,8 +7,20 @@ import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
-import { Archive, ChevronLeft, ChevronRight, Pencil, Printer, RotateCcw } from 'lucide-react';
-import ServiceScheduleBuilder, { serviceScheduleSummary } from './ServiceScheduleBuilder';
+import {
+  Archive,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Pencil,
+  Printer,
+  RotateCcw,
+} from 'lucide-react';
+import ServiceScheduleBuilder, {
+  compactServiceScheduleSummary,
+  serviceScheduleSummary,
+} from './ServiceScheduleBuilder';
 import {
   effectiveRouteServiceRules,
   effectiveServiceRules,
@@ -21,6 +33,10 @@ import {
   laundryCategoriesForClient,
   normalizeLaundryCategories,
 } from '../lib/laundryCategories';
+import {
+  buildRouteGridSlots,
+  moveRouteToGridPosition,
+} from '../lib/routeGridLayout';
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -576,7 +592,11 @@ export default function ClientsRoutesView() {
   const assignedRouteIds = parseRouteIds(user?.routes);
 
   const [localClients, setLocalClients] = useState([]);
+  const [localRoutes, setLocalRoutes] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
+  const [layoutEditing, setLayoutEditing] = useState(false);
+  const [selectedLayoutRouteId, setSelectedLayoutRouteId] = useState(null);
+  const [savingLayout, setSavingLayout] = useState(false);
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
   const [editRouteModal, setEditRouteModal] = useState(null);
@@ -593,7 +613,7 @@ export default function ClientsRoutesView() {
   const normalizedClientSearch = normalizeSearch(clientSearch);
   const hasClientSearch = normalizedClientSearch.length > 0;
   const routeOrderById = new Map(
-    [...routes]
+    [...localRoutes]
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .map((route, index) => [route.id, index])
   );
@@ -618,6 +638,10 @@ export default function ClientsRoutesView() {
     if (savingOrderRef.current) return;
     setLocalClients(clients);
   }, [clients]);
+
+  useEffect(() => {
+    setLocalRoutes(routes);
+  }, [routes]);
 
   useEffect(() => {
     if (!firstMatchingClientId) return undefined;
@@ -694,7 +718,7 @@ export default function ClientsRoutesView() {
   };
 
   const moveRoute = async (route, direction) => {
-    const sorted = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const sorted = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const idx = sorted.findIndex(r => r.id === route.id);
     if (idx < 0) return;
     const newIdx = idx + direction;
@@ -716,6 +740,64 @@ export default function ClientsRoutesView() {
     } catch (err) {
       toastError(t('clients.errSaveOrder') + ' ' + err.message);
     }
+  };
+
+  const moveRouteCard = async targetPosition => {
+    if (!selectedLayoutRouteId || savingLayout) return;
+
+    const selectedRoute = localRoutes.find(route => route.id === selectedLayoutRouteId);
+    const selectedSlot = buildRouteGridSlots(localRoutes)
+      .find(slot => slot.route?.id === selectedLayoutRouteId);
+    if (!selectedRoute || !selectedSlot) return;
+    if (selectedSlot.position === targetPosition) {
+      setSelectedLayoutRouteId(null);
+      return;
+    }
+
+    const previousRoutes = localRoutes;
+    const nextRoutes = moveRouteToGridPosition(
+      localRoutes,
+      selectedLayoutRouteId,
+      targetPosition,
+    );
+    setLocalRoutes(nextRoutes);
+    setSelectedLayoutRouteId(null);
+    setSavingLayout(true);
+
+    try {
+      const { data, error } = await supabase.rpc('admin_move_route_card', {
+        p_session_token: sessionToken,
+        p_route_id: selectedLayoutRouteId,
+        p_target_position: targetPosition,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await refetch();
+    } catch (err) {
+      setLocalRoutes(previousRoutes);
+      toastError(t('clients.errSaveLayout') + ' ' + err.message);
+      await refetch();
+    } finally {
+      setSavingLayout(false);
+    }
+  };
+
+  const handleRouteGridSlot = (position, route) => {
+    if (!layoutEditing || savingLayout) return;
+    if (!selectedLayoutRouteId) {
+      if (route) setSelectedLayoutRouteId(route.id);
+      return;
+    }
+    if (route?.id === selectedLayoutRouteId) {
+      setSelectedLayoutRouteId(null);
+      return;
+    }
+    moveRouteCard(position);
+  };
+
+  const toggleLayoutEditing = () => {
+    setLayoutEditing(current => !current);
+    setSelectedLayoutRouteId(null);
   };
 
   // ---- Client actions ----
@@ -930,9 +1012,10 @@ export default function ClientsRoutesView() {
     window.print();
   };
 
-  const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const sortedRoutes = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const routeGridSlots = buildRouteGridSlots(localRoutes);
 
-  const renderRouteCol = (route) => {
+  const renderRouteCol = (route, gridPosition) => {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
@@ -940,11 +1023,14 @@ export default function ClientsRoutesView() {
     const routeHasSearchMatch = hasClientSearch && routeClients.some(client => matchingClientIds.has(client.id));
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
-    const routeServiceSummary = serviceScheduleSummary(effectiveRouteServiceRules(route), t);
+    const routeServiceSummary = compactServiceScheduleSummary(
+      effectiveRouteServiceRules(route),
+      t,
+    );
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''}`}
+        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${layoutEditing ? 'is-layout-editing' : ''} ${selectedLayoutRouteId === route.id ? 'is-layout-selected' : ''}`}
         style={{
           borderTopColor: routeColor,
           borderColor: routeHasSearchMatch ? 'var(--accent)' : isOwnRoute ? routeColor : undefined,
@@ -963,7 +1049,6 @@ export default function ClientsRoutesView() {
             >
               {route.name}
             </span>
-            <span className="route-service-summary">{routeServiceSummary}</span>
             {isOwnRoute && (
               <span
                 className="route-own-badge"
@@ -978,39 +1063,44 @@ export default function ClientsRoutesView() {
             )}
           </div>
 
-          {isAdmin && (
-            <div className="route-header-actions">
-              <button
-                type="button"
-                className="edit-icon route-order-button"
-                onClick={() => moveRoute(route, -1)}
-                title={t('clients.moveUp')}
-                aria-label={t('clients.moveUp')}
-                disabled={displayNum === 1}
-              >
-                <ChevronLeft size={14} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="edit-icon route-order-button"
-                onClick={() => moveRoute(route, 1)}
-                title={t('clients.moveDown')}
-                aria-label={t('clients.moveDown')}
-                disabled={displayNum === sortedRoutes.length}
-              >
-                <ChevronRight size={14} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="edit-icon route-edit-button"
-                onClick={() => setEditRouteModal(route)}
-                title={t('clients.editRoute')}
-                aria-label={t('clients.editRoute')}
-              >
-                <Pencil size={13} aria-hidden="true" />
-              </button>
-            </div>
-          )}
+          <div className="route-card-controls">
+            <span className="route-service-summary" title={routeServiceSummary}>
+              {routeServiceSummary}
+            </span>
+            {isAdmin && (
+              <div className="route-header-actions">
+                <button
+                  type="button"
+                  className="edit-icon route-order-button"
+                  onClick={() => moveRoute(route, -1)}
+                  title={t('clients.moveUp')}
+                  aria-label={t('clients.moveUp')}
+                  disabled={displayNum === 1}
+                >
+                  <ChevronLeft size={14} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="edit-icon route-order-button"
+                  onClick={() => moveRoute(route, 1)}
+                  title={t('clients.moveDown')}
+                  aria-label={t('clients.moveDown')}
+                  disabled={displayNum === sortedRoutes.length}
+                >
+                  <ChevronRight size={14} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="edit-icon route-edit-button"
+                  onClick={() => setEditRouteModal(route)}
+                  title={t('clients.editRoute')}
+                  aria-label={t('clients.editRoute')}
+                >
+                  <Pencil size={13} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <Droppable droppableId={`route-${route.id}`}>
@@ -1027,7 +1117,7 @@ export default function ClientsRoutesView() {
                 routeClients.map((client, index) => {
                   const clientRules = effectiveServiceRules(client, routes);
                   return (
-                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
+                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin || layoutEditing}>
                     {(provided, snapshot) => (
                       <div
                         ref={(node) => {
@@ -1085,6 +1175,18 @@ export default function ClientsRoutesView() {
         {isAdmin && (
           <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>{t('clients.addClientBtn')}</button>
         )}
+        {layoutEditing && (
+          <button
+            type="button"
+            className="route-layout-card-target"
+            onClick={() => handleRouteGridSlot(gridPosition, route)}
+            aria-label={selectedLayoutRouteId === route.id
+              ? t('clients.layout.deselect', { name: route.name })
+              : t('clients.layout.select', { name: route.name, position: gridPosition })}
+          >
+            <span>{gridPosition}</span>
+          </button>
+        )}
       </div>
     );
   };
@@ -1129,6 +1231,16 @@ export default function ClientsRoutesView() {
             {isAdmin && (
               <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
+              <button
+                className={`add-route-btn ${layoutEditing ? 'active' : ''}`}
+                onClick={toggleLayoutEditing}
+                disabled={savingLayout}
+              >
+                {layoutEditing
+                  ? <Check size={15} aria-hidden="true" />
+                  : <LayoutGrid size={15} aria-hidden="true" />}
+                {layoutEditing ? t('clients.layout.finish') : t('clients.layout.edit')}
+              </button>
               <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
               <button className="add-route-btn" onClick={openClientArchive}>
                 <Archive size={15} aria-hidden="true" /> {t('clients.archive.open')}
@@ -1139,13 +1251,34 @@ export default function ClientsRoutesView() {
         </div>
 
         <div className="clients-hint print-hide" style={{ marginBottom: '16px' }}>
-          {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
+          {isAdmin && !layoutEditing && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
+          {layoutEditing && <span>{t('clients.layout.hint')} &nbsp;·&nbsp;</span>}
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>{t('clients.hasGps')}</span> &nbsp;·&nbsp;
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
         </div>
 
-        <div className="grid clients-route-grid">
-          {sortedRoutes.map(route => renderRouteCol(route))}
+        <div className="clients-route-grid-scroll">
+          <div className="grid clients-route-grid">
+            {routeGridSlots.map(slot => (
+              slot.route
+                ? renderRouteCol(slot.route, slot.position)
+                : layoutEditing
+                  ? (
+                    <button
+                      type="button"
+                      key={`slot-${slot.position}`}
+                      className={`route-grid-empty-slot ${selectedLayoutRouteId ? 'is-target' : ''}`}
+                      onClick={() => handleRouteGridSlot(slot.position, null)}
+                      disabled={!selectedLayoutRouteId || savingLayout}
+                      aria-label={t('clients.layout.emptySlot', { position: slot.position })}
+                    >
+                      <span>{slot.position}</span>
+                      {t('clients.layout.empty')}
+                    </button>
+                  )
+                  : <div key={`slot-${slot.position}`} className="route-grid-spacer" aria-hidden="true" />
+            ))}
+          </div>
         </div>
       </div>
 
