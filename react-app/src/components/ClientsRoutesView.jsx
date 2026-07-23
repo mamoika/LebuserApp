@@ -897,8 +897,6 @@ export default function ClientsRoutesView() {
     const routeHasSearchMatch = hasClientSearch && routeClients.some(client => matchingClientIds.has(client.id));
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
-    const routeRules = effectiveRouteServiceRules(route);
-
     return (
       <div
         key={route.id}
@@ -919,9 +917,6 @@ export default function ClientsRoutesView() {
             onDoubleClick={() => isAdmin && setEditRouteModal(route)}
           >
             {route.name}
-          </span>
-          <span className="client-service-badge" title={serviceScheduleSummary(routeRules, t)}>
-            {serviceScheduleSummary(routeRules, t)}
           </span>
 
           {isOwnRoute && (

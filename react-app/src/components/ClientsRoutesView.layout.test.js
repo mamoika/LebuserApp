@@ -10,6 +10,9 @@ const stylesSource = await readFile(
   new URL('../index.css', import.meta.url),
   'utf8',
 );
+const routeHeaderStart = componentSource.indexOf('<div className="col-header"');
+const routeHeaderEnd = componentSource.indexOf('<Droppable', routeHeaderStart);
+const routeHeaderSource = componentSource.slice(routeHeaderStart, routeHeaderEnd);
 
 test('client name and service schedule share one flexible details column', () => {
   assert.match(
@@ -31,4 +34,8 @@ test('inherited route schedule is not repeated on every client row', () => {
     componentSource,
     /\(client\.service_schedule_mode \|\| 'inherit'\) !== 'inherit' && \(/,
   );
+});
+
+test('route header does not repeat its service days in a badge', () => {
+  assert.doesNotMatch(routeHeaderSource, /client-service-badge/);
 });
