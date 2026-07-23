@@ -107,6 +107,14 @@ test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
   assert.match(componentSource, /className="route-print-header"[\s\S]*?LEBUSER App[\s\S]*?window\.location\.href/);
   assert.match(componentSource, /Data:[\s\S]*?Wydrukował:/);
+  assert.match(
+    stylesSource,
+    /\.clients-routes-view \.route-print-header\s*\{[\s\S]*?width:\s*100%[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\) auto/,
+  );
+  assert.match(
+    stylesSource,
+    /\.clients-routes-view \.route-print-meta\s*\{[\s\S]*?justify-self:\s*end[\s\S]*?margin-left:\s*auto[\s\S]*?text-align:\s*right/,
+  );
   assert.match(componentSource, /const maxClientsOnPage = pageSlots\.reduce/);
   assert.match(componentSource, /maxClientsOnPage > 18 \? 'is-print-dense'/);
   assert.match(componentSource, /maxClientsOnPage > 26 \? 'is-print-extra-dense'/);

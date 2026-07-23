@@ -5245,9 +5245,12 @@ select.ap-input {
   }
   .clients-routes-view .route-print-header {
     grid-column:1 / -1;
-    display:flex;
+    width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
     align-items:flex-end;
-    justify-content:space-between;
     gap:6mm;
     padding-bottom:2mm;
     border-bottom:.3mm solid #d7dce3;
@@ -5275,7 +5278,9 @@ select.ap-input {
   }
   .clients-routes-view .route-print-meta {
     flex:0 0 auto;
+    justify-self:end;
     align-items:flex-end;
+    margin-left:auto;
     text-align:right;
   }
   .clients-routes-view .route-print-meta strong {
