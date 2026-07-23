@@ -13,7 +13,7 @@ export function fitRoutePagesForPrint(root = document) {
     const fitsOnA4 = () => {
       const pageRect = page.getBoundingClientRect();
       if (!pageRect.width) return true;
-      const safeA4Height = pageRect.width * (296 / 210);
+      const safeA4Height = pageRect.width * (209 / 297);
       return pageRect.height <= safeA4Height;
     };
 

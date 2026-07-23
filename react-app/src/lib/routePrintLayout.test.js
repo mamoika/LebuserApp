@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fitRoutePagesForPrint } from './routePrintLayout.js';
 
-function createPage({ maxClients = 14, baseHeight, denseHeight, extraDenseHeight, width = 794 }) {
+function createPage({ maxClients = 14, baseHeight, denseHeight, extraDenseHeight, width = 1123 }) {
   const classes = new Set();
   return {
     dataset: { printMaxClients: String(maxClients) },
@@ -31,9 +31,9 @@ function createRoot(...pages) {
 
 test('print fitting compacts a page whose real content height exceeds A4', () => {
   const page = createPage({
-    baseHeight: 1160,
-    denseHeight: 1080,
-    extraDenseHeight: 900,
+    baseHeight: 820,
+    denseHeight: 760,
+    extraDenseHeight: 650,
   });
 
   fitRoutePagesForPrint(createRoot(page));
@@ -44,9 +44,9 @@ test('print fitting compacts a page whose real content height exceeds A4', () =>
 
 test('print fitting uses the extra-dense fallback when the middle density still overflows', () => {
   const page = createPage({
-    baseHeight: 1300,
-    denseHeight: 1200,
-    extraDenseHeight: 1000,
+    baseHeight: 950,
+    denseHeight: 850,
+    extraDenseHeight: 700,
   });
 
   fitRoutePagesForPrint(createRoot(page));
@@ -57,9 +57,9 @@ test('print fitting uses the extra-dense fallback when the middle density still 
 
 test('print fitting preserves the readable layout when the page already fits', () => {
   const page = createPage({
-    baseHeight: 1000,
-    denseHeight: 850,
-    extraDenseHeight: 700,
+    baseHeight: 720,
+    denseHeight: 650,
+    extraDenseHeight: 550,
   });
 
   fitRoutePagesForPrint(createRoot(page));
@@ -70,9 +70,9 @@ test('print fitting preserves the readable layout when the page already fits', (
 
 test('print fitting uses the ultra-dense safety net when even extra density overflows', () => {
   const page = createPage({
-    baseHeight: 1500,
-    denseHeight: 1350,
-    extraDenseHeight: 1200,
+    baseHeight: 1100,
+    denseHeight: 950,
+    extraDenseHeight: 820,
   });
 
   fitRoutePagesForPrint(createRoot(page));

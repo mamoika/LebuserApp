@@ -96,13 +96,13 @@ test('routes render in a four-column visual grid without legacy schedule groups'
   assert.doesNotMatch(componentSource, /const groups = SCHEDULE_VALUES|clients\.groups\./);
 });
 
-test('route printout uses one four-route row per portrait A4 page', () => {
+test('route printout uses one four-route row per landscape A4 page', () => {
   assert.match(componentSource, /const routeGridPages = paginateRouteGridSlots\(routeGridSlots\)/);
   assert.match(componentSource, /className=\{`route-grid-page[\s\S]*?is-print-empty[\s\S]*?is-last-print-page/);
-  assert.match(stylesSource, /@page\s*\{[\s\S]*?size:\s*A4 portrait[\s\S]*?margin:\s*0/);
+  assert.match(stylesSource, /@page\s*\{[\s\S]*?size:\s*A4 landscape[\s\S]*?margin:\s*0/);
   assert.match(
     stylesSource,
-    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?width:\s*210mm[\s\S]*?height:\s*auto[\s\S]*?padding:\s*8mm[\s\S]*?grid-template-columns:\s*repeat\(var\(--print-route-count\),minmax\(0,1fr\)\)[\s\S]*?align-items:\s*start[\s\S]*?break-after:\s*page/,
+    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?width:\s*297mm[\s\S]*?height:\s*auto[\s\S]*?padding:\s*8mm[\s\S]*?grid-template-columns:\s*repeat\(var\(--print-route-count\),minmax\(0,1fr\)\)[\s\S]*?align-items:\s*start[\s\S]*?break-after:\s*page/,
   );
   assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
   assert.match(componentSource, /className="route-print-header"[\s\S]*?LEBUSER App[\s\S]*?window\.location\.href/);
@@ -120,16 +120,18 @@ test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(componentSource, /maxClientsOnPage > 26 \? 'is-print-extra-dense'/);
   assert.match(componentSource, /data-print-max-clients=\{maxClientsOnPage\}/);
   assert.match(printLayoutSource, /function fitRoutePagesForPrint\(root = document\)/);
-  assert.match(printLayoutSource, /safeA4Height = pageRect\.width \* \(296 \/ 210\)/);
+  assert.match(printLayoutSource, /safeA4Height = pageRect\.width \* \(209 \/ 297\)/);
   assert.match(componentSource, /window\.addEventListener\('beforeprint', preparePrintLayout\)/);
   assert.match(componentSource, /window\.matchMedia\?\.\('print'\)/);
   assert.match(printLayoutSource, /if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_DENSE_CLASS[\s\S]*?if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_EXTRA_DENSE_CLASS[\s\S]*?if \(!fitsOnA4\(\)\)[\s\S]*?PRINT_ULTRA_DENSE_CLASS/);
   assert.match(stylesSource, /\.route-grid-page\.is-print-ultra-dense \.tag-client\s*\{[\s\S]*?padding:\s*\.2mm \.6mm/);
   assert.match(stylesSource, /\.route-grid-slot\.is-print-empty-slot\s*\{[\s\S]*?display:\s*none/);
   assert.match(stylesSource, /\.clients-routes-view \.route-card\s*\{[\s\S]*?height:\s*auto[\s\S]*?min-height:\s*45mm/);
+  assert.match(stylesSource, /\.clients-routes-view \.route-card\s*\{[\s\S]*?transition:\s*none !important/);
+  assert.match(stylesSource, /\.clients-routes-view \.tag-client\s*\{[\s\S]*?transition:\s*none !important/);
   assert.match(
     stylesSource,
-    /\.clients-routes-view \.route-grid-page\.is-print-dense \.tag-client\s*\{[\s\S]*?padding:\s*1\.4mm 1\.2mm/,
+    /\.clients-routes-view \.route-grid-page\.is-print-dense \.tag-client\s*\{[\s\S]*?padding:\s*1\.2mm/,
   );
   assert.match(
     stylesSource,
