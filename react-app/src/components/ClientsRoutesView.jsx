@@ -1041,6 +1041,7 @@ export default function ClientsRoutesView() {
         key={route.id}
         className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
+          '--route-color': routeColor,
           borderTopColor: routeColor,
           borderColor: routeHasSearchMatch ? 'var(--accent)' : isOwnRoute ? routeColor : undefined,
           boxShadow: routeHasSearchMatch ? '0 0 0 2px rgba(0,122,255,0.18), 0 10px 24px rgba(0,0,0,0.08)' : isOwnRoute ? `0 0 0 2px ${routeColor}33, 0 10px 24px rgba(0,0,0,0.08)` : undefined,

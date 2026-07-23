@@ -48,7 +48,23 @@ test('route header keeps service days on one line with number and edit controls'
   assert.doesNotMatch(routeHeaderSource, /client-service-badge/);
   assert.match(
     stylesSource,
-    /\.route-header-actions\s*\{[\s\S]*?margin-left:\s*auto/,
+    /\.route-header-actions\s*\{[\s\S]*?margin-left:\s*auto[\s\S]*?border-radius:\s*10px/,
+  );
+});
+
+test('route header is a distinct cap with a prominent name and compact days badge', () => {
+  assert.match(componentSource, /'--route-color':\s*routeColor/);
+  assert.match(
+    stylesSource,
+    /\.route-card-header\s*\{[\s\S]*?margin:\s*-16px -16px 10px[\s\S]*?background:\s*linear-gradient/,
+  );
+  assert.match(
+    stylesSource,
+    /\.route-card-heading \.route-title\s*\{[\s\S]*?font-size:\s*15px[\s\S]*?font-weight:\s*800/,
+  );
+  assert.match(
+    stylesSource,
+    /\.route-service-summary\s*\{[\s\S]*?display:\s*inline-flex[\s\S]*?border-radius:\s*999px[\s\S]*?font-size:\s*11px/,
   );
 });
 
