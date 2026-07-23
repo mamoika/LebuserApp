@@ -35,6 +35,7 @@ import {
 import {
   buildRouteGridSlots,
   moveRouteToGridPosition,
+  paginateRouteGridSlots,
 } from '../lib/routeGridLayout';
 
 function parseRouteIds(routesStr) {
@@ -1023,6 +1024,7 @@ export default function ClientsRoutesView() {
 
   const sortedRoutes = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const routeGridSlots = buildRouteGridSlots(localRoutes);
+  const routeGridPages = paginateRouteGridSlots(routeGridSlots);
 
   const renderRouteCol = route => {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
@@ -1039,7 +1041,7 @@ export default function ClientsRoutesView() {
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
+        className={`col route-card ${routeClients.length > 9 ? 'is-print-dense' : ''} ${routeClients.length > 14 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
@@ -1194,8 +1196,8 @@ export default function ClientsRoutesView() {
           )}
         </Droppable>
 
-        <div style={{ flex: 1 }} />
-        <div className="divider" style={{ margin: '8px 0' }} />
+        <div className="route-card-fill" style={{ flex: 1 }} />
+        <div className="divider route-card-footer-divider" style={{ margin: '8px 0' }} />
         {isAdmin && (
           <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>{t('clients.addClientBtn')}</button>
         )}
@@ -1260,32 +1262,36 @@ export default function ClientsRoutesView() {
 
         <div className="clients-route-grid-scroll">
           <div className={`grid clients-route-grid ${draggingRouteId ? 'is-route-dragging' : ''}`}>
-            {routeGridSlots.map(slot => (
-              <div
-                key={`slot-${slot.position}`}
-                className={`route-grid-slot ${routeDropPosition === slot.position ? 'is-drop-target' : ''}`}
-                onDragEnter={event => handleRouteDragOver(event, slot.position)}
-                onDragOver={event => handleRouteDragOver(event, slot.position)}
-                onDrop={event => handleRouteDrop(event, slot.position)}
-              >
-                {slot.route
-                  ? renderRouteCol(slot.route)
-                  : (
-                    <div
-                      className="route-grid-spacer"
-                      aria-label={draggingRouteId
-                        ? t('clients.layout.emptySlot', { position: slot.position })
-                        : undefined}
-                      aria-hidden={!draggingRouteId}
-                    >
-                      {draggingRouteId && (
-                        <>
-                          <span>{slot.position}</span>
-                          {t('clients.layout.empty')}
-                        </>
+            {routeGridPages.map((pageSlots, pageIndex) => (
+              <div className="route-grid-page" key={`route-grid-page-${pageIndex + 1}`}>
+                {pageSlots.map(slot => (
+                  <div
+                    key={`slot-${slot.position}`}
+                    className={`route-grid-slot ${routeDropPosition === slot.position ? 'is-drop-target' : ''}`}
+                    onDragEnter={event => handleRouteDragOver(event, slot.position)}
+                    onDragOver={event => handleRouteDragOver(event, slot.position)}
+                    onDrop={event => handleRouteDrop(event, slot.position)}
+                  >
+                    {slot.route
+                      ? renderRouteCol(slot.route)
+                      : (
+                        <div
+                          className="route-grid-spacer"
+                          aria-label={draggingRouteId
+                            ? t('clients.layout.emptySlot', { position: slot.position })
+                            : undefined}
+                          aria-hidden={!draggingRouteId}
+                        >
+                          {draggingRouteId && (
+                            <>
+                              <span>{slot.position}</span>
+                              {t('clients.layout.empty')}
+                            </>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
+                  </div>
+                ))}
               </div>
             ))}
           </div>

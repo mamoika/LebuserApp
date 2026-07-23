@@ -59,7 +59,7 @@ export default function Navigation() {
   }, [navItems.length]);
 
   return (
-    <div style={{ position: 'relative', marginBottom: '20px' }}>
+    <div className="app-navigation" style={{ position: 'relative', marginBottom: '20px' }}>
       <nav
         ref={scrollerRef}
         style={{

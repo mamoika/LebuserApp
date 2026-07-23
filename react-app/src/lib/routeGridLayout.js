@@ -1,6 +1,7 @@
 export const ROUTE_GRID_COLUMNS = 4;
 export const ROUTE_GRID_MIN_ROWS = 3;
 export const ROUTE_GRID_MIN_SLOTS = ROUTE_GRID_COLUMNS * ROUTE_GRID_MIN_ROWS;
+export const ROUTE_GRID_PAGE_SLOTS = ROUTE_GRID_MIN_SLOTS;
 
 function positiveInteger(value) {
   const parsed = Number(value);
@@ -46,6 +47,14 @@ export function buildRouteGridSlots(routes = []) {
     position: index + 1,
     route: routeByPosition.get(index + 1) || null,
   }));
+}
+
+export function paginateRouteGridSlots(slots = []) {
+  const pages = [];
+  for (let index = 0; index < slots.length; index += ROUTE_GRID_PAGE_SLOTS) {
+    pages.push(slots.slice(index, index + ROUTE_GRID_PAGE_SLOTS));
+  }
+  return pages;
 }
 
 export function moveRouteToGridPosition(routes, routeId, targetPosition) {

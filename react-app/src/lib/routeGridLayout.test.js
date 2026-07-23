@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildRouteGridSlots,
   moveRouteToGridPosition,
+  paginateRouteGridSlots,
   ROUTE_GRID_MIN_SLOTS,
 } from './routeGridLayout.js';
 
@@ -63,4 +64,18 @@ test('the board adds complete rows when a route is placed beyond the first twelv
 
   assert.equal(slots.length, 16);
   assert.equal(slots[12].route.id, 1);
+});
+
+test('print pages preserve the visual grid in groups of twelve slots', () => {
+  const slots = buildRouteGridSlots([
+    { id: 1, sort_order: 1, grid_position: 1 },
+    { id: 2, sort_order: 2, grid_position: 13 },
+  ]);
+  const pages = paginateRouteGridSlots(slots);
+
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].length, 12);
+  assert.equal(pages[1].length, 4);
+  assert.equal(pages[0][0].route.id, 1);
+  assert.equal(pages[1][0].route.id, 2);
 });

@@ -2234,6 +2234,9 @@ html.phone-layout .hist-grid {
   align-items:start;
   margin-bottom:8px;
 }
+.route-grid-page {
+  display:contents;
+}
 .route-card-header {
   display:flex;
   align-items:center;
@@ -5167,7 +5170,16 @@ select.ap-input {
     padding: 0;
     margin: 0;
   }
-  .app-header, .tab-bar, .week-nav, .add-btn, .action-buttons, .print-hide {
+  .app-header,
+  .app-navigation,
+  .tab-bar,
+  .week-nav,
+  .add-btn,
+  .action-buttons,
+  .print-hide,
+  .skip-link,
+  .rodo-footer,
+  .Toastify {
     display: none !important;
   }
   .grafik-container {
@@ -5185,42 +5197,171 @@ select.ap-input {
     page-break-after: auto;
   }
   @page {
-    size: landscape;
-    margin: 1cm;
+    size: A4 landscape;
+    margin: 8mm;
   }
 
   /* ── Clients & routes printout ── */
   .clients-routes-view {
+    width:100%;
+    margin:0;
+    padding:0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  .clients-route-grid-scroll {
+    width:100%;
+    overflow:visible !important;
+    padding:0;
+  }
+  .clients-routes-view .clients-route-grid {
+    display:block !important;
+    width:100%;
+    min-width:0;
+    margin:0;
+  }
+  .clients-routes-view .route-grid-page {
+    display:grid;
+    width:100%;
+    height:194mm;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-rows:repeat(3,minmax(0,1fr));
+    gap:3mm;
+    page-break-after:always;
+    break-after:page;
+  }
+  .clients-routes-view .route-grid-page:last-child {
+    page-break-after:auto;
+    break-after:auto;
+  }
+  .clients-routes-view .route-grid-slot,
+  .clients-routes-view .route-grid-spacer {
+    min-width:0;
+    min-height:0;
+    height:100%;
+  }
   .clients-routes-view .drag-handle,
+  .clients-routes-view .route-card-drag-handle,
   .clients-routes-view .route-header-actions,
   .clients-routes-view .edit-icon,
-  .clients-routes-view .gps-dot.ok::after {
+  .clients-routes-view .gps-dot.ok::after,
+  .clients-routes-view .route-card-fill,
+  .clients-routes-view .route-card-footer-divider {
     display: none !important;
   }
-  .clients-routes-view .grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-  }
   .clients-routes-view .route-card {
-    min-height: 0;
+    width:100%;
+    height:100%;
+    min-height:0;
+    gap:1mm;
+    padding:2mm;
+    border:.3mm solid #cbd5e1 !important;
+    border-top:.8mm solid var(--route-color) !important;
+    border-radius:2.5mm;
     box-shadow: none !important;
-    border: 1px solid #999 !important;
     background: #fff !important;
     page-break-inside: avoid;
     break-inside: avoid;
   }
+  .clients-routes-view .route-card-header {
+    gap:1.5mm;
+    margin:-2mm -2mm 1mm;
+    padding:1.8mm 2mm;
+    border-radius:1.6mm 1.6mm 0 0;
+  }
+  .clients-routes-view .route-card-heading .route-title {
+    font-size:9pt;
+    line-height:1.1;
+  }
+  .clients-routes-view .route-id-badge {
+    padding:.7mm 1.2mm;
+    border-radius:1.2mm;
+    font-size:7pt;
+    box-shadow:none;
+  }
+  .clients-routes-view .route-card-controls {
+    gap:1mm;
+    margin-top:0;
+  }
+  .clients-routes-view .route-service-summary {
+    min-height:0;
+    gap:1mm;
+    padding:.7mm 1.4mm;
+    border-radius:10mm;
+    font-size:7pt;
+    box-shadow:none;
+  }
+  .clients-routes-view .route-service-summary::before {
+    width:1.2mm;
+    height:1.2mm;
+    flex-basis:1.2mm;
+  }
+  .clients-routes-view .sortable-list {
+    min-height:0 !important;
+    gap:.5mm;
+  }
   .clients-routes-view .tag-client {
+    min-height:0;
+    margin:0;
+    gap:0;
+    padding:1mm 1.2mm;
+    border-radius:1.4mm;
     box-shadow: none !important;
-    border-color: #ddd;
+    border-color:#d7dce3;
     page-break-inside: avoid;
     break-inside: avoid;
   }
+  .clients-routes-view .client-details {
+    min-width:0;
+    flex-direction:row;
+    align-items:center;
+    gap:1mm;
+    margin-right:1mm;
+  }
+  .clients-routes-view .client-details .client-name {
+    min-width:0;
+    font-size:7.5pt;
+    line-height:1.1;
+  }
+  .clients-routes-view .client-service-badge {
+    max-width:42%;
+    padding:.3mm .8mm;
+    font-size:6pt;
+  }
   .clients-routes-view .client-order {
-    background: #fff;
-    border-color: #bbb;
+    min-width:4mm;
+    width:4mm;
+    height:4mm;
+    margin-right:1mm;
+    border-color:#cbd5e1;
+    border-radius:1mm;
+    background:#f8fafc;
+    font-size:6.5pt;
+  }
+  .clients-routes-view .gps-dot {
+    width:1.6mm;
+    height:1.6mm;
+    margin:0;
+    animation:none;
+    box-shadow:none;
+  }
+  .clients-routes-view .route-card.is-print-dense .tag-client {
+    padding:.55mm 1mm;
+  }
+  .clients-routes-view .route-card.is-print-dense .sortable-list {
+    gap:.3mm;
+  }
+  .clients-routes-view .route-card.is-print-extra-dense .tag-client {
+    padding:.25mm .8mm;
+  }
+  .clients-routes-view .route-card.is-print-extra-dense .client-details .client-name {
+    font-size:6.3pt;
+  }
+  .clients-routes-view .route-card.is-print-extra-dense .client-order {
+    min-width:3.3mm;
+    width:3.3mm;
+    height:3.3mm;
+    font-size:5.8pt;
   }
 }
 
