@@ -114,7 +114,9 @@ begin
     and route.id <> p_route_id
   for update;
 
-  set constraints routes_grid_position_unique deferred;
+  -- The function has an intentionally empty search_path, so the constraint
+  -- must be schema-qualified as well as every table/function reference.
+  set constraints public.routes_grid_position_unique deferred;
 
   update public.routes
   set grid_position = p_target_position
