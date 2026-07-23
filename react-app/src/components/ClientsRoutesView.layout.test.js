@@ -135,6 +135,10 @@ test('route printout uses one four-route row per landscape A4 page', () => {
   );
   assert.match(
     stylesSource,
+    /\.clients-routes-view \.route-grid-page\.is-print-dense \.sortable-list\s*\{[\s\S]*?gap:\s*\.8mm/,
+  );
+  assert.match(
+    stylesSource,
     /\.clients-routes-view \.client-details\s*\{[\s\S]*?overflow:\s*hidden[\s\S]*?flex-direction:\s*column/,
   );
 });

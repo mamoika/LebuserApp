@@ -5418,7 +5418,7 @@ select.ap-input {
     padding:2mm 2.2mm;
   }
   .clients-routes-view .route-grid-page.is-print-dense .sortable-list {
-    gap:.2mm;
+    gap:.8mm;
   }
   .clients-routes-view .route-grid-page.is-print-dense .tag-client {
     padding:1.2mm;
