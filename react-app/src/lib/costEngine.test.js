@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   buildDailyCostPatches,
   countAccruedDays,
+  electricityMonthlyCost,
+  electricityReconciliation,
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
@@ -50,10 +52,50 @@ test('cost settings reject empty, negative and non-numeric values', () => {
   const settings = {
     fiat_l_100km: 9, isuzu_l_100km: 10, merc_l_100km: 11, iveco_l_100km: 12,
     fuel_price: 5, elec_multiplier: 80, elec_fixed_monthly: null, elec_price_kwh: 1,
+    elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
     gas_prod_price_m3: 2, gas_prod_fixed_daily: 3, gas_heat_price_m3: 4,
     gas_heat_fixed_monthly: -1, water_fixed_monthly: 2, water_price_m3: 3,
     worker_hourly_rate: 40,
   };
 
   assert.deepEqual(invalidCostSettingFields(settings), ['elec_fixed_monthly', 'gas_heat_fixed_monthly']);
+});
+
+test('electricity cost includes all monthly invoice components', () => {
+  const cost = electricityMonthlyCost(9833, {
+    elec_price_kwh: 0.6823,
+    elec_fixed_monthly: 3562.12,
+    elec_power_fee_monthly: 1875.43,
+    elec_reactive_monthly: 470.55,
+  });
+
+  assert.equal(Math.round(cost * 10000) / 10000, 12617.1559);
+});
+
+test('electricity reconciliation compares meter calculation with invoice values', () => {
+  const result = electricityReconciliation({
+    elec_invoice_kwh: 9833,
+    elec_invoice_net: 12577.83,
+  }, 9188.4, 12176.47);
+
+  assert.equal(result.calculatedKwh, 9188.4);
+  assert.equal(result.calculatedNet, 12176.47);
+  assert.equal(result.usageDifference, 644.6000000000004);
+  assert.equal(Math.round(result.costDifference * 100) / 100, 401.36);
+  assert.equal(Math.round(result.usageDifferencePct * 100) / 100, 6.56);
+  assert.equal(Math.round(result.costDifferencePct * 100) / 100, 3.19);
+});
+
+test('invoice fields are optional but reject negative values', () => {
+  const settings = {
+    fiat_l_100km: 9, isuzu_l_100km: 10, merc_l_100km: 11, iveco_l_100km: 12,
+    fuel_price: 5, elec_multiplier: 80, elec_fixed_monthly: 1, elec_price_kwh: 1,
+    elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
+    elec_invoice_kwh: null, elec_invoice_net: -1,
+    gas_prod_price_m3: 2, gas_prod_fixed_daily: 3, gas_heat_price_m3: 4,
+    gas_heat_fixed_monthly: 1, water_fixed_monthly: 2, water_price_m3: 3,
+    worker_hourly_rate: 40,
+  };
+
+  assert.deepEqual(invalidCostSettingFields(settings), ['elec_invoice_net']);
 });

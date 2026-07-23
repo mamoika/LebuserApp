@@ -14,10 +14,13 @@ export const COST_METER_RESET_FIELDS = COST_METER_FIELDS.map(field => field.repl
 export const COST_SETTING_FIELDS = [
   'fiat_l_100km', 'isuzu_l_100km', 'merc_l_100km', 'iveco_l_100km', 'fuel_price',
   'elec_multiplier', 'elec_fixed_monthly', 'elec_price_kwh',
+  'elec_power_fee_monthly', 'elec_reactive_monthly',
   'gas_prod_price_m3', 'gas_prod_fixed_daily',
   'gas_heat_price_m3', 'gas_heat_fixed_monthly',
   'water_fixed_monthly', 'water_price_m3', 'worker_hourly_rate',
 ];
+
+export const OPTIONAL_COST_SETTING_FIELDS = ['elec_invoice_kwh', 'elec_invoice_net'];
 
 export function parseMeterReading(raw) {
   const trimmed = raw == null ? '' : String(raw).trim();
@@ -69,8 +72,47 @@ export function countAccruedDays(days, todayKey) {
 }
 
 export function invalidCostSettingFields(settings) {
-  return COST_SETTING_FIELDS.filter(field => {
+  const requiredInvalid = COST_SETTING_FIELDS.filter(field => {
     const value = settings[field];
     return typeof value !== 'number' || !Number.isFinite(value) || value < 0;
   });
+  const optionalInvalid = OPTIONAL_COST_SETTING_FIELDS.filter(field => {
+    const value = settings[field];
+    return value != null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0);
+  });
+  return [...requiredInvalid, ...optionalInvalid];
+}
+
+export function electricityMonthlyCost(usageKwh, settings = {}) {
+  const usage = Number.isFinite(usageKwh) && usageKwh >= 0 ? usageKwh : 0;
+  return usage * (settings.elec_price_kwh || 0)
+    + electricityMonthlyFees(settings);
+}
+
+export function electricityMonthlyFees(settings = {}) {
+  return (settings.elec_fixed_monthly || 0)
+    + (settings.elec_power_fee_monthly || 0)
+    + (settings.elec_reactive_monthly || 0);
+}
+
+export function electricityReconciliation(settings = {}, calculatedKwh = 0, calculatedNet = 0) {
+  const invoiceKwh = settings.elec_invoice_kwh;
+  const invoiceNet = settings.elec_invoice_net;
+  const hasInvoiceKwh = typeof invoiceKwh === 'number' && Number.isFinite(invoiceKwh) && invoiceKwh >= 0;
+  const hasInvoiceNet = typeof invoiceNet === 'number' && Number.isFinite(invoiceNet) && invoiceNet >= 0;
+  const usageDifference = hasInvoiceKwh ? invoiceKwh - calculatedKwh : null;
+  const costDifference = hasInvoiceNet ? invoiceNet - calculatedNet : null;
+
+  return {
+    hasInvoiceKwh,
+    hasInvoiceNet,
+    calculatedKwh,
+    calculatedNet,
+    invoiceKwh: hasInvoiceKwh ? invoiceKwh : null,
+    invoiceNet: hasInvoiceNet ? invoiceNet : null,
+    usageDifference,
+    usageDifferencePct: hasInvoiceKwh && invoiceKwh > 0 ? (usageDifference / invoiceKwh) * 100 : null,
+    costDifference,
+    costDifferencePct: hasInvoiceNet && invoiceNet > 0 ? (costDifference / invoiceNet) * 100 : null,
+  };
 }
