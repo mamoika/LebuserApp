@@ -1019,7 +1019,13 @@ export default function ClientsRoutesView() {
   // ---- Render ----
 
   const handlePrint = () => {
-    window.print();
+    const previousTitle = document.title;
+    document.title = '';
+    try {
+      window.print();
+    } finally {
+      document.title = previousTitle;
+    }
   };
 
   const sortedRoutes = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
