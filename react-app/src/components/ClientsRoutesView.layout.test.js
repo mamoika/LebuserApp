@@ -98,9 +98,12 @@ test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(stylesSource, /@page\s*\{[\s\S]*?size:\s*A4 portrait[\s\S]*?margin:\s*0/);
   assert.match(
     stylesSource,
-    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?width:\s*210mm[\s\S]*?height:\s*297mm[\s\S]*?padding:\s*8mm[\s\S]*?grid-template-columns:\s*repeat\(4,minmax\(0,1fr\)\)[\s\S]*?align-items:\s*start[\s\S]*?break-after:\s*page/,
+    /\.clients-routes-view \.route-grid-page\s*\{[\s\S]*?width:\s*210mm[\s\S]*?height:\s*auto[\s\S]*?padding:\s*8mm[\s\S]*?grid-template-columns:\s*repeat\(var\(--print-route-count\),minmax\(0,1fr\)\)[\s\S]*?align-items:\s*start[\s\S]*?break-after:\s*page/,
   );
   assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
+  assert.match(componentSource, /className="route-print-header"[\s\S]*?LEBUSER App[\s\S]*?window\.location\.href/);
+  assert.match(componentSource, /Data:[\s\S]*?Wydrukował:/);
+  assert.match(stylesSource, /\.route-grid-slot\.is-print-empty-slot\s*\{[\s\S]*?display:\s*none/);
   assert.match(stylesSource, /\.clients-routes-view \.route-card\s*\{[\s\S]*?height:\s*auto[\s\S]*?min-height:\s*45mm/);
   assert.match(
     stylesSource,

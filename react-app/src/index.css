@@ -2237,6 +2237,9 @@ html.phone-layout .hist-grid {
 .route-grid-page {
   display:contents;
 }
+.route-print-header {
+  display:none;
+}
 .route-card-header {
   display:flex;
   align-items:center;
@@ -5223,10 +5226,10 @@ select.ap-input {
   .clients-routes-view .route-grid-page {
     display:grid;
     width:210mm;
-    height:297mm;
+    height:auto;
     padding:8mm;
     box-sizing:border-box;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(var(--print-route-count),minmax(0,1fr));
     grid-template-rows:auto;
     align-items:start;
     gap:2mm;
@@ -5238,6 +5241,48 @@ select.ap-input {
     break-after:auto;
   }
   .clients-routes-view .route-grid-page.is-print-empty {
+    display:none;
+  }
+  .clients-routes-view .route-print-header {
+    grid-column:1 / -1;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:6mm;
+    padding-bottom:2mm;
+    border-bottom:.3mm solid #d7dce3;
+    color:#1f2937;
+  }
+  .clients-routes-view .route-print-brand,
+  .clients-routes-view .route-print-meta {
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:.7mm;
+  }
+  .clients-routes-view .route-print-brand strong {
+    font-size:10pt;
+    line-height:1.1;
+  }
+  .clients-routes-view .route-print-brand span,
+  .clients-routes-view .route-print-meta span {
+    overflow:hidden;
+    color:#64748b;
+    font-size:6.5pt;
+    line-height:1.2;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .clients-routes-view .route-print-meta {
+    flex:0 0 auto;
+    align-items:flex-end;
+    text-align:right;
+  }
+  .clients-routes-view .route-print-meta strong {
+    color:#334155;
+    font-weight:700;
+  }
+  .clients-routes-view .route-grid-slot.is-print-empty-slot {
     display:none;
   }
   .clients-routes-view .route-grid-slot,
@@ -5359,10 +5404,16 @@ select.ap-input {
     box-shadow:none;
   }
   .clients-routes-view .route-card.is-print-dense .tag-client {
-    padding:.55mm 1mm;
+    padding:.3mm .9mm;
   }
   .clients-routes-view .route-card.is-print-dense .sortable-list {
-    gap:.3mm;
+    gap:.2mm;
+  }
+  .clients-routes-view .route-card.is-print-dense .client-details .client-name {
+    font-size:7pt;
+  }
+  .clients-routes-view .route-card.is-print-dense .client-service-badge {
+    font-size:5.5pt;
   }
   .clients-routes-view .route-card.is-print-extra-dense .tag-client {
     padding:.25mm .8mm;

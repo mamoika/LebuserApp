@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
@@ -594,6 +595,7 @@ export default function ClientsRoutesView() {
   const [localClients, setLocalClients] = useState([]);
   const [localRoutes, setLocalRoutes] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
+  const [printGeneratedAt, setPrintGeneratedAt] = useState(() => new Date());
   const [draggingRouteId, setDraggingRouteId] = useState(null);
   const [routeDropPosition, setRouteDropPosition] = useState(null);
   const [savingLayout, setSavingLayout] = useState(false);
@@ -1019,6 +1021,7 @@ export default function ClientsRoutesView() {
   // ---- Render ----
 
   const handlePrint = () => {
+    flushSync(() => setPrintGeneratedAt(new Date()));
     const previousTitle = document.title;
     document.title = '';
     try {
@@ -1053,7 +1056,7 @@ export default function ClientsRoutesView() {
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeClients.length > 28 ? 'is-print-dense' : ''} ${routeClients.length > 40 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
+        className={`col route-card ${routeClients.length > 15 ? 'is-print-dense' : ''} ${routeClients.length > 26 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
@@ -1278,11 +1281,36 @@ export default function ClientsRoutesView() {
               <div
                 className={`route-grid-page ${pageSlots.some(slot => slot.route) ? '' : 'is-print-empty'} ${pageIndex === lastPrintableRoutePageIndex ? 'is-last-print-page' : ''}`}
                 key={`route-grid-page-${pageIndex + 1}`}
+                style={{
+                  '--print-route-count': Math.max(
+                    1,
+                    pageSlots.filter(slot => slot.route).length,
+                  ),
+                }}
               >
+                <div className="route-print-header">
+                  <div className="route-print-brand">
+                    <strong>LEBUSER App</strong>
+                    <span>{window.location.href}</span>
+                  </div>
+                  <div className="route-print-meta">
+                    <span>
+                      <strong>Data:</strong>{' '}
+                      {printGeneratedAt.toLocaleString('pl-PL', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })}
+                    </span>
+                    <span>
+                      <strong>Wydrukował:</strong>{' '}
+                      {user?.name || user?.username || '—'}
+                    </span>
+                  </div>
+                </div>
                 {pageSlots.map(slot => (
                   <div
                     key={`slot-${slot.position}`}
-                    className={`route-grid-slot ${routeDropPosition === slot.position ? 'is-drop-target' : ''}`}
+                    className={`route-grid-slot ${slot.route ? '' : 'is-print-empty-slot'} ${routeDropPosition === slot.position ? 'is-drop-target' : ''}`}
                     onDragEnter={event => handleRouteDragOver(event, slot.position)}
                     onDragOver={event => handleRouteDragOver(event, slot.position)}
                     onDrop={event => handleRouteDrop(event, slot.position)}
