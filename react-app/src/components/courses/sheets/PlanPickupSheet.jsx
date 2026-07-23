@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../lib/supabaseClient';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { parseExtraClients, parseRouteIds, tripDateInfo, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
 import { formatWeekKey, operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { effectiveServiceRules, nextServiceSlot } from '../../../lib/serviceSchedule';
+import {
+  LAUNDRY_CATEGORIES,
+  firstAllowedLaundryType,
+  laundryCategoriesForClient,
+} from '../../../lib/laundryCategories';
 import { VEHICLES } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
 import ArrivalTrolleyPicker, { arrivalTrolleyPayload } from '../../modals/ArrivalTrolleyPicker';
@@ -56,6 +62,7 @@ export default function PlanPickupSheet({
   onClose,
   onPlanned,
 }) {
+  const { t } = useTranslation();
   const sortedRoutes = useMemo(() => [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)), [routes]);
   const routeMap = useMemo(() => Object.fromEntries(sortedRoutes.map((route, index) => [route.id, { num: index + 1, name: route.name, schedule: route.schedule }])), [sortedRoutes]);
   const firstClient = useMemo(() => [...clients].filter(client => client.route_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0], [clients]);
@@ -79,7 +86,7 @@ export default function PlanPickupSheet({
     cleanDate: '',
     clientName: firstClient?.name || '',
     routeId: firstClient?.route_id ? String(firstClient.route_id) : '',
-    type: 'P',
+    type: firstAllowedLaundryType(firstClient, routes) || '',
     weight: '',
     trolleyMode: 'trolley',
     selectedTrolleys: [],
@@ -102,7 +109,10 @@ export default function PlanPickupSheet({
       const next = { ...prev, [field]: value };
       if (field === 'clientName') {
         const client = clients.find(item => item.name === value);
-        if (client?.route_id) next.routeId = String(client.route_id);
+        if (client?.route_id) {
+          next.routeId = String(client.route_id);
+          next.type = firstAllowedLaundryType(client, routes, prev.type) || '';
+        }
       }
       return next;
     });
@@ -118,6 +128,11 @@ export default function PlanPickupSheet({
     const routeId = Number(draft.routeId);
     if (!draft.dirtyDate || !draft.clientName || !routeId) {
       toastError('Wybierz datę, klienta i trasę');
+      return;
+    }
+    const client = clients.find(item => item.name === draft.clientName);
+    if (!laundryCategoriesForClient(client, routes).includes(draft.type)) {
+      toastError('Ten klient nie ma włączonego rodzaju prania');
       return;
     }
     if (draft.trolleyMode === 'trolley' && draft.selectedTrolleys.length === 0) {
@@ -206,10 +221,22 @@ export default function PlanPickupSheet({
         <div>
           <label style={pfLabel} htmlFor="plan-type">Rodzaj</label>
           <select id="plan-type" className="ap-input" value={draft.type} onChange={event => setField('type', event.target.value)}>
-            <option value="P">Pościel</option>
-            <option value="O">Obrusy</option>
-            <option value="R">Odzież robocza</option>
+            {LAUNDRY_CATEGORIES
+              .filter(category => laundryCategoriesForClient(
+                clients.find(item => item.name === draft.clientName),
+                routes,
+              ).includes(category.code))
+              .map(category => (
+                <option key={category.code} value={category.code}>
+                  {t(category.translationKey)}
+                </option>
+              ))}
           </select>
+          {!draft.type && (
+            <small style={{ display: 'block', marginTop: '5px', color: '#B45309' }}>
+              {t('clients.laundryOffer.none')}
+            </small>
+          )}
         </div>
       </div>
       <ArrivalTrolleyPicker
@@ -256,7 +283,7 @@ export default function PlanPickupSheet({
       </div>
       <div className="ap-btn-group">
         <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
-        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !draft.clientName}>{busy ? 'Zapisywanie…' : 'Zleć odbiór'}</button>
+        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !draft.clientName || !draft.type}>{busy ? 'Zapisywanie…' : 'Zleć odbiór'}</button>
       </div>
     </CourseSheet>
   );

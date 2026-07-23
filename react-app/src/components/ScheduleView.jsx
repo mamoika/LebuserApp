@@ -184,9 +184,8 @@ function groupPickupEntries(entries, compareEntries) {
       .filter(e => !e.done)
       .reduce((sum, e) => sum + (parseFloat(e.weight) || 0), 0);
     current.weight = current.done ? current.totalWeight : current.pendingWeight;
-    current.type = current.entries.some(e => e.type === 'O') && current.entries.some(e => (e.type || 'P') === 'P')
-      ? 'M'
-      : current.entries[0]?.type || 'P';
+    const entryTypes = [...new Set(current.entries.map(item => item.type || 'P'))];
+    current.type = entryTypes.length > 1 ? 'M' : entryTypes[0] || 'P';
     groups.set(key, current);
   });
   return [...groups.values()].sort(compareEntries);
@@ -421,13 +420,14 @@ export default function ScheduleView() {
     const rIndex = routes.findIndex(r => r.id === routeId);
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
     const pointNum = clientPointByName.get(entry.client_name);
-    const typeBadgeClass = entry.type === 'R' ? 'type-R' : entry.type === 'O' ? 'type-O' : 'type-P';
+    const typeBadgeClass = ['P', 'O', 'F', 'R'].includes(entry.type) ? `type-${entry.type}` : 'type-P';
     const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
     const totalWeight = entry.isPickupGroup
       ? (entry.done ? entry.totalWeight : entry.pendingWeight)
       : parseFloat(entry.weight) || 0;
-    const hasMixedTypes = entry.isPickupGroup && relatedEntries.some(e => e.type === 'O') && relatedEntries.some(e => (e.type || 'P') === 'P');
+    const groupedTypes = [...new Set(relatedEntries.map(item => item.type || 'P'))];
+    const hasMixedTypes = entry.isPickupGroup && groupedTypes.length > 1;
 
     return (
       <button
@@ -450,7 +450,7 @@ export default function ScheduleView() {
           <span className="schedule-tag-meta" aria-hidden="true">
             {entry.urgent && <span className="schedule-urgent-emoji">🚩</span>}
             {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))} kg</span> : null}
-            <span className={`laundry-type-badge ${hasMixedTypes ? 'type-O' : typeBadgeClass}`}>{hasMixedTypes ? 'P/O' : entry.type || 'P'}</span>
+            <span className={`laundry-type-badge ${hasMixedTypes ? 'type-P' : typeBadgeClass}`}>{hasMixedTypes ? groupedTypes.join('/') : entry.type || 'P'}</span>
           </span>
         </span>
         <span className="schedule-tag-state">

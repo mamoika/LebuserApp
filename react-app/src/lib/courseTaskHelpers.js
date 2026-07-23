@@ -1,4 +1,5 @@
 import { VEHICLE_LABELS } from './vehicles';
+import { laundryTypeFlags } from './laundryCategories.js';
 import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers';
 
 export { buildDirtyOnlyCandidates } from './dirtyOnlyCandidates';
@@ -343,9 +344,7 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
   const kg = Number(tasks.reduce((sum, task) => sum + (Number(task.quantity) || 0), 0).toFixed(1));
   return {
     kg,
-    hasP: [...types].some(type => type === 'P' || !type),
-    hasO: types.has('O'),
-    hasR: types.has('R'),
+    ...laundryTypeFlags([...types]),
     isUrgent: tasks.some(task => task.metadata?.urgent) || dirtyEntries.some(entry => entry.urgent),
   };
 }

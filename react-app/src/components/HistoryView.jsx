@@ -323,6 +323,7 @@ export default function HistoryView() {
           const arrDay = shortDays[e.arr_day - 1] || '?';
           const pickDay = shortDays[e.pick_day - 1] || '?';
           const isDeleted = !!e.deleted_at;
+          const typeCode = ['P', 'O', 'F', 'R'].includes(e.type) ? e.type : 'P';
           return (
             <div key={e.id} style={{
               background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -335,11 +336,7 @@ export default function HistoryView() {
                   {e.urgent && '🚩 '}{e.client_name}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                    background: e.type === 'R' ? 'rgba(255,149,0,0.10)' : e.type === 'O' ? 'rgba(175,82,222,0.10)' : 'rgba(0,122,255,0.10)',
-                    color: e.type === 'R' ? '#FF9500' : e.type === 'O' ? '#AF52DE' : '#007AFF',
-                  }}>{e.type || 'P'}</span>
+                  <span className={`laundry-type-badge type-${typeCode}`}>{typeCode}</span>
                   {isDeleted ? (
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',

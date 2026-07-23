@@ -272,8 +272,10 @@
     "laundryType": "Rodzaj prania",
     "sheets": "Pościel",
     "tablecloths": "Obrusy",
+    "terry": "Frotte / ręczniki",
     "sheetsTablecloths": "Pościel + Obrusy",
     "workwear": "Odzież robocza",
+    "noLaundryTypeEnabled": "Ten klient nie ma włączonego wybranego rodzaju prania.",
     "weightOptional": "Waga (kg) — opcjonalnie",
     "weight": "Waga (kg)",
     "weightPlaceholder": "np. 150.5",
@@ -370,6 +372,11 @@
   "clients": {
     "schedule": { "daily": "Codziennie (Pn–Pt)", "mwf": "Pn – Śr – Pt", "tth": "Wt – Czw", "other": "Pozostałe" },
     "groups": { "daily": "Trasy codzienne (Pn–Pt)", "mwf": "Trasy Pn – Śr – Pt", "tth": "Trasy Wt – Czw", "other": "Pozostałe trasy" },
+    "laundryOffer": {
+      "title": "Rodzaje prania klienta",
+      "hint": "Kierowca zobaczy tylko zaznaczone rodzaje.",
+      "none": "Wszystkie rodzaje są wyłączone — kierowca nie doda nowego odbioru."
+    },
     "servicePlan": {
       "routeDefault": "Domyślny plan obsługi trasy",
       "clientPlan": "Plan obsługi klienta",

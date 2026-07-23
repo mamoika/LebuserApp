@@ -272,8 +272,10 @@
     "laundryType": "Wäscheart",
     "sheets": "Bettwäsche",
     "tablecloths": "Tischwäsche",
+    "terry": "Frottierwäsche / Handtücher",
     "sheetsTablecloths": "Bettwäsche + Tischwäsche",
     "workwear": "Arbeitskleidung",
+    "noLaundryTypeEnabled": "Für diesen Kunden ist die ausgewählte Wäscheart nicht aktiviert.",
     "weightOptional": "Gewicht (kg) — optional",
     "weight": "Gewicht (kg)",
     "weightPlaceholder": "z. B. 150.5",
@@ -368,6 +370,11 @@
   "clients": {
     "schedule": { "daily": "Täglich (Mo–Fr)", "mwf": "Mo – Mi – Fr", "tth": "Di – Do", "other": "Sonstige" },
     "groups": { "daily": "Tägliche Routen (Mo–Fr)", "mwf": "Routen Mo – Mi – Fr", "tth": "Routen Di – Do", "other": "Sonstige Routen" },
+    "laundryOffer": {
+      "title": "Wäschearten des Kunden",
+      "hint": "Der Fahrer sieht nur die ausgewählten Wäschearten.",
+      "none": "Alle Wäschearten sind deaktiviert — der Fahrer kann keine neue Abholung hinzufügen."
+    },
     "servicePlan": {
       "routeDefault": "Standard-Besuchsplan der Route",
       "clientPlan": "Besuchsplan des Kunden",

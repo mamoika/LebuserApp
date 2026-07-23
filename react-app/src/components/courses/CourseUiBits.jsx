@@ -15,10 +15,16 @@ export function RouteChip({ routeId, routeMap }) {
   );
 }
 
-export function LaundryTypeChip({ hasP, hasO, hasR }) {
-  if (!hasP && !hasO && !hasR) return null;
-  const label = hasR ? 'R' : hasP && hasO ? 'P/O' : hasO ? 'O' : 'P';
-  const tone = hasR ? 'type-R' : hasO && !hasP ? 'type-O' : 'type-P';
+export function LaundryTypeChip({ hasP, hasO, hasF, hasR }) {
+  const types = [
+    hasP && 'P',
+    hasO && 'O',
+    hasF && 'F',
+    hasR && 'R',
+  ].filter(Boolean);
+  if (!types.length) return null;
+  const label = types.join('/');
+  const tone = types.length > 1 ? 'type-P' : `type-${types[0]}`;
   return <span className={`laundry-type-badge ${tone}`}>{label}</span>;
 }
 

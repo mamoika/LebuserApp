@@ -15,6 +15,12 @@ import {
   legacyScheduleRules,
   normalizeServiceRules,
 } from '../lib/serviceSchedule';
+import {
+  DEFAULT_LAUNDRY_CATEGORIES,
+  LAUNDRY_CATEGORIES,
+  laundryCategoriesForClient,
+  normalizeLaundryCategories,
+} from '../lib/laundryCategories';
 
 // Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
 const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
@@ -44,6 +50,44 @@ function sortClientsByOrder(a, b) {
 // ---- Modals ----
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
+
+function LaundryCategoryPicker({ value, onChange }) {
+  const { t } = useTranslation();
+  const selected = normalizeLaundryCategories(value, []);
+  const toggle = code => {
+    const next = selected.includes(code)
+      ? selected.filter(item => item !== code)
+      : [...selected, code];
+    onChange(normalizeLaundryCategories(next, []));
+  };
+
+  return (
+    <div className="client-laundry-category-picker">
+      <div className="client-laundry-category-options" role="group" aria-label={t('clients.laundryOffer.title')}>
+        {LAUNDRY_CATEGORIES.map(category => {
+          const active = selected.includes(category.code);
+          return (
+            <button
+              key={category.code}
+              type="button"
+              className={active ? 'active' : ''}
+              aria-pressed={active}
+              onClick={() => toggle(category.code)}
+            >
+              <span className={`laundry-type-badge type-${category.code}`}>{category.code}</span>
+              {t(category.translationKey)}
+            </button>
+          );
+        })}
+      </div>
+      <p className={selected.length ? '' : 'is-warning'}>
+        {selected.length
+          ? t('clients.laundryOffer.hint')
+          : t('clients.laundryOffer.none')}
+      </p>
+    </div>
+  );
+}
 
 function ArchivedClientsModal({
   clients,
@@ -218,13 +262,12 @@ function AddRouteModal({ onClose, onSave }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [serviceRules, setServiceRules] = useState(() => legacyScheduleRules('daily'));
-  const [isWorkwear, setIsWorkwear] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim() || serviceRules.length === 0) return;
     setSaving(true);
-    await onSave(name.trim(), serviceRules, isWorkwear);
+    await onSave(name.trim(), serviceRules);
     setSaving(false);
   };
 
@@ -252,11 +295,6 @@ function AddRouteModal({ onClose, onSave }) {
           <div style={LABEL_STYLE}>{t('clients.servicePlan.routeDefault')}</div>
           <ServiceScheduleBuilder rules={serviceRules} onRulesChange={setServiceRules} />
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
-            <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
-            Trasa dla Odzieży Roboczej
-          </label>
-
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || serviceRules.length === 0}>
               {saving ? t('common.saving') : t('clients.addRoute')}
@@ -276,14 +314,13 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
     const explicit = normalizeServiceRules(route.service_rules);
     return explicit.length ? explicit : legacyScheduleRules(route.schedule || 'other');
   });
-  const [isWorkwear, setIsWorkwear] = useState(!!route.is_workwear);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim() || serviceRules.length === 0) return;
     setSaving(true);
-    await onSave(route.id, name.trim(), serviceRules, isWorkwear);
+    await onSave(route.id, name.trim(), serviceRules);
     setSaving(false);
   };
 
@@ -317,11 +354,6 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
           <div style={LABEL_STYLE}>{t('clients.servicePlan.routeDefault')}</div>
           <ServiceScheduleBuilder rules={serviceRules} onRulesChange={setServiceRules} />
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
-            <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
-            Trasa dla Odzieży Roboczej
-          </label>
-
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || serviceRules.length === 0}>
               {saving ? t('common.saving') : t('clients.saveChanges')}
@@ -343,6 +375,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   const [routeId, setRouteId] = useState(defaultRouteId);
   const [scheduleMode, setScheduleMode] = useState('inherit');
   const [serviceRules, setServiceRules] = useState([]);
+  const [laundryCategories, setLaundryCategories] = useState([...DEFAULT_LAUNDRY_CATEGORIES]);
   const [saving, setSaving] = useState(false);
   const selectedRoute = routes.find(route => Number(route.id) === Number(routeId));
   const inheritedRules = effectiveRouteServiceRules(selectedRoute);
@@ -350,7 +383,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   const handleSave = async () => {
     if (!name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)) return;
     setSaving(true);
-    await onSave(name.trim(), routeId, scheduleMode, serviceRules);
+    await onSave(name.trim(), routeId, scheduleMode, serviceRules, laundryCategories);
     setSaving(false);
   };
 
@@ -390,6 +423,9 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
             onRulesChange={setServiceRules}
           />
 
+          <div style={LABEL_STYLE}>{t('clients.laundryOffer.title')}</div>
+          <LaundryCategoryPicker value={laundryCategories} onChange={setLaundryCategories} />
+
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)}>
               {saving ? t('common.saving') : t('clients.addClient')}
@@ -410,6 +446,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
   const [lng, setLng] = useState(client.lng != null ? String(client.lng) : '');
   const [scheduleMode, setScheduleMode] = useState(client.service_schedule_mode || 'inherit');
   const [serviceRules, setServiceRules] = useState(() => normalizeServiceRules(client.service_rules));
+  const [laundryCategories, setLaundryCategories] = useState(() => laundryCategoriesForClient(client, routes));
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
@@ -431,6 +468,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
       lng,
       scheduleMode,
       serviceRules,
+      laundryCategories,
       oldName: client.name,
       oldRouteId: client.route_id,
     });
@@ -493,6 +531,9 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
             onModeChange={setScheduleMode}
             onRulesChange={setServiceRules}
           />
+
+          <div style={LABEL_STYLE}>{t('clients.laundryOffer.title')}</div>
+          <LaundryCategoryPicker value={laundryCategories} onChange={setLaundryCategories} />
 
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)}>
@@ -598,7 +639,7 @@ export default function ClientsRoutesView() {
 
   // ---- Route actions ----
 
-  const handleAddRoute = async (name, serviceRules, isWorkwear) => {
+  const handleAddRoute = async (name, serviceRules) => {
     try {
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
       const { data, error } = await supabase.rpc('admin_create_route_with_service_rules', {
@@ -606,7 +647,7 @@ export default function ClientsRoutesView() {
         p_name: name,
         p_rules: normalizeServiceRules(serviceRules),
         p_sort_order: maxSort + 1,
-        p_is_workwear: isWorkwear,
+        p_is_workwear: false,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -617,14 +658,14 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveRoute = async (routeId, name, serviceRules, isWorkwear) => {
+  const handleSaveRoute = async (routeId, name, serviceRules) => {
     try {
       const { data, error } = await supabase.rpc('admin_update_route_with_service_rules', {
         p_session_token: sessionToken,
         p_route_id: routeId,
         p_name: name,
         p_rules: normalizeServiceRules(serviceRules),
-        p_is_workwear: isWorkwear,
+        p_is_workwear: false,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -682,7 +723,7 @@ export default function ClientsRoutesView() {
 
   // ---- Client actions ----
 
-  const handleAddClient = async (name, routeId, scheduleMode, serviceRules) => {
+  const handleAddClient = async (name, routeId, scheduleMode, serviceRules, laundryCategories) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
     if (duplicate) { toastWarn(t('clients.clientExists')); return; }
     try {
@@ -692,6 +733,7 @@ export default function ClientsRoutesView() {
         p_route_id: routeId,
         p_mode: scheduleMode,
         p_rules: scheduleMode === 'custom' ? normalizeServiceRules(serviceRules) : [],
+        p_laundry_categories: normalizeLaundryCategories(laundryCategories, []),
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -703,7 +745,16 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveClient = async ({ id, name, routeId, lat, lng, scheduleMode, serviceRules }) => {
+  const handleSaveClient = async ({
+    id,
+    name,
+    routeId,
+    lat,
+    lng,
+    scheduleMode,
+    serviceRules,
+    laundryCategories,
+  }) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
     if (duplicate) { toastWarn(t('clients.clientExists')); return; }
 
@@ -721,6 +772,7 @@ export default function ClientsRoutesView() {
         p_lng: !isNaN(parsedLng) ? parsedLng : null,
         p_mode: scheduleMode,
         p_rules: scheduleMode === 'custom' ? normalizeServiceRules(serviceRules) : [],
+        p_laundry_categories: normalizeLaundryCategories(laundryCategories, []),
       });
       if (clientErr) throw clientErr;
       if (data?.error) throw new Error(data.error);

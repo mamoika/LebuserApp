@@ -35,6 +35,10 @@ _Unikaj_: Grafik klienta, harmonogram wpisów
 Jedna powtarzalna zasada planu obsługi klienta, wskazująca dzień tygodnia, częstotliwość oraz tydzień początkowy cyklu.
 _Unikaj_: Termin klienta
 
+**Oferta prania klienta**:
+Zestaw rodzajów prania obsługiwanych w konkretnym punkcie klienta: pościel, obrusy, frotte lub odzież. Nie jest właściwością trasy, a pusty zestaw oznacza brak nowych odbiorów prania.
+_Unikaj_: Typ trasy, Trasa odzieżowa
+
 **Zarchiwizowany punkt klienta**:
 Punkt wyłączony z bieżących tras i nowych planów, którego wcześniejsze wpisy oraz historia pozostają dostępne.
 _Unikaj_: Usunięty klient

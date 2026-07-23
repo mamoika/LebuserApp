@@ -39,3 +39,9 @@ test('inherited route schedule is not repeated on every client row', () => {
 test('route header does not repeat its service days in a badge', () => {
   assert.doesNotMatch(routeHeaderSource, /client-service-badge/);
 });
+
+test('laundry offer is configured on clients instead of routes', () => {
+  assert.doesNotMatch(componentSource, /Trasa dla Odzieży Roboczej|setIsWorkwear/);
+  assert.match(componentSource, /function LaundryCategoryPicker/);
+  assert.match(componentSource, /p_laundry_categories:/);
+});

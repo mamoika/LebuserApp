@@ -381,7 +381,7 @@ export default function TripCourseStops({
               <strong>{stop.client_name}</strong>
               {meta.isUrgent && <UrgentChip />}
               {meta.kg > 0 && <span className="kg-badge">{meta.kg} kg</span>}
-              <LaundryTypeChip hasP={meta.hasP} hasO={meta.hasO} hasR={meta.hasR} />
+              <LaundryTypeChip hasP={meta.hasP} hasO={meta.hasO} hasF={meta.hasF} hasR={meta.hasR} />
               <a className="driver-nav-btn live-stop-nav" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer" aria-label="Nawiguj">
                 <Navigation2 size={14} />
               </a>

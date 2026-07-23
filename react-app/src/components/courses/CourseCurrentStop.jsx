@@ -126,6 +126,7 @@ export default function CourseCurrentStop({
   const dirtyTypes = useMemo(() => ({
     hasP: dirtyToday.some(entry => (entry.type || 'P') === 'P'),
     hasO: dirtyToday.some(entry => entry.type === 'O'),
+    hasF: dirtyToday.some(entry => entry.type === 'F'),
     hasR: dirtyToday.some(entry => entry.type === 'R'),
   }), [dirtyToday]);
 

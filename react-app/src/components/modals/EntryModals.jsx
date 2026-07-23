@@ -7,6 +7,12 @@ import { dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
+import {
+  LAUNDRY_CATEGORIES,
+  firstAllowedLaundryType,
+  laundryCategoriesForClient,
+  laundryTypeLabel,
+} from '../../lib/laundryCategories';
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
 import '../mockups/mockups.css';
 
@@ -140,7 +146,7 @@ function buildEditDiff(entry, updates, routes, t) {
   const dayLabel = v => days[v - 1] || '?';
   const fields = [
     { key: 'client_name',  label: t('entry.diffClient'),     fmt: v => (v ?? '') === '' ? '—' : String(v) },
-    { key: 'type',         label: t('entry.diffType'),       fmt: v => v === 'O' ? t('entry.tablecloths') : (v === 'R' ? t('entry.workwear') : t('entry.sheets')) },
+    { key: 'type',         label: t('entry.diffType'),       fmt: v => laundryTypeLabel(v, t) },
     { key: 'weight',       label: t('entry.diffWeight'),     fmt: v => (v === null || v === undefined || v === '') ? '—' : `${v} kg` },
     { key: 'arr_day',      label: t('entry.diffArrival'),    fmt: dayLabel },
     { key: 'pick_day',     label: t('entry.diffPickup'),     fmt: dayLabel },
@@ -160,9 +166,42 @@ function buildEditDiff(entry, updates, routes, t) {
   return changes;
 }
 
-function isWorkwearRoute(routes, routeId) {
-  const route = (routes || []).find(r => r.id === routeId);
-  return route?.is_workwear === true;
+function LaundryTypeSelector({
+  client,
+  routes,
+  value,
+  onChange,
+  includeCurrent = false,
+}) {
+  const { t } = useTranslation();
+  const enabled = laundryCategoriesForClient(client, routes);
+  const visible = LAUNDRY_CATEGORIES.filter(category => (
+    enabled.includes(category.code)
+    || (includeCurrent && category.code === value)
+  ));
+
+  if (visible.length === 0) {
+    return (
+      <div className="service-schedule-disabled" style={{ marginBottom: '12px' }}>
+        {t('clients.laundryOffer.none')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="segmented-control" style={{ marginBottom: '12px' }}>
+      {visible.map(category => (
+        <button
+          type="button"
+          key={category.code}
+          className={`seg-btn type-${category.code} ${value === category.code ? 'active' : ''}`}
+          onClick={() => onChange(category.code)}
+        >
+          {t(category.translationKey)}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function receiptDate(weekKey, day) {
@@ -571,7 +610,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, resolvedWeekKey, clients, routes, name);
     setPickDay(pd);
     setPickWeek(pw);
-    setType(isWorkwearRoute(routes, selectedClient?.route_id) ? 'R' : 'P');
+    setType(firstAllowedLaundryType(selectedClient, routes) || '');
   };
 
   useEffect(() => {
@@ -584,7 +623,6 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       }
       if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
       const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(day, resolvedWeekKey, clients, routes, initClient?.name);
-      const isWorkwear = isWorkwearRoute(routes, initClient?.route_id);
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
@@ -593,7 +631,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setClientQuery(initClient?.name || '');
       setClientListOpen(false);
       setWeight('');
-      setType(isWorkwear ? 'R' : (defaultType || 'P'));
+      setType(firstAllowedLaundryType(initClient, routes, defaultType) || '');
       setTrolleyMode('trolley');
       setSelectedTrolleys([]);
       setUrgent(false);
@@ -611,7 +649,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, resolvedWeekKey, clients, routes, nextClient?.name);
       setPickDay(pd);
       setPickWeek(pw);
-      setType(isWorkwearRoute(routes, nextClient?.route_id) ? 'R' : 'P');
+      setType(firstAllowedLaundryType(nextClient, routes) || '');
     }
   }, [isOpen, showOtherRoutes, selectableClients, routes, clients, clientName, arrDay, defaultClientName]);
 
@@ -622,6 +660,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setLoading(true);
       const client = clients.find(c => c.name === clientName);
       if (!client) throw new Error(t('entry.selectClient'));
+      if (!laundryCategoriesForClient(client, routes).includes(type)) {
+        throw new Error(t('entry.noLaundryTypeEnabled'));
+      }
       if (trolleyMode === 'trolley' && selectedTrolleys.length === 0) {
         throw new Error(t('entry.trolleyRequired'));
       }
@@ -654,7 +695,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const trolleyLabel = trolleyData.arrival_trolley_nos || t('entry.trolleyNoneShort');
-      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${type === 'R' ? t('entry.workwear') : type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${weight ? ', ' + weight + ' kg' : ''}, ${t('entry.trolleys')}: ${trolleyLabel}` });
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${laundryTypeLabel(type, t)}${weight ? ', ' + weight + ' kg' : ''}, ${t('entry.trolleys')}: ${trolleyLabel}` });
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys: trolleyData.trolleys, arrival_trolley_nos: trolleyData.arrival_trolley_nos });
       onClose();
     } catch (err) {
@@ -770,16 +811,12 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           )}
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
-          {isWorkwearRoute(routes, clients.find(c => c.name === clientName)?.route_id) ? (
-            <div className="segmented-control" style={{ marginBottom: '12px' }}>
-              <button type="button" className={`seg-btn type-R active`}>{t('entry.workwear')}</button>
-            </div>
-          ) : (
-            <div className="segmented-control" style={{ marginBottom: '12px' }}>
-              <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
-              <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
-            </div>
-          )}
+          <LaundryTypeSelector
+            client={clients.find(c => c.name === clientName)}
+            routes={routes}
+            value={type}
+            onChange={setType}
+          />
 
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weightOptional')}</div>
           <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
@@ -835,7 +872,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           </label>
 
           <div className="ap-btn-group" style={{ marginTop: '18px' }}>
-            <button className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? t('entry.adding') : t('entry.add')}</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading || !type}>{loading ? t('entry.adding') : t('entry.add')}</button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>{t('common.cancel')}</button>
           </div>
         </div>
@@ -905,15 +942,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const pickedByNames = [...new Set(pickupEntries.map(e => e.picked_by).filter(Boolean))];
   const daysFull = dayNamesFull();
   const pickupArrivalDays = [...new Set(pickupEntries.map(e => daysFull[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
-  const hasPickupSheets = pickupEntries.some(e => (e.type || 'P') === 'P');
-  const hasPickupTablecloths = pickupEntries.some(e => e.type === 'O');
-  const hasPickupWorkwear = pickupEntries.some(e => e.type === 'R');
-  const pickupTypeLabel = hasPickupWorkwear ? t('entry.workwear') :
-    (hasPickupSheets && hasPickupTablecloths
-      ? t('entry.sheetsTablecloths')
-      : hasPickupTablecloths
-        ? t('entry.tablecloths')
-        : t('entry.sheets'));
+  const pickupTypes = [...new Set(pickupEntries.map(item => item.type || 'P'))];
+  const pickupTypeLabel = pickupTypes.map(item => laundryTypeLabel(item, t)).join(' + ');
   const directEditMode = contextMode === 'arr' && initiallyEditing;
   const showEditForm = canEdit && (editing || directEditMode);
   const selectedClientDetails = (clients || []).find(c => c.name === entry.client_name);
@@ -1044,7 +1074,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, targetEntry.week_key, clients, routes, name);
       setPickDay(pd);
       setPickWeek(pw);
-      setType(isWorkwearRoute(routes, selected.route_id) ? 'R' : 'P');
+      setType(firstAllowedLaundryType(selected, routes) || '');
     }
   };
 
@@ -1106,7 +1136,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         action: next ? 'washed' : 'unwashed',
         clientName: targetEntry.client_name,
         entryId: targetEntry.id,
-        details: `${targetEntry.type === 'R' ? t('entry.workwear') : targetEntry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}${targetEntry.weight ? ', ' + targetEntry.weight + ' kg' : ''}`,
+        details: `${laundryTypeLabel(targetEntry.type, t)}${targetEntry.weight ? ', ' + targetEntry.weight + ' kg' : ''}`,
       });
       onUpdated();
       onClose();
@@ -1119,6 +1149,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     const handleSaveEdit = async () => {
     try {
       setLoading(true);
+      if (!type) {
+        throw new Error(t('entry.noLaundryTypeEnabled'));
+      }
       if (trolleyMode === 'trolley' && selectedTrolleys.length === 0) {
         throw new Error(t('entry.trolleyRequired'));
       }
@@ -1219,7 +1252,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         clientName: targetEntry.client_name,
         entryId: targetEntry.id,
         details: t('entry.logDeletedDetails', {
-          type: targetEntry.type === 'R' ? t('entry.workwear') : targetEntry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets'),
+          type: laundryTypeLabel(targetEntry.type, t),
           arrival: daysFull[targetEntry.arr_day - 1] || '?',
           pickup: daysFull[targetEntry.pick_day - 1] || '?',
           weight: targetEntry.weight ?? '—',
@@ -1403,16 +1436,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             )}
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
-            {isWorkwearRoute(routes, clients.find(c => c.name === clientName)?.route_id || routeId) ? (
-              <div className="segmented-control" style={{ marginBottom: '14px' }}>
-                <button type="button" className={`seg-btn type-R active`}>{t('entry.workwear')}</button>
-              </div>
-            ) : (
-              <div className="segmented-control" style={{ marginBottom: '14px' }}>
-                <button type="button" className={`seg-btn type-P ${type === 'P' ? 'active' : ''}`} onClick={() => setType('P')}>{t('entry.sheets')}</button>
-                <button type="button" className={`seg-btn type-O ${type === 'O' ? 'active' : ''}`} onClick={() => setType('O')}>{t('entry.tablecloths')}</button>
-              </div>
-            )}
+            <LaundryTypeSelector
+              client={clients.find(c => c.name === clientName)}
+              routes={routes}
+              value={type}
+              onChange={setType}
+              includeCurrent
+            />
 
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weight')}</div>
             <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
@@ -1489,7 +1519,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <input type="text" className="ap-input" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: '18px' }} />
 
             <div className="ap-btn-group">
-              <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading}>{t('entry.save')}</button>
+              <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading || !type}>{t('entry.save')}</button>
               <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>{t('common.cancel')}</button>
             </div>
           </div>
@@ -1516,7 +1546,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
           <ROW label={t('entry.status')} value={allPickupDone ? t('entry.pickedUpCheck') : t('entry.inProgress')} valueColor={allPickupDone ? 'var(--accent-green)' : undefined} />
           <ROW label={t('entry.view')} value={isPickupContext ? t('entry.pickup') : contextMode === 'arr' ? t('entry.arrival') : t('entry.viewDetails')} valueColor={isPickupContext ? 'var(--accent-green)' : undefined} />
-          <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : entry.type === 'R' ? t('entry.workwear') : entry.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')} />
+          <ROW label={t('entry.kind')} value={isPickupContext ? pickupTypeLabel : laundryTypeLabel(entry.type, t)} />
           <ROW
             label={t('entry.weight')}
             value={isPickupContext
@@ -1567,7 +1597,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                       {daysFull[item.arr_day - 1]}
                       <span style={{ color: 'var(--text-tertiary)', fontWeight: 550 }}> · {item.added_by || '—'}</span>
                     </span>
-                    <span>{item.type === 'R' ? t('entry.workwear') : item.type === 'O' ? t('entry.tablecloths') : t('entry.sheets')}</span>
+                    <span>{laundryTypeLabel(item.type, t)}</span>
                     <span>{item.weight ? `${item.weight} kg` : '—'}</span>
                   </div>
                 ))}
