@@ -5304,8 +5304,8 @@ select.ap-input {
     width:100%;
     height:auto;
     min-height:45mm;
-    gap:1mm;
-    padding:2mm;
+    gap:1.5mm;
+    padding:2.5mm;
     border:.3mm solid #cbd5e1 !important;
     border-top:.8mm solid var(--route-color) !important;
     border-radius:2.5mm;
@@ -5315,19 +5315,19 @@ select.ap-input {
     break-inside: avoid;
   }
   .clients-routes-view .route-card-header {
-    gap:1.5mm;
-    margin:-2mm -2mm 1mm;
-    padding:1.8mm 2mm;
+    gap:1.8mm;
+    margin:-2.5mm -2.5mm 1.5mm;
+    padding:2.5mm;
     border-radius:1.6mm 1.6mm 0 0;
   }
   .clients-routes-view .route-card-heading .route-title {
-    font-size:9pt;
+    font-size:11pt;
     line-height:1.1;
   }
   .clients-routes-view .route-id-badge {
-    padding:.7mm 1.2mm;
+    padding:1mm 1.5mm;
     border-radius:1.2mm;
-    font-size:7pt;
+    font-size:8.5pt;
     box-shadow:none;
   }
   .clients-routes-view .route-card-controls {
@@ -5337,9 +5337,9 @@ select.ap-input {
   .clients-routes-view .route-service-summary {
     min-height:0;
     gap:1mm;
-    padding:.7mm 1.4mm;
+    padding:1mm 1.6mm;
     border-radius:10mm;
-    font-size:7pt;
+    font-size:8.5pt;
     box-shadow:none;
   }
   .clients-routes-view .route-service-summary::before {
@@ -5349,13 +5349,13 @@ select.ap-input {
   }
   .clients-routes-view .sortable-list {
     min-height:0 !important;
-    gap:.5mm;
+    gap:.8mm;
   }
   .clients-routes-view .tag-client {
     min-height:0;
     margin:0;
     gap:0;
-    padding:1mm 1.2mm;
+    padding:3.1mm 1.5mm;
     border-radius:1.4mm;
     box-shadow: none !important;
     border-color:#d7dce3;
@@ -5376,8 +5376,9 @@ select.ap-input {
     overflow:visible;
     text-overflow:clip;
     white-space:normal;
-    font-size:8pt;
-    line-height:1.15;
+    overflow-wrap:anywhere;
+    font-size:10.5pt;
+    line-height:1.2;
   }
   .clients-routes-view .client-service-badge {
     max-width:100%;
@@ -5387,45 +5388,54 @@ select.ap-input {
     font-size:6pt;
   }
   .clients-routes-view .client-order {
-    min-width:4mm;
-    width:4mm;
-    height:4mm;
+    min-width:5.5mm;
+    width:5.5mm;
+    height:5.5mm;
     margin-right:1mm;
     border-color:#cbd5e1;
     border-radius:1mm;
     background:#f8fafc;
-    font-size:6.5pt;
+    font-size:7.5pt;
   }
   .clients-routes-view .gps-dot {
-    width:1.6mm;
-    height:1.6mm;
+    width:2mm;
+    height:2mm;
     margin:0;
     animation:none;
     box-shadow:none;
   }
-  .clients-routes-view .route-card.is-print-dense .tag-client {
-    padding:.3mm .9mm;
+  .clients-routes-view .route-grid-page.is-print-dense .route-card {
+    gap:1mm;
   }
-  .clients-routes-view .route-card.is-print-dense .sortable-list {
+  .clients-routes-view .route-grid-page.is-print-dense .route-card-header {
+    padding:2mm 2.2mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-dense .sortable-list {
+    gap:.3mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-dense .tag-client {
+    padding:1.4mm 1.2mm;
+  }
+  .clients-routes-view .route-grid-page.is-print-dense .client-details .client-name {
+    font-size:9pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-dense .client-service-badge {
+    font-size:5.8pt;
+  }
+  .clients-routes-view .route-grid-page.is-print-extra-dense .sortable-list {
     gap:.2mm;
   }
-  .clients-routes-view .route-card.is-print-dense .client-details .client-name {
-    font-size:7pt;
+  .clients-routes-view .route-grid-page.is-print-extra-dense .tag-client {
+    padding:.5mm .9mm;
   }
-  .clients-routes-view .route-card.is-print-dense .client-service-badge {
-    font-size:5.5pt;
+  .clients-routes-view .route-grid-page.is-print-extra-dense .client-details .client-name {
+    font-size:7.2pt;
   }
-  .clients-routes-view .route-card.is-print-extra-dense .tag-client {
-    padding:.25mm .8mm;
-  }
-  .clients-routes-view .route-card.is-print-extra-dense .client-details .client-name {
-    font-size:6.3pt;
-  }
-  .clients-routes-view .route-card.is-print-extra-dense .client-order {
-    min-width:3.3mm;
-    width:3.3mm;
-    height:3.3mm;
-    font-size:5.8pt;
+  .clients-routes-view .route-grid-page.is-print-extra-dense .client-order {
+    min-width:3.7mm;
+    width:3.7mm;
+    height:3.7mm;
+    font-size:6pt;
   }
 }
 

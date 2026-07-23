@@ -1056,7 +1056,7 @@ export default function ClientsRoutesView() {
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeClients.length > 15 ? 'is-print-dense' : ''} ${routeClients.length > 26 ? 'is-print-extra-dense' : ''} ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
+        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
@@ -1277,17 +1277,27 @@ export default function ClientsRoutesView() {
 
         <div className="clients-route-grid-scroll">
           <div className={`grid clients-route-grid ${draggingRouteId ? 'is-route-dragging' : ''}`}>
-            {routeGridPages.map((pageSlots, pageIndex) => (
-              <div
-                className={`route-grid-page ${pageSlots.some(slot => slot.route) ? '' : 'is-print-empty'} ${pageIndex === lastPrintableRoutePageIndex ? 'is-last-print-page' : ''}`}
-                key={`route-grid-page-${pageIndex + 1}`}
-                style={{
-                  '--print-route-count': Math.max(
-                    1,
-                    pageSlots.filter(slot => slot.route).length,
-                  ),
-                }}
-              >
+            {routeGridPages.map((pageSlots, pageIndex) => {
+              const maxClientsOnPage = pageSlots.reduce((maxCount, slot) => {
+                if (!slot.route) return maxCount;
+                const routeClientCount = localClients.filter(
+                  client => client.route_id === slot.route.id,
+                ).length;
+                return Math.max(maxCount, routeClientCount);
+              }, 0);
+
+              return (
+                <div
+                  className={`route-grid-page ${maxClientsOnPage > 18 ? 'is-print-dense' : ''} ${maxClientsOnPage > 26 ? 'is-print-extra-dense' : ''} ${pageSlots.some(slot => slot.route) ? '' : 'is-print-empty'} ${pageIndex === lastPrintableRoutePageIndex ? 'is-last-print-page' : ''}`}
+                  key={`route-grid-page-${pageIndex + 1}`}
+                  style={{
+                    '--print-route-count': Math.max(
+                      1,
+                      pageSlots.filter(slot => slot.route).length,
+                    ),
+                    '--print-max-client-count': maxClientsOnPage,
+                  }}
+                >
                 <div className="route-print-header">
                   <div className="route-print-brand">
                     <strong>LEBUSER App</strong>
@@ -1335,8 +1345,9 @@ export default function ClientsRoutesView() {
                       )}
                   </div>
                 ))}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

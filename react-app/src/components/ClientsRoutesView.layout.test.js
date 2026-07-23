@@ -75,7 +75,7 @@ test('routes render in a four-column visual grid without legacy schedule groups'
   );
   assert.match(
     componentSource,
-    /className=\{`grid clients-route-grid[\s\S]*?routeGridPages\.map\(\(pageSlots, pageIndex\) => \([\s\S]*?pageSlots\.map\(slot => \(/,
+    /className=\{`grid clients-route-grid[\s\S]*?routeGridPages\.map\(\(pageSlots, pageIndex\) => \{[\s\S]*?pageSlots\.map\(slot => \(/,
   );
   assert.match(
     routeGridStyle,
@@ -103,8 +103,15 @@ test('route printout uses one four-route row per portrait A4 page', () => {
   assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
   assert.match(componentSource, /className="route-print-header"[\s\S]*?LEBUSER App[\s\S]*?window\.location\.href/);
   assert.match(componentSource, /Data:[\s\S]*?Wydrukował:/);
+  assert.match(componentSource, /const maxClientsOnPage = pageSlots\.reduce/);
+  assert.match(componentSource, /maxClientsOnPage > 18 \? 'is-print-dense'/);
+  assert.match(componentSource, /maxClientsOnPage > 26 \? 'is-print-extra-dense'/);
   assert.match(stylesSource, /\.route-grid-slot\.is-print-empty-slot\s*\{[\s\S]*?display:\s*none/);
   assert.match(stylesSource, /\.clients-routes-view \.route-card\s*\{[\s\S]*?height:\s*auto[\s\S]*?min-height:\s*45mm/);
+  assert.match(
+    stylesSource,
+    /\.clients-routes-view \.route-grid-page\.is-print-dense \.tag-client\s*\{[\s\S]*?padding:\s*1\.4mm 1\.2mm/,
+  );
   assert.match(
     stylesSource,
     /\.clients-routes-view \.client-details\s*\{[\s\S]*?overflow:\s*hidden[\s\S]*?flex-direction:\s*column/,
