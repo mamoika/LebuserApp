@@ -373,13 +373,9 @@
     "schedule": { "daily": "Codziennie (Pn–Pt)", "mwf": "Pn – Śr – Pt", "tth": "Wt – Czw", "other": "Pozostałe" },
     "groups": { "daily": "Trasy codzienne (Pn–Pt)", "mwf": "Trasy Pn – Śr – Pt", "tth": "Trasy Wt – Czw", "other": "Pozostałe trasy" },
     "layout": {
-      "edit": "Edytuj układ",
-      "finish": "Zakończ układ",
-      "hint": "Wybierz trasę, a potem pole docelowe. Zajęte pola zamienią się miejscami",
       "empty": "Wolne pole",
-      "emptySlot": "Przenieś wybraną trasę na pole {{position}}",
-      "select": "Wybierz trasę {{name}} z pola {{position}}",
-      "deselect": "Odznacz trasę {{name}}"
+      "emptySlot": "Upuść trasę na wolne pole {{position}}",
+      "dragHandle": "Przeciągnij trasę {{name}} w inne miejsce"
     },
     "laundryOffer": {
       "title": "Rodzaje prania klienta",
@@ -460,7 +456,7 @@
     "noGps": "brak GPS",
     "edit": "Edytuj",
     "addClientBtn": "+ dodaj klienta",
-    "dragHint": "☰ Przeciągaj klientów między trasami · strzałki zmieniają numer T",
+    "dragHint": "⠿ Przeciągaj trasy, aby ustawić układ · klientów przeciągaj między trasami · strzałki zmieniają tylko numer T",
     "moveUp": "Nadaj poprzedni numer trasy",
     "moveDown": "Nadaj następny numer trasy",
     "errAddRoute": "Błąd dodawania trasy:",

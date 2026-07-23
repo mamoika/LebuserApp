@@ -46,6 +46,10 @@ test('route header keeps service days on one line with number and edit controls'
     /compactServiceScheduleSummary\([\s\S]*?effectiveRouteServiceRules\(route\),[\s\S]*?t,[\s\S]*?\)/,
   );
   assert.doesNotMatch(routeHeaderSource, /client-service-badge/);
+  assert.match(
+    stylesSource,
+    /\.route-header-actions\s*\{[\s\S]*?margin-left:\s*auto/,
+  );
 });
 
 test('routes render in a four-column visual grid without legacy schedule groups', () => {
@@ -55,7 +59,7 @@ test('routes render in a four-column visual grid without legacy schedule groups'
   );
   assert.match(
     componentSource,
-    /className="grid clients-route-grid"[\s\S]*?routeGridSlots\.map\(slot => \(/,
+    /className=\{`grid clients-route-grid[\s\S]*?routeGridSlots\.map\(slot => \(/,
   );
   assert.match(
     routeGridStyle,
@@ -91,6 +95,20 @@ test('route numbering and visual card positions use separate persistence actions
   assert.match(componentSource, /admin_move_route_card/);
   assert.match(componentSource, /moveRouteToGridPosition/);
   assert.match(componentSource, /p_target_position:\s*targetPosition/);
+});
+
+test('route cards are arranged by direct drag and drop without a layout selection mode', () => {
+  assert.match(
+    componentSource,
+    /className="route-card-drag-handle"[\s\S]*?draggable=\{!savingLayout\}[\s\S]*?onDragStart=/,
+  );
+  assert.match(
+    componentSource,
+    /className=\{`route-grid-slot[\s\S]*?onDragOver=\{event => handleRouteDragOver\(event, slot\.position\)\}[\s\S]*?onDrop=\{event => handleRouteDrop\(event, slot\.position\)\}/,
+  );
+  assert.match(componentSource, /moveRouteCard\(draggedRoute\.id, position\)/);
+  assert.doesNotMatch(componentSource, /layoutEditing|selectedLayoutRouteId|toggleLayoutEditing/);
+  assert.doesNotMatch(componentSource, /clients\.layout\.edit|clients\.layout\.finish/);
 });
 
 test('laundry offer is configured on clients instead of routes', () => {

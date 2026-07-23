@@ -9,10 +9,9 @@ import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 import {
   Archive,
-  Check,
   ChevronLeft,
   ChevronRight,
-  LayoutGrid,
+  GripVertical,
   Pencil,
   Printer,
   RotateCcw,
@@ -594,8 +593,8 @@ export default function ClientsRoutesView() {
   const [localClients, setLocalClients] = useState([]);
   const [localRoutes, setLocalRoutes] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
-  const [layoutEditing, setLayoutEditing] = useState(false);
-  const [selectedLayoutRouteId, setSelectedLayoutRouteId] = useState(null);
+  const [draggingRouteId, setDraggingRouteId] = useState(null);
+  const [routeDropPosition, setRouteDropPosition] = useState(null);
   const [savingLayout, setSavingLayout] = useState(false);
 
   const [addRouteOpen, setAddRouteOpen] = useState(false);
@@ -742,32 +741,28 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const moveRouteCard = async targetPosition => {
-    if (!selectedLayoutRouteId || savingLayout) return;
+  const moveRouteCard = async (routeId, targetPosition) => {
+    if (!routeId || savingLayout) return;
 
-    const selectedRoute = localRoutes.find(route => route.id === selectedLayoutRouteId);
+    const selectedRoute = localRoutes.find(route => route.id === routeId);
     const selectedSlot = buildRouteGridSlots(localRoutes)
-      .find(slot => slot.route?.id === selectedLayoutRouteId);
+      .find(slot => slot.route?.id === routeId);
     if (!selectedRoute || !selectedSlot) return;
-    if (selectedSlot.position === targetPosition) {
-      setSelectedLayoutRouteId(null);
-      return;
-    }
+    if (selectedSlot.position === targetPosition) return;
 
     const previousRoutes = localRoutes;
     const nextRoutes = moveRouteToGridPosition(
       localRoutes,
-      selectedLayoutRouteId,
+      routeId,
       targetPosition,
     );
     setLocalRoutes(nextRoutes);
-    setSelectedLayoutRouteId(null);
     setSavingLayout(true);
 
     try {
       const { data, error } = await supabase.rpc('admin_move_route_card', {
         p_session_token: sessionToken,
-        p_route_id: selectedLayoutRouteId,
+        p_route_id: routeId,
         p_target_position: targetPosition,
       });
       if (error) throw error;
@@ -782,22 +777,36 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleRouteGridSlot = (position, route) => {
-    if (!layoutEditing || savingLayout) return;
-    if (!selectedLayoutRouteId) {
-      if (route) setSelectedLayoutRouteId(route.id);
-      return;
-    }
-    if (route?.id === selectedLayoutRouteId) {
-      setSelectedLayoutRouteId(null);
-      return;
-    }
-    moveRouteCard(position);
+  const clearRouteDrag = () => {
+    setDraggingRouteId(null);
+    setRouteDropPosition(null);
   };
 
-  const toggleLayoutEditing = () => {
-    setLayoutEditing(current => !current);
-    setSelectedLayoutRouteId(null);
+  const handleRouteDragStart = (event, routeId) => {
+    if (!isAdmin || savingLayout) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(routeId));
+    setDraggingRouteId(routeId);
+  };
+
+  const handleRouteDragOver = (event, position) => {
+    if (!draggingRouteId || savingLayout) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setRouteDropPosition(position);
+  };
+
+  const handleRouteDrop = (event, position) => {
+    event.preventDefault();
+    const transferredRouteId = event.dataTransfer.getData('text/plain');
+    const draggedRoute = localRoutes.find(route =>
+      String(route.id) === String(draggingRouteId || transferredRouteId)
+    );
+    clearRouteDrag();
+    if (draggedRoute) moveRouteCard(draggedRoute.id, position);
   };
 
   // ---- Client actions ----
@@ -1015,7 +1024,7 @@ export default function ClientsRoutesView() {
   const sortedRoutes = [...localRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const routeGridSlots = buildRouteGridSlots(localRoutes);
 
-  const renderRouteCol = (route, gridPosition) => {
+  const renderRouteCol = route => {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
@@ -1030,7 +1039,7 @@ export default function ClientsRoutesView() {
     return (
       <div
         key={route.id}
-        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${layoutEditing ? 'is-layout-editing' : ''} ${selectedLayoutRouteId === route.id ? 'is-layout-selected' : ''}`}
+        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
         style={{
           borderTopColor: routeColor,
           borderColor: routeHasSearchMatch ? 'var(--accent)' : isOwnRoute ? routeColor : undefined,
@@ -1039,6 +1048,20 @@ export default function ClientsRoutesView() {
         }}
       >
         <div className="col-header route-card-header">
+          {isAdmin && (
+            <span
+              className="route-card-drag-handle"
+              draggable={!savingLayout}
+              onDragStart={event => handleRouteDragStart(event, route.id)}
+              onDragEnd={clearRouteDrag}
+              title={t('clients.layout.dragHandle', { name: route.name })}
+              aria-label={t('clients.layout.dragHandle', { name: route.name })}
+              role="button"
+              tabIndex={0}
+            >
+              <GripVertical size={16} aria-hidden="true" />
+            </span>
+          )}
           <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
 
           <div className="route-card-heading">
@@ -1117,7 +1140,7 @@ export default function ClientsRoutesView() {
                 routeClients.map((client, index) => {
                   const clientRules = effectiveServiceRules(client, routes);
                   return (
-                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin || layoutEditing}>
+                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
                     {(provided, snapshot) => (
                       <div
                         ref={(node) => {
@@ -1175,18 +1198,6 @@ export default function ClientsRoutesView() {
         {isAdmin && (
           <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>{t('clients.addClientBtn')}</button>
         )}
-        {layoutEditing && (
-          <button
-            type="button"
-            className="route-layout-card-target"
-            onClick={() => handleRouteGridSlot(gridPosition, route)}
-            aria-label={selectedLayoutRouteId === route.id
-              ? t('clients.layout.deselect', { name: route.name })
-              : t('clients.layout.select', { name: route.name, position: gridPosition })}
-          >
-            <span>{gridPosition}</span>
-          </button>
-        )}
       </div>
     );
   };
@@ -1231,16 +1242,6 @@ export default function ClientsRoutesView() {
             {isAdmin && (
               <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
-              <button
-                className={`add-route-btn ${layoutEditing ? 'active' : ''}`}
-                onClick={toggleLayoutEditing}
-                disabled={savingLayout}
-              >
-                {layoutEditing
-                  ? <Check size={15} aria-hidden="true" />
-                  : <LayoutGrid size={15} aria-hidden="true" />}
-                {layoutEditing ? t('clients.layout.finish') : t('clients.layout.edit')}
-              </button>
               <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
               <button className="add-route-btn" onClick={openClientArchive}>
                 <Archive size={15} aria-hidden="true" /> {t('clients.archive.open')}
@@ -1251,32 +1252,40 @@ export default function ClientsRoutesView() {
         </div>
 
         <div className="clients-hint print-hide" style={{ marginBottom: '16px' }}>
-          {isAdmin && !layoutEditing && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
-          {layoutEditing && <span>{t('clients.layout.hint')} &nbsp;·&nbsp;</span>}
+          {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>{t('clients.hasGps')}</span> &nbsp;·&nbsp;
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
         </div>
 
         <div className="clients-route-grid-scroll">
-          <div className="grid clients-route-grid">
+          <div className={`grid clients-route-grid ${draggingRouteId ? 'is-route-dragging' : ''}`}>
             {routeGridSlots.map(slot => (
-              slot.route
-                ? renderRouteCol(slot.route, slot.position)
-                : layoutEditing
-                  ? (
-                    <button
-                      type="button"
-                      key={`slot-${slot.position}`}
-                      className={`route-grid-empty-slot ${selectedLayoutRouteId ? 'is-target' : ''}`}
-                      onClick={() => handleRouteGridSlot(slot.position, null)}
-                      disabled={!selectedLayoutRouteId || savingLayout}
-                      aria-label={t('clients.layout.emptySlot', { position: slot.position })}
+              <div
+                key={`slot-${slot.position}`}
+                className={`route-grid-slot ${routeDropPosition === slot.position ? 'is-drop-target' : ''}`}
+                onDragEnter={event => handleRouteDragOver(event, slot.position)}
+                onDragOver={event => handleRouteDragOver(event, slot.position)}
+                onDrop={event => handleRouteDrop(event, slot.position)}
+              >
+                {slot.route
+                  ? renderRouteCol(slot.route)
+                  : (
+                    <div
+                      className="route-grid-spacer"
+                      aria-label={draggingRouteId
+                        ? t('clients.layout.emptySlot', { position: slot.position })
+                        : undefined}
+                      aria-hidden={!draggingRouteId}
                     >
-                      <span>{slot.position}</span>
-                      {t('clients.layout.empty')}
-                    </button>
-                  )
-                  : <div key={`slot-${slot.position}`} className="route-grid-spacer" aria-hidden="true" />
+                      {draggingRouteId && (
+                        <>
+                          <span>{slot.position}</span>
+                          {t('clients.layout.empty')}
+                        </>
+                      )}
+                    </div>
+                  )}
+              </div>
             ))}
           </div>
         </div>

@@ -371,13 +371,9 @@
     "schedule": { "daily": "Täglich (Mo–Fr)", "mwf": "Mo – Mi – Fr", "tth": "Di – Do", "other": "Sonstige" },
     "groups": { "daily": "Tägliche Routen (Mo–Fr)", "mwf": "Routen Mo – Mi – Fr", "tth": "Routen Di – Do", "other": "Sonstige Routen" },
     "layout": {
-      "edit": "Layout bearbeiten",
-      "finish": "Layout beenden",
-      "hint": "Route auswählen und dann das Zielfeld anklicken. Belegte Felder werden getauscht",
       "empty": "Freies Feld",
-      "emptySlot": "Ausgewählte Route auf Feld {{position}} verschieben",
-      "select": "Route {{name}} auf Feld {{position}} auswählen",
-      "deselect": "Route {{name}} abwählen"
+      "emptySlot": "Route auf dem freien Feld {{position}} ablegen",
+      "dragHandle": "Route {{name}} an eine andere Position ziehen"
     },
     "laundryOffer": {
       "title": "Wäschearten des Kunden",
@@ -458,7 +454,7 @@
     "noGps": "kein GPS",
     "edit": "Bearbeiten",
     "addClientBtn": "+ Kunde hinzufügen",
-    "dragHint": "☰ Kunden zwischen Routen ziehen · Pfeile ändern die T-Nummer",
+    "dragHint": "⠿ Routen ziehen, um das Layout festzulegen · Kunden zwischen Routen ziehen · Pfeile ändern nur die T-Nummer",
     "moveUp": "Vorherige Routennummer vergeben",
     "moveDown": "Nächste Routennummer vergeben",
     "errAddRoute": "Fehler beim Hinzufügen der Route:",
