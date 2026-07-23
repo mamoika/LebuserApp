@@ -10,7 +10,7 @@ const stylesSource = await readFile(
   new URL('../index.css', import.meta.url),
   'utf8',
 );
-const routeHeaderStart = componentSource.indexOf('<div className="col-header"');
+const routeHeaderStart = componentSource.indexOf('<div className="col-header route-card-header"');
 const routeHeaderEnd = componentSource.indexOf('<Droppable', routeHeaderStart);
 const routeHeaderSource = componentSource.slice(routeHeaderStart, routeHeaderEnd);
 
@@ -36,8 +36,25 @@ test('inherited route schedule is not repeated on every client row', () => {
   );
 });
 
-test('route header does not repeat its service days in a badge', () => {
+test('route header shows its service days below the route name without a client badge', () => {
+  assert.match(
+    routeHeaderSource,
+    /className="route-title"[\s\S]*?className="route-service-summary"/,
+  );
+  assert.match(
+    componentSource,
+    /serviceScheduleSummary\(effectiveRouteServiceRules\(route\), t\)/,
+  );
   assert.doesNotMatch(routeHeaderSource, /client-service-badge/);
+});
+
+test('routes render in one manually ordered grid without legacy schedule groups', () => {
+  assert.match(
+    componentSource,
+    /className="grid clients-route-grid"[\s\S]*?sortedRoutes\.map\(route => renderRouteCol\(route\)\)/,
+  );
+  assert.doesNotMatch(componentSource, /const groups = SCHEDULE_VALUES|clients\.groups\./);
+  assert.match(componentSource, /admin_reorder_routes/);
 });
 
 test('laundry offer is configured on clients instead of routes', () => {

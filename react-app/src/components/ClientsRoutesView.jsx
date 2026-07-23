@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
-import { Archive, Printer, RotateCcw } from 'lucide-react';
+import { Archive, ChevronLeft, ChevronRight, Pencil, Printer, RotateCcw } from 'lucide-react';
 import ServiceScheduleBuilder, { serviceScheduleSummary } from './ServiceScheduleBuilder';
 import {
   effectiveRouteServiceRules,
@@ -21,9 +21,6 @@ import {
   laundryCategoriesForClient,
   normalizeLaundryCategories,
 } from '../lib/laundryCategories';
-
-// Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
-const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -935,12 +932,6 @@ export default function ClientsRoutesView() {
 
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  const groups = SCHEDULE_VALUES.map(value => ({
-    value,
-    title: t(`clients.groups.${value}`),
-    routes: sortedRoutes.filter(r => (r.schedule || 'other') === value),
-  }));
-
   const renderRouteCol = (route) => {
     const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
@@ -949,6 +940,7 @@ export default function ClientsRoutesView() {
     const routeHasSearchMatch = hasClientSearch && routeClients.some(client => matchingClientIds.has(client.id));
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
+    const routeServiceSummary = serviceScheduleSummary(effectiveRouteServiceRules(route), t);
     return (
       <div
         key={route.id}
@@ -960,39 +952,63 @@ export default function ClientsRoutesView() {
           background: isOwnRoute ? `linear-gradient(180deg, ${routeColor}0f 0%, var(--bg-card) 32%)` : undefined,
         }}
       >
-        <div className="col-header" style={{ paddingBottom: '10px', marginBottom: '4px' }}>
+        <div className="col-header route-card-header">
           <span className="route-id-badge" style={{ background: routeColor }}>T{displayNum}</span>
 
-          <span
-            className="route-title"
-            style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default', marginLeft: '6px', flex: 1 }}
-            onDoubleClick={() => isAdmin && setEditRouteModal(route)}
-          >
-            {route.name}
-          </span>
-
-          {isOwnRoute && (
+          <div className="route-card-heading">
             <span
-              style={{
-                color: routeColor,
-                background: `${routeColor}18`,
-                border: `1px solid ${routeColor}55`,
-                borderRadius: '999px',
-                padding: '3px 8px',
-                fontSize: '10px',
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-              }}
+              className="route-title"
+              style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default' }}
+              onDoubleClick={() => isAdmin && setEditRouteModal(route)}
             >
-              {t('map.yourRoute')}
+              {route.name}
             </span>
-          )}
+            <span className="route-service-summary">{routeServiceSummary}</span>
+            {isOwnRoute && (
+              <span
+                className="route-own-badge"
+                style={{
+                  color: routeColor,
+                  background: `${routeColor}18`,
+                  borderColor: `${routeColor}55`,
+                }}
+              >
+                {t('map.yourRoute')}
+              </span>
+            )}
+          </div>
 
           {isAdmin && (
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-              <span className="edit-icon" onClick={() => moveRoute(route, -1)} title={t('clients.moveUp', 'W górę / W lewo')}>◀️</span>
-              <span className="edit-icon" onClick={() => moveRoute(route, 1)} title={t('clients.moveDown', 'W dół / W prawo')}>▶️</span>
-              <span className="edit-icon" onClick={() => setEditRouteModal(route)} title={t('clients.editRoute')}>✏️</span>
+            <div className="route-header-actions">
+              <button
+                type="button"
+                className="edit-icon route-order-button"
+                onClick={() => moveRoute(route, -1)}
+                title={t('clients.moveUp')}
+                aria-label={t('clients.moveUp')}
+                disabled={displayNum === 1}
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="edit-icon route-order-button"
+                onClick={() => moveRoute(route, 1)}
+                title={t('clients.moveDown')}
+                aria-label={t('clients.moveDown')}
+                disabled={displayNum === sortedRoutes.length}
+              >
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="edit-icon route-edit-button"
+                onClick={() => setEditRouteModal(route)}
+                title={t('clients.editRoute')}
+                aria-label={t('clients.editRoute')}
+              >
+                <Pencil size={13} aria-hidden="true" />
+              </button>
             </div>
           )}
         </div>
@@ -1128,17 +1144,9 @@ export default function ClientsRoutesView() {
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
         </div>
 
-        {groups.map((g, i) => {
-          if (g.routes.length === 0) return null;
-          return (
-            <div key={i} style={{ width: '100%' }}>
-              <div className="route-group-header">{g.title}</div>
-              <div className="grid" style={{ marginBottom: '8px' }}>
-                {g.routes.map(route => renderRouteCol(route))}
-              </div>
-            </div>
-          );
-        })}
+        <div className="grid clients-route-grid">
+          {sortedRoutes.map(route => renderRouteCol(route))}
+        </div>
       </div>
 
       {addRouteOpen && (
