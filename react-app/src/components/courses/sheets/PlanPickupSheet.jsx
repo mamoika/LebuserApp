@@ -4,6 +4,7 @@ import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { parseExtraClients, parseRouteIds, tripDateInfo, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
 import { formatWeekKey, operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
+import { effectiveServiceRules, nextServiceSlot } from '../../../lib/serviceSchedule';
 import { VEHICLES } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
 import ArrivalTrolleyPicker, { arrivalTrolleyPayload } from '../../modals/ArrivalTrolleyPicker';
@@ -60,14 +61,18 @@ export default function PlanPickupSheet({
   const firstClient = useMemo(() => [...clients].filter(client => client.route_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0], [clients]);
   const dates = workDateOptions();
 
-  const plannedPickupDateFor = useCallback((dirtyDate, routeId) => {
+  const plannedPickupDateFor = useCallback((dirtyDate, routeId, clientName) => {
     const dirty = tripDateInfo(dirtyDate);
     const schedule = sortedRoutes.find(route => Number(route.id) === Number(routeId))?.schedule || 'other';
-    const rule = defaultPickForSchedule(dirty.arrDay, schedule);
+    const client = clients.find(item => item.name === clientName);
+    const rule = (client
+      ? nextServiceSlot(effectiveServiceRules(client, routes), dirty.weekKey, dirty.arrDay)
+      : null) || defaultPickForSchedule(dirty.arrDay, schedule);
     const monday = parseMonday(rule.pickWeek ? nextWeekKey(dirty.weekKey) : dirty.weekKey);
-    monday.setDate(monday.getDate() + (rule.pickDay - 1));
+    if (rule.pickWeek > 1) monday.setDate(monday.getDate() + (rule.pickWeek - 1) * 7);
+    monday.setDate(monday.getDate() + rule.pickDay - 1);
     return ymd(monday);
-  }, [sortedRoutes]);
+  }, [clients, routes, sortedRoutes]);
 
   const [draft, setDraft] = useState(() => ({
     dirtyDate: dates[0]?.value || operationalYmd(),
@@ -86,8 +91,11 @@ export default function PlanPickupSheet({
 
   useEffect(() => {
     if (!draft.dirtyDate || !draft.routeId) return;
-    setDraft(current => ({ ...current, cleanDate: plannedPickupDateFor(current.dirtyDate, current.routeId) }));
-  }, [draft.dirtyDate, draft.routeId, plannedPickupDateFor]);
+    setDraft(current => ({
+      ...current,
+      cleanDate: plannedPickupDateFor(current.dirtyDate, current.routeId, current.clientName),
+    }));
+  }, [draft.clientName, draft.dirtyDate, draft.routeId, plannedPickupDateFor]);
 
   const setField = (field, value) => {
     setDraft(prev => {

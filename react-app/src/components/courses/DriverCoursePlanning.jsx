@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Package, PlayCircle, Plus,
+  CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Package, PlayCircle, Plus,
   RotateCcw, Truck, UserCheck, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -144,6 +144,13 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     ),
     [orderedStops],
   );
+  const scheduledStops = useMemo(
+    () => orderedStops.filter(stop =>
+      stop.status === 'pending'
+      && stop.stop_kind === 'scheduled'
+    ),
+    [orderedStops],
+  );
 
   const dirtyCandidates = useMemo(
     () => buildDirtyOnlyCandidates({ clients, stops, trip, cleanClients }),
@@ -169,8 +176,9 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     () => new Set([
       ...loadedGroups.map(group => group.client_name),
       ...dirtyStops.map(stop => stop.client_name),
+      ...scheduledStops.map(stop => stop.client_name),
     ]),
-    [loadedGroups, dirtyStops],
+    [loadedGroups, dirtyStops, scheduledStops],
   );
 
   const routeDisplay = useMemo(() => {
@@ -346,6 +354,32 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
           </div>
         </div>
       )}
+
+      <div className="driver-focus-card live-planning-section">
+        <h2 className="live-planning-section-title">
+          <CalendarClock size={16} aria-hidden="true" />
+          {t('course.planning.scheduledTitle')}
+        </h2>
+        <p className="live-planning-section-hint">{t('course.planning.scheduledHint')}</p>
+        {scheduledStops.length === 0 ? (
+          <div className="live-dirty-plan-empty">{t('course.planning.noScheduled')}</div>
+        ) : (
+          <div className="live-dirty-plan-list">
+            {scheduledStops.map(stop => (
+              <div className="live-dirty-plan-item" key={stop.id}>
+                <span className="live-dirty-plan-pin" aria-hidden="true"><CalendarClock size={16} /></span>
+                <div className="live-dirty-plan-copy">
+                  <strong>{stop.client_name}</strong>
+                  <span>
+                    <RouteChip routeId={stop.route_id} routeMap={routeMap} />
+                    {tripRouteIds.size > 0 && !tripRouteIds.has(stop.route_id) && t('course.planning.otherRouteStop')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="driver-focus-card live-planning-section">
         <h2 className="live-planning-section-title">

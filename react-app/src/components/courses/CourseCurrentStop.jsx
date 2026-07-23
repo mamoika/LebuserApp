@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
@@ -238,6 +238,7 @@ export default function CourseCurrentStop({
   const deliveryAt = clean.delivery.find(task => task.completed_at)?.completed_at;
   const canNavigate = stopHasNavLocation(stop);
   const displayNo = stopDisplayOrder(stop, clients);
+  const isScheduledVisit = stop.stop_kind === 'scheduled' && (stop.tasks || []).length === 0;
 
   return (
     <>
@@ -280,6 +281,16 @@ export default function CourseCurrentStop({
             )}
           </div>
         </header>
+
+        {isScheduledVisit && (
+          <div className="live-start-banner is-planned">
+            <CalendarClock size={20} aria-hidden="true" />
+            <div>
+              <strong>{t('course.currentStop.scheduledVisit')}</strong>
+              <span>{t('course.currentStop.scheduledVisitHint')}</span>
+            </div>
+          </div>
+        )}
 
         <div className="live-stop-tasks">
           {stop.stop_kind !== 'dirty_only' && clean.pendingPickup.length > 0 && (

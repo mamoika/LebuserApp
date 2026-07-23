@@ -2301,6 +2301,125 @@ html.phone-layout .hist-grid {
   color:var(--accent);
   font-weight:900;
 }
+.service-schedule-builder {
+  display:grid;
+  gap:12px;
+  margin:4px 0 16px;
+  padding:14px;
+  border:1px solid rgba(0,122,255,0.16);
+  border-radius:16px;
+  background:rgba(0,122,255,0.045);
+}
+.service-schedule-modes,
+.service-schedule-presets,
+.service-schedule-days {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+.service-schedule-modes button,
+.service-schedule-presets button,
+.service-schedule-days button {
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--bg-card);
+  color:var(--text-secondary);
+  padding:7px 11px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.service-schedule-modes button.active,
+.service-schedule-days button.active {
+  border-color:var(--accent);
+  background:var(--accent);
+  color:#fff;
+}
+.service-schedule-presets button {
+  border-color:rgba(0,122,255,0.2);
+  color:var(--accent);
+  background:rgba(0,122,255,0.07);
+}
+.service-schedule-inherited,
+.service-schedule-disabled,
+.service-schedule-empty {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:var(--bg-card);
+  color:var(--text-secondary);
+  font-size:12px;
+}
+.service-schedule-rules {
+  display:grid;
+  gap:9px;
+}
+.service-schedule-rule {
+  display:grid;
+  grid-template-columns:minmax(72px,.65fr) minmax(145px,1.35fr) minmax(145px,1fr);
+  gap:10px;
+  align-items:end;
+  padding:10px;
+  border-radius:12px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+}
+.service-schedule-rule > strong {
+  align-self:center;
+  color:var(--text-primary);
+  font-size:13px;
+}
+.service-schedule-rule label {
+  display:grid;
+  gap:4px;
+}
+.service-schedule-rule label > span,
+.service-schedule-preview > span {
+  color:var(--text-tertiary);
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+}
+.service-schedule-rule .ap-input {
+  margin:0;
+  padding:8px 9px;
+  min-height:36px;
+}
+.service-schedule-preview {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:baseline;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  font-size:12px;
+}
+.client-service-badge {
+  flex-shrink:0;
+  max-width:150px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  border-radius:999px;
+  padding:3px 7px;
+  background:rgba(0,122,255,0.08);
+  color:var(--accent);
+  font-size:9px;
+  font-weight:800;
+}
+@media (max-width:620px) {
+  .service-schedule-rule {
+    grid-template-columns:1fr;
+  }
+  .service-schedule-preview {
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
 .route-title {
   font-size:13px;
   font-weight:700;

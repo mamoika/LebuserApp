@@ -9,6 +9,13 @@ import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 import { getClientUsageStatus } from '../lib/readRpc';
 import { Printer } from 'lucide-react';
+import ServiceScheduleBuilder, { serviceScheduleSummary } from './ServiceScheduleBuilder';
+import {
+  effectiveRouteServiceRules,
+  effectiveServiceRules,
+  legacyScheduleRules,
+  normalizeServiceRules,
+} from '../lib/serviceSchedule';
 
 // Etykiety pobierane przez t(`clients.schedule.<value>`) / t(`clients.groups.<value>`).
 const SCHEDULE_VALUES = ['daily', 'mwf', 'tth', 'other'];
@@ -143,14 +150,14 @@ function DriverRoutesModal({ routes, onClose }) {
 function AddRouteModal({ onClose, onSave }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [schedule, setSchedule] = useState('daily');
+  const [serviceRules, setServiceRules] = useState(() => legacyScheduleRules('daily'));
   const [isWorkwear, setIsWorkwear] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || serviceRules.length === 0) return;
     setSaving(true);
-    await onSave(name.trim(), schedule, isWorkwear);
+    await onSave(name.trim(), serviceRules, isWorkwear);
     setSaving(false);
   };
 
@@ -175,10 +182,8 @@ function AddRouteModal({ onClose, onSave }) {
             autoFocus
           />
 
-          <div style={LABEL_STYLE}>{t('clients.scheduleLabel')}</div>
-          <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
-            {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
-          </select>
+          <div style={LABEL_STYLE}>{t('clients.servicePlan.routeDefault')}</div>
+          <ServiceScheduleBuilder rules={serviceRules} onRulesChange={setServiceRules} />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
             <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
@@ -186,7 +191,7 @@ function AddRouteModal({ onClose, onSave }) {
           </label>
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || serviceRules.length === 0}>
               {saving ? t('common.saving') : t('clients.addRoute')}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
@@ -200,15 +205,18 @@ function AddRouteModal({ onClose, onSave }) {
 function EditRouteModal({ route, onClose, onSave, onDelete }) {
   const { t } = useTranslation();
   const [name, setName] = useState(route.name);
-  const [schedule, setSchedule] = useState(route.schedule || 'other');
+  const [serviceRules, setServiceRules] = useState(() => {
+    const explicit = normalizeServiceRules(route.service_rules);
+    return explicit.length ? explicit : legacyScheduleRules(route.schedule || 'other');
+  });
   const [isWorkwear, setIsWorkwear] = useState(!!route.is_workwear);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || serviceRules.length === 0) return;
     setSaving(true);
-    await onSave(route.id, name.trim(), schedule, isWorkwear);
+    await onSave(route.id, name.trim(), serviceRules, isWorkwear);
     setSaving(false);
   };
 
@@ -239,10 +247,8 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
             autoFocus
           />
 
-          <div style={LABEL_STYLE}>{t('clients.scheduleLabel')}</div>
-          <select className="ap-input" value={schedule} onChange={e => setSchedule(e.target.value)} style={{ marginBottom: '12px' }}>
-            {SCHEDULE_VALUES.map(v => <option key={v} value={v}>{t(`clients.schedule.${v}`)}</option>)}
-          </select>
+          <div style={LABEL_STYLE}>{t('clients.servicePlan.routeDefault')}</div>
+          <ServiceScheduleBuilder rules={serviceRules} onRulesChange={setServiceRules} />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '14px' }}>
             <input type="checkbox" checked={isWorkwear} onChange={e => setIsWorkwear(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
@@ -250,7 +256,7 @@ function EditRouteModal({ route, onClose, onSave, onDelete }) {
           </label>
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || serviceRules.length === 0}>
               {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
@@ -268,12 +274,16 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [routeId, setRouteId] = useState(defaultRouteId);
+  const [scheduleMode, setScheduleMode] = useState('inherit');
+  const [serviceRules, setServiceRules] = useState([]);
   const [saving, setSaving] = useState(false);
+  const selectedRoute = routes.find(route => Number(route.id) === Number(routeId));
+  const inheritedRules = effectiveRouteServiceRules(selectedRoute);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)) return;
     setSaving(true);
-    await onSave(name.trim(), routeId);
+    await onSave(name.trim(), routeId, scheduleMode, serviceRules);
     setSaving(false);
   };
 
@@ -303,8 +313,18 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
             {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
 
+          <div style={LABEL_STYLE}>{t('clients.servicePlan.clientPlan')}</div>
+          <ServiceScheduleBuilder
+            showMode
+            mode={scheduleMode}
+            rules={serviceRules}
+            inheritedRules={inheritedRules}
+            onModeChange={setScheduleMode}
+            onRulesChange={setServiceRules}
+          />
+
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)}>
               {saving ? t('common.saving') : t('clients.addClient')}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
@@ -321,6 +341,8 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
   const [routeId, setRouteId] = useState(client.route_id);
   const [lat, setLat] = useState(client.lat != null ? String(client.lat) : '');
   const [lng, setLng] = useState(client.lng != null ? String(client.lng) : '');
+  const [scheduleMode, setScheduleMode] = useState(client.service_schedule_mode || 'inherit');
+  const [serviceRules, setServiceRules] = useState(() => normalizeServiceRules(client.service_rules));
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
@@ -328,11 +350,23 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
   const mergeTargets = clients
     .filter(c => c.id !== client.id)
     .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl'));
+  const selectedRoute = routes.find(route => Number(route.id) === Number(routeId));
+  const inheritedRules = effectiveRouteServiceRules(selectedRoute);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)) return;
     setSaving(true);
-    await onSave({ id: client.id, name: name.trim(), routeId: Number(routeId), lat, lng, oldName: client.name, oldRouteId: client.route_id });
+    await onSave({
+      id: client.id,
+      name: name.trim(),
+      routeId: Number(routeId),
+      lat,
+      lng,
+      scheduleMode,
+      serviceRules,
+      oldName: client.name,
+      oldRouteId: client.route_id,
+    });
     setSaving(false);
   };
 
@@ -383,8 +417,18 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
             </div>
           </div>
 
+          <div style={LABEL_STYLE}>{t('clients.servicePlan.clientPlan')}</div>
+          <ServiceScheduleBuilder
+            showMode
+            mode={scheduleMode}
+            rules={serviceRules}
+            inheritedRules={inheritedRules}
+            onModeChange={setScheduleMode}
+            onRulesChange={setServiceRules}
+          />
+
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)}>
               {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
             <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
@@ -483,13 +527,13 @@ export default function ClientsRoutesView() {
 
   // ---- Route actions ----
 
-  const handleAddRoute = async (name, schedule, isWorkwear) => {
+  const handleAddRoute = async (name, serviceRules, isWorkwear) => {
     try {
       const maxSort = routes.length > 0 ? Math.max(...routes.map(r => r.sort_order ?? 0)) : 0;
-      const { data, error } = await supabase.rpc('admin_create_route', {
+      const { data, error } = await supabase.rpc('admin_create_route_with_service_rules', {
         p_session_token: sessionToken,
         p_name: name,
-        p_schedule: schedule,
+        p_rules: normalizeServiceRules(serviceRules),
         p_sort_order: maxSort + 1,
         p_is_workwear: isWorkwear,
       });
@@ -502,13 +546,13 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveRoute = async (routeId, name, schedule, isWorkwear) => {
+  const handleSaveRoute = async (routeId, name, serviceRules, isWorkwear) => {
     try {
-      const { data, error } = await supabase.rpc('admin_update_route', {
+      const { data, error } = await supabase.rpc('admin_update_route_with_service_rules', {
         p_session_token: sessionToken,
         p_route_id: routeId,
         p_name: name,
-        p_schedule: schedule,
+        p_rules: normalizeServiceRules(serviceRules),
         p_is_workwear: isWorkwear,
       });
       if (error) throw error;
@@ -567,17 +611,20 @@ export default function ClientsRoutesView() {
 
   // ---- Client actions ----
 
-  const handleAddClient = async (name, routeId) => {
+  const handleAddClient = async (name, routeId, scheduleMode, serviceRules) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase());
     if (duplicate) { toastWarn(t('clients.clientExists')); return; }
     try {
-      const { data, error } = await supabase.rpc('admin_insert_client', {
+      const { data, error } = await supabase.rpc('admin_insert_client_with_service_rules', {
         p_session_token: sessionToken,
         p_name: name,
         p_route_id: routeId,
+        p_mode: scheduleMode,
+        p_rules: scheduleMode === 'custom' ? normalizeServiceRules(serviceRules) : [],
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (!data?.id) throw new Error(t('clients.servicePlan.missingClientId'));
       setAddClientForRoute(null);
       refetch();
     } catch (err) {
@@ -585,7 +632,7 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleSaveClient = async ({ id, name, routeId, lat, lng }) => {
+  const handleSaveClient = async ({ id, name, routeId, lat, lng, scheduleMode, serviceRules }) => {
     const duplicate = clients.some(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.id !== id);
     if (duplicate) { toastWarn(t('clients.clientExists')); return; }
 
@@ -594,13 +641,15 @@ export default function ClientsRoutesView() {
 
     try {
       // Update klienta + kaskada client_name w entries (gdy zmiana nazwy) — w jednym RPC
-      const { data, error: clientErr } = await supabase.rpc('admin_update_client', {
+      const { data, error: clientErr } = await supabase.rpc('admin_update_client_with_service_rules', {
         p_session_token: sessionToken,
         p_id: id,
         p_name: name,
         p_route_id: routeId,
         p_lat: !isNaN(parsedLat) ? parsedLat : null,
         p_lng: !isNaN(parsedLng) ? parsedLng : null,
+        p_mode: scheduleMode,
+        p_rules: scheduleMode === 'custom' ? normalizeServiceRules(serviceRules) : [],
       });
       if (clientErr) throw clientErr;
       if (data?.error) throw new Error(data.error);
@@ -745,6 +794,7 @@ export default function ClientsRoutesView() {
     const routeHasSearchMatch = hasClientSearch && routeClients.some(client => matchingClientIds.has(client.id));
     const displayNum = sortedRoutes.findIndex(r => r.id === route.id) + 1;
     const routeColor = getRouteColorByDisplay(displayNum);
+    const routeRules = effectiveRouteServiceRules(route);
 
     return (
       <div
@@ -766,6 +816,9 @@ export default function ClientsRoutesView() {
             onDoubleClick={() => isAdmin && setEditRouteModal(route)}
           >
             {route.name}
+          </span>
+          <span className="client-service-badge" title={serviceScheduleSummary(routeRules, t)}>
+            {serviceScheduleSummary(routeRules, t)}
           </span>
 
           {isOwnRoute && (
@@ -805,7 +858,9 @@ export default function ClientsRoutesView() {
               {routeClients.length === 0 ? (
                 <div style={{ color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center', margin: '10px 0' }}>{t('clients.noClients')}</div>
               ) : (
-                routeClients.map((client, index) => (
+                routeClients.map((client, index) => {
+                  const clientRules = effectiveServiceRules(client, routes);
+                  return (
                   <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
                     {(provided, snapshot) => (
                       <div
@@ -828,6 +883,16 @@ export default function ClientsRoutesView() {
                         <span className="client-order">{index + 1}</span>
                         <span className="client-name">{client.name}</span>
                         <span
+                          className="client-service-badge"
+                          title={client.service_schedule_mode === 'disabled'
+                            ? t('clients.servicePlan.mode.disabled')
+                            : serviceScheduleSummary(clientRules, t)}
+                        >
+                          {client.service_schedule_mode === 'disabled'
+                            ? t('clients.servicePlan.offShort')
+                            : serviceScheduleSummary(clientRules, t)}
+                        </span>
+                        <span
                           className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
                           title={(client.lat && client.lng) ? t('clients.hasGps') : t('clients.noGps')}
                         />
@@ -837,7 +902,8 @@ export default function ClientsRoutesView() {
                       </div>
                     )}
                   </Draggable>
-                ))
+                  );
+                })
               )}
               {provided.placeholder}
             </div>

@@ -6,11 +6,14 @@ import { useAuth } from '../../context/AuthContext';
 import { dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
+import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
 import '../mockups/mockups.css';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
-function getDefaultPickInfo(arrDay, schedule = 'other') {
+function getDefaultPickInfo(arrDay, schedule = 'other', serviceRules = [], weekKey = null) {
+  const planned = weekKey ? nextServiceSlot(serviceRules, weekKey, arrDay) : null;
+  if (planned) return planned;
   const d = parseInt(arrDay);
 
   if (schedule === 'daily') {
@@ -63,6 +66,16 @@ function clientRouteSchedule(clients, routes, clientName) {
   const client = (clients || []).find(c => c.name === clientName);
   const route = (routes || []).find(r => r.id === client?.route_id);
   return route?.schedule || 'other';
+}
+
+function defaultPickInfoForClient(arrDay, weekKey, clients, routes, clientName) {
+  const client = (clients || []).find(item => item.name === clientName);
+  return getDefaultPickInfo(
+    arrDay,
+    clientRouteSchedule(clients, routes, clientName),
+    client ? effectiveServiceRules(client, routes) : [],
+    weekKey,
+  );
 }
 
 // Klucz tygodnia przesunięty o n tygodni (n może być >1 — odbiór w dalszym terminie).
@@ -555,7 +568,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     setClientQuery(name);
     setClientListOpen(false);
     const selectedClient = clients.find(c => c.name === name);
-    const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, name));
+    const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, resolvedWeekKey, clients, routes, name);
     setPickDay(pd);
     setPickWeek(pw);
     setType(isWorkwearRoute(routes, selectedClient?.route_id) ? 'R' : 'P');
@@ -570,7 +583,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         initClient = clients.find(c => c.name === defaultClientName);
       }
       if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
-      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(day, clientRouteSchedule(clients, routes, initClient?.name));
+      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(day, resolvedWeekKey, clients, routes, initClient?.name);
       const isWorkwear = isWorkwearRoute(routes, initClient?.route_id);
       setArrDay(day);
       setPickDay(pd);
@@ -595,7 +608,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
     if (!selectableClients.some(c => c.name === clientName)) {
       setClientName(nextClient?.name || '');
       setClientQuery(nextClient?.name || '');
-      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, nextClient?.name));
+      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, resolvedWeekKey, clients, routes, nextClient?.name);
       setPickDay(pd);
       setPickWeek(pw);
       setType(isWorkwearRoute(routes, nextClient?.route_id) ? 'R' : 'P');
@@ -777,7 +790,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
               {isDriverStopFlow ? (
                 <div className="live-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
               ) : (
-                <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName)); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
+                <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(e.target.value, resolvedWeekKey, clients, routes, clientName); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
                   {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(resolvedWeekKey, i + 1))}</option>)}
                 </select>
               )}
@@ -1028,7 +1041,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     const selected = (clients || []).find(c => c.name === name);
     if (selected?.route_id) {
       setRouteId(selected.route_id);
-      const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(arrDay, clientRouteSchedule(clients, routes, name));
+      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(arrDay, targetEntry.week_key, clients, routes, name);
       setPickDay(pd);
       setPickWeek(pw);
       setType(isWorkwearRoute(routes, selected.route_id) ? 'R' : 'P');
@@ -1411,7 +1424,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   className="ap-input"
                   value={arrDay}
                   onChange={e => {
-                    const { pickDay: pd, pickWeek: pw } = getDefaultPickInfo(e.target.value, clientRouteSchedule(clients, routes, clientName));
+                    const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(e.target.value, targetEntry.week_key, clients, routes, clientName);
                     setArrDay(e.target.value);
                     setPickDay(pd);
                     setPickWeek(pw);

@@ -31,6 +31,7 @@ import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 import PackingModal from './modals/PackingModal';
 import { operationalYmd } from '../lib/dateUtils';
+import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -131,12 +132,14 @@ function departureDateOf(entry) {
   return slotToDate(`${entry.pick_week_key}|${entry.pick_day}`);
 }
 
-function washSlotOf(entry, scheduleByRoute) {
+function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
   const arrDay = Number(entry.arr_day);
   const arrWeek = entry.week_key;
   const depDay = Number(entry.pick_day);
   const depWeek = entry.pick_week_key;
-  const isDaily = (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
+  const isDaily = dailyServiceByClient.has(entry.client_name)
+    ? dailyServiceByClient.get(entry.client_name)
+    : (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
 
   if (!depDay || !depWeek) {
     if (!arrDay || !arrWeek) return null;
@@ -355,6 +358,13 @@ export default function WashView() {
     () => new Map(routes.map(route => [route.id, route.schedule || 'other'])),
     [routes]
   );
+  const dailyServiceByClient = useMemo(
+    () => new Map(clients.map(client => [
+      client.name,
+      isEveryWorkdayService(effectiveServiceRules(client, routes)),
+    ])),
+    [clients, routes]
+  );
 
   const routeMap = useMemo(
     () => new Map(routes.map((route, index) => [route.id, { ...route, num: index + 1 }])),
@@ -379,7 +389,7 @@ export default function WashView() {
       // nie znaczy, że nie ma prania. Nie filtrujemy po wadze, inaczej hotel bez
       // wpisanego kg znika z Pralni i nikt się nim nie zajmie.
       if (!entry?.id || entry.deleted_at || entry.done) return;
-      const washDate = slotToDate(washSlotOf(entry, scheduleByRoute));
+      const washDate = slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient));
       const departureDate = departureDateOf(entry);
       const touchedToday = [
         dateOnly(entry.washed_at),
@@ -469,7 +479,7 @@ export default function WashView() {
       if (routeDiff) return routeDiff;
       return a.clientName.localeCompare(b.clientName, 'pl');
     });
-  }, [clientByName, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
+  }, [clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
   const activeTrolleys = useMemo(
     () => trolleys.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status)),

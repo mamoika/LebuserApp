@@ -9,6 +9,7 @@ import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
 import { supabase } from '../lib/supabaseClient';
 import { getScheduleDriverTrips } from '../lib/driverTripsRpc';
 import { VEHICLE_LABELS } from '../lib/vehicles';
+import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 function addDays(date, days) {
@@ -124,12 +125,14 @@ function dayWeekToTime(day, weekKey) {
 //   gdzie pomiędzy jest tylko weekend), pierzemy w dniu wyjazdu.
 // - dla tras codziennych „dzień przed wyjazdem" zawsze == dzień przyjazdu, więc
 //   reguła automatycznie daje pranie tego samego dnia (np. miasto).
-function washSlotOf(entry, scheduleByRoute) {
+function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
   const arrDay = Number(entry.arr_day);
   const arrWeek = entry.week_key;
   const depDay = Number(entry.pick_day);
   const depWeek = entry.pick_week_key;
-  const isDaily = (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
+  const isDaily = dailyServiceByClient.has(entry.client_name)
+    ? dailyServiceByClient.get(entry.client_name)
+    : (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
 
   // Brak danych o wyjeździe → awaryjnie licz wg przyjazdu (następny dzień roboczy).
   if (!depDay || !depWeek) {
@@ -285,6 +288,10 @@ export default function ScheduleView() {
   // kg do prania per (tydzień|dzień) — liczone od dnia WYJAZDU (patrz washSlotOf),
   // z pominięciem wpisów już oznaczonych jako wyprane. Budujemy mapę raz, ze wszystkich wpisów.
   const scheduleByRoute = new Map(routes.map(r => [r.id, r.schedule || 'other']));
+  const dailyServiceByClient = new Map(clients.map(client => [
+    client.name,
+    isEveryWorkdayService(effectiveServiceRules(client, routes)),
+  ]));
   const routeOrderRank = new Map(
     [...routes]
       .sort((a, b) => {
@@ -359,7 +366,7 @@ export default function ScheduleView() {
   entries.forEach(e => {
     if (!hasPositiveWeight(e)) return;
     if (e.washed) return; // już wyprane → nie liczymy do prania
-    const slot = washSlotOf(e, scheduleByRoute);
+    const slot = washSlotOf(e, scheduleByRoute, dailyServiceByClient);
     if (!slot) return;
     washKgBySlot.set(slot, (washKgBySlot.get(slot) || 0) + (parseFloat(e.weight) || 0));
   });

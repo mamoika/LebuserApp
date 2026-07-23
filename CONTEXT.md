@@ -27,6 +27,14 @@ _Unikaj_: Dodanie czystego do trasy
 Planowany przystanek u klienta bez dostawy czystego prania, dodany po to, aby kierowca zarejestrował na miejscu odbiór brudnego.
 _Unikaj_: Pusty przystanek
 
+**Plan obsługi klienta**:
+Zestaw cyklicznych reguł określających, w jakie dni klient powinien zostać uwzględniony w planie transportu.
+_Unikaj_: Grafik klienta, harmonogram wpisów
+
+**Reguła wizyty**:
+Jedna powtarzalna zasada planu obsługi klienta, wskazująca dzień tygodnia, częstotliwość oraz tydzień początkowy cyklu.
+_Unikaj_: Termin klienta
+
 **Odcinek kursu**:
 Część kursu dziennego wykonywana bez zmiany kierowcy i auta. Zmiana kierowcy lub auta zamyka bieżący odcinek i otwiera następny.
 _Unikaj_: Nowy kurs
