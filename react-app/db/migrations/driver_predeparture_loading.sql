@@ -175,12 +175,15 @@ set search_path = public, private, extensions
 as $$
 declare
   v_driver record;
+  v_actor record;
   v_trip public.driver_trips;
   v_client public.clients;
   v_position integer;
   v_stop public.trip_stops;
+  v_is_other_route boolean;
 begin
   select * into v_driver from public.require_driver(p_session_token) limit 1;
+  select * into v_actor from public.session_user(p_session_token) limit 1;
   select * into v_trip
   from public.driver_trips
   where id = p_trip_id
@@ -197,10 +200,12 @@ begin
   where name = p_client_name
   limit 1;
 
-  if v_client.id is null
-     or not private.trip_includes_client(v_trip.routes, null, v_client.route_id, v_client.name) then
-    return json_build_object('error', 'Klient nie należy do wybranych tras');
+  if v_client.id is null then
+    return json_build_object('error', 'Nie znaleziono klienta');
   end if;
+  v_is_other_route := not private.trip_includes_client(
+    v_trip.routes, null, v_client.route_id, v_client.name
+  );
 
   select * into v_stop
   from public.trip_stops
@@ -232,6 +237,22 @@ begin
     )
     returning * into v_stop;
   end if;
+
+  perform private.sync_trip_course(v_trip.id);
+  select * into v_stop from public.trip_stops where id = v_stop.id;
+
+  insert into public.trip_events (
+    trip_id, stop_id, event_type, actor_user_id, actor_name, actor_role, details, data
+  )
+  values (
+    v_trip.id, v_stop.id, 'dirty_stop_added', v_actor.id, v_actor.name, v_actor.role,
+    'Kierowca dodał punkt po brudne: ' || v_client.name,
+    jsonb_build_object(
+      'client_name', v_client.name,
+      'source_route_id', v_client.route_id,
+      'is_other_route', v_is_other_route
+    )
+  );
 
   return json_build_object('ok', true, 'stop', row_to_json(v_stop));
 end;

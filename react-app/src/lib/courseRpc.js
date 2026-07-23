@@ -87,9 +87,9 @@ export const undoPlannedCleanPickup = (sessionToken, tripId, entryIds) => callCo
   { p_trip_id: tripId, p_ids: entryIds }
 );
 
-export const addDirtyPlannedStop = (sessionToken, tripId, clientName) => callCourseRpc(
+export const addDirtyPlannedStop = (sessionToken, tripId, clientId) => callCourseRpc(
   'driver_add_dirty_planned_stop', sessionToken,
-  { p_trip_id: tripId, p_client_name: clientName }
+  { p_trip_id: tripId, p_client_id: clientId }
 );
 
 export const removeDirtyPlannedStop = (sessionToken, tripId, clientName) => callCourseRpc(

@@ -14,7 +14,7 @@ import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
 } from '../../lib/courseTaskHelpers';
 import { buildCourseStopComparator } from '../../lib/courseStopOrder';
-import { routeNamesForTrip } from '../../lib/tripUiHelpers';
+import { parseRouteIds, routeNamesForTrip } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
@@ -102,6 +102,10 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     () => Object.fromEntries(allRoutes.map((route, index) => [route.id, { num: index + 1, name: route.name }])),
     [allRoutes],
   );
+  const tripRouteIds = useMemo(
+    () => parseRouteIds(trip?.routes),
+    [trip?.routes],
+  );
 
   const compareStops = useMemo(
     () => buildCourseStopComparator(clients, allRoutes),
@@ -122,8 +126,11 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     [entries, trip],
   );
 
-  const cleanClientNames = useMemo(
-    () => new Set([...ownReady, ...otherReady].map(group => group.client_name)),
+  const cleanClients = useMemo(
+    () => [...ownReady, ...otherReady].map(group => ({
+      client_name: group.client_name,
+      route_id: group.route_id,
+    })),
     [ownReady, otherReady],
   );
 
@@ -139,8 +146,19 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   );
 
   const dirtyCandidates = useMemo(
-    () => buildDirtyOnlyCandidates({ clients, stops, trip, cleanClientNames }),
-    [clients, stops, trip, cleanClientNames],
+    () => buildDirtyOnlyCandidates({ clients, stops, trip, cleanClients }),
+    [clients, stops, trip, cleanClients],
+  );
+  const dirtyCandidateGroups = useMemo(
+    () => ({
+      own: dirtyCandidates.filter(candidate => !candidate.is_other_route),
+      other: dirtyCandidates.filter(candidate => candidate.is_other_route),
+    }),
+    [dirtyCandidates],
+  );
+  const selectedDirtyCandidate = useMemo(
+    () => dirtyCandidates.find(candidate => candidate.client_id === dirtyClient) || null,
+    [dirtyCandidates, dirtyClient],
   );
 
   const loadedGroups = useMemo(
@@ -156,9 +174,9 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   );
 
   const routeDisplay = useMemo(() => {
-    const firstRouteId = String(trip?.routes || '').split(',').map(value => Number(value.trim())).find(Boolean);
+    const firstRouteId = [...tripRouteIds][0];
     return routeMap[firstRouteId]?.num || firstRouteId || null;
-  }, [trip?.routes, routeMap]);
+  }, [tripRouteIds, routeMap]);
 
   const reload = async () => {
     await Promise.all([onUpdated?.(), refetch?.()]);
@@ -215,18 +233,18 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   };
 
   const addDirtyStop = async () => {
-    if (!dirtyClient) return;
+    if (!selectedDirtyCandidate) return;
     try {
       setBusy(true);
       if (adminMode) {
         await callExistingTripRpc('admin_add_dirty_planned_stop', sessionToken, {
           p_trip_id: trip.id,
-          p_client_name: dirtyClient,
+          p_client_id: selectedDirtyCandidate.client_id,
         });
       } else {
-        await addDirtyPlannedStop(sessionToken, trip.id, dirtyClient);
+        await addDirtyPlannedStop(sessionToken, trip.id, selectedDirtyCandidate.client_id);
       }
-      toastSuccess(t('course.planning.dirtyAdded', { name: dirtyClient }));
+      toastSuccess(t('course.planning.dirtyAdded', { name: selectedDirtyCandidate.client_name }));
       setDirtyClient('');
       await reload();
     } catch (error) {
@@ -366,13 +384,30 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
           <div className="live-dirty-plan-add">
             <select className="ap-input" value={dirtyClient} onChange={event => setDirtyClient(event.target.value)} disabled={busy}>
               <option value="">{t('course.planning.selectDirtyClient')}</option>
-              {dirtyCandidates.map(candidate => (
-                <option key={candidate.client_name} value={candidate.client_name}>
-                  {routeMap[candidate.route_id]?.name ? `${routeMap[candidate.route_id].name} · ` : ''}{candidate.client_name}
-                </option>
-              ))}
+              {dirtyCandidateGroups.own.length > 0 && (
+                <optgroup label={t('course.planning.ownRouteClients')}>
+                  {dirtyCandidateGroups.own.map(candidate => (
+                    <option key={candidate.client_id} value={candidate.client_id}>
+                      {routeMap[candidate.route_id]
+                        ? `T${routeMap[candidate.route_id].num} · ${routeMap[candidate.route_id].name} · `
+                        : ''}{candidate.client_name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {dirtyCandidateGroups.other.length > 0 && (
+                <optgroup label={t('course.planning.otherRouteClients')}>
+                  {dirtyCandidateGroups.other.map(candidate => (
+                    <option key={candidate.client_id} value={candidate.client_id}>
+                      {routeMap[candidate.route_id]
+                        ? `T${routeMap[candidate.route_id].num} · ${routeMap[candidate.route_id].name} · `
+                        : ''}{candidate.client_name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
-            <button type="button" className="live-start-claim-btn" onClick={addDirtyStop} disabled={busy || !dirtyClient}>
+            <button type="button" className="live-start-claim-btn" onClick={addDirtyStop} disabled={busy || !selectedDirtyCandidate}>
               <Plus size={15} aria-hidden="true" /> {t('course.add')}
             </button>
           </div>
@@ -389,6 +424,7 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
                   <strong>{stop.client_name}</strong>
                   <span>
                     <RouteChip routeId={stop.route_id} routeMap={routeMap} />
+                    {tripRouteIds.size > 0 && !tripRouteIds.has(stop.route_id) && t('course.planning.otherRouteStop')}
                     {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
                   </span>
                 </div>

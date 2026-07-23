@@ -1,6 +1,8 @@
 import { VEHICLE_LABELS } from './vehicles';
 import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers';
 
+export { buildDirtyOnlyCandidates } from './dirtyOnlyCandidates';
+
 export function tripContainsEntryClient(sourceTrip, entry) {
   if (!sourceTrip || !entry) return false;
   const routeIds = parseRouteIds(sourceTrip.routes);
@@ -246,35 +248,6 @@ export function buildReadyCleanGroups({ entries = [], trip, scope = 'own' }) {
       isLoaded: pending.length === 0 && loaded.length > 0,
     };
   });
-}
-
-export function buildDirtyOnlyCandidates({ clients = [], stops = [], trip, cleanClientNames = new Set() }) {
-  if (!trip) return [];
-  const routeIds = parseRouteIds(trip.routes);
-  const existing = new Set(
-    stops
-      .filter(stop =>
-        stop.status === 'pending'
-        && (
-          stop.stop_kind === 'dirty_only'
-          || (stop.tasks || []).some(task => task.task_type === 'pickup_dirty' && task.status === 'pending')
-        )
-      )
-      .map(stop => stop.client_name)
-  );
-
-  return clients
-    .filter(client => routeIds.size === 0 || routeIds.has(client.route_id))
-    .filter(client => !cleanClientNames.has(client.name) && !existing.has(client.name))
-    .sort((a, b) =>
-      (a.route_id || 0) - (b.route_id || 0)
-      || (a.sort_order ?? 9999) - (b.sort_order ?? 9999)
-      || a.name.localeCompare(b.name, 'pl')
-    )
-    .map(client => ({
-      client_name: client.name,
-      route_id: client.route_id,
-    }));
 }
 
 export function summarizeStopTasks(stop) {

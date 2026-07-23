@@ -1,11 +1,10 @@
 import { formatWeekKey, operationalDate, operationalYmd } from './dateUtils';
+import { parseRouteIds } from './routeIds';
+
+export { parseRouteIds };
 
 export function ymd(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-export function parseRouteIds(routesStr) {
-  return new Set((routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean));
 }
 
 export function parseExtraClients(raw) {
