@@ -2,13 +2,11 @@ import { useTranslation } from 'react-i18next';
 import {
   mondayKey,
   normalizeServiceRules,
-  rulesForPreset,
   SERVICE_SCHEDULE_MODES,
   SERVICE_WEEKDAYS,
 } from '../lib/serviceSchedule';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
-const PRESETS = ['monThu', 'tueFri', 'tueOnly', 'friBiweekly'];
 
 export function serviceScheduleSummary(rules, t) {
   const normalized = normalizeServiceRules(rules);
@@ -52,11 +50,6 @@ export default function ServiceScheduleBuilder({
     )));
   };
 
-  const applyPreset = preset => {
-    onModeChange?.('custom');
-    setRules(rulesForPreset(preset));
-  };
-
   return (
     <section className="service-schedule-builder">
       {showMode && (
@@ -87,14 +80,6 @@ export default function ServiceScheduleBuilder({
 
       {customEnabled && (
         <>
-          <div className="service-schedule-presets">
-            {PRESETS.map(preset => (
-              <button type="button" key={preset} onClick={() => applyPreset(preset)}>
-                {t(`clients.servicePlan.presets.${preset}`)}
-              </button>
-            ))}
-          </div>
-
           <div className="service-schedule-days" role="group" aria-label={t('clients.servicePlan.daysLabel')}>
             {SERVICE_WEEKDAYS.map((weekday, index) => {
               const selected = normalized.some(rule => rule.weekday === weekday);
