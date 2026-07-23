@@ -7,8 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
-import { getClientUsageStatus } from '../lib/readRpc';
-import { Printer } from 'lucide-react';
+import { Archive, Printer, RotateCcw } from 'lucide-react';
 import ServiceScheduleBuilder, { serviceScheduleSummary } from './ServiceScheduleBuilder';
 import {
   effectiveRouteServiceRules,
@@ -45,6 +44,74 @@ function sortClientsByOrder(a, b) {
 // ---- Modals ----
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
+
+function ArchivedClientsModal({
+  clients,
+  loading,
+  restoringId,
+  onRestore,
+  onClose,
+}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+      <div className="ap-sheet client-archive-sheet" onClick={event => event.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div className="client-archive-heading">
+            <span className="client-archive-icon"><Archive size={20} aria-hidden="true" /></span>
+            <div>
+              <div className="ap-title">{t('clients.archive.title')}</div>
+              <p>{t('clients.archive.hint')}</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="client-archive-empty">{t('clients.archive.loading')}</div>
+          ) : clients.length === 0 ? (
+            <div className="client-archive-empty">{t('clients.archive.empty')}</div>
+          ) : (
+            <div className="client-archive-list">
+              {clients.map(client => (
+                <article className="client-archive-item" key={client.id}>
+                  <div>
+                    <strong>{client.name}</strong>
+                    <span>
+                      {client.route_name || t('clients.archive.noRoute')}
+                      {client.archived_at
+                        ? ` · ${new Date(client.archived_at).toLocaleDateString(locale)}`
+                        : ''}
+                    </span>
+                    {client.archived_by && (
+                      <small>{t('clients.archive.by', { name: client.archived_by })}</small>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="ap-btn ap-btn-secondary"
+                    onClick={() => onRestore(client)}
+                    disabled={restoringId === client.id}
+                  >
+                    <RotateCcw size={14} aria-hidden="true" />
+                    {restoringId === client.id
+                      ? t('clients.archive.restoring')
+                      : t('clients.archive.restore')}
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose}>
+            {t('common.close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DriverRoutesModal({ routes, onClose }) {
   const { t } = useTranslation();
@@ -335,7 +402,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
   );
 }
 
-function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, onMerge }) {
+function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, onMerge }) {
   const { t } = useTranslation();
   const [name, setName] = useState(client.name);
   const [routeId, setRouteId] = useState(client.route_id);
@@ -344,7 +411,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
   const [scheduleMode, setScheduleMode] = useState(client.service_schedule_mode || 'inherit');
   const [serviceRules, setServiceRules] = useState(() => normalizeServiceRules(client.service_rules));
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [confirmMerge, setConfirmMerge] = useState(false);
   const mergeTargets = clients
@@ -370,10 +437,10 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
     setSaving(false);
   };
 
-  const handleDelete = async () => {
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+  const handleArchive = async () => {
+    if (!confirmArchive) { setConfirmArchive(true); return; }
     setSaving(true);
-    await onDelete(client);
+    await onArchive(client);
     setSaving(false);
   };
 
@@ -431,8 +498,8 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onDelete, o
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (scheduleMode === 'custom' && serviceRules.length === 0)}>
               {saving ? t('common.saving') : t('clients.saveChanges')}
             </button>
-            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
-              {confirmDelete ? t('clients.confirmDeleteClient') : t('clients.deleteClient')}
+            <button className="ap-btn ap-btn-danger" onClick={handleArchive} disabled={saving}>
+              {confirmArchive ? t('clients.archive.confirm') : t('clients.archive.action')}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
@@ -478,6 +545,10 @@ export default function ClientsRoutesView() {
   const [addClientForRoute, setAddClientForRoute] = useState(null);
   const [editClient, setEditClient] = useState(null);
   const [driverRoutesOpen, setDriverRoutesOpen] = useState(false);
+  const [clientArchiveOpen, setClientArchiveOpen] = useState(false);
+  const [archivedClients, setArchivedClients] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [restoringClientId, setRestoringClientId] = useState(null);
   const savingOrderRef = useRef(false);
   const clientRefs = useRef(new Map());
 
@@ -661,23 +732,55 @@ export default function ClientsRoutesView() {
     }
   };
 
-  const handleDeleteClient = async (client) => {
+  const handleArchiveClient = async (client) => {
     try {
-      const usage = await getClientUsageStatus(sessionToken, client.name);
-      if (usage?.used) {
-        toastWarn(t('clients.clientHasHistory'));
-        return;
-      }
-      const { data, error } = await supabase.rpc('admin_delete_client', {
+      const { data, error } = await supabase.rpc('admin_archive_client', {
         p_session_token: sessionToken,
         p_id: client.id,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      toastSuccess(t('clients.archive.archived', { name: client.name }));
       setEditClient(null);
       refetch();
     } catch (err) {
-      toastError(t('clients.errDeleteClient') + ' ' + err.message);
+      toastError(t('clients.archive.error') + ' ' + err.message);
+    }
+  };
+
+  const openClientArchive = async () => {
+    setClientArchiveOpen(true);
+    setArchiveLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_get_archived_clients', {
+        p_session_token: sessionToken,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setArchivedClients(data?.clients || []);
+    } catch (err) {
+      toastError(t('clients.archive.loadError') + ' ' + err.message);
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const restoreArchivedClient = async client => {
+    setRestoringClientId(client.id);
+    try {
+      const { data, error } = await supabase.rpc('admin_restore_client', {
+        p_session_token: sessionToken,
+        p_id: client.id,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setArchivedClients(current => current.filter(item => item.id !== client.id));
+      toastSuccess(t('clients.archive.restored', { name: client.name }));
+      await refetch();
+    } catch (err) {
+      toastError(t('clients.archive.restoreError') + ' ' + err.message);
+    } finally {
+      setRestoringClientId(null);
     }
   };
 
@@ -960,6 +1063,9 @@ export default function ClientsRoutesView() {
               <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
               <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
+              <button className="add-route-btn" onClick={openClientArchive}>
+                <Archive size={15} aria-hidden="true" /> {t('clients.archive.open')}
+              </button>
               </>
             )}
           </div>
@@ -1013,8 +1119,18 @@ export default function ClientsRoutesView() {
           routes={routes}
           onClose={() => setEditClient(null)}
           onSave={handleSaveClient}
-          onDelete={handleDeleteClient}
+          onArchive={handleArchiveClient}
           onMerge={handleMergeClient}
+        />
+      )}
+
+      {clientArchiveOpen && (
+        <ArchivedClientsModal
+          clients={archivedClients}
+          loading={archiveLoading}
+          restoringId={restoringClientId}
+          onRestore={restoreArchivedClient}
+          onClose={() => setClientArchiveOpen(false)}
         />
       )}
 

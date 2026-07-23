@@ -35,6 +35,10 @@ _Unikaj_: Grafik klienta, harmonogram wpisów
 Jedna powtarzalna zasada planu obsługi klienta, wskazująca dzień tygodnia, częstotliwość oraz tydzień początkowy cyklu.
 _Unikaj_: Termin klienta
 
+**Zarchiwizowany punkt klienta**:
+Punkt wyłączony z bieżących tras i nowych planów, którego wcześniejsze wpisy oraz historia pozostają dostępne.
+_Unikaj_: Usunięty klient
+
 **Odcinek kursu**:
 Część kursu dziennego wykonywana bez zmiany kierowcy i auta. Zmiana kierowcy lub auta zamyka bieżący odcinek i otwiera następny.
 _Unikaj_: Nowy kurs

@@ -2411,6 +2411,88 @@ html.phone-layout .hist-grid {
   font-size:9px;
   font-weight:800;
 }
+.client-archive-sheet {
+  max-width:620px;
+}
+.client-archive-heading {
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:18px;
+}
+.client-archive-heading .ap-title {
+  margin:0 0 3px;
+  text-align:left;
+}
+.client-archive-heading p {
+  margin:0;
+  color:var(--text-secondary);
+  font-size:12px;
+  line-height:1.4;
+}
+.client-archive-icon {
+  display:grid;
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  place-items:center;
+  border-radius:13px;
+  background:rgba(88,86,214,0.1);
+  color:#5856d6;
+}
+.client-archive-list {
+  display:grid;
+  gap:9px;
+  max-height:min(58vh,520px);
+  margin-bottom:14px;
+  overflow:auto;
+}
+.client-archive-item {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--bg-card);
+}
+.client-archive-item > div {
+  display:grid;
+  min-width:0;
+  gap:3px;
+}
+.client-archive-item strong {
+  overflow:hidden;
+  color:var(--text-primary);
+  font-size:13px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.client-archive-item span,
+.client-archive-item small {
+  color:var(--text-secondary);
+  font-size:11px;
+}
+.client-archive-item .ap-btn {
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  width:auto;
+  margin:0;
+  padding:8px 10px;
+}
+.client-archive-empty {
+  margin-bottom:14px;
+  padding:24px 14px;
+  border:1px dashed var(--border);
+  border-radius:14px;
+  color:var(--text-tertiary);
+  font-size:12px;
+  text-align:center;
+}
 @media (max-width:620px) {
   .service-schedule-rule {
     grid-template-columns:1fr;
@@ -2418,6 +2500,13 @@ html.phone-layout .hist-grid {
   .service-schedule-preview {
     align-items:flex-start;
     flex-direction:column;
+  }
+  .client-archive-item {
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .client-archive-item .ap-btn {
+    width:100%;
   }
 }
 .route-title {
