@@ -1,7 +1,7 @@
 import { isHoliday } from '../utils/holidays';
 import { warsawDate } from './dateUtils';
 
-const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NN', 'I', 'END', '']);
+const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NU', 'NN', 'I', 'END', '']);
 
 export function isSchedulePlanned(value) {
   const raw = String(value ?? '').trim().toUpperCase();

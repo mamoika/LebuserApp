@@ -12,16 +12,19 @@ test('planning roster includes planned and working people but excludes absences'
     { id: 'a', name: 'Anna', default_start: '06:00', default_end: '14:00' },
     { id: 'b', name: 'Beata', default_start: '07:00', default_end: '15:00' },
     { id: 'c', name: 'Celina', default_start: '07:00', default_end: '15:00' },
+    { id: 'd', name: 'Dorota', default_start: '07:00', default_end: '15:00' },
   ];
   const schedule = [
     { employee_id: 'a', day: 16, value: 'I' },
     { employee_id: 'b', day: 16, value: '8' },
     { employee_id: 'c', day: 16, value: 'L4' },
+    { employee_id: 'd', day: 16, value: 'NU' },
   ];
 
   const result = buildPlanningRoster(roster, schedule, '2026-07-16');
   assert.deepEqual(result.filter(person => person.available).map(person => person.id), ['a', 'b']);
   assert.equal(result.find(person => person.id === 'c').available, false);
+  assert.equal(result.find(person => person.id === 'd').available, false);
 });
 
 test('plan drops assignments for absent people and calculates staffing gaps', () => {

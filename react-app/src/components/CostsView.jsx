@@ -56,7 +56,7 @@ function parseHour(str) {
 // Godzina rozpoczęcia zmiany danego dnia: z wartości grafiku (np. "6-14", "6+8") lub z domyślnej
 function shiftStartHour(value, defaultStartH) {
   const v = String(value || '').toUpperCase().trim();
-  const off = ['', 'W', 'UW', 'L4', 'NN', 'END'];
+  const off = ['', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   if (off.includes(v)) return defaultStartH;
   if (v.includes('-')) { const s = parseFloat(v.split('-')[0].replace(',', '.')); if (!isNaN(s)) return s; }
   if (v.includes('+')) { const s = parseFloat(v.split('+')[0].replace(',', '.')); if (!isNaN(s)) return s; }
@@ -73,7 +73,7 @@ function hourWeight(hour, startH) {
 // Łączne godziny zmiany z wartości grafiku ("8", "6-14", "6+8"); 0 dla nieobecności (jak w Grafiku pracy)
 function scheduleDayHours(value) {
   const v = String(value || '').trim().toUpperCase();
-  if (!v || ['W', 'UW', 'L4', 'NN', 'I', 'END'].includes(v)) return 0;
+  if (!v || ['W', 'UW', 'L4', 'NU', 'NN', 'I', 'END'].includes(v)) return 0;
   if (v.includes('-')) {
     const [a, b] = v.split('-');
     const st = parseFloat(a.replace(',', '.')), en = parseFloat(b.replace(',', '.'));

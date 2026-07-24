@@ -12,6 +12,7 @@ const STATUS_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa' },
   'UW':  { bg: '#bfdbfe', color: '#1e40af' },
   'L4':  { bg: '#ffe4e6', color: '#be123c' },
+  'NU':  { bg: '#fef3c7', color: '#b45309' },
   'NN':  { bg: '#ff0000', color: '#fff' },
   'END': { bg: '#e2e8f0', color: '#64748b' },
   'I':   { bg: '#ede9fe', color: '#6d28d9' },
@@ -19,7 +20,7 @@ const STATUS_STYLE = {
 
 const VISIBLE_START = 5;
 const VISIBLE_END = 22; // exclusive: widoczne na osi godziny 5–21 (stała, niezależna od danych)
-const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NN', 'END', 'I']);
+const ABSENCE_STATUSES = new Set(['W', 'UW', 'L4', 'NU', 'NN', 'END', 'I']);
 const range = (start, end) => Array.from({ length: Math.max(0, end - start) }, (_, i) => start + i);
 const VISIBLE_HOURS = range(VISIBLE_START, VISIBLE_END); // 5..21 — siatka zawsze standardowa
 const COUNT_HOURS = range(0, 24); // 0..23 — do liczenia sum (łapie też godziny doby spoza osi)
@@ -822,7 +823,7 @@ export default function TimelineView() {
       if (!role) return;
       const [empIdStr, dateStr] = key.split('_');
       if (!validDates.has(dateStr)) return;
-      // Dzień zmieniony w grafiku na nieobecność (UW/L4/W/NN/I/END) zakrywa stare
+      // Dzień zmieniony w grafiku na nieobecność (UW/L4/NU/W/NN/I/END) zakrywa stare
       // malowanie stanowisk — nie wliczaj go do podsumowań, choć wpisy zostają w bazie.
       if (!scheduleMap[`${empIdStr}_${dateStr}`]?.working) return;
 

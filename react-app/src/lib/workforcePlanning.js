@@ -9,7 +9,7 @@ export const WORKFORCE_STATIONS = [
   { id: 'packing', labelKey: 'packing', color: '#F04444', x: 80, y: 8, w: 7, h: 13, defaultRequired: 1 },
 ];
 
-const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NN', 'END']);
+const NON_WORK_VALUES = new Set(['W', 'UW', 'L4', 'NU', 'NN', 'END']);
 
 export function buildPlanningRoster(roster, scheduleEntries, dateStr) {
   const [year, month, day] = String(dateStr).split('-').map(Number);

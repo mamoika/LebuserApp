@@ -15,6 +15,7 @@ const VALUE_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
   'UW':  { bg: '#bfdbfe', color: '#1e40af', pattern: false },
   'L4':  { bg: '#ffe4e6', color: '#be123c', pattern: false },
+  'NU':  { bg: '#fef3c7', color: '#b45309', pattern: false },
   'NN':  { bg: '#ff0000', color: '#fff', pattern: false },
   'I':   { bg: null, color: '#6d28d9', pattern: true },
   'END': { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
@@ -60,7 +61,7 @@ function renderCellValue(value) {
 
 function parseHours(value) {
   const v = String(value || '').trim().toUpperCase();
-  if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NN' || v === 'I' || v === 'END') return 0;
+  if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NU' || v === 'NN' || v === 'I' || v === 'END') return 0;
   
   if (v.includes('-')) {
     const parts = v.split('-');
@@ -93,14 +94,14 @@ function countSymbolForEmployee(emp, days, getValue, sym) {
 
 function isPresent(value) {
   const v = String(value || '').trim().toUpperCase();
-  return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
+  return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NU' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
 }
 
 
 function ValuePicker({ selectedValue, onSelect, onCancel }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
-  const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NN', 'END'];
+  const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -477,7 +478,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
   const exportToExcel = async () => {
     const wsData = [];
-    const headers = [t('grafik.employee'), ...days.map(d => `${d}`), t('grafik.excelSumHours'), t('grafik.excelNorm'), t('grafik.diffShort'), 'L4', 'UW', 'NN'];
+    const headers = [t('grafik.employee'), ...days.map(d => `${d}`), t('grafik.excelSumHours'), t('grafik.excelNorm'), t('grafik.diffShort'), 'L4', 'UW', 'NU', 'NN'];
     wsData.push([`${MONTH_NAMES[month - 1]} ${year}`, `${t('grafik.workdays')} ${workingDays}`, `${t('grafik.norm')} ${norm}h`]);
     wsData.push([]);
     wsData.push(headers);
@@ -488,6 +489,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         const totalHours = days.reduce((sum, d) => sum + parseHours(getValue(emp, d)), 0);
         const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
         const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
+        const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
         const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
         const row = [
           emp.name,
@@ -497,6 +499,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           totalHours - norm,
           l4Count,
           uwCount,
+          nuCount,
           nnCount
         ];
         wsData.push(row);
@@ -508,11 +511,13 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     const obecniRow = [t('grafik.present'), ...days.map(d => employees.filter(e => isPresent(getValue(e, d))).length)];
     const l4Row = ['L4', ...days.map(d => countSymbol(employees, getValue, d, 'L4'))];
     const uwRow = [t('grafik.excelVacations'), ...days.map(d => countSymbol(employees, getValue, d, 'UW'))];
+    const nuRow = [t('grafik.excelExcusedAbsences'), ...days.map(d => countSymbol(employees, getValue, d, 'NU'))];
     const nnRow = [t('grafik.excelAbsences'), ...days.map(d => countSymbol(employees, getValue, d, 'NN'))];
     
     wsData.push(obecniRow);
     wsData.push(l4Row);
     wsData.push(uwRow);
+    wsData.push(nuRow);
     wsData.push(nnRow);
 
     try {
@@ -602,7 +607,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
       {/* Legenda */}
       <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['I',t('grafik.legend.I')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')],['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NN',t('grafik.legend.NN')],['END',t('grafik.legend.END')]].map(([sym, label]) => {
+        {[['I',t('grafik.legend.I')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')],['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NU',t('grafik.legend.NU')],['NN',t('grafik.legend.NN')],['END',t('grafik.legend.END')]].map(([sym, label]) => {
           const st = getCellStyle(sym, false);
           const chipBg = st.pattern
             ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
@@ -628,7 +633,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           outline: 'none', background: '#fff'
         }}
       >
-        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 220}px`, width: '100%' }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 250}px`, width: '100%' }}>
           <thead>
             <tr>
               <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '12px', color: '#555', borderRight: '1px solid #e8e8ec', fontSize: '11px' }}>
@@ -658,6 +663,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
               <th style={{ ...thBase, width: '38px', color: '#c62828', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
               <th style={{ ...thBase, width: '28px', color: '#f57f17', fontSize: '9px', borderLeft: '1px solid #e8e8ec' }}>L4</th>
               <th style={{ ...thBase, width: '28px', color: '#1565c0', fontSize: '9px' }}>UW</th>
+              <th style={{ ...thBase, width: '28px', color: '#b45309', fontSize: '9px' }}>NU</th>
               <th style={{ ...thBase, width: '28px', color: '#b71c1c', fontSize: '9px' }}>NN</th>
             </tr>
           </thead>
@@ -676,7 +682,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       <span style={{ fontWeight: 700, fontSize: '10px', color: grpColor, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{g}</span>
                     </div>
                   </td>
-                  <td colSpan={daysInMonth + 6} style={{
+                  <td colSpan={daysInMonth + 7} style={{
                     background: `${grpColor}08`,
                     borderTop: `1px solid ${grpColor}20`, borderBottom: `1px solid ${grpColor}20`,
                   }} />
@@ -687,6 +693,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   const diff = totalHours - norm;
                   const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
                   const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
+                  const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
                   const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
 
                   const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafbfc';
@@ -757,9 +764,10 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: totalHours === 0 ? '#ddd' : diff > 0 ? '#2e7d32' : diff < 0 ? '#c62828' : '#aaa', borderBottom: '1px solid #f0f0f0', background: rowBg }}>
                         {totalHours === 0 ? '—' : formatDiff(diff)}
                       </td>
-                      {/* L4, UW, NN */}
+                      {/* L4, UW, NU, NN */}
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: l4Count > 0 ? '#f57f17' : '#ddd', borderLeft: '1px solid #eee', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{l4Count || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: uwCount > 0 ? '#1565c0' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{uwCount || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nuCount > 0 ? '#b45309' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nuCount || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nnCount > 0 ? '#b71c1c' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nnCount || '—'}</td>
                     </tr>
                   );
@@ -793,7 +801,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       </td>
                     );
                   })}
-                  <td colSpan={6} style={{ background: nameBg, borderTop: '2px solid #e0e0e0' }} />
+                  <td colSpan={7} style={{ background: nameBg, borderTop: '2px solid #e0e0e0' }} />
                 </tr>
               );
             })}
