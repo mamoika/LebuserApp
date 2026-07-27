@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
-import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getPerformanceProgi } from '../lib/readRpc';
+import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getMonthRoster, getPerformanceProgi } from '../lib/readRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
@@ -340,8 +340,9 @@ export default function CostsView() {
     const month = currentDate.getMonth() + 1;
 
     try {
-      const [monthData, report] = await Promise.all([
+      const [monthData, monthRoster, report] = await Promise.all([
         getCostsMonth(sessionToken, monthKey),
+        getMonthRoster(sessionToken, year, month),
         isAdmin ? getCostsIntegrityReport(sessionToken).catch(() => null) : Promise.resolve(null),
       ]);
       if (sequence !== fetchSequence.current) return;
@@ -350,7 +351,7 @@ export default function CostsView() {
       const prevSet = monthData?.previous_settings || null;
       const costs = monthData?.daily_costs || [];
       const prevRows = monthData?.previous_daily_costs || [];
-      const emps = monthData?.employees || [];
+      const emps = monthRoster || [];
       const sched = monthData?.schedule_entries || [];
       const timeline = monthData?.timeline_entries || [];
 

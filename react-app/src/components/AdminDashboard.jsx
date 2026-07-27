@@ -1075,11 +1075,11 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
               </select>
             </div>
             <div>
-              <div style={LABEL_STYLE}>{t('admin.start')}</div>
+              <div style={LABEL_STYLE}>{t('admin.startThisMonth')}</div>
               <input className="ap-input" value={defaultStart} onChange={e => setDefaultStart(e.target.value)} placeholder="7" />
             </div>
             <div>
-              <div style={LABEL_STYLE}>{t('admin.end')}</div>
+              <div style={LABEL_STYLE}>{t('admin.endThisMonth')}</div>
               <input className="ap-input" value={defaultEnd} onChange={e => setDefaultEnd(e.target.value)} placeholder="15" />
             </div>
           </div>
