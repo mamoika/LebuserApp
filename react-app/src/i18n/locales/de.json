@@ -82,6 +82,7 @@
     "costs": "Kosten",
     "tunnel": "Tunnel",
     "wash": "Wäscherei",
+    "warehouse": "Lager",
     "adminPanel": "Admin-Panel"
   },
   "header": {
@@ -104,8 +105,98 @@
     "costs": { "title": "Kosten", "subtitle": "Kosten und Abrechnungen" },
     "tunnel": { "title": "Tunnel", "subtitle": "Live Gateway Status" },
     "wash": { "title": "Wäscherei", "subtitle": "Waschen, Packen und Wagenumlauf" },
+    "warehouse": { "title": "Lager", "subtitle": "Bestände, Kartons und Warenbewegungen" },
     "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" },
     "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" }
+  },
+  "warehouse": {
+    "kicker": "Visuelles Lager",
+    "title": "Lagerbestand",
+    "subtitle": "Sehen Sie, wo Artikel liegen, und erfassen Sie jede Änderung.",
+    "pieces": "Stk.",
+    "readOnly": "Sie haben Lesezugriff. Lagerbewegungen erfasst ein Wäschereimitarbeiter oder Administrator.",
+    "tabs": {
+      "stock": "Bestand",
+      "history": "Verlauf"
+    },
+    "zones": {
+      "label": "Lagerzone"
+    },
+    "actions": {
+      "receipt": "Eingang",
+      "issue": "Ausgabe",
+      "transfer": "Umlagern",
+      "adjustment": "Bestand setzen"
+    },
+    "movement": {
+      "title": "Neue Lagerbewegung",
+      "subtitle": "Vorgang und Ort wählen, dann Mengen eingeben.",
+      "type": "Bewegungsart",
+      "from": "Von",
+      "to": "Nach",
+      "countedAt": "Gezählt an",
+      "actualCounts": "Tatsächlicher Bestand",
+      "quantities": "Mengen",
+      "onlyChanged": "Mengen für die ausgewählten Artikel eingeben.",
+      "searchItem": "Artikel suchen",
+      "available": "Verfügbar: {{count}}",
+      "quantity": "Menge",
+      "note": "Notiz (optional)",
+      "notePlaceholder": "z. B. Morgenlieferung, Schichtzählung",
+      "save": "Bewegung speichern"
+    },
+    "catalog": {
+      "button": "Sortiment",
+      "title": "Sortimentskatalog",
+      "subtitle": "Eigene Arten, Größen und Varianten hinzufügen.",
+      "addTitle": "Neuer Artikel",
+      "editTitle": "Artikel bearbeiten",
+      "name": "Name",
+      "nameExample": "z. B. Handtuch",
+      "variant": "Größe oder Variante",
+      "variantExample": "z. B. 50 × 100 cm",
+      "category": "Kategorie",
+      "categoryExample": "z. B. Handtücher",
+      "nameRequired": "Bitte einen Artikelnamen eingeben.",
+      "noVariant": "Ohne Größe und Kategorie",
+      "archiveConfirm": "Artikel deaktivieren: {{name}}? Dies ist nur bei Bestand null möglich."
+    },
+    "carton": {
+      "add": "Karton hinzufügen",
+      "addTitle": "Neuer Karton",
+      "addSubtitle": "Sie fügen einen Karton in Zone {{zone}} hinzu.",
+      "name": "Kartonname",
+      "autoName": "Leer lassen, um die nächste Nummer zu vergeben"
+    },
+    "loose": {
+      "pending": "Noch zu verteilen",
+      "zoneStock": "Zonenbestand"
+    },
+    "totalByItem": "Summe nach Artikel",
+    "zoneTitle": "Zone {{zone}}",
+    "locationCount": "Lagerplätze: {{count}}",
+    "emptyLocation": "Dieser Lagerplatz ist leer",
+    "noLocations": "Keine Lagerplätze in dieser Zone",
+    "history": {
+      "empty": "Keine Bewegungen in dieser Zone",
+      "emptyHint": "Der erste Eingang oder Anfangsbestand erscheint hier."
+    },
+    "errors": {
+      "allCounts": "Bei einer Korrektur den tatsächlichen Bestand jedes aktiven Artikels eingeben.",
+      "emptyMovement": "Mindestens eine Menge größer als null eingeben.",
+      "exceedsStock": "Es kann nicht mehr ausgegeben oder umgelagert werden, als am Lagerplatz vorhanden ist.",
+      "chooseSource": "Quellort wählen.",
+      "chooseDestination": "Zielort wählen.",
+      "sameLocation": "Quell- und Zielort müssen verschieden sein.",
+      "saveFailed": "Änderung konnte nicht gespeichert werden."
+    },
+    "messages": {
+      "movementSaved": "Lagerbewegung gespeichert",
+      "cartonAdded": "Karton hinzugefügt",
+      "itemAdded": "Artikel hinzugefügt",
+      "itemUpdated": "Artikel aktualisiert",
+      "itemArchived": "Artikel deaktiviert"
+    }
   },
   "workSchedule": {
     "viewSelector": "Arbeitsplanansicht auswählen",

@@ -22,6 +22,7 @@ const HistoryView = lazy(() => import('../components/HistoryView'));
 const WorkScheduleView = lazy(() => import('../components/WorkScheduleView'));
 const CostsView = lazy(() => import('../components/CostsView'));
 const WashView = lazy(() => import('../components/WashView'));
+const WarehouseView = lazy(() => import('../components/WarehouseView'));
 const MockupsHome = lazy(() => import('../components/mockups/MockupsHome'));
 const DispatchBoardMock = lazy(() => import('../components/mockups/DispatchBoardMock'));
 const DriverRouteCardMock = lazy(() => import('../components/mockups/DriverRouteCardMock'));
@@ -40,6 +41,7 @@ const PAGE_KEYS = {
   '/timeline': 'grafik',
   '/costs': 'costs',
   '/wash': 'wash',
+  '/warehouse': 'warehouse',
   '/admin': 'admin',
   '/rodo': 'rodo',
   '/mock': 'routes',
@@ -195,6 +197,7 @@ export default function Dashboard() {
           <Route path="/map" element={<MapView />} />
           <Route path="/costs" element={<CostsView />} />
           <Route path="/wash" element={canViewLaundry ? <WashView /> : <Navigate to="/" replace />} />
+          <Route path="/warehouse" element={canViewLaundry ? <WarehouseView /> : <Navigate to="/" replace />} />
           <Route path="/rodo" element={<RodoNotice />} />
           <Route path="/mock" element={<MockupsHome />} />
           <Route path="/mock/dyspozytornia" element={canViewAdminData ? <DispatchBoardMock /> : <Navigate to="/mock/kierowca" replace />} />

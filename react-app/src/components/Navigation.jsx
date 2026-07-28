@@ -23,6 +23,7 @@ export default function Navigation() {
 
   if (canViewLaundry) {
     navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
+    navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
   }
 
   navItems.push({ to: '/history', icon: '📋', label: t('nav.history') });

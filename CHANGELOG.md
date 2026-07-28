@@ -4,6 +4,17 @@ Log istotnych zmian w projekcie (po ludzku). Najnowsze na górze.
 Pełny, techniczny zapis każdej zmiany jest w historii Git (`git log`); tutaj
 trzymamy czytelne podsumowania, w tym rzeczy spoza kodu (Vercel, Sentry, decyzje).
 
+## 2026-07-28
+
+### Wizualny magazyn ZD1 i ZD2 (react-app)
+- Nowa zakładka **Magazyn** po Pralni: stan stref, dwa startowe kartony w ZD2,
+  dodawanie kolejnych kartonów oraz historia wszystkich ruchów.
+- Dostawy, wydania, transfery i ręczna inwentaryzacja są zapisywane w
+  niezmiennym dzienniku z operatorem i czasem. System blokuje ujemne stany.
+- Katalog asortymentu jest konfigurowalny. Można dodawać własne nazwy,
+  kategorie i warianty rozmiarowe, np. ręczniki 50 x 100 cm i 70 x 140 cm.
+- Migracja `db/migrations/warehouse_inventory.sql` została wdrożona w Supabase.
+
 ## 2026-06-28
 
 ### Odporność na nieświeże deploye (react-app)

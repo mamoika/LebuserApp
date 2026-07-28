@@ -82,6 +82,7 @@
     "costs": "Koszty",
     "tunnel": "Tunel",
     "wash": "Pralnia",
+    "warehouse": "Magazyn",
     "adminPanel": "Panel Admina"
   },
   "header": {
@@ -104,8 +105,98 @@
     "costs": { "title": "Koszty", "subtitle": "Koszty i rozliczenia" },
     "tunnel": { "title": "Tunel", "subtitle": "Status gatewaya live" },
     "wash": { "title": "Pralnia", "subtitle": "Pranie, pakowanie i obieg wózków" },
+    "warehouse": { "title": "Magazyn", "subtitle": "Stany, kartony i ruchy asortymentu" },
     "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" },
     "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" }
+  },
+  "warehouse": {
+    "kicker": "Magazyn wizualny",
+    "title": "Stan magazynu",
+    "subtitle": "Sprawdź, gdzie znajduje się asortyment i rejestruj każdą zmianę.",
+    "pieces": "szt.",
+    "readOnly": "Masz dostęp do podglądu. Ruchy magazynowe zapisuje pracownik pralni lub administrator.",
+    "tabs": {
+      "stock": "Stan",
+      "history": "Historia"
+    },
+    "zones": {
+      "label": "Strefa magazynu"
+    },
+    "actions": {
+      "receipt": "Przyjęcie",
+      "issue": "Wydanie",
+      "transfer": "Przenieś",
+      "adjustment": "Ustaw stan"
+    },
+    "movement": {
+      "title": "Nowy ruch magazynowy",
+      "subtitle": "Wybierz czynność, miejsce i wpisz ilości.",
+      "type": "Typ ruchu",
+      "from": "Skąd",
+      "to": "Dokąd",
+      "countedAt": "Policzono w miejscu",
+      "actualCounts": "Faktyczny stan",
+      "quantities": "Ilości",
+      "onlyChanged": "Wpisz ilości dla wybranego asortymentu.",
+      "searchItem": "Szukaj asortymentu",
+      "available": "Dostępne: {{count}}",
+      "quantity": "ilość",
+      "note": "Notatka (opcjonalnie)",
+      "notePlaceholder": "np. dostawa poranna, liczenie zmiany",
+      "save": "Zapisz ruch"
+    },
+    "catalog": {
+      "button": "Asortyment",
+      "title": "Katalog asortymentu",
+      "subtitle": "Dodawaj własne rodzaje, rozmiary i warianty.",
+      "addTitle": "Nowy asortyment",
+      "editTitle": "Edytuj asortyment",
+      "name": "Nazwa",
+      "nameExample": "np. Ręcznik",
+      "variant": "Rozmiar lub wariant",
+      "variantExample": "np. 50 × 100 cm",
+      "category": "Kategoria",
+      "categoryExample": "np. Ręczniki",
+      "nameRequired": "Podaj nazwę asortymentu.",
+      "noVariant": "Bez rozmiaru i kategorii",
+      "archiveConfirm": "Wyłączyć pozycję: {{name}}? Można to zrobić tylko przy zerowym stanie."
+    },
+    "carton": {
+      "add": "Dodaj karton",
+      "addTitle": "Nowy karton",
+      "addSubtitle": "Dodajesz karton w strefie {{zone}}.",
+      "name": "Nazwa kartonu",
+      "autoName": "Zostaw puste, aby nadać kolejny numer"
+    },
+    "loose": {
+      "pending": "Do rozłożenia",
+      "zoneStock": "Stan strefy"
+    },
+    "totalByItem": "Suma według asortymentu",
+    "zoneTitle": "Strefa {{zone}}",
+    "locationCount": "Liczba miejsc: {{count}}",
+    "emptyLocation": "To miejsce jest puste",
+    "noLocations": "Brak miejsc w tej strefie",
+    "history": {
+      "empty": "Brak ruchów w tej strefie",
+      "emptyHint": "Pierwsza dostawa lub ustawienie stanu pojawi się tutaj."
+    },
+    "errors": {
+      "allCounts": "Przy korekcie wpisz faktyczny stan każdego aktywnego asortymentu.",
+      "emptyMovement": "Wpisz co najmniej jedną ilość większą od zera.",
+      "exceedsStock": "Nie można wydać lub przenieść więcej niż znajduje się w wybranym miejscu.",
+      "chooseSource": "Wybierz miejsce źródłowe.",
+      "chooseDestination": "Wybierz miejsce docelowe.",
+      "sameLocation": "Miejsce źródłowe i docelowe muszą być różne.",
+      "saveFailed": "Nie udało się zapisać zmiany."
+    },
+    "messages": {
+      "movementSaved": "Ruch magazynowy zapisany",
+      "cartonAdded": "Karton dodany",
+      "itemAdded": "Asortyment dodany",
+      "itemUpdated": "Asortyment zaktualizowany",
+      "itemArchived": "Asortyment wyłączony"
+    }
   },
   "workSchedule": {
     "viewSelector": "Wybierz widok grafiku pracy",
