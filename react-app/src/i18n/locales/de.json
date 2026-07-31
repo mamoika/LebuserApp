@@ -112,7 +112,7 @@
   "warehouse": {
     "kicker": "Visuelles Lager",
     "title": "Lagerbestand",
-    "subtitle": "Sehen Sie, wo Artikel liegen, und erfassen Sie jede Änderung.",
+    "subtitle": "Kundenartikel in Kartons verwalten und die noch zu verteilende Menge manuell setzen.",
     "pieces": "Stk.",
     "readOnly": "Sie haben Lesezugriff. Lagerbewegungen erfasst ein Wäschereimitarbeiter oder Administrator.",
     "tabs": {
@@ -132,6 +132,9 @@
       "title": "Neue Lagerbewegung",
       "subtitle": "Vorgang und Ort wählen, dann Mengen eingeben.",
       "type": "Bewegungsart",
+      "client": "Kunde",
+      "chooseClient": "Kunden auswählen",
+      "archivedClient": "archiviert",
       "from": "Von",
       "to": "Nach",
       "countedAt": "Gezählt an",
@@ -178,6 +181,7 @@
     "emptyLocation": "Dieser Lagerplatz ist leer",
     "noLocations": "Keine Lagerplätze in dieser Zone",
     "history": {
+      "client": "Kunde",
       "empty": "Keine Bewegungen in dieser Zone",
       "emptyHint": "Der erste Eingang oder Anfangsbestand erscheint hier."
     },
@@ -185,6 +189,7 @@
       "allCounts": "Bei einer Korrektur den tatsächlichen Bestand jedes aktiven Artikels eingeben.",
       "emptyMovement": "Mindestens eine Menge größer als null eingeben.",
       "exceedsStock": "Es kann nicht mehr ausgegeben oder umgelagert werden, als am Lagerplatz vorhanden ist.",
+      "chooseClient": "Bitte den Kunden für diese Bewegung auswählen.",
       "chooseSource": "Quellort wählen.",
       "chooseDestination": "Zielort wählen.",
       "sameLocation": "Quell- und Zielort müssen verschieden sein.",

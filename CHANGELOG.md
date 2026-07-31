@@ -4,6 +4,16 @@ Log istotnych zmian w projekcie (po ludzku). Najnowsze na górze.
 Pełny, techniczny zapis każdej zmiany jest w historii Git (`git log`); tutaj
 trzymamy czytelne podsumowania, w tym rzeczy spoza kodu (Vercel, Sentry, decyzje).
 
+## 2026-07-31
+
+### Ruchy kartonów według klientów (react-app)
+- Przyjęcie, wydanie i przeniesienie asortymentu w kartonach wymagają wskazania
+  klienta. Stan klienta jest widoczny bezpośrednio na kartonie oraz w historii.
+- Wydanie jest kontrolowane na poziomie klienta, więc nie można wydać jego
+  asortymentu kosztem stanu innego klienta znajdującego się w tym samym kartonie.
+- Ogólny stan **Do rozłożenia** jest odseparowany od ruchów kartonów i można go
+  zmieniać wyłącznie ręcznie przez **Ustaw stan**.
+
 ## 2026-07-28
 
 ### Wizualny magazyn ZD1 i ZD2 (react-app)

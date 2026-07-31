@@ -112,7 +112,7 @@
   "warehouse": {
     "kicker": "Magazyn wizualny",
     "title": "Stan magazynu",
-    "subtitle": "Sprawdź, gdzie znajduje się asortyment i rejestruj każdą zmianę.",
+    "subtitle": "Kontroluj asortyment klientów w kartonach i ręcznie ustawiaj liczbę do rozłożenia.",
     "pieces": "szt.",
     "readOnly": "Masz dostęp do podglądu. Ruchy magazynowe zapisuje pracownik pralni lub administrator.",
     "tabs": {
@@ -132,6 +132,9 @@
       "title": "Nowy ruch magazynowy",
       "subtitle": "Wybierz czynność, miejsce i wpisz ilości.",
       "type": "Typ ruchu",
+      "client": "Klient",
+      "chooseClient": "Wybierz klienta",
+      "archivedClient": "archiwalny",
       "from": "Skąd",
       "to": "Dokąd",
       "countedAt": "Policzono w miejscu",
@@ -178,6 +181,7 @@
     "emptyLocation": "To miejsce jest puste",
     "noLocations": "Brak miejsc w tej strefie",
     "history": {
+      "client": "Klient",
       "empty": "Brak ruchów w tej strefie",
       "emptyHint": "Pierwsza dostawa lub ustawienie stanu pojawi się tutaj."
     },
@@ -185,6 +189,7 @@
       "allCounts": "Przy korekcie wpisz faktyczny stan każdego aktywnego asortymentu.",
       "emptyMovement": "Wpisz co najmniej jedną ilość większą od zera.",
       "exceedsStock": "Nie można wydać lub przenieść więcej niż znajduje się w wybranym miejscu.",
+      "chooseClient": "Wybierz klienta, którego dotyczy ten ruch.",
       "chooseSource": "Wybierz miejsce źródłowe.",
       "chooseDestination": "Wybierz miejsce docelowe.",
       "sameLocation": "Miejsce źródłowe i docelowe muszą być różne.",

@@ -28,6 +28,8 @@ import {
   setWarehouseStock,
 } from '../lib/warehouseRpc';
 import {
+  clientItemBreakdown,
+  clientStockCount,
   emptyWarehouseCounts,
   itemDisplayName,
   movementLinesFromCounts,
@@ -80,19 +82,33 @@ function ModalFrame({ title, subtitle, onClose, children, wide = false }) {
   );
 }
 
-function MovementModal({ initialType, preferredLocation, activeZone, items, locations, onClose, onSubmit }) {
+function MovementModal({ initialType, preferredLocation, activeZone, clients, items, locations, onClose, onSubmit }) {
   const { t } = useTranslation();
   const zoneLocations = locations.filter(location => location.zone === activeZone);
   const zoneRoot = zoneLocations.find(location => location.location_type === 'zone') || zoneLocations[0];
-  const firstSource = preferredLocation || zoneLocations.find(location => totalLocationStock(location, items) > 0) || zoneRoot;
-  const firstDestination = zoneLocations.find(location => location.id !== firstSource?.id && location.location_type === 'carton')
-    || locations.find(location => location.id !== firstSource?.id);
+  const cartonLocations = locations.filter(location => location.location_type === 'carton');
+  const zoneCartons = cartonLocations.filter(location => location.zone === activeZone);
+  const firstSource = preferredLocation?.location_type === 'carton'
+    ? preferredLocation
+    : zoneCartons.find(location => totalLocationStock(location, items) > 0) || zoneCartons[0];
+  const firstDestination = zoneCartons.find(location => location.id !== firstSource?.id)
+    || cartonLocations.find(location => location.id !== firstSource?.id);
+  const adjustmentOnly = initialType === 'adjustment';
+  const availableMovements = adjustmentOnly
+    ? [['adjustment', MOVEMENT_META.adjustment]]
+    : Object.entries(MOVEMENT_META).filter(([key]) => key !== 'adjustment');
   const [type, setType] = useState(initialType || 'receipt');
   const [sourceId, setSourceId] = useState(firstSource?.id || '');
   const [destinationId, setDestinationId] = useState(
-    initialType === 'receipt' ? (preferredLocation?.id || zoneRoot?.id || '') : (firstDestination?.id || '')
+    initialType === 'receipt' ? (preferredLocation?.id || zoneCartons[0]?.id || '') : (firstDestination?.id || '')
   );
   const [targetId, setTargetId] = useState(preferredLocation?.id || zoneRoot?.id || '');
+  const [clientId, setClientId] = useState(() => {
+    const stockedClient = preferredLocation?.client_stock?.find(entry => (
+      Object.values(entry.stock || {}).some(quantity => Number(quantity) > 0)
+    ));
+    return stockedClient?.client_id || clients[0]?.id || '';
+  });
   const initialTarget = locations.find(location => location.id === (preferredLocation?.id || zoneRoot?.id));
   const [counts, setCounts] = useState(() => (
     initialType === 'adjustment'
@@ -105,16 +121,23 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
   const [error, setError] = useState('');
 
   const filteredItems = items.filter(item => itemDisplayName(item).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
-  const source = locations.find(location => location.id === sourceId);
+  const source = cartonLocations.find(location => location.id === sourceId);
 
   const changeType = nextType => {
-    const nextTarget = preferredLocation || zoneRoot;
+    const nextTarget = preferredLocation?.location_type === 'zone' ? preferredLocation : zoneRoot;
     setType(nextType);
     setError('');
     setCounts(nextType === 'adjustment'
       ? emptyWarehouseCounts(items, nextTarget)
       : emptyWarehouseCounts(items));
-    if (nextType === 'receipt') setDestinationId(preferredLocation?.id || zoneRoot?.id || '');
+    if (nextType === 'receipt') {
+      setDestinationId(
+        preferredLocation?.location_type === 'carton' ? preferredLocation.id : (zoneCartons[0]?.id || '')
+      );
+      if (clients.find(client => client.id === clientId)?.archived_at) {
+        setClientId(clients.find(client => !client.archived_at)?.id || '');
+      }
+    }
     if (nextType === 'issue' || nextType === 'transfer') setSourceId(firstSource?.id || '');
     if (nextType === 'transfer') setDestinationId(firstDestination?.id || '');
     if (nextType === 'adjustment') setTargetId(nextTarget?.id || '');
@@ -142,7 +165,19 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
         return;
       }
     } else {
-      const validation = validateMovementCounts(counts, items, type === 'issue' || type === 'transfer' ? source : null);
+      const clientSource = source && (type === 'issue' || type === 'transfer')
+        ? {
+            stock: Object.fromEntries(items.map(item => [
+              item.id,
+              clientStockCount(source, item.id, clientId),
+            ])),
+          }
+        : null;
+      const validation = validateMovementCounts(counts, items, clientSource);
+      if (!clientId) {
+        setError(t('warehouse.errors.chooseClient'));
+        return;
+      }
       if (validation === 'empty') {
         setError(t('warehouse.errors.emptyMovement'));
         return;
@@ -172,6 +207,7 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
       } else {
         await onSubmit({
           type,
+          clientId,
           sourceLocationId: type === 'receipt' ? null : sourceId,
           destinationLocationId: type === 'issue' ? null : destinationId,
           lines: movementLinesFromCounts(counts, items),
@@ -195,7 +231,7 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
     >
       <form onSubmit={handleSubmit}>
         <div className="warehouse-action-tabs" role="tablist" aria-label={t('warehouse.movement.type')}>
-          {Object.entries(MOVEMENT_META).map(([key, meta]) => {
+          {availableMovements.map(([key, meta]) => {
             const Icon = meta.icon;
             return (
               <button
@@ -214,11 +250,32 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
         </div>
 
         <div className="warehouse-route-fields">
+          {type !== 'adjustment' && (
+            <label>
+              <span>{t('warehouse.movement.client')}</span>
+              <select value={clientId} onChange={event => {
+                setClientId(event.target.value);
+                setError('');
+              }}>
+                <option value="">{t('warehouse.movement.chooseClient')}</option>
+                {clients.map(client => (
+                  <option
+                    value={client.id}
+                    key={client.id}
+                    disabled={type === 'receipt' && Boolean(client.archived_at)}
+                  >
+                    {client.name}{client.route_name ? ` · ${client.route_name}` : ''}
+                    {client.archived_at ? ` (${t('warehouse.movement.archivedClient')})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {(type === 'issue' || type === 'transfer') && (
             <label>
               <span>{t('warehouse.movement.from')}</span>
               <select value={sourceId} onChange={event => setSourceId(event.target.value)}>
-                {locations.map(location => (
+                {cartonLocations.map(location => (
                   <option value={location.id} key={location.id}>{locationLabel(location)}</option>
                 ))}
               </select>
@@ -228,7 +285,7 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
             <label>
               <span>{t('warehouse.movement.to')}</span>
               <select value={destinationId} onChange={event => setDestinationId(event.target.value)}>
-                {locations.filter(location => location.id !== sourceId || type !== 'transfer').map(location => (
+                {cartonLocations.filter(location => location.id !== sourceId || type !== 'transfer').map(location => (
                   <option value={location.id} key={location.id}>{locationLabel(location)}</option>
                 ))}
               </select>
@@ -238,7 +295,7 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
             <label>
               <span>{t('warehouse.movement.countedAt')}</span>
               <select value={targetId} onChange={event => changeTarget(event.target.value)}>
-                {locations.map(location => (
+                {locations.filter(location => location.location_type === 'zone').map(location => (
                   <option value={location.id} key={location.id}>{locationLabel(location)}</option>
                 ))}
               </select>
@@ -263,7 +320,7 @@ function MovementModal({ initialType, preferredLocation, activeZone, items, loca
 
         <div className="warehouse-quantity-list">
           {filteredItems.map(item => {
-            const available = source ? stockCount(source, item.id) : null;
+            const available = source ? clientStockCount(source, item.id, clientId) : null;
             return (
               <label className="warehouse-quantity-row" key={item.id}>
                 <span className="warehouse-quantity-name">
@@ -464,6 +521,11 @@ function StockCard({ location, items, canManage, onAction, t }) {
             <span>
               <strong>{item.name}</strong>
               {item.variant && <small>{item.variant}</small>}
+              {!isLoose && clientItemBreakdown(location, item.id).map(entry => (
+                <small className="warehouse-client-breakdown" key={entry.clientId}>
+                  {entry.clientName}: {entry.quantity} {item.unit}
+                </small>
+              ))}
             </span>
             <b>{stockCount(location, item.id)} <small>{item.unit}</small></b>
           </div>
@@ -472,9 +534,15 @@ function StockCard({ location, items, canManage, onAction, t }) {
 
       {canManage && (
         <footer>
-          <button type="button" disabled={isEmpty} onClick={() => onAction('issue', location)}><PackageMinus size={15} /> {t('warehouse.actions.issue')}</button>
-          <button type="button" disabled={isEmpty} onClick={() => onAction('transfer', location)}><ArrowRightLeft size={15} /> {t('warehouse.actions.transfer')}</button>
-          <button type="button" onClick={() => onAction('adjustment', location)}><ClipboardCheck size={15} /> {t('warehouse.actions.adjustment')}</button>
+          {isLoose ? (
+            <button type="button" onClick={() => onAction('adjustment', location)}><ClipboardCheck size={15} /> {t('warehouse.actions.adjustment')}</button>
+          ) : (
+            <>
+              <button type="button" onClick={() => onAction('receipt', location)}><PackagePlus size={15} /> {t('warehouse.actions.receipt')}</button>
+              <button type="button" disabled={isEmpty} onClick={() => onAction('issue', location)}><PackageMinus size={15} /> {t('warehouse.actions.issue')}</button>
+              <button type="button" disabled={isEmpty} onClick={() => onAction('transfer', location)}><ArrowRightLeft size={15} /> {t('warehouse.actions.transfer')}</button>
+            </>
+          )}
         </footer>
       )}
     </article>
@@ -513,6 +581,9 @@ function WarehouseHistory({ transactions, activeZone, t, locale }) {
               <div>
                 <strong>{t(meta.labelKey)}</strong>
                 <span>{route}</span>
+                {transaction.client_name && (
+                  <span className="warehouse-history-client">{t('warehouse.history.client')}: {transaction.client_name}</span>
+                )}
               </div>
               <div className="warehouse-history-lines">
                 {transaction.lines.map(line => (
@@ -539,7 +610,7 @@ export default function WarehouseView() {
   const { t, i18n } = useTranslation();
   const { user, sessionToken } = useAuth();
   const canManage = ['admin', 'admin_viewer_driver', 'tunnel', 'packer'].includes(user?.role);
-  const [data, setData] = useState({ items: [], locations: [], transactions: [] });
+  const [data, setData] = useState({ clients: [], items: [], locations: [], transactions: [] });
   const [activeZone, setActiveZone] = useState('ZD2');
   const [view, setView] = useState('stock');
   const [loading, setLoading] = useState(true);
@@ -555,6 +626,7 @@ export default function WarehouseView() {
     try {
       const response = await getWarehouseInventory(sessionToken);
       setData({
+        clients: response?.clients || [],
         items: response?.items || [],
         locations: response?.locations || [],
         transactions: response?.transactions || [],
@@ -643,7 +715,12 @@ export default function WarehouseView() {
             </button>
           )}
           {canManage && (
-            <button type="button" className="warehouse-primary-btn" onClick={() => openMovement('receipt')}>
+            <button
+              type="button"
+              className="warehouse-primary-btn"
+              disabled={!activeLocations.some(location => location.location_type === 'carton')}
+              onClick={() => openMovement('receipt')}
+            >
               <PackagePlus size={17} /> {t('warehouse.actions.receipt')}
             </button>
           )}
@@ -735,6 +812,7 @@ export default function WarehouseView() {
           initialType={movementModal.type}
           preferredLocation={movementModal.location}
           activeZone={activeZone}
+          clients={data.clients}
           items={data.items}
           locations={data.locations}
           onClose={() => setMovementModal(null)}

@@ -7730,6 +7730,11 @@ button.laundry-metric:focus-visible {
 .warehouse-stock-line > span { min-width:0; }
 .warehouse-stock-line strong { display:block; overflow:hidden; color:var(--text-secondary); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .warehouse-stock-line small { display:block; margin-top:2px; color:var(--text-tertiary); font-size:10px; font-weight:550; }
+.warehouse-stock-line .warehouse-client-breakdown {
+  color:var(--accent);
+  font-size:9px;
+  font-weight:700;
+}
 .warehouse-stock-line b { flex-shrink:0; font-size:15px; font-variant-numeric:tabular-nums; }
 .warehouse-stock-line b small { display:inline; font-size:9px; font-weight:700; }
 .warehouse-card-empty {
@@ -7815,6 +7820,13 @@ button.laundry-metric:focus-visible {
 .warehouse-history-main > div:first-child { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
 .warehouse-history-main strong { font-size:13px; }
 .warehouse-history-main > div:first-child span { color:var(--text-tertiary); font-size:11px; font-weight:650; }
+.warehouse-history-main > div:first-child .warehouse-history-client {
+  padding:3px 7px;
+  border-radius:999px;
+  background:var(--accent-light);
+  color:var(--accent);
+  font-size:10px;
+}
 .warehouse-history-lines { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
 .warehouse-history-lines span {
   display:inline-flex;
@@ -7915,7 +7927,7 @@ button.laundry-metric:focus-visible {
 }
 .warehouse-route-fields {
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   gap:10px;
   margin-bottom:16px;
 }

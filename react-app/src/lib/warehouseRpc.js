@@ -40,10 +40,11 @@ export function archiveWarehouseItem(sessionToken, itemId) {
 }
 
 export function recordWarehouseMovement(sessionToken, movement, requestId = crypto.randomUUID()) {
-  return callWarehouseRpc('admin_record_warehouse_movement', {
+  return callWarehouseRpc('admin_record_warehouse_client_movement', {
     p_session_token: sessionToken,
     p_request_id: requestId,
     p_movement_type: movement.type,
+    p_client_id: movement.clientId,
     p_source_location_id: movement.sourceLocationId || null,
     p_destination_location_id: movement.destinationLocationId || null,
     p_lines: movement.lines,

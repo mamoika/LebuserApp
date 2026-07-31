@@ -13,6 +13,22 @@ export function stockCount(location, itemId) {
   return Math.max(0, Number(location?.stock?.[itemId] || 0));
 }
 
+export function clientStockCount(location, itemId, clientId) {
+  const clientStock = location?.client_stock?.find(entry => entry.client_id === clientId);
+  return Math.max(0, Number(clientStock?.stock?.[itemId] || 0));
+}
+
+export function clientItemBreakdown(location, itemId) {
+  return (location?.client_stock || [])
+    .map(entry => ({
+      clientId: entry.client_id,
+      clientName: entry.client_name,
+      quantity: Math.max(0, Number(entry.stock?.[itemId] || 0)),
+    }))
+    .filter(entry => entry.quantity > 0)
+    .sort((a, b) => a.clientName.localeCompare(b.clientName));
+}
+
 export function totalLocationStock(location, items) {
   return items.reduce((sum, item) => sum + stockCount(location, item.id), 0);
 }
