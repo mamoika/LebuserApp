@@ -716,10 +716,12 @@ begin
   select coalesce(json_agg(row_to_json(x)), '[]'::json)
   into v_timeline
   from (
-    select entry_date, role, employee_id, hour
-    from public.timeline_entries
-    where entry_date >= v_date_from and entry_date <= v_date_to
-    order by entry_date, employee_id, hour
+    select t.entry_date, t.role, t.employee_id, t.hour, g.name as role_group_name
+    from public.timeline_entries t
+    left join public.roles r on r.code = t.role
+    left join public.groups g on g.id = r.group_id
+    where t.entry_date >= v_date_from and t.entry_date <= v_date_to
+    order by t.entry_date, t.employee_id, t.hour
   ) x;
 
   return json_build_object(

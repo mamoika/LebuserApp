@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildDailyCostPatches,
+  buildTimelineStats,
   countAccruedDays,
   electricityMonthlyCost,
   electricityReconciliation,
@@ -9,6 +10,21 @@ import {
   meterUsageSeries,
   parseMeterReading,
 } from './costEngine.js';
+
+test('timeline hours follow the station group, not the employee home group', () => {
+  const date = '2026-08-03';
+  const stats = buildTimelineStats([
+    { employee_id: 7, entry_date: date, hour: 8, role: 'R', role_group_name: 'ZD 2' },
+  ], {
+    workingMap: { [`7_${date}`]: true },
+    startFor: () => 7,
+    employeeBuckets: { 7: 'ZD1' },
+  });
+
+  assert.equal(stats[date].roles.ZD1.hrs, 0);
+  assert.equal(stats[date].roles.ZD2.hrs, 1);
+  assert.equal(stats[date].roles.ZD2.emp.has(7), true);
+});
 
 test('a decreased meter reading is flagged and does not become the next baseline', () => {
   const series = meterUsageSeries(['100', '10', '110'], '90');

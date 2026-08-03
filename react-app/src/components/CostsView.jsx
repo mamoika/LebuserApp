@@ -11,6 +11,7 @@ import { exportSheetsAsXlsx } from '../lib/excelExport';
 import { isFutureCalendarDate } from '../lib/calendarDate';
 import {
   buildDailyCostPatches,
+  buildTimelineStats,
   countAccruedDays,
   COST_METER_FIELDS,
   electricityMonthlyCost,
@@ -61,13 +62,6 @@ function shiftStartHour(value, defaultStartH) {
   if (v.includes('-')) { const s = parseFloat(v.split('-')[0].replace(',', '.')); if (!isNaN(s)) return s; }
   if (v.includes('+')) { const s = parseFloat(v.split('+')[0].replace(',', '.')); if (!isNaN(s)) return s; }
   return defaultStartH; // sama liczba = długość zmiany, start bez zmian
-}
-
-// Dwie 15-min przerwy: start+3h i start+6h. Zwraca wagę godziny (1 = pełna, 0.75 = z przerwą)
-function hourWeight(hour, startH) {
-  const b1 = Math.floor(startH + 3);
-  const b2 = Math.floor(startH + 6);
-  return (hour === b1 || hour === b2) ? 0.75 : 1;
 }
 
 // Łączne godziny zmiany z wartości grafiku ("8", "6-14", "6+8"); 0 dla nieobecności (jak w Grafiku pracy)
@@ -384,8 +378,9 @@ export default function CostsView() {
     (costs || []).forEach(c => costMap[c.entry_date] = c);
     setDailyData(costMap);
 
-    // employee_id → performance bucket, derived from employee group_name ("ZD 1" / "ZD 2" / "KIEROWCY")
-    // oraz domyślna godzina startu
+    // employee_id → awaryjny koszyk wydajności dla starszych odpowiedzi RPC;
+    // podstawowy koszyk wynika z grupy faktycznie malowanego stanowiska.
+    // Dodatkowo zapisujemy domyślną godzinę startu.
     const empBucket = {};
     const empDefaultStart = {};
     (emps || []).forEach(e => {
@@ -415,22 +410,10 @@ export default function CostsView() {
 
     // Timeline stats (wydajność): godziny stanowiskowe z osi czasu, godzina z przerwą = 0.75.
     // Malowanie zakryte nieobecnością w grafiku (UW/L4/...) nie liczy się do wydajności.
-    const tStats = {};
-    (timeline || []).forEach(t => {
-      if (!workingMap[`${t.employee_id}_${t.entry_date}`]) return;
-      if (!tStats[t.entry_date]) {
-        tStats[t.entry_date] = {
-          roles: { ZD1: { hrs: 0, emp: new Set() }, ZD2: { hrs: 0, emp: new Set() }, Kierowcy: { hrs: 0, emp: new Set() } }
-        };
-      }
-      const w = hourWeight(t.hour, startFor(t.employee_id, t.entry_date));
-
-      // bucket by employee group; fall back to station "K" (Kierowca) for drivers
-      const bucket = empBucket[t.employee_id] || (t.role === 'K' ? 'Kierowcy' : null);
-      if (bucket && tStats[t.entry_date].roles[bucket]) {
-        tStats[t.entry_date].roles[bucket].hrs += w; // wydajność: godzina z przerwą = 0.75
-        tStats[t.entry_date].roles[bucket].emp.add(t.employee_id);
-      }
+    const tStats = buildTimelineStats(timeline, {
+      workingMap,
+      startFor,
+      employeeBuckets: empBucket,
     });
     setTimelineStats(tStats);
     } catch (err) {

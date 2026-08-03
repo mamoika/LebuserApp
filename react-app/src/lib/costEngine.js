@@ -116,3 +116,46 @@ export function electricityReconciliation(settings = {}, calculatedKwh = 0, calc
     costDifferencePct: hasInvoiceNet && invoiceNet > 0 ? (costDifference / invoiceNet) * 100 : null,
   };
 }
+
+export function buildTimelineStats(timelineEntries, { workingMap, startFor, employeeBuckets }) {
+  const stats = {};
+
+  const bucketForGroup = groupName => {
+    const normalized = String(groupName || '').replace(/\s+/g, '').toUpperCase();
+    if (normalized.startsWith('ZD1')) return 'ZD1';
+    if (normalized.startsWith('ZD2')) return 'ZD2';
+    if (normalized.includes('KIEROW')) return 'Kierowcy';
+    return null;
+  };
+
+  (timelineEntries || []).forEach(entry => {
+    if (!workingMap[`${entry.employee_id}_${entry.entry_date}`]) return;
+    if (!stats[entry.entry_date]) {
+      stats[entry.entry_date] = {
+        roles: {
+          ZD1: { hrs: 0, emp: new Set() },
+          ZD2: { hrs: 0, emp: new Set() },
+          Kierowcy: { hrs: 0, emp: new Set() },
+        },
+      };
+    }
+
+    const startHour = startFor(entry.employee_id, entry.entry_date);
+    const firstBreakHour = Math.floor(startHour + 3);
+    const secondBreakHour = Math.floor(startHour + 6);
+    const weight = entry.hour === firstBreakHour || entry.hour === secondBreakHour ? 0.75 : 1;
+    // Faktycznie malowane stanowisko decyduje o dziale. Grupa pracownika jest
+    // wyłącznie zgodnością wsteczną dla starszych odpowiedzi RPC bez grupy roli.
+    const bucket = bucketForGroup(entry.role_group_name)
+      || (entry.role === 'K' ? 'Kierowcy' : null)
+      || employeeBuckets[entry.employee_id]
+      || null;
+
+    if (bucket && stats[entry.entry_date].roles[bucket]) {
+      stats[entry.entry_date].roles[bucket].hrs += weight;
+      stats[entry.entry_date].roles[bucket].emp.add(entry.employee_id);
+    }
+  });
+
+  return stats;
+}
