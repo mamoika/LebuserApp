@@ -742,6 +742,7 @@ export default function TimelineView() {
       });
       toastError(t('timeline.copyError'));
     } else {
+      setCopySource(null);
       toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
   }, [isAdmin, copySource, employees, scheduleMap, user, sessionToken, t]);
