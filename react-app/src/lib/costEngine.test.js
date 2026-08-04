@@ -6,6 +6,9 @@ import {
   countAccruedDays,
   electricityMonthlyCost,
   electricityReconciliation,
+  gasProductionDailyCost,
+  gasProductionMonthlyCost,
+  gasProductionReconciliation,
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
@@ -102,16 +105,60 @@ test('electricity reconciliation compares meter calculation with invoice values'
   assert.equal(Math.round(result.costDifferencePct * 100) / 100, 3.19);
 });
 
+test('production gas reconciliation uses the net totals from the May and June invoices', () => {
+  const may = gasProductionReconciliation({
+    gas_prod_invoice_kwh: 79575,
+    gas_prod_invoice_net: 26751.80,
+    gas_prod_fixed_daily: 173.508,
+  }, 7000, 24879.25, 31);
+  const june = gasProductionReconciliation({
+    gas_prod_invoice_kwh: 95698,
+    gas_prod_invoice_net: 29858.96,
+    gas_prod_fixed_daily: 173.508,
+  }, 8500, 28000, 30);
+
+  assert.equal(may.invoiceKwh, 79575);
+  assert.equal(may.invoiceNet, 26751.80);
+  assert.equal(Math.round(may.impliedKwhPerM3 * 1000) / 1000, 11.368);
+  assert.equal(Math.round(may.invoiceDerivedPriceM3 * 1000) / 1000, 3.053);
+  assert.equal(Math.round(may.costDifference * 100) / 100, 1872.55);
+  assert.equal(june.invoiceKwh, 95698);
+  assert.equal(june.invoiceNet, 29858.96);
+  assert.equal(Math.round(june.costDifference * 100) / 100, 1858.96);
+});
+
+test('production gas invoice net is the authoritative monthly cost', () => {
+  const settings = {
+    gas_prod_price_m3: 1.95,
+    gas_prod_fixed_daily: 173.508,
+    gas_prod_invoice_net: 29858.96,
+  };
+
+  assert.equal(gasProductionMonthlyCost(16123, settings, 30), 29858.96);
+  assert.equal(gasProductionMonthlyCost(16123, {
+    gas_prod_price_m3: 1.95,
+    gas_prod_fixed_daily: 173.508,
+  }, 30), 36645.09);
+});
+
+test('production gas invoice cost is allocated exactly across days without meter readings', () => {
+  const settings = { gas_prod_invoice_net: 26751.80, gas_prod_fixed_daily: 173.508 };
+  const daily = Array.from({ length: 31 }, () => gasProductionDailyCost(0, 0, settings, 31));
+
+  assert.equal(Math.round(daily.reduce((sum, value) => sum + value, 0) * 100) / 100, 26751.80);
+});
+
 test('invoice fields are optional but reject negative values', () => {
   const settings = {
     fiat_l_100km: 9, isuzu_l_100km: 10, merc_l_100km: 11, iveco_l_100km: 12,
     fuel_price: 5, elec_multiplier: 80, elec_fixed_monthly: 1, elec_price_kwh: 1,
     elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
     elec_invoice_kwh: null, elec_invoice_net: -1,
+    gas_prod_invoice_kwh: null, gas_prod_invoice_net: -1,
     gas_prod_price_m3: 2, gas_prod_fixed_daily: 3, gas_heat_price_m3: 4,
     gas_heat_fixed_monthly: 1, water_fixed_monthly: 2, water_price_m3: 3,
     worker_hourly_rate: 40,
   };
 
-  assert.deepEqual(invalidCostSettingFields(settings), ['elec_invoice_net']);
+  assert.deepEqual(invalidCostSettingFields(settings), ['elec_invoice_net', 'gas_prod_invoice_net']);
 });

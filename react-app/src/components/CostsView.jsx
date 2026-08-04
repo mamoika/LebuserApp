@@ -17,6 +17,9 @@ import {
   electricityMonthlyCost,
   electricityMonthlyFees,
   electricityReconciliation,
+  gasProductionDailyCost,
+  gasProductionMonthlyCost,
+  gasProductionReconciliation,
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
@@ -205,6 +208,7 @@ const DEFAULT_SETTINGS = {
   elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
   elec_invoice_kwh: null, elec_invoice_net: null,
   gas_prod_price_m3: 1.95, gas_prod_fixed_daily: 173.51,
+  gas_prod_invoice_kwh: null, gas_prod_invoice_net: null,
   gas_heat_price_m3: 6.15, gas_heat_fixed_monthly: 49.78,
   water_price_m3: 16.25, water_fixed_monthly: 20.10,
   worker_hourly_rate: 45.82
@@ -221,6 +225,8 @@ function settingsForMonth(monthKey, settsAsc) {
     ...(chosen || {}),
     elec_invoice_kwh: exact?.elec_invoice_kwh ?? null,
     elec_invoice_net: exact?.elec_invoice_net ?? null,
+    gas_prod_invoice_kwh: exact?.gas_prod_invoice_kwh ?? null,
+    gas_prod_invoice_net: exact?.gas_prod_invoice_net ?? null,
   };
 }
 // Zużycie licznika kumulatywnego, z obsługą jawnej wymiany/resetu licznika.
@@ -252,7 +258,8 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
   const transport = ((fiat * s.fiat_l_100km) + (isuzu * s.isuzu_l_100km) + (merc * s.merc_l_100km) + (iveco * s.iveco_l_100km)) / 100 * s.fuel_price;
   const kWh = u('elec') * s.elec_multiplier;
   const elec = electricityMonthlyCost(kWh, s);
-  const gasProd = u('gas_prod') * s.gas_prod_price_m3 + s.gas_prod_fixed_daily * daysInMonth;
+  const gasProdUsage = u('gas_prod');
+  const gasProd = gasProductionMonthlyCost(gasProdUsage, s, daysInMonth);
   const gasHeat = u('gas_heat') * s.gas_heat_price_m3 + s.gas_heat_fixed_monthly;
   const water = u('water') * s.water_price_m3 + s.water_fixed_monthly;
   const workers = (laborByMonth[mk] || 0) * s.worker_hourly_rate;
@@ -356,8 +363,17 @@ export default function CostsView() {
     } else {
       if (prevSet) {
         // odrzucamy id (i znacznik czasu), żeby zapis utworzył NOWY wiersz dla tego miesiąca, nie nadpisał poprzedni
-        const { id, updated_at, elec_invoice_kwh, elec_invoice_net, ...rates } = prevSet; // eslint-disable-line no-unused-vars
-        setSettings({ ...rates, month_key: monthKey, elec_invoice_kwh: null, elec_invoice_net: null });
+        const rates = { ...prevSet };
+        ['id', 'updated_at', 'elec_invoice_kwh', 'elec_invoice_net', 'gas_prod_invoice_kwh', 'gas_prod_invoice_net']
+          .forEach(field => delete rates[field]);
+        setSettings({
+          ...rates,
+          month_key: monthKey,
+          elec_invoice_kwh: null,
+          elec_invoice_net: null,
+          gas_prod_invoice_kwh: null,
+          gas_prod_invoice_net: null,
+        });
       } else {
         setSettings({ month_key: monthKey, ...DEFAULT_SETTINGS });
       }
@@ -643,6 +659,7 @@ export default function CostsView() {
   ]));
   const consumptionAt = (idx, base) => meterSeries[base]?.[idx]?.usage || 0;
   const meterIssueAt = (idx, base) => meterSeries[base]?.[idx]?.status || 'missing';
+  const gasProdUsageForMonth = meterSeries.gas_prod.reduce((sum, reading) => sum + (reading.usage || 0), 0);
 
   const calcDay = (dStr, idx, { includeFuture = false } = {}) => {
     const d = dailyData[dStr] || {};
@@ -658,7 +675,9 @@ export default function CostsView() {
     const elecMonthlyFees = electricityMonthlyFees(settings);
     const elec_cost = elec_usage * settings.elec_price_kwh + (suppressed ? 0 : (elecMonthlyFees / daysInMonth));
     const gas_prod_usage = suppressed ? 0 : consumptionAt(idx, 'gas_prod');
-    const gas_prod_cost = gas_prod_usage * settings.gas_prod_price_m3 + (suppressed ? 0 : settings.gas_prod_fixed_daily);
+    const gas_prod_cost = suppressed
+      ? 0
+      : gasProductionDailyCost(gas_prod_usage, gasProdUsageForMonth, settings, daysInMonth);
     const gas_heat_usage = suppressed ? 0 : consumptionAt(idx, 'gas_heat');
     const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (suppressed ? 0 : (settings.gas_heat_fixed_monthly / daysInMonth));
     const water_usage = suppressed ? 0 : consumptionAt(idx, 'water');
@@ -695,6 +714,7 @@ export default function CostsView() {
   const monthlyTotals = calculateTotals(false);
   const forecastTotals = calculateTotals(true);
   const elecReconciliation = electricityReconciliation(settings, forecastTotals.kWh, forecastTotals.elec);
+  const gasProdReconciliation = gasProductionReconciliation(settings, forecastTotals.m3GasProd, forecastTotals.gasProd, daysInMonth);
   const plannedCosts = Math.max(0, forecastTotals.total - monthlyTotals.total);
 
   // Performance totals
@@ -875,7 +895,7 @@ export default function CostsView() {
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} forecastTotal={forecastTotals.total} plannedCosts={plannedCosts} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} elecReconciliation={elecReconciliation} />
+            <OverviewTab totals={monthlyTotals} forecastTotal={forecastTotals.total} plannedCosts={plannedCosts} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} elecReconciliation={elecReconciliation} gasProdReconciliation={gasProdReconciliation} />
           )}
 
           {activeTab === 'entry' && (
@@ -892,7 +912,7 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [], elecReconciliation }) {
+function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [], elecReconciliation, gasProdReconciliation }) {
   const { t } = useTranslation();
   const cats = [
     { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
@@ -933,6 +953,10 @@ function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPe
 
       {(elecReconciliation?.hasInvoiceKwh || elecReconciliation?.hasInvoiceNet) && (
         <ElectricityReconciliationCard reconciliation={elecReconciliation} />
+      )}
+
+      {(gasProdReconciliation?.hasInvoiceKwh || gasProdReconciliation?.hasInvoiceNet) && (
+        <GasProductionReconciliationCard reconciliation={gasProdReconciliation} />
       )}
 
       {/* zł/kg ROZBITE NA DRIVERY + MOST MoM */}
@@ -1289,6 +1313,10 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
     { title: t('costs.productionGas'), color: CAT.gas, fields: [
       ['gas_prod_price_m3', t('costs.ratePerM3')], ['gas_prod_fixed_daily', t('costs.subscriptionDaily')],
     ]},
+    { title: t('costs.productionGasInvoice'), color: CAT.gas, isInvoiceSection: true, fields: [
+      ['gas_prod_invoice_kwh', t('costs.invoiceKwh')],
+      ['gas_prod_invoice_net', t('costs.invoiceNet')],
+    ]},
     { title: t('costs.heatingGas'), color: '#4A148C', fields: [
       ['gas_heat_price_m3', t('costs.ratePerM3')], ['gas_heat_fixed_monthly', t('costs.subscriptionMonthly')],
     ]},
@@ -1350,6 +1378,55 @@ function ElectricityReconciliationCard({ reconciliation }) {
         {reconciliation.hasInvoiceNet && (
           <ReconciliationMetric
             label={t('costs.energyNetCost')}
+            calculated={`${FMT(reconciliation.calculatedNet)} ${t('costs.currency')}`}
+            invoice={`${FMT(reconciliation.invoiceNet)} ${t('costs.currency')}`}
+            difference={reconciliation.costDifference}
+            differencePct={reconciliation.costDifferencePct}
+            unit={t('costs.currency')}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GasProductionReconciliationCard({ reconciliation }) {
+  const { t } = useTranslation();
+  return (
+    <div style={{ ...cardStyle, borderLeft: `4px solid ${CAT.gas}` }}>
+      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Flame size={17} color={CAT.gas}/> {t('costs.productionGasReconciliation')}
+      </div>
+      <div style={{ color: IOS_THEME.textSecondary, fontSize: '12px', marginBottom: '14px' }}>
+        {t('costs.productionGasReconciliationHint')}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+        {reconciliation.hasInvoiceKwh && (
+          <div style={{ padding: '12px', borderRadius: '12px', background: '#F9FAFB', border: `1px solid ${IOS_THEME.border}` }}>
+            <div style={{ fontWeight: 700, marginBottom: '8px' }}>{t('costs.productionGasConsumption')}</div>
+            <div style={{ display: 'grid', gap: '4px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ color: IOS_THEME.textSecondary }}>{t('costs.appMeter')}</span>
+                <strong>{FMT1(reconciliation.calculatedM3)} m³</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ color: IOS_THEME.textSecondary }}>{t('costs.invoiceValue')}</span>
+                <strong>{FMT1(reconciliation.invoiceKwh)} kWh</strong>
+              </div>
+            </div>
+            {reconciliation.impliedKwhPerM3 != null && (
+              <div style={{ color: CAT.gas, textAlign: 'right', marginTop: '7px', fontWeight: 700, fontSize: '12px', display: 'grid', gap: '3px' }}>
+                <span>{t('costs.impliedGasConversion')}: {FMT3(reconciliation.impliedKwhPerM3)} kWh/m³</span>
+                {reconciliation.invoiceDerivedPriceM3 != null && (
+                  <span>{t('costs.invoiceDerivedGasRate')}: {FMT3(reconciliation.invoiceDerivedPriceM3)} {t('costs.currency')}/m³</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {reconciliation.hasInvoiceNet && (
+          <ReconciliationMetric
+            label={t('costs.productionGasNetCost')}
             calculated={`${FMT(reconciliation.calculatedNet)} ${t('costs.currency')}`}
             invoice={`${FMT(reconciliation.invoiceNet)} ${t('costs.currency')}`}
             difference={reconciliation.costDifference}

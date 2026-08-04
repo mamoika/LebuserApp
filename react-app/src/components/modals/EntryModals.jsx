@@ -570,7 +570,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [arrDay, setArrDay] = useState(defaultArrDay || 1);
   const [pickDay, setPickDay] = useState(defaultArrDay || 1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next
-  const [trolleyMode, setTrolleyMode] = useState('trolley');
+  const [trolleyMode, setTrolleyMode] = useState('none');
   const [selectedTrolleys, setSelectedTrolleys] = useState([]);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -632,7 +632,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setClientListOpen(false);
       setWeight('');
       setType(firstAllowedLaundryType(initClient, routes, defaultType) || '');
-      setTrolleyMode('trolley');
+      setTrolleyMode('none');
       setSelectedTrolleys([]);
       setUrgent(false);
       setExplicitRouteId('');
@@ -891,7 +891,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const [arrDay, setArrDay] = useState(1);
   const [pickDay, setPickDay] = useState(1);
   const [pickWeek, setPickWeek] = useState(0); // 0 = same, 1 = next week
-  const [trolleyMode, setTrolleyMode] = useState('trolley');
+  const [trolleyMode, setTrolleyMode] = useState('none');
   const [selectedTrolleys, setSelectedTrolleys] = useState([]);
   const [urgent, setUrgent] = useState(false);
   const [comment, setComment] = useState('');

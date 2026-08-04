@@ -165,6 +165,14 @@ export default function ArrivalTrolleyPicker({
       <div className="segmented-control live-arrival-trolley-mode">
         <button
           type="button"
+          className={`seg-btn${mode === 'none' ? ' active' : ''}`}
+          onClick={() => { onModeChange('none'); onSelectedChange([]); setError(''); }}
+          disabled={disabled}
+        >
+          {t('entry.trolleyModeNone')}
+        </button>
+        <button
+          type="button"
           className={`seg-btn${mode === 'trolley' ? ' active' : ''}`}
           onClick={() => {
             onModeChange('trolley');
@@ -173,14 +181,6 @@ export default function ArrivalTrolleyPicker({
           disabled={disabled}
         >
           {t('entry.trolleyModeNumbered')}
-        </button>
-        <button
-          type="button"
-          className={`seg-btn${mode === 'none' ? ' active' : ''}`}
-          onClick={() => { onModeChange('none'); onSelectedChange([]); setError(''); }}
-          disabled={disabled}
-        >
-          {t('entry.trolleyModeNone')}
         </button>
       </div>
 

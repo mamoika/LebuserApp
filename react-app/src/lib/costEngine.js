@@ -20,7 +20,12 @@ export const COST_SETTING_FIELDS = [
   'water_fixed_monthly', 'water_price_m3', 'worker_hourly_rate',
 ];
 
-export const OPTIONAL_COST_SETTING_FIELDS = ['elec_invoice_kwh', 'elec_invoice_net'];
+export const OPTIONAL_COST_SETTING_FIELDS = [
+  'elec_invoice_kwh',
+  'elec_invoice_net',
+  'gas_prod_invoice_kwh',
+  'gas_prod_invoice_net',
+];
 
 export function parseMeterReading(raw) {
   const trimmed = raw == null ? '' : String(raw).trim();
@@ -95,6 +100,33 @@ export function electricityMonthlyFees(settings = {}) {
     + (settings.elec_reactive_monthly || 0);
 }
 
+export function gasProductionMonthlyCost(usageM3, settings = {}, dayCount = 0) {
+  const invoiceNet = settings.gas_prod_invoice_net;
+  if (typeof invoiceNet === 'number' && Number.isFinite(invoiceNet) && invoiceNet >= 0) {
+    return invoiceNet;
+  }
+  const usage = Number.isFinite(usageM3) && usageM3 >= 0 ? usageM3 : 0;
+  return usage * (settings.gas_prod_price_m3 || 0)
+    + (settings.gas_prod_fixed_daily || 0) * Math.max(0, dayCount || 0);
+}
+
+export function gasProductionDailyCost(usageM3, totalUsageM3, settings = {}, dayCount = 0) {
+  const usage = Number.isFinite(usageM3) && usageM3 >= 0 ? usageM3 : 0;
+  const totalUsage = Number.isFinite(totalUsageM3) && totalUsageM3 > 0 ? totalUsageM3 : 0;
+  const days = Math.max(0, dayCount || 0);
+  const invoiceNet = settings.gas_prod_invoice_net;
+
+  if (typeof invoiceNet === 'number' && Number.isFinite(invoiceNet) && invoiceNet >= 0 && days > 0) {
+    if (totalUsage === 0) return invoiceNet / days;
+    const fixedTotal = Math.min(invoiceNet, (settings.gas_prod_fixed_daily || 0) * days);
+    const variableTotal = invoiceNet - fixedTotal;
+    return fixedTotal / days + (usage / totalUsage) * variableTotal;
+  }
+
+  return usage * (settings.gas_prod_price_m3 || 0)
+    + (settings.gas_prod_fixed_daily || 0);
+}
+
 export function electricityReconciliation(settings = {}, calculatedKwh = 0, calculatedNet = 0) {
   const invoiceKwh = settings.elec_invoice_kwh;
   const invoiceNet = settings.elec_invoice_net;
@@ -112,6 +144,29 @@ export function electricityReconciliation(settings = {}, calculatedKwh = 0, calc
     invoiceNet: hasInvoiceNet ? invoiceNet : null,
     usageDifference,
     usageDifferencePct: hasInvoiceKwh && invoiceKwh > 0 ? (usageDifference / invoiceKwh) * 100 : null,
+    costDifference,
+    costDifferencePct: hasInvoiceNet && invoiceNet > 0 ? (costDifference / invoiceNet) * 100 : null,
+  };
+}
+
+export function gasProductionReconciliation(settings = {}, calculatedM3 = 0, calculatedNet = 0, dayCount = 0) {
+  const invoiceKwh = settings.gas_prod_invoice_kwh;
+  const invoiceNet = settings.gas_prod_invoice_net;
+  const hasInvoiceKwh = typeof invoiceKwh === 'number' && Number.isFinite(invoiceKwh) && invoiceKwh >= 0;
+  const hasInvoiceNet = typeof invoiceNet === 'number' && Number.isFinite(invoiceNet) && invoiceNet >= 0;
+  const hasCalculatedM3 = typeof calculatedM3 === 'number' && Number.isFinite(calculatedM3) && calculatedM3 > 0;
+  const fixedNet = (settings.gas_prod_fixed_daily || 0) * Math.max(0, dayCount || 0);
+  const costDifference = hasInvoiceNet ? invoiceNet - calculatedNet : null;
+
+  return {
+    hasInvoiceKwh,
+    hasInvoiceNet,
+    calculatedM3,
+    calculatedNet,
+    invoiceKwh: hasInvoiceKwh ? invoiceKwh : null,
+    invoiceNet: hasInvoiceNet ? invoiceNet : null,
+    impliedKwhPerM3: hasInvoiceKwh && hasCalculatedM3 ? invoiceKwh / calculatedM3 : null,
+    invoiceDerivedPriceM3: hasInvoiceNet && hasCalculatedM3 ? Math.max(0, invoiceNet - fixedNet) / calculatedM3 : null,
     costDifference,
     costDifferencePct: hasInvoiceNet && invoiceNet > 0 ? (costDifference / invoiceNet) * 100 : null,
   };
