@@ -1,19 +1,17 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarRange, Clock3, History, MapPinned, Settings } from 'lucide-react';
+import { CalendarRange, Clock3, History, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const GrafikView = lazy(() => import('./GrafikView'));
 const TimelineView = lazy(() => import('./TimelineView'));
-const WorkforcePlanningView = lazy(() => import('./WorkforcePlanningView'));
 const WorkScheduleSettings = lazy(() => (
   import('./AdminDashboard').then(module => ({ default: module.WorkScheduleSettings }))
 ));
 
 function sectionFromHash(hash) {
   if (hash === '#obsada') return 'timeline';
-  if (hash === '#planowanie') return 'planning';
   if (hash === '#ustawienia') return 'settings';
   return 'schedule';
 }
@@ -44,7 +42,7 @@ export default function WorkScheduleView() {
     navigate(
       {
         pathname: location.pathname,
-        hash: section === 'timeline' ? '#obsada' : section === 'planning' ? '#planowanie' : section === 'settings' ? '#ustawienia' : '#harmonogram',
+        hash: section === 'timeline' ? '#obsada' : section === 'settings' ? '#ustawienia' : '#harmonogram',
       },
       { replace: true }
     );
@@ -57,20 +55,17 @@ export default function WorkScheduleView() {
           <span className={`work-schedule-section-icon ${activeSection}`} aria-hidden="true">
             {activeSection === 'schedule' && <CalendarRange size={19} />}
             {activeSection === 'timeline' && <Clock3 size={19} />}
-            {activeSection === 'planning' && <MapPinned size={19} />}
             {activeSection === 'settings' && <Settings size={19} />}
           </span>
           <span>
             <h2 id="work-schedule-current-title">
               {activeSection === 'schedule' && t('workSchedule.monthTitle')}
               {activeSection === 'timeline' && t('workSchedule.timelineTitle')}
-              {activeSection === 'planning' && t('workSchedule.planningTitle')}
               {activeSection === 'settings' && t('workSchedule.settingsTitle')}
             </h2>
             <p>
               {activeSection === 'schedule' && t('workSchedule.monthDescription')}
               {activeSection === 'timeline' && t('workSchedule.timelineDescription')}
-              {activeSection === 'planning' && t('workSchedule.planningDescription')}
               {activeSection === 'settings' && t('workSchedule.settingsDescription')}
             </p>
           </span>
@@ -103,19 +98,6 @@ export default function WorkScheduleView() {
             >
               <Clock3 size={16} aria-hidden="true" />
               {t('workSchedule.timelineTab')}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="work-schedule-tab-planning"
-              aria-controls="planowanie"
-              aria-selected={activeSection === 'planning'}
-              tabIndex={activeSection === 'planning' ? 0 : -1}
-              className={activeSection === 'planning' ? 'active' : ''}
-              onClick={() => selectSection('planning')}
-            >
-              <MapPinned size={16} aria-hidden="true" />
-              {t('workSchedule.planningTab')}
             </button>
           </div>
         </div>
@@ -163,14 +145,6 @@ export default function WorkScheduleView() {
         >
           <Suspense fallback={<SectionLoader label={t('timeline.loading')} />}>
             <TimelineView />
-          </Suspense>
-        </section>
-      )}
-
-      {activeSection === 'planning' && (
-        <section id="planowanie" className="work-schedule-section" aria-labelledby="work-schedule-current-title">
-          <Suspense fallback={<SectionLoader label={t('workforcePlanning.loading')} />}>
-            <WorkforcePlanningView />
           </Suspense>
         </section>
       )}

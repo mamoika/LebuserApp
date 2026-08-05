@@ -25,8 +25,6 @@ Smoke-test two finished courses using the same car on one day and a course that 
 - the overview separates costs to date, planned costs and the full-month forecast,
 - two simultaneous edits of the same costs row do not silently overwrite one another.
 
-For workforce planning, verify that the new `Planowanie hali` tab loads the current monthly roster from Grafik, saves one general visual arrangement of people and vacancies, and rejects a stale simultaneous save. The second migration replaces the earlier per-day planning RPCs.
-
 ## Phase 2: Smoke Test
 
 Verify these flows in the app:
@@ -39,6 +37,9 @@ Verify these flows in the app:
 - Admin saves cost settings and daily costs.
 - Admin saves default driver car.
 - Logs appear after actions.
+
+After deploying the frontend that removes hall planning, run
+`db/migrations/remove_workforce_planning.sql` to remove the retired RPCs and stored plans.
 
 ## Phase 3: Revoke Direct Writes
 
