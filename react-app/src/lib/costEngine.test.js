@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   buildDailyCostPatches,
@@ -60,6 +61,26 @@ test('daily cost autosave sends only fields edited by the user', () => {
     buildDailyCostPatches(dailyData, [['2026-07-15', ['other_costs']]]),
     [{ entry_date: '2026-07-15', expected_updated_at: '2026-07-15T08:00:00Z', other_costs: '120' }],
   );
+});
+
+test('daily cost autosave preserves a dash used as a missing-reading marker', () => {
+  const dailyData = {
+    '2026-08-04': { entry_date: '2026-08-04', fiat_end: '-', updated_at: null },
+  };
+
+  assert.deepEqual(
+    buildDailyCostPatches(dailyData, [['2026-08-04', ['fiat_end']]]),
+    [{ entry_date: '2026-08-04', expected_updated_at: null, fiat_end: '-' }],
+  );
+});
+
+test('database validator accepts both missing-reading dash markers', async () => {
+  const sql = await readFile(
+    new URL('../../db/migrations/costs_meter_missing_markers.sql', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(sql, /trim\(v_meter\) not in \('', '-', '—'\)/);
 });
 
 test('month-to-date day count excludes future dates', () => {
