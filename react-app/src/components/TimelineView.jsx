@@ -7,6 +7,7 @@ import { toastError, toastSuccess, toastWarn } from '../lib/toast';
 import { getTimelineWeek } from '../lib/readRpc';
 import { isHoliday } from '../utils/holidays';
 import { dayNamesSunSat } from '../lib/dateUtils';
+import { getShiftEndMarker } from '../lib/timelineShiftEnd';
 
 const STATUS_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa' },
@@ -311,6 +312,9 @@ const TimelineRow = React.memo(({
     const overflowEndH = sumOverflowHours(overflowEndCells);
     const isCopySource = copyMode && copySource === `${emp.id}_${dateStr}`;
     const canCopyHere = copyMode && isAdmin && working && !dayStatus;
+    const shiftEnd = working && !dayStatus
+      ? getShiftEndMarker(endH, VISIBLE_START, VISIBLE_END)
+      : null;
 
     return (
       <React.Fragment key={di}>
@@ -348,6 +352,10 @@ const TimelineRow = React.memo(({
           const badgeCells = showStartBadge ? overflowStartCells : overflowEndCells;
           const badgeHours = showStartBadge ? overflowStartH : overflowEndH;
           const badgeEndMarker = showEndBadge ? overflowEndMarker : null;
+          const showShiftEnd = shiftEnd?.cellHour === h;
+          const shiftEndTitle = showShiftEnd
+            ? t('timeline.shiftEndTooltip', { name: emp.name, time: shiftEnd.label })
+            : null;
 
           // Dymek z pełną nazwą stanowiska po najechaniu na zamalowaną komórkę
           const roleTitle = !dayStatus && isShiftHour && role
@@ -357,7 +365,7 @@ const TimelineRow = React.memo(({
           return (
             <td key={h}
               className={`tl-cell ${isBrushable ? 'brushable' : ''}`}
-              title={roleTitle}
+              title={[roleTitle, shiftEndTitle].filter(Boolean).join(' · ') || undefined}
               onMouseDown={() => {
                 if (!isBrushable) return;
                 isPaintingRef.current = true;
@@ -375,7 +383,7 @@ const TimelineRow = React.memo(({
             >
               <div
                 className="tl-cell-inner"
-                style={{ ...cellStyle, overflow: showBadge ? 'visible' : undefined }}
+                style={{ ...cellStyle, overflow: showBadge || showShiftEnd ? 'visible' : undefined }}
               >
                 {isBreakHour && <span className="tl-break-mark" title={t('timeline.break15')} />}
                 {!dayStatus && isShiftHour && (role || '')}
@@ -394,6 +402,20 @@ const TimelineRow = React.memo(({
                   >
                     +{fmtHours(badgeHours)}h
                   </button>
+                )}
+                {showShiftEnd && (
+                  <span
+                    className={`tl-shift-end-marker ${shiftEnd.offset <= 0.08 ? 'edge-start' : shiftEnd.offset >= 0.92 ? 'edge-end' : ''}`}
+                    style={{ left: `${shiftEnd.offset * 100}%` }}
+                    role="img"
+                    aria-label={shiftEndTitle}
+                  >
+                    <span className="tl-shift-end-label">
+                      {shiftEnd.outside === 'before' ? '‹' : ''}
+                      {shiftEnd.label}
+                      {shiftEnd.outside === 'after' ? '›' : ''}
+                    </span>
+                  </span>
                 )}
               </div>
             </td>
@@ -1029,6 +1051,11 @@ export default function TimelineView() {
 
       {/* Roster: lista pracowników, cała na ekranie (bez pionowego scrolla) */}
       <div className="tl-container" ref={containerRef}>
+        <div className="tl-shift-end-legend" aria-label={t('timeline.shiftEndLegend')}>
+          <span className="tl-shift-end-legend-line" aria-hidden="true" />
+          <span>{t('timeline.shiftEndLegend')}</span>
+          <span className="tl-shift-end-legend-note">{t('timeline.shiftEndLegendNote')}</span>
+        </div>
         <table className="tl-table" style={{ minWidth: tableMinWidth }}>
           <thead>
             {renderTimeHeader()}
