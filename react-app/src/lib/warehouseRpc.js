@@ -61,3 +61,26 @@ export function setWarehouseStock(sessionToken, locationId, counts, note, reques
     p_note: note || null,
   });
 }
+
+export function getWarehouseCartonLayout(sessionToken, locationId) {
+  return callWarehouseRpc('get_warehouse_carton_layout', {
+    p_session_token: sessionToken,
+    p_location_id: locationId,
+  });
+}
+
+export function saveWarehouseCartonLayout(
+  sessionToken,
+  locationId,
+  expectedVersion,
+  layerCount,
+  placements
+) {
+  return callWarehouseRpc('admin_save_warehouse_carton_layout', {
+    p_session_token: sessionToken,
+    p_location_id: locationId,
+    p_expected_version: expectedVersion,
+    p_layer_count: layerCount,
+    p_placements: placements,
+  });
+}

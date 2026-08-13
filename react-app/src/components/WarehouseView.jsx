@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardCheck,
   History,
+  LayoutGrid,
   PackageMinus,
   PackagePlus,
   Pencil,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import DataError from './DataError';
+import CartonLayoutModal from './CartonLayoutModal';
 import { toastSuccess } from '../lib/toast';
 import {
   addWarehouseCarton,
@@ -495,7 +497,7 @@ function ItemCatalogModal({ items, onClose, onSave, onArchive }) {
   );
 }
 
-function StockCard({ location, items, canManage, onAction, t }) {
+function StockCard({ location, items, canManage, onAction, onLayout, t }) {
   const nonEmptyItems = items.filter(item => stockCount(location, item.id) > 0);
   const isEmpty = nonEmptyItems.length === 0;
   const isLoose = location.location_type === 'zone';
@@ -532,15 +534,20 @@ function StockCard({ location, items, canManage, onAction, t }) {
         ))}
       </div>
 
-      {canManage && (
+      {(canManage || !isLoose) && (
         <footer>
           {isLoose ? (
             <button type="button" onClick={() => onAction('adjustment', location)}><ClipboardCheck size={15} /> {t('warehouse.actions.adjustment')}</button>
           ) : (
             <>
-              <button type="button" onClick={() => onAction('receipt', location)}><PackagePlus size={15} /> {t('warehouse.actions.receipt')}</button>
-              <button type="button" disabled={isEmpty} onClick={() => onAction('issue', location)}><PackageMinus size={15} /> {t('warehouse.actions.issue')}</button>
-              <button type="button" disabled={isEmpty} onClick={() => onAction('transfer', location)}><ArrowRightLeft size={15} /> {t('warehouse.actions.transfer')}</button>
+              <button type="button" onClick={() => onLayout(location)}><LayoutGrid size={15} /> {t('warehouse.layout.open')}</button>
+              {canManage && (
+                <>
+                  <button type="button" onClick={() => onAction('receipt', location)}><PackagePlus size={15} /> {t('warehouse.actions.receipt')}</button>
+                  <button type="button" disabled={isEmpty} onClick={() => onAction('issue', location)}><PackageMinus size={15} /> {t('warehouse.actions.issue')}</button>
+                  <button type="button" disabled={isEmpty} onClick={() => onAction('transfer', location)}><ArrowRightLeft size={15} /> {t('warehouse.actions.transfer')}</button>
+                </>
+              )}
             </>
           )}
         </footer>
@@ -616,6 +623,7 @@ export default function WarehouseView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [movementModal, setMovementModal] = useState(null);
+  const [layoutLocation, setLayoutLocation] = useState(null);
   const [cartonModalOpen, setCartonModalOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
 
@@ -791,6 +799,7 @@ export default function WarehouseView() {
                     items={data.items}
                     canManage={canManage}
                     onAction={openMovement}
+                    onLayout={setLayoutLocation}
                     t={t}
                   />
                 ))}
@@ -817,6 +826,15 @@ export default function WarehouseView() {
           locations={data.locations}
           onClose={() => setMovementModal(null)}
           onSubmit={submitMovement}
+        />
+      )}
+      {layoutLocation && (
+        <CartonLayoutModal
+          location={layoutLocation}
+          items={data.items}
+          sessionToken={sessionToken}
+          canManage={canManage}
+          onClose={() => setLayoutLocation(null)}
         />
       )}
       {cartonModalOpen && (

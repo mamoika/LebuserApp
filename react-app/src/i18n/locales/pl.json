@@ -171,6 +171,61 @@
       "name": "Nazwa kartonu",
       "autoName": "Zostaw puste, aby nadać kolejny numer"
     },
+    "layout": {
+      "open": "Wnętrze",
+      "title": "Wnętrze: {{carton}}",
+      "subtitle": "Rozmieść stosy tak, jak leżą fizycznie w kartonie.",
+      "auto": "Ułóż automatycznie",
+      "autoConfirm": "Zastąpić obecny układ automatycznym rozmieszczeniem?",
+      "closeConfirm": "Masz niezapisane zmiany. Zamknąć konstruktor?",
+      "saved": "Układ kartonu zapisany",
+      "save": "Zapisz układ",
+      "unsaved": "Niezapisane zmiany",
+      "canvasHint": "Przeciągnij stos lub użyj uchwytu w rogu.",
+      "emptyLayer": "Ta warstwa jest pusta",
+      "emptyLayerHint": "Dodaj nierozmieszczony stos albo przenieś go z innej warstwy.",
+      "emptyLayerReadOnly": "Na tym poziomie nie zapisano żadnego stosu.",
+      "unknownStack": "Nieznany stos",
+      "stack": "Stos",
+      "chooseStack": "Wybierz stos",
+      "chooseStackHint": "Dotknij stosu w kartonie, aby zobaczyć jego dane.",
+      "nudge": "Precyzyjne przesuwanie stosu",
+      "moveLeft": "Przesuń w lewo",
+      "moveRight": "Przesuń w prawo",
+      "moveUp": "Przesuń w górę",
+      "moveDown": "Przesuń w dół",
+      "rotate": "Obróć",
+      "split": "Podziel stos",
+      "remove": "Usuń",
+      "unplaced": "Nierozmieszczone",
+      "unplacedEmpty": "Cały stan kartonu jest rozmieszczony.",
+      "fields": {
+        "allocation": "Towar i klient",
+        "quantity": "Liczba sztuk",
+        "layer": "Warstwa"
+      },
+      "layers": {
+        "label": "Warstwy kartonu",
+        "bottom": "Dno",
+        "top": "Góra",
+        "numbered": "Warstwa {{number}}",
+        "add": "Dodaj warstwę"
+      },
+      "status": {
+        "exact": "Układ zgodny ze stanem",
+        "stale": "Stan kartonu zmienił się — potwierdź układ",
+        "missing": "Pozostał towar do rozmieszczenia",
+        "excess": "W układzie jest za dużo sztuk",
+        "counts": "Rozmieszczono {{assigned}} z {{available}} szt."
+      },
+      "errors": {
+        "load": "Nie udało się pobrać układu kartonu.",
+        "save": "Nie udało się zapisać układu kartonu.",
+        "mismatch": "Rozmieść dokładnie cały stan kartonu przed zapisem.",
+        "conflict": "Ktoś zmienił ten układ. Zamknij konstruktor, otwórz go ponownie i spróbuj jeszcze raz.",
+        "unassigned": "W kartonie jest starszy stan bez przypisanego klienta. Najpierw przypisz go w magazynie."
+      }
+    },
     "loose": {
       "pending": "Do rozłożenia",
       "zoneStock": "Stan strefy"

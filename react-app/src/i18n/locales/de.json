@@ -171,6 +171,61 @@
       "name": "Kartonname",
       "autoName": "Leer lassen, um die nächste Nummer zu vergeben"
     },
+    "layout": {
+      "open": "Inhalt",
+      "title": "Inhalt: {{carton}}",
+      "subtitle": "Stapeln Sie die Textilien so, wie sie im Karton liegen.",
+      "auto": "Automatisch anordnen",
+      "autoConfirm": "Die aktuelle Anordnung durch eine automatische Anordnung ersetzen?",
+      "closeConfirm": "Es gibt ungespeicherte Änderungen. Konstruktor schließen?",
+      "saved": "Kartonanordnung gespeichert",
+      "save": "Anordnung speichern",
+      "unsaved": "Ungespeicherte Änderungen",
+      "canvasHint": "Stapel ziehen oder den Griff in der Ecke verwenden.",
+      "emptyLayer": "Diese Ebene ist leer",
+      "emptyLayerHint": "Einen nicht angeordneten Stapel hinzufügen oder aus einer anderen Ebene verschieben.",
+      "emptyLayerReadOnly": "Auf dieser Ebene ist kein Stapel gespeichert.",
+      "unknownStack": "Unbekannter Stapel",
+      "stack": "Stapel",
+      "chooseStack": "Stapel auswählen",
+      "chooseStackHint": "Tippen Sie auf einen Stapel, um seine Daten zu sehen.",
+      "nudge": "Stapel genau verschieben",
+      "moveLeft": "Nach links verschieben",
+      "moveRight": "Nach rechts verschieben",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "rotate": "Drehen",
+      "split": "Stapel teilen",
+      "remove": "Entfernen",
+      "unplaced": "Nicht angeordnet",
+      "unplacedEmpty": "Der gesamte Kartonbestand ist angeordnet.",
+      "fields": {
+        "allocation": "Artikel und Kunde",
+        "quantity": "Stückzahl",
+        "layer": "Ebene"
+      },
+      "layers": {
+        "label": "Karton-Ebenen",
+        "bottom": "Boden",
+        "top": "Oben",
+        "numbered": "Ebene {{number}}",
+        "add": "Ebene hinzufügen"
+      },
+      "status": {
+        "exact": "Anordnung stimmt mit Bestand überein",
+        "stale": "Der Kartonbestand hat sich geändert — Anordnung bestätigen",
+        "missing": "Artikel müssen noch angeordnet werden",
+        "excess": "Die Anordnung enthält zu viele Stücke",
+        "counts": "{{assigned}} von {{available}} Stk. angeordnet"
+      },
+      "errors": {
+        "load": "Die Kartonanordnung konnte nicht geladen werden.",
+        "save": "Die Kartonanordnung konnte nicht gespeichert werden.",
+        "mismatch": "Ordnen Sie vor dem Speichern den gesamten Kartonbestand genau zu.",
+        "conflict": "Jemand hat diese Anordnung geändert. Schließen und öffnen Sie den Konstruktor erneut.",
+        "unassigned": "Im Karton gibt es älteren Bestand ohne Kundenzuordnung. Ordnen Sie ihn zuerst im Lager zu."
+      }
+    },
     "loose": {
       "pending": "Noch zu verteilen",
       "zoneStock": "Zonenbestand"
