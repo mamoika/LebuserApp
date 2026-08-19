@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
 import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getMonthRoster, getPerformanceProgi } from '../lib/readRpc';
-import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download } from 'lucide-react';
+import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import { exportSheetsAsXlsx } from '../lib/excelExport';
@@ -24,6 +24,7 @@ import {
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
+  plantThroughputDayExtremes,
   productionThroughput,
 } from '../lib/costEngine';
 import DataError from './DataError';
@@ -812,12 +813,12 @@ export default function CostsView() {
       const kgPralki = decimalValue(dt.ton_pralki);
       const metrics = dailyPerformanceMetrics({ kgZd1, kgZd2, kgWashers: kgPralki, timelineDay: dayTimeline });
       return [dayLabel(dStr), kgZd1 || '', kgZd2 || '', kgPralki || '', metrics.totalKg || '',
+        metrics.productionClockHourCount || '', metrics.plantThroughputKgPerHour ? r2(metrics.plantThroughputKgPerHour) : '',
         metrics.zd1LaborHours ? r2(metrics.zd1LaborHours) : '', metrics.zd2LaborHours ? r2(metrics.zd2LaborHours) : '',
         metrics.driverLaborHours ? r2(metrics.driverLaborHours) : '', metrics.totalLaborHours ? r2(metrics.totalLaborHours) : '',
-        metrics.productionClockHourCount || '', metrics.zd1KgPerLaborHour ? r2(metrics.zd1KgPerLaborHour) : '',
+        metrics.zd1KgPerLaborHour ? r2(metrics.zd1KgPerLaborHour) : '',
         metrics.zd2WashersKgPerLaborHour ? r2(metrics.zd2WashersKgPerLaborHour) : '',
-        metrics.overallKgPerLaborHour ? r2(metrics.overallKgPerLaborHour) : '',
-        metrics.plantThroughputKgPerHour ? r2(metrics.plantThroughputKgPerHour) : ''];
+        metrics.overallKgPerLaborHour ? r2(metrics.overallKgPerLaborHour) : ''];
     });
     const performanceData = [[t('costs.exportPerformanceTitle', { month: months[month - 1], year })], [], perfHead, ...perfRows];
 
@@ -1744,9 +1745,9 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   const osZd1Avg = osAgg.n1 ? osAgg.z1 / osAgg.n1 : 0;
   const osZd2Avg = osAgg.n2 ? osAgg.z2 / osAgg.n2 : 0;
 
-  // Dzienna wydajność Ogółem kg/rbh — do panelu (trend, rozkład pasm, najlepszy/najsłabszy dzień)
+  // Dzienne wskaźniki do panelu: pasma wg kg/rbh, najlepszy/najsłabszy dzień wg przepustowości kg/h.
   const dayStats = days.map(dStr => {
-    if (isFutureCalendarDate(dStr, todayKey)) return { dStr, effAll: 0 };
+    if (isFutureCalendarDate(dStr, todayKey)) return { dStr, effAll: 0, plantThroughputKgPerHour: 0 };
     const dt = dailyData[dStr] || {};
     const dayTimeline = timelineStats[dStr] || {};
     const metrics = dailyPerformanceMetrics({
@@ -1755,7 +1756,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
       kgWashers: decimalValue(dt.ton_pralki),
       timelineDay: dayTimeline,
     });
-    return { dStr, effAll: metrics.overallKgPerLaborHour };
+    return { dStr, effAll: metrics.overallKgPerLaborHour, plantThroughputKgPerHour: metrics.plantThroughputKgPerHour };
   });
 
   return (
@@ -1780,6 +1781,14 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
         <Settings size={13} style={{ color: editBand ? IOS_THEME.accent : IOS_THEME.textSecondary }} />
         <span style={{ color: IOS_THEME.textSecondary, marginLeft: 'auto' }}>{t('costs.performanceLegendHint')}</span>
       </div>
+      <div role="note" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: opaqueTint('#00796B', 0.07), color: IOS_THEME.textPrimary }}>
+        <Info size={17} style={{ flex: '0 0 auto', marginTop: '1px', color: '#00796B' }} aria-hidden="true" />
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 800, color: '#00695C', marginBottom: '3px' }}>{t('costs.throughputExplanationTitle')}</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1.45 }}>{t('costs.throughputExplanationFormula')}</div>
+          <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, lineHeight: 1.45, marginTop: '2px' }}>{t('costs.throughputExplanationDetail')}</div>
+        </div>
+      </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
         <table className="costs-table" style={{ width: '100%', minWidth: '1080px', borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -1790,15 +1799,15 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               <th className="sticky-head" style={newThStyle}>ZD2 (kg)</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.washersKg')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Σ KG</th>
+              <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.08) }}>{t('costs.productionClockHoursShort')}</th>
+              <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.12) }}>{t('costs.throughputKgH')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.zd1LaborHours')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.zd2LaborHours')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.driversHours')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: '#1565C0', background: opaqueTint('#1565C0', 0.08) }}>{t('costs.totalLaborHours')}</th>
-              <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.08) }}>{t('costs.productionClockHoursShort')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>{t('costs.zd1KgPerLaborHour')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.08) }}>{t('costs.zd2WashersKgPerLaborHour')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.08) }}>{t('costs.overallKgPerLaborHour')}</th>
-              <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.08) }}>{t('costs.throughputKgH')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1830,15 +1839,15 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
                   <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_zd2 || ''} onChange={(e) => onChange(dStr, 'ton_zd2', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{metrics.totalKg > 0 ? FMT1(metrics.totalKg) : '—'}</td>
+                  <td style={{ ...newTdStyle, fontWeight: 700, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.05) }}>{metrics.productionClockHourCount > 0 ? FMT1(metrics.productionClockHourCount) : '—'}</td>
+                  <td style={{ ...newTdStyle, fontWeight: 800, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.12) }}>{metrics.plantThroughputKgPerHour > 0 ? metrics.plantThroughputKgPerHour.toFixed(1) : '—'}</td>
                   {hoursTd(metrics.zd1LaborHours, ts.ZD1?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(metrics.zd2LaborHours, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(metrics.driverLaborHours, ts.Kierowcy?.emp?.size || 0, IOS_THEME.textPrimary)}
                   <td style={{ ...newTdStyle, fontWeight: 700, color: '#1565C0', textAlign: 'center', background: tint('#1565C0', 0.05) }}>{metrics.totalLaborHours > 0 ? FMT1(metrics.totalLaborHours) : '—'}</td>
-                  <td style={{ ...newTdStyle, fontWeight: 700, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.05) }}>{metrics.productionClockHourCount > 0 ? FMT1(metrics.productionClockHourCount) : '—'}</td>
                   {effTd(metrics.zd1KgPerLaborHour, progi.ZD1, pZd1 > 0 ? kgZd1 / pZd1 : 0)}
                   {effTd(metrics.zd2WashersKgPerLaborHour, progi.ZD2, pZd2 > 0 ? metrics.zd2WashersKg / pZd2 : 0)}
                   {effTd(metrics.overallKgPerLaborHour, progi.WSP, pAll > 0 ? metrics.totalKg / pAll : 0)}
-                  <td style={{ ...newTdStyle, fontWeight: 800, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.08) }}>{metrics.plantThroughputKgPerHour > 0 ? metrics.plantThroughputKgPerHour.toFixed(1) : '—'}</td>
                 </tr>
               );
             })}
@@ -1850,11 +1859,12 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.zd2 ? FMT1(totals.zd2) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki ? FMT1(totals.pralki) : '—'}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>{totals.kg ? FMT1(totals.kg) : '—'}</td>
+              <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{totals.productionClockHours ? FMT1(totals.productionClockHours) : '—'}</td>
+              <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd1 ? FMT1(totals.hZd1) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd2 ? FMT1(totals.hZd2) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hKier ? FMT1(totals.hKier) : '—'}</td>
               <td style={{ ...footTdStyle, color: '#1565C0', textAlign: 'center' }}>{totals.h ? FMT1(totals.h) : '—'}</td>
-              <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{totals.productionClockHours ? FMT1(totals.productionClockHours) : '—'}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>
                 <div>{effZd1Avg > 0 ? effZd1Avg.toFixed(1) : '—'}</div>
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd1Avg > 0 ? `${FMT0(osZd1Avg)} ${t('costs.kgPerPerson')}` : ''}</div>
@@ -1864,7 +1874,6 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
                 <div style={{ fontSize: '10px', fontWeight: 600, opacity: 0.75 }}>{osZd2Avg > 0 ? `${FMT0(osZd2Avg)} ${t('costs.kgPerPerson')}` : ''}</div>
               </td>
               <td style={{ ...footTdStyle, color: CAT.transport, textAlign: 'center' }}>{effAllAvg > 0 ? effAllAvg.toFixed(1) : '—'}</td>
-              <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'}</td>
             </tr>
           </tfoot>
         </table>
@@ -1889,10 +1898,7 @@ function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, eff
   const dist = { slaba: 0, srednia: 0, dobra: 0, bdb: 0 };
   let activeDays = 0;
   dayStats.forEach(s => { const b = bandOf(s.effAll, progi.WSP); if (b) { dist[b]++; activeDays++; } });
-  // Najlepszy / najsłabszy dzień
-  const active = dayStats.filter(s => s.effAll > 0);
-  const best = active.reduce((a, b) => (b.effAll > (a?.effAll ?? -1) ? b : a), null);
-  const worst = active.reduce((a, b) => (b.effAll < (a?.effAll ?? Infinity) ? b : a), null);
+  const { best, weakest } = plantThroughputDayExtremes(dayStats);
   const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
   return (
@@ -1900,11 +1906,11 @@ function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, eff
       {/* Kafelki podsumowania */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <MiniStat label={t('costs.totalTonnage')} value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
-        <MiniStat label={t('costs.totalHours')} value={totals.h > 0 ? FMT1(totals.h) : '—'} unit={t('costs.laborHourUnit')} color="#1565C0" />
-        <MiniStat label={t('costs.productionClockHours')} value={totals.productionClockHours > 0 ? FMT1(totals.productionClockHours) : '—'} unit="h" color="#00796B" />
         <MiniStat label={t('costs.throughputKgH')} value={throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'} unit={throughputAvg > 0 ? 'kg/h' : ''} color="#00796B" />
-        <MiniStat label={t('costs.bestDay')} value={best ? best.effAll.toFixed(1) : '—'} unit={best ? `${t('costs.performanceUnit')} · ${dLab(best.dStr)}` : ''} color={EFF_COLORS.bdb.fc} />
-        <MiniStat label={t('costs.weakestDay')} value={worst ? worst.effAll.toFixed(1) : '—'} unit={worst ? `${t('costs.performanceUnit')} · ${dLab(worst.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
+        <MiniStat label={t('costs.productionClockHours')} value={totals.productionClockHours > 0 ? FMT1(totals.productionClockHours) : '—'} unit="h" color="#00796B" />
+        <MiniStat label={t('costs.totalHours')} value={totals.h > 0 ? FMT1(totals.h) : '—'} unit={t('costs.laborHourUnit')} color="#1565C0" />
+        <MiniStat label={t('costs.bestDay')} value={best ? best.plantThroughputKgPerHour.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color="#00796B" />
+        <MiniStat label={t('costs.weakestDay')} value={weakest ? weakest.plantThroughputKgPerHour.toFixed(1) : '—'} unit={weakest ? `kg/h · ${dLab(weakest.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
       </div>
 
       {/* Średnia miesięczna vs progi */}

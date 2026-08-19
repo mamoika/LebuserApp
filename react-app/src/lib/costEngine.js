@@ -177,6 +177,18 @@ export function productionThroughput(totalKg, clockHours) {
   return totalKg / clockHours;
 }
 
+export function plantThroughputDayExtremes(days = []) {
+  const activeDays = days.filter(day => day.plantThroughputKgPerHour > 0);
+  return {
+    best: activeDays.reduce((best, day) => (
+      day.plantThroughputKgPerHour > (best?.plantThroughputKgPerHour ?? -1) ? day : best
+    ), null),
+    weakest: activeDays.reduce((weakest, day) => (
+      day.plantThroughputKgPerHour < (weakest?.plantThroughputKgPerHour ?? Infinity) ? day : weakest
+    ), null),
+  };
+}
+
 export function dailyPerformanceMetrics({ kgZd1 = 0, kgZd2 = 0, kgWashers = 0, timelineDay = {} }) {
   const roles = timelineDay.roles || {};
   const zd2WashersKg = kgZd2 + kgWashers;

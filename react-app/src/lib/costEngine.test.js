@@ -14,6 +14,7 @@ import {
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
+  plantThroughputDayExtremes,
   productionThroughput,
 } from './costEngine.js';
 
@@ -54,7 +55,7 @@ test('performance translations distinguish labour productivity from plant throug
   for (const locale of ['pl', 'de']) {
     const raw = await readFile(new URL(`../i18n/locales/${locale}.json`, import.meta.url), 'utf8');
     const { costs } = JSON.parse(raw);
-    const labourHeaders = costs.exportPerformanceHead.slice(10, 13);
+    const labourHeaders = costs.exportPerformanceHead.slice(11, 14);
     const screenLabourLabels = [
       costs.performanceKgPerLaborHour,
       costs.zd1KgPerLaborHour,
@@ -64,9 +65,11 @@ test('performance translations distinguish labour productivity from plant throug
 
     assert.ok(labourHeaders.every(label => label.includes(costs.performanceUnit)), `${locale}: ${labourHeaders.join(', ')}`);
     assert.ok(screenLabourLabels.every(label => label.includes(costs.performanceUnit)), `${locale}: ${screenLabourLabels.join(', ')}`);
-    assert.ok(costs.exportPerformanceHead.at(-1).includes('kg/h'));
+    assert.ok(costs.exportPerformanceHead[6].includes('kg/h'));
     assert.ok(costs.performanceLegendHint.includes(costs.performanceUnit));
     assert.match(costs.throughputKgH, /kg\/h/);
+    assert.match(costs.throughputExplanationFormula, /1700/);
+    assert.ok(costs.throughputExplanationDetail.includes(costs.performanceUnit));
   }
 });
 
@@ -95,6 +98,18 @@ test('daily performance derives labour productivity and plant throughput from on
   assert.equal(metrics.zd2WashersKgPerLaborHour, 2685 / 110.5);
   assert.equal(metrics.overallKgPerLaborHour, 2902.2 / 148.8);
   assert.equal(metrics.plantThroughputKgPerHour, 2902.2 / 8);
+});
+
+test('best and weakest days are selected by plant throughput', () => {
+  const { best, weakest } = plantThroughputDayExtremes([
+    { date: '2026-08-04', plantThroughputKgPerHour: 220 },
+    { date: '2026-08-05', plantThroughputKgPerHour: 310 },
+    { date: '2026-08-06', plantThroughputKgPerHour: 180 },
+    { date: '2026-08-07', plantThroughputKgPerHour: 0 },
+  ]);
+
+  assert.equal(best.date, '2026-08-05');
+  assert.equal(weakest.date, '2026-08-06');
 });
 
 test('a decreased meter reading is flagged and does not become the next baseline', () => {
