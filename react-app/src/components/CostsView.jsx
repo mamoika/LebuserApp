@@ -1515,7 +1515,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
         💡 {t('costs.entryHintPrefix')} <b style={{ color: IOS_THEME.textPrimary }}>{t('costs.meterReading')}</b> {t('costs.entryHintSuffix')}
       </div>
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
-        <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="costs-table" style={{ width: '100%', minWidth: '1140px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -1807,7 +1807,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               <th className="sticky-head" style={newThStyle}>{t('costs.washersKg')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.08) }}>Σ KG</th>
               <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.08) }}>{t('costs.productionClockHoursShort')}</th>
-              <th className="sticky-head" title={t('costs.throughputHint')} style={{ ...newThStyle, color: '#00796B', background: opaqueTint('#00796B', 0.12) }}>{t('costs.throughputKgH')}</th>
+              <th className="sticky-head performance-throughput-cell performance-throughput-head" title={t('costs.throughputHint')} style={{ ...newThStyle, whiteSpace: 'normal', color: '#00796B', background: opaqueTint('#00796B', 0.12) }}>{t('costs.throughputKgH')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.zd1LaborHours')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.zd2LaborHours')}</th>
               <th className="sticky-head" style={newThStyle}>{t('costs.driversHours')}</th>
@@ -1847,7 +1847,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
                   <td style={newTdStyle}><input type="number" min="0" step="any" value={dt.ton_pralki || ''} onChange={(e) => onChange(dStr, 'ton_pralki', e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/></td>
                   <td style={{ ...newTdStyle, fontWeight: 700, textAlign: 'center', background: tint(CAT.workers, 0.05) }}>{metrics.totalKg > 0 ? FMT1(metrics.totalKg) : '—'}</td>
                   <td style={{ ...newTdStyle, fontWeight: 700, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.05) }}>{metrics.productionClockHourCount > 0 ? FMT1(metrics.productionClockHourCount) : '—'}</td>
-                  <td style={{ ...newTdStyle, fontWeight: 800, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.12) }}>{metrics.plantThroughputKgPerHour > 0 ? metrics.plantThroughputKgPerHour.toFixed(1) : '—'}</td>
+                  <td className="performance-throughput-cell" style={{ ...newTdStyle, fontWeight: 800, color: '#00796B', textAlign: 'center', background: tint('#00796B', 0.12) }}>{metrics.plantThroughputKgPerHour > 0 ? metrics.plantThroughputKgPerHour.toFixed(1) : '—'}</td>
                   {hoursTd(metrics.zd1LaborHours, ts.ZD1?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(metrics.zd2LaborHours, ts.ZD2?.emp?.size || 0, IOS_THEME.textPrimary)}
                   {hoursTd(metrics.driverLaborHours, ts.Kierowcy?.emp?.size || 0, IOS_THEME.textPrimary)}
@@ -1867,7 +1867,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.pralki ? FMT1(totals.pralki) : '—'}</td>
               <td style={{ ...footTdStyle, color: CAT.workers, textAlign: 'center' }}>{totals.kg ? FMT1(totals.kg) : '—'}</td>
               <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{totals.productionClockHours ? FMT1(totals.productionClockHours) : '—'}</td>
-              <td style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'}</td>
+              <td className="performance-throughput-cell" style={{ ...footTdStyle, color: '#00796B', textAlign: 'center' }}>{throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd1 ? FMT1(totals.hZd1) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hZd2 ? FMT1(totals.hZd2) : '—'}</td>
               <td style={{ ...footTdStyle, textAlign: 'center' }}>{totals.hKier ? FMT1(totals.hKier) : '—'}</td>
@@ -2052,7 +2052,7 @@ const COSTS_CSS = `
 }
 .performance-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+  grid-template-columns: minmax(0, 1fr) minmax(244px, 272px);
   grid-template-areas: "table summary";
   gap: 16px;
   align-items: start;
@@ -2066,12 +2066,12 @@ const COSTS_CSS = `
 }
 .performance-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 .performance-kpi-tile {
   min-width: 0;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: 14px;
   background: rgba(15, 23, 42, 0.025);
@@ -2086,6 +2086,15 @@ const COSTS_CSS = `
   max-height: min(68dvh, 760px);
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+.performance-throughput-cell {
+  width: 138px;
+  min-width: 138px;
+  max-width: 138px;
+}
+.costs-table thead th.performance-throughput-head {
+  white-space: normal;
+  line-height: 1.2;
 }
 .performance-insights-grid {
   display: grid;

@@ -22,10 +22,16 @@ test('performance view keeps KPI beside the table and insights below them', () =
 });
 
 test('performance KPI and insights layouts have explicit responsive grids', () => {
-  assert.match(source, /\.performance-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(360px,\s*520px\)/s);
+  assert.match(source, /\.performance-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(244px,\s*272px\)/s);
   assert.match(source, /\.performance-workspace\s*\{[^}]*grid-template-areas:\s*"table summary"/s);
-  assert.match(source, /\.performance-kpi-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(source, /\.performance-kpi-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
   assert.match(source, /\.performance-insights-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.35fr\)\s+minmax\(320px,\s*0\.65fr\)/s);
   assert.match(source, /@media\s*\(max-width:\s*1380px\)[\s\S]*\.performance-workspace\s*\{[^}]*grid-template-areas:\s*"summary"\s*"table"/);
   assert.match(source, /@media\s*\(max-width:\s*760px\)[\s\S]*\.performance-kpi-grid\s*\{[^}]*repeat\(2,/);
+});
+
+test('plant throughput column has a compact wrapping header', () => {
+  assert.match(performanceSource, /className="sticky-head performance-throughput-cell performance-throughput-head"/);
+  assert.match(source, /\.performance-throughput-cell\s*\{[^}]*width:\s*138px;[^}]*min-width:\s*138px;[^}]*max-width:\s*138px;/s);
+  assert.match(source, /th\.performance-throughput-head\s*\{[^}]*white-space:\s*normal/s);
 });
