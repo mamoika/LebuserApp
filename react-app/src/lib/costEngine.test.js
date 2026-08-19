@@ -5,6 +5,7 @@ import {
   buildDailyCostPatches,
   buildTimelineStats,
   countAccruedDays,
+  dailyPerformanceMetrics,
   electricityMonthlyCost,
   electricityReconciliation,
   gasProductionDailyCost,
@@ -13,6 +14,7 @@ import {
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
+  productionThroughput,
 } from './costEngine.js';
 
 test('timeline hours follow the station group, not the employee home group', () => {
@@ -28,6 +30,71 @@ test('timeline hours follow the station group, not the employee home group', () 
   assert.equal(stats[date].roles.ZD1.hrs, 0);
   assert.equal(stats[date].roles.ZD2.hrs, 1);
   assert.equal(stats[date].roles.ZD2.emp.has(7), true);
+});
+
+test('timeline tracks unique production clock hours and excludes driver-only hours', () => {
+  const date = '2026-08-05';
+  const entries = [
+    { employee_id: 1, entry_date: date, hour: 6, role: 'R', role_group_name: 'ZD 1' },
+    { employee_id: 1, entry_date: date, hour: 7, role: 'R', role_group_name: 'ZD 1' },
+    { employee_id: 2, entry_date: date, hour: 7, role: 'R', role_group_name: 'ZD 2' },
+    { employee_id: 2, entry_date: date, hour: 8, role: 'R', role_group_name: 'ZD 2' },
+    { employee_id: 3, entry_date: date, hour: 5, role: 'K', role_group_name: 'Kierowcy' },
+  ];
+  const stats = buildTimelineStats(entries, {
+    workingMap: Object.fromEntries(entries.map(entry => [`${entry.employee_id}_${date}`, true])),
+    startFor: () => 6,
+    employeeBuckets: {},
+  });
+
+  assert.deepEqual([...stats[date].productionClockHours].sort((a, b) => a - b), [6, 7, 8]);
+});
+
+test('performance translations distinguish labour productivity from plant throughput', async () => {
+  for (const locale of ['pl', 'de']) {
+    const raw = await readFile(new URL(`../i18n/locales/${locale}.json`, import.meta.url), 'utf8');
+    const { costs } = JSON.parse(raw);
+    const labourHeaders = costs.exportPerformanceHead.slice(10, 13);
+    const screenLabourLabels = [
+      costs.performanceKgPerLaborHour,
+      costs.zd1KgPerLaborHour,
+      costs.zd2WashersKgPerLaborHour,
+      costs.overallKgPerLaborHour,
+    ];
+
+    assert.ok(labourHeaders.every(label => label.includes(costs.performanceUnit)), `${locale}: ${labourHeaders.join(', ')}`);
+    assert.ok(screenLabourLabels.every(label => label.includes(costs.performanceUnit)), `${locale}: ${screenLabourLabels.join(', ')}`);
+    assert.ok(costs.exportPerformanceHead.at(-1).includes('kg/h'));
+    assert.ok(costs.performanceLegendHint.includes(costs.performanceUnit));
+    assert.match(costs.throughputKgH, /kg\/h/);
+  }
+});
+
+test('plant throughput divides tonnage by clock hours, not accumulated labour hours', () => {
+  assert.equal(productionThroughput(2685, 8), 335.625);
+  assert.equal(productionThroughput(2685, 0), 0);
+});
+
+test('daily performance derives labour productivity and plant throughput from one definition', () => {
+  const metrics = dailyPerformanceMetrics({
+    kgZd1: 217.2,
+    kgZd2: 2445,
+    kgWashers: 240,
+    timelineDay: {
+      productionClockHours: new Set([6, 7, 8, 9, 10, 11, 12, 13]),
+      roles: {
+        ZD1: { hrs: 15.8 },
+        ZD2: { hrs: 110.5 },
+        Kierowcy: { hrs: 22.5 },
+      },
+    },
+  });
+
+  assert.equal(metrics.totalKg, 2902.2);
+  assert.equal(metrics.productionClockHourCount, 8);
+  assert.equal(metrics.zd2WashersKgPerLaborHour, 2685 / 110.5);
+  assert.equal(metrics.overallKgPerLaborHour, 2902.2 / 148.8);
+  assert.equal(metrics.plantThroughputKgPerHour, 2902.2 / 8);
 });
 
 test('a decreased meter reading is flagged and does not become the next baseline', () => {

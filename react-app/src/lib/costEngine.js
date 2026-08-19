@@ -172,6 +172,36 @@ export function gasProductionReconciliation(settings = {}, calculatedM3 = 0, cal
   };
 }
 
+export function productionThroughput(totalKg, clockHours) {
+  if (!Number.isFinite(totalKg) || !Number.isFinite(clockHours) || totalKg <= 0 || clockHours <= 0) return 0;
+  return totalKg / clockHours;
+}
+
+export function dailyPerformanceMetrics({ kgZd1 = 0, kgZd2 = 0, kgWashers = 0, timelineDay = {} }) {
+  const roles = timelineDay.roles || {};
+  const zd2WashersKg = kgZd2 + kgWashers;
+  const totalKg = kgZd1 + zd2WashersKg;
+  const zd1LaborHours = roles.ZD1?.hrs || 0;
+  const zd2LaborHours = roles.ZD2?.hrs || 0;
+  const driverLaborHours = roles.Kierowcy?.hrs || 0;
+  const totalLaborHours = zd1LaborHours + zd2LaborHours + driverLaborHours;
+  const productionClockHourCount = timelineDay.productionClockHours?.size || 0;
+
+  return {
+    zd2WashersKg,
+    totalKg,
+    zd1LaborHours,
+    zd2LaborHours,
+    driverLaborHours,
+    totalLaborHours,
+    productionClockHourCount,
+    zd1KgPerLaborHour: zd1LaborHours > 0 ? kgZd1 / zd1LaborHours : 0,
+    zd2WashersKgPerLaborHour: zd2LaborHours > 0 ? zd2WashersKg / zd2LaborHours : 0,
+    overallKgPerLaborHour: totalLaborHours > 0 ? totalKg / totalLaborHours : 0,
+    plantThroughputKgPerHour: productionThroughput(totalKg, productionClockHourCount),
+  };
+}
+
 export function buildTimelineStats(timelineEntries, { workingMap, startFor, employeeBuckets }) {
   const stats = {};
 
@@ -187,6 +217,7 @@ export function buildTimelineStats(timelineEntries, { workingMap, startFor, empl
     if (!workingMap[`${entry.employee_id}_${entry.entry_date}`]) return;
     if (!stats[entry.entry_date]) {
       stats[entry.entry_date] = {
+        productionClockHours: new Set(),
         roles: {
           ZD1: { hrs: 0, emp: new Set() },
           ZD2: { hrs: 0, emp: new Set() },
@@ -209,6 +240,10 @@ export function buildTimelineStats(timelineEntries, { workingMap, startFor, empl
     if (bucket && stats[entry.entry_date].roles[bucket]) {
       stats[entry.entry_date].roles[bucket].hrs += weight;
       stats[entry.entry_date].roles[bucket].emp.add(entry.employee_id);
+      if (bucket === 'ZD1' || bucket === 'ZD2') {
+        const clockHour = Number(entry.hour);
+        if (Number.isFinite(clockHour)) stats[entry.entry_date].productionClockHours.add(clockHour);
+      }
     }
   });
 
