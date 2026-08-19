@@ -1760,8 +1760,14 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   });
 
   return (
-    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-    <div style={{ flex: '3 1 680px', minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
+    <div className="performance-layout">
+      <PerformanceSummary
+        dayStats={dayStats}
+        totals={totals}
+        throughputAvg={throughputAvg}
+        weekdays={weekdays}
+      />
+      <section aria-label={t('costs.sheetPerformance')} style={{ minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
       {/* legend — klik w kolor otwiera edytor TEGO pasma (przedział od–do per grupa) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
         <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>{t('costs.performanceKgPerLaborHour')}:</span>
@@ -1790,8 +1796,8 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
         </div>
       </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
-      <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
-        <table className="costs-table" style={{ width: '100%', minWidth: '1080px', borderCollapse: 'separate', borderSpacing: 0 }}>
+      <div className="performance-table-scroll">
+        <table className="costs-table" style={{ width: '100%', minWidth: '1240px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -1878,40 +1884,47 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
           </tfoot>
         </table>
       </div>
-    </div>
+      </section>
 
-    <PerformanceSidebar
-      dayStats={dayStats} progi={progi} totals={totals}
-      effZd1Avg={effZd1Avg} effZd2Avg={effZd2Avg} effAllAvg={effAllAvg}
-      throughputAvg={throughputAvg}
-      osZd1Avg={osZd1Avg} osZd2Avg={osZd2Avg}
-      weekdays={weekdays}
-    />
+      <PerformanceInsights
+        dayStats={dayStats} progi={progi}
+        effZd1Avg={effZd1Avg} effZd2Avg={effZd2Avg} effAllAvg={effAllAvg}
+        osZd1Avg={osZd1Avg} osZd2Avg={osZd2Avg}
+      />
     </div>
   );
 }
 
-/* ───────────── PANEL WIZUALIZACJI (obok tabeli wydajności) ───────────── */
-function PerformanceSidebar({ dayStats, progi, totals, effZd1Avg, effZd2Avg, effAllAvg, throughputAvg, osZd1Avg, osZd2Avg, weekdays }) {
+/* ───────────── PODSUMOWANIE NAD TABELĄ WYDAJNOŚCI ───────────── */
+function PerformanceSummary({ dayStats, totals, throughputAvg, weekdays }) {
+  const { t } = useTranslation();
+  const { best, weakest } = plantThroughputDayExtremes(dayStats);
+  const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
+
+  return (
+    <section aria-label={t('costs.totalAvg')} style={{ ...cardStyle, padding: '6px' }}>
+      <div className="performance-kpi-grid">
+        <MiniStat featured label={t('costs.throughputKgH')} value={throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'} unit={throughputAvg > 0 ? 'kg/h' : ''} color="#00796B" />
+        <MiniStat label={t('costs.totalTonnage')} value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
+        <MiniStat label={t('costs.productionClockHours')} value={totals.productionClockHours > 0 ? FMT1(totals.productionClockHours) : '—'} unit="h" color="#00796B" />
+        <MiniStat label={t('costs.bestDay')} value={best ? best.plantThroughputKgPerHour.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color="#00796B" />
+        <MiniStat label={t('costs.weakestDay')} value={weakest ? weakest.plantThroughputKgPerHour.toFixed(1) : '—'} unit={weakest ? `kg/h · ${dLab(weakest.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
+        <MiniStat label={t('costs.totalHours')} value={totals.h > 0 ? FMT1(totals.h) : '—'} unit={t('costs.laborHourUnit')} color="#1565C0" />
+      </div>
+    </section>
+  );
+}
+
+/* ───────────── ANALITYKA POD TABELĄ WYDAJNOŚCI ───────────── */
+function PerformanceInsights({ dayStats, progi, effZd1Avg, effZd2Avg, effAllAvg, osZd1Avg, osZd2Avg }) {
   const { t } = useTranslation();
   // Rozkład dni wg pasma — na bazie Ogółem kg/rbh (tylko dni z danymi)
   const dist = { slaba: 0, srednia: 0, dobra: 0, bdb: 0 };
   let activeDays = 0;
   dayStats.forEach(s => { const b = bandOf(s.effAll, progi.WSP); if (b) { dist[b]++; activeDays++; } });
-  const { best, weakest } = plantThroughputDayExtremes(dayStats);
-  const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
   return (
-    <div style={{ flex: '1 1 320px', minWidth: '300px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Kafelki podsumowania */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <MiniStat label={t('costs.totalTonnage')} value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
-        <MiniStat label={t('costs.throughputKgH')} value={throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'} unit={throughputAvg > 0 ? 'kg/h' : ''} color="#00796B" />
-        <MiniStat label={t('costs.productionClockHours')} value={totals.productionClockHours > 0 ? FMT1(totals.productionClockHours) : '—'} unit="h" color="#00796B" />
-        <MiniStat label={t('costs.totalHours')} value={totals.h > 0 ? FMT1(totals.h) : '—'} unit={t('costs.laborHourUnit')} color="#1565C0" />
-        <MiniStat label={t('costs.bestDay')} value={best ? best.plantThroughputKgPerHour.toFixed(1) : '—'} unit={best ? `kg/h · ${dLab(best.dStr)}` : ''} color="#00796B" />
-        <MiniStat label={t('costs.weakestDay')} value={weakest ? weakest.plantThroughputKgPerHour.toFixed(1) : '—'} unit={weakest ? `kg/h · ${dLab(weakest.dStr)}` : ''} color={EFF_COLORS.slaba.fc} />
-      </div>
+    <div className="performance-insights-grid">
 
       {/* Średnia miesięczna vs progi */}
       <div style={cardStyle}>
@@ -1983,9 +1996,9 @@ function BandGauge({ label, value, thr, sub }) {
   );
 }
 
-function MiniStat({ label, value, unit, color }) {
+function MiniStat({ label, value, unit, color, featured = false }) {
   return (
-    <div style={{ ...cardStyle, padding: '14px' }}>
+    <div className={`performance-kpi-tile${featured ? ' is-featured' : ''}`}>
       <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: IOS_THEME.textSecondary, marginBottom: '7px' }}>{label}</div>
       <div style={{ fontSize: '20px', fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
         {value} <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{unit}</span>
@@ -2029,6 +2042,41 @@ const footTdStyle = {
 };
 
 const COSTS_CSS = `
+.performance-layout {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+.performance-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+.performance-kpi-tile {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.025);
+}
+.performance-kpi-tile.is-featured {
+  border-color: rgba(0, 121, 107, 0.18);
+  background: linear-gradient(145deg, rgba(0, 121, 107, 0.12), rgba(0, 121, 107, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5);
+}
+.performance-table-scroll {
+  overflow: auto;
+  max-height: min(68dvh, 760px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.performance-insights-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 16px;
+  align-items: start;
+}
 .costs-table { font-variant-numeric: tabular-nums; }
 .costs-table thead th.sticky-head {
   position: sticky; top: 0; z-index: 3;
@@ -2062,4 +2110,17 @@ const COSTS_CSS = `
 .costs-inp::-webkit-outer-spin-button,
 .costs-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .costs-inp { -moz-appearance: textfield; }
+@media (max-width: 1280px) {
+  .performance-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 980px) {
+  .performance-insights-grid { grid-template-columns: 1fr; }
+  .performance-table-scroll { max-height: 66dvh; }
+}
+@media (max-width: 760px) {
+  .performance-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .performance-kpi-grid { grid-template-columns: 1fr; }
+}
 `;
