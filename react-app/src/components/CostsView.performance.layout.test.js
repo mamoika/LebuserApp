@@ -8,19 +8,24 @@ const performanceSource = source.slice(
   source.indexOf('/* ───────────── STYLES'),
 );
 
-test('performance view uses a full-width table between summary and insights', () => {
+test('performance view keeps KPI beside the table and insights below them', () => {
+  const workspaceIndex = performanceSource.indexOf('<div className="performance-workspace">');
   const summaryIndex = performanceSource.indexOf('<PerformanceSummary');
   const tableIndex = performanceSource.indexOf('<table className="costs-table"');
   const insightsIndex = performanceSource.indexOf('<PerformanceInsights');
 
-  assert.ok(summaryIndex >= 0, 'missing top performance summary');
-  assert.ok(tableIndex > summaryIndex, 'table should follow the KPI summary');
-  assert.ok(insightsIndex > tableIndex, 'analytical insights should follow the table');
+  assert.ok(workspaceIndex >= 0, 'missing table and KPI workspace');
+  assert.ok(summaryIndex > workspaceIndex, 'KPI summary should belong to the workspace');
+  assert.ok(tableIndex > summaryIndex, 'table should belong to the same workspace');
+  assert.ok(insightsIndex > tableIndex, 'analytical insights should stay below the workspace');
   assert.doesNotMatch(performanceSource, /PerformanceSidebar/);
 });
 
 test('performance KPI and insights layouts have explicit responsive grids', () => {
-  assert.match(source, /\.performance-kpi-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(source, /\.performance-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(360px,\s*520px\)/s);
+  assert.match(source, /\.performance-workspace\s*\{[^}]*grid-template-areas:\s*"table summary"/s);
+  assert.match(source, /\.performance-kpi-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(source, /\.performance-insights-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.35fr\)\s+minmax\(320px,\s*0\.65fr\)/s);
+  assert.match(source, /@media\s*\(max-width:\s*1380px\)[\s\S]*\.performance-workspace\s*\{[^}]*grid-template-areas:\s*"summary"\s*"table"/);
   assert.match(source, /@media\s*\(max-width:\s*760px\)[\s\S]*\.performance-kpi-grid\s*\{[^}]*repeat\(2,/);
 });

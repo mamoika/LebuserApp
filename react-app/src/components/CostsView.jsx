@@ -1761,13 +1761,14 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
 
   return (
     <div className="performance-layout">
-      <PerformanceSummary
-        dayStats={dayStats}
-        totals={totals}
-        throughputAvg={throughputAvg}
-        weekdays={weekdays}
-      />
-      <section aria-label={t('costs.sheetPerformance')} style={{ minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
+      <div className="performance-workspace">
+        <PerformanceSummary
+          dayStats={dayStats}
+          totals={totals}
+          throughputAvg={throughputAvg}
+          weekdays={weekdays}
+        />
+        <section className="performance-table-card" aria-label={t('costs.sheetPerformance')} style={{ minWidth: 0, ...cardStyle, padding: 0, overflow: 'hidden' }}>
       {/* legend — klik w kolor otwiera edytor TEGO pasma (przedział od–do per grupa) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, background: '#F9F9FB', fontSize: '12px' }}>
         <span style={{ fontWeight: 700, color: IOS_THEME.textSecondary }}>{t('costs.performanceKgPerLaborHour')}:</span>
@@ -1797,7 +1798,7 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
       </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div className="performance-table-scroll">
-        <table className="costs-table" style={{ width: '100%', minWidth: '1240px', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -1884,7 +1885,8 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
           </tfoot>
         </table>
       </div>
-      </section>
+        </section>
+      </div>
 
       <PerformanceInsights
         dayStats={dayStats} progi={progi}
@@ -1895,14 +1897,14 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
   );
 }
 
-/* ───────────── PODSUMOWANIE NAD TABELĄ WYDAJNOŚCI ───────────── */
+/* ───────────── PANEL KPI WYDAJNOŚCI ───────────── */
 function PerformanceSummary({ dayStats, totals, throughputAvg, weekdays }) {
   const { t } = useTranslation();
   const { best, weakest } = plantThroughputDayExtremes(dayStats);
   const dLab = (dStr) => { const d = new Date(dStr); return `${String(d.getDate()).padStart(2, '0')} ${weekdays[d.getDay()]}`; };
 
   return (
-    <section aria-label={t('costs.totalAvg')} style={{ ...cardStyle, padding: '6px' }}>
+    <section className="performance-summary" aria-label={t('costs.totalAvg')} style={{ ...cardStyle, padding: '6px' }}>
       <div className="performance-kpi-grid">
         <MiniStat featured label={t('costs.throughputKgH')} value={throughputAvg > 0 ? throughputAvg.toFixed(1) : '—'} unit={throughputAvg > 0 ? 'kg/h' : ''} color="#00796B" />
         <MiniStat label={t('costs.totalTonnage')} value={totals.kg > 0 ? FMT0(totals.kg) : '—'} unit="kg" color={CAT.workers} />
@@ -2048,9 +2050,23 @@ const COSTS_CSS = `
   width: 100%;
   min-width: 0;
 }
+.performance-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+  grid-template-areas: "table summary";
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+.performance-table-card { grid-area: table; }
+.performance-summary {
+  grid-area: summary;
+  position: sticky;
+  top: 16px;
+}
 .performance-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 .performance-kpi-tile {
@@ -2110,7 +2126,12 @@ const COSTS_CSS = `
 .costs-inp::-webkit-outer-spin-button,
 .costs-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .costs-inp { -moz-appearance: textfield; }
-@media (max-width: 1280px) {
+@media (max-width: 1380px) {
+  .performance-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "summary" "table";
+  }
+  .performance-summary { position: static; }
   .performance-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 980px) {
