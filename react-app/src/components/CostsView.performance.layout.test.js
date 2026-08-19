@@ -11,7 +11,7 @@ const performanceSource = source.slice(
 test('performance view keeps KPI beside the table and insights below them', () => {
   const workspaceIndex = performanceSource.indexOf('<div className="performance-workspace">');
   const summaryIndex = performanceSource.indexOf('<PerformanceSummary');
-  const tableIndex = performanceSource.indexOf('<table className="costs-table"');
+  const tableIndex = performanceSource.indexOf('<table className="costs-table performance-data-table"');
   const insightsIndex = performanceSource.indexOf('<PerformanceInsights');
 
   assert.ok(workspaceIndex >= 0, 'missing table and KPI workspace');
@@ -32,6 +32,17 @@ test('performance KPI and insights layouts have explicit responsive grids', () =
 
 test('plant throughput column has a compact wrapping header', () => {
   assert.match(performanceSource, /className="sticky-head performance-throughput-cell performance-throughput-head"/);
-  assert.match(source, /\.performance-throughput-cell\s*\{[^}]*width:\s*138px;[^}]*min-width:\s*138px;[^}]*max-width:\s*138px;/s);
+  assert.match(performanceSource, /<col className="performance-col-throughput"\s*\/>/);
+  assert.match(source, /\.performance-col-throughput\s*\{\s*width:\s*7\.7%;\s*\}/s);
   assert.match(source, /th\.performance-throughput-head\s*\{[^}]*white-space:\s*normal/s);
+});
+
+test('all performance columns fit without horizontal scrolling', () => {
+  const columns = performanceSource.match(/<col className="performance-col-/g) || [];
+
+  assert.equal(columns.length, 14, 'performance table should define all 14 column widths');
+  assert.match(performanceSource, /className="costs-table performance-data-table"/);
+  assert.match(source, /\.performance-data-table\s*\{[^}]*table-layout:\s*fixed/s);
+  assert.match(source, /\.performance-table-scroll\s*\{[^}]*overflow-x:\s*hidden/s);
+  assert.match(source, /\.performance-data-table thead th\s*\{[^}]*white-space:\s*normal/s);
 });

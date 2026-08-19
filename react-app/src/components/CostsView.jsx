@@ -1515,7 +1515,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
         💡 {t('costs.entryHintPrefix')} <b style={{ color: IOS_THEME.textPrimary }}>{t('costs.meterReading')}</b> {t('costs.entryHintSuffix')}
       </div>
       <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
-        <table className="costs-table" style={{ width: '100%', minWidth: '1140px', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -1798,7 +1798,23 @@ function PerformanceGrid({ days, weekdays, dailyData, timelineStats, totals, onC
       </div>
       {editBand && <ThresholdEditor band={editBand} progi={progi} onChange={onProgiChange} onClose={() => setEditBand(null)} readOnly={readOnly} />}
       <div className="performance-table-scroll">
-        <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="costs-table performance-data-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+          <colgroup>
+            <col className="performance-col-date" />
+            <col className="performance-col-zd1-kg" />
+            <col className="performance-col-zd2-kg" />
+            <col className="performance-col-washers" />
+            <col className="performance-col-total-kg" />
+            <col className="performance-col-production" />
+            <col className="performance-col-throughput" />
+            <col className="performance-col-zd1-hours" />
+            <col className="performance-col-zd2-hours" />
+            <col className="performance-col-driver-hours" />
+            <col className="performance-col-total-hours" />
+            <col className="performance-col-zd1-efficiency" />
+            <col className="performance-col-zd2-efficiency" />
+            <col className="performance-col-total-efficiency" />
+          </colgroup>
           <thead>
             <tr>
               <th className="sticky-col sticky-head" style={newThStyle}>{t('costs.date')}</th>
@@ -2082,15 +2098,44 @@ const COSTS_CSS = `
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5);
 }
 .performance-table-scroll {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   max-height: min(68dvh, 760px);
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
-.performance-throughput-cell {
-  width: 138px;
-  min-width: 138px;
-  max-width: 138px;
+.performance-data-table { table-layout: fixed; min-width: 0; }
+.performance-col-date { width: 5.4%; }
+.performance-col-zd1-kg,
+.performance-col-zd2-kg,
+.performance-col-washers { width: 7.2%; }
+.performance-col-total-kg { width: 6%; }
+.performance-col-production { width: 5.6%; }
+.performance-col-throughput { width: 7.7%; }
+.performance-col-zd1-hours,
+.performance-col-zd2-hours { width: 6.8%; }
+.performance-col-driver-hours { width: 7.2%; }
+.performance-col-total-hours { width: 5.7%; }
+.performance-col-zd1-efficiency { width: 7.2%; }
+.performance-col-zd2-efficiency,
+.performance-col-total-efficiency { width: 10%; }
+.performance-data-table thead th {
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+.performance-data-table tbody td,
+.performance-data-table tfoot td {
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+.performance-data-table .costs-inp {
+  min-width: 0;
+  box-sizing: border-box;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
 }
 .costs-table thead th.performance-throughput-head {
   white-space: normal;
