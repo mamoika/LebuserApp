@@ -9,6 +9,7 @@ import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import { exportSheetsAsXlsx } from '../lib/excelExport';
 import { isFutureCalendarDate } from '../lib/calendarDate';
+import { scheduleDayHours } from '../lib/workTime';
 import {
   buildDailyCostPatches,
   buildTimelineStats,
@@ -65,22 +66,9 @@ function shiftStartHour(value, defaultStartH) {
   const v = String(value || '').toUpperCase().trim();
   const off = ['', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   if (off.includes(v)) return defaultStartH;
-  if (v.includes('-')) { const s = parseFloat(v.split('-')[0].replace(',', '.')); if (!isNaN(s)) return s; }
-  if (v.includes('+')) { const s = parseFloat(v.split('+')[0].replace(',', '.')); if (!isNaN(s)) return s; }
+  if (v.includes('-')) { const s = parseHour(v.split('-')[0]); if (Number.isFinite(s)) return s; }
+  if (v.includes('+')) { const s = parseHour(v.split('+')[0]); if (Number.isFinite(s)) return s; }
   return defaultStartH; // sama liczba = długość zmiany, start bez zmian
-}
-
-// Łączne godziny zmiany z wartości grafiku ("8", "6-14", "6+8"); 0 dla nieobecności (jak w Grafiku pracy)
-function scheduleDayHours(value) {
-  const v = String(value || '').trim().toUpperCase();
-  if (!v || ['W', 'UW', 'L4', 'NU', 'NN', 'I', 'END'].includes(v)) return 0;
-  if (v.includes('-')) {
-    const [a, b] = v.split('-');
-    const st = parseFloat(a.replace(',', '.')), en = parseFloat(b.replace(',', '.'));
-    if (!isNaN(st) && !isNaN(en)) return en >= st ? en - st : (24 - st) + en;
-  }
-  if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
-  return parseFloat(v.replace(',', '.')) || 0;
 }
 
 const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
@@ -408,16 +396,23 @@ export default function CostsView() {
       empDefaultStart[e.id] = parseHour(e.default_start);
     });
 
-    // start zmiany per (pracownik, dzień) z grafiku — do wyznaczenia godzin przerw;
+    // Początek i koniec zmiany per (pracownik, dzień) z grafiku. Oba są potrzebne,
+    // żeby stare malowanie poza aktualną zmianą nie trafiało do podsumowań.
     // workingMap: czy dzień jest przepracowany wg grafiku (nieobecność UW/L4/... = false)
     const startMap = {};
+    const endMap = {};
     const workingMap = {};
     (sched || []).forEach(s => {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`;
-      startMap[`${s.employee_id}_${dateStr}`] = shiftStartHour(s.value, empDefaultStart[s.employee_id] ?? 0);
-      workingMap[`${s.employee_id}_${dateStr}`] = scheduleDayHours(s.value) > 0;
+      const key = `${s.employee_id}_${dateStr}`;
+      const start = shiftStartHour(s.value, empDefaultStart[s.employee_id] ?? 0);
+      const duration = scheduleDayHours(s.value);
+      startMap[key] = start;
+      endMap[key] = start + duration;
+      workingMap[key] = duration > 0;
     });
     const startFor = (empId, dateStr) => startMap[`${empId}_${dateStr}`] ?? (empDefaultStart[empId] ?? 0);
+    const endFor = (empId, dateStr) => endMap[`${empId}_${dateStr}`] ?? startFor(empId, dateStr);
 
     // Koszt pracownika: łączne godziny z Grafiku pracy per dzień (suma wszystkich osób)
     const labor = {};
@@ -432,6 +427,7 @@ export default function CostsView() {
     const tStats = buildTimelineStats(timeline, {
       workingMap,
       startFor,
+      endFor,
       employeeBuckets: empBucket,
     });
     setTimelineStats(tStats);

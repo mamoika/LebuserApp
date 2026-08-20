@@ -51,6 +51,38 @@ test('timeline tracks unique production clock hours and excludes driver-only hou
   assert.deepEqual([...stats[date].productionClockHours].sort((a, b) => a - b), [6, 7, 8]);
 });
 
+test('timeline excludes station entries outside the current shift and counts partial hours', () => {
+  const date = '2026-08-05';
+  const stats = buildTimelineStats([
+    { employee_id: 3, entry_date: date, hour: 5, role: 'K', role_group_name: 'Kierowcy' },
+    { employee_id: 3, entry_date: date, hour: 6, role: 'K', role_group_name: 'Kierowcy' },
+    { employee_id: 3, entry_date: date, hour: 7, role: 'K', role_group_name: 'Kierowcy' },
+  ], {
+    workingMap: { [`3_${date}`]: true },
+    startFor: () => 6.5,
+    endFor: () => 14.5,
+    employeeBuckets: {},
+  });
+
+  assert.equal(stats[date].roles.Kierowcy.hrs, 1.5);
+  assert.equal(stats[date].roles.Kierowcy.emp.has(3), true);
+});
+
+test('production clock time uses the exact union of partial shift intervals', () => {
+  const date = '2026-08-05';
+  const stats = buildTimelineStats([
+    { employee_id: 1, entry_date: date, hour: 6, role: 'R', role_group_name: 'ZD 1' },
+    { employee_id: 2, entry_date: date, hour: 6, role: 'R', role_group_name: 'ZD 2' },
+  ], {
+    workingMap: { [`1_${date}`]: true, [`2_${date}`]: true },
+    startFor: employeeId => employeeId === 1 ? 6.5 : 6.75,
+    endFor: () => 14.5,
+    employeeBuckets: {},
+  });
+
+  assert.equal(stats[date].productionClockHourCount, 0.5);
+});
+
 test('performance translations distinguish labour productivity from plant throughput', async () => {
   for (const locale of ['pl', 'de']) {
     const raw = await readFile(new URL(`../i18n/locales/${locale}.json`, import.meta.url), 'utf8');

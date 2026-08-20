@@ -8,6 +8,7 @@ import { getTimelineWeek } from '../lib/readRpc';
 import { isHoliday } from '../utils/holidays';
 import { dayNamesSunSat } from '../lib/dateUtils';
 import { getShiftEndMarker } from '../lib/timelineShiftEnd';
+import { getShiftHourOverlap } from '../lib/timelineHours';
 
 const STATUS_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa' },
@@ -108,6 +109,11 @@ function roundHours(value) {
 function fmtHours(value) {
   const n = roundHours(value);
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
+}
+
+function fmtSummaryHours(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
+  return rounded ? String(rounded).replace('.', ',') : '·';
 }
 
 function fmtClockLabel(value) {
@@ -844,11 +850,14 @@ export default function TimelineView() {
 
     Object.entries(entries).forEach(([key, role]) => {
       if (!role) return;
-      const [empIdStr, dateStr] = key.split('_');
+      const [empIdStr, dateStr, hourRaw] = key.split('_');
       if (!validDates.has(dateStr)) return;
       // Dzień zmieniony w grafiku na nieobecność (UW/L4/NU/W/NN/I/END) zakrywa stare
       // malowanie stanowisk — nie wliczaj go do podsumowań, choć wpisy zostają w bazie.
-      if (!scheduleMap[`${empIdStr}_${dateStr}`]?.working) return;
+      const shift = scheduleMap[`${empIdStr}_${dateStr}`];
+      if (!shift?.working) return;
+      const assignedHours = getShiftHourOverlap(Number(hourRaw), shift.start, shift.end);
+      if (assignedHours <= 0) return;
 
       const empId = String(empIdStr);
 
@@ -858,27 +867,27 @@ export default function TimelineView() {
            summaries[dateStr][role][roleGroup] = { os: new Set(), godz: 0 };
         }
         summaries[dateStr][role][roleGroup].os.add(empId);
-        summaries[dateStr][role][roleGroup].godz += 1;
+        summaries[dateStr][role][roleGroup].godz += assignedHours;
         
         if (roleWeekTotals[role]) {
           roleWeekTotals[role].os.add(empId);
-          roleWeekTotals[role].godz += 1;
+          roleWeekTotals[role].godz += assignedHours;
         }
       }
 
       dayTotals[dateStr].os.add(empId);
-      dayTotals[dateStr].godz += 1;
+      dayTotals[dateStr].godz += assignedHours;
       
       weekTotal.os.add(empId);
-      weekTotal.godz += 1;
+      weekTotal.godz += assignedHours;
       
       const empGroup = empToGroup[empId];
       if (empGroup && dayGroupTotals[dateStr][empGroup]) {
         dayGroupTotals[dateStr][empGroup].os.add(empId);
-        dayGroupTotals[dateStr][empGroup].godz += 1;
+        dayGroupTotals[dateStr][empGroup].godz += assignedHours;
         
         weekGroupTotals[empGroup].os.add(empId);
-        weekGroupTotals[empGroup].godz += 1;
+        weekGroupTotals[empGroup].godz += assignedHours;
       }
     });
 
@@ -1196,7 +1205,7 @@ export default function TimelineView() {
                           {weekOs.size || '·'}
                         </div>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: weekGodz ? r.bg : 'var(--text-quaternary)', fontWeight: weekGodz ? 800 : 500, fontSize: '13px' }}>
-                          {weekGodz || '·'}
+                          {fmtSummaryHours(weekGodz)}
                         </div>
                       </div>
                     </div>
@@ -1217,7 +1226,7 @@ export default function TimelineView() {
                             {totalOs || '·'}
                           </div>
                           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid var(--border-strong)', color: totalGodz ? 'var(--text-primary)' : 'var(--text-quaternary)', fontWeight: totalGodz ? 800 : 500, fontSize: '12px' }}>
-                            {totalGodz || '·'}
+                            {fmtSummaryHours(totalGodz)}
                           </div>
 
                           {/* GROUPS */}
@@ -1230,7 +1239,7 @@ export default function TimelineView() {
                                 {gd?.os?.size || '·'}
                               </div>,
                               <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: isLast ? 'none' : '1px solid var(--border)', color: gd?.godz ? gc : 'var(--text-quaternary)', fontWeight: gd?.godz ? 800 : 500, fontSize: '12px' }}>
-                                {gd?.godz || '·'}
+                                {fmtSummaryHours(gd?.godz)}
                               </div>
                             ];
                           })}
@@ -1258,7 +1267,7 @@ export default function TimelineView() {
                           {wOs.size || '·'}
                         </div>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: wGodz ? 'var(--text-primary)' : 'var(--text-quaternary)', fontWeight: 800, fontSize: '12px' }}>
-                          {wGodz || '·'}
+                          {fmtSummaryHours(wGodz)}
                         </div>
                       </div>
                     </div>
@@ -1280,7 +1289,7 @@ export default function TimelineView() {
                         {allOs.size || '·'}
                       </div>
                       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontWeight: 800, fontSize: '13px' }}>
-                        {allGodz || '·'}
+                        {fmtSummaryHours(allGodz)}
                       </div>
 
                       {/* GROUPS */}
@@ -1295,7 +1304,7 @@ export default function TimelineView() {
                             {gOs.size || '·'}
                           </div>,
                           <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: isLast ? 'none' : '1px solid var(--border)', color: gc, fontWeight: 800, fontSize: '13px' }}>
-                            {gGodz || '·'}
+                            {fmtSummaryHours(gGodz)}
                           </div>
                         ];
                       })}

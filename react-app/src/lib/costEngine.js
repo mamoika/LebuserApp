@@ -1,3 +1,9 @@
+import {
+  getIntervalUnionHours,
+  getProductiveTimelineHours,
+  getShiftHourSegment,
+} from './timelineHours.js';
+
 export const COST_METER_FIELDS = [
   'fiat_end',
   'isuzu_end',
@@ -197,7 +203,10 @@ export function dailyPerformanceMetrics({ kgZd1 = 0, kgZd2 = 0, kgWashers = 0, t
   const zd2LaborHours = roles.ZD2?.hrs || 0;
   const driverLaborHours = roles.Kierowcy?.hrs || 0;
   const totalLaborHours = zd1LaborHours + zd2LaborHours + driverLaborHours;
-  const productionClockHourCount = timelineDay.productionClockHours?.size || 0;
+  const exactProductionClockHours = Number(timelineDay.productionClockHourCount);
+  const productionClockHourCount = Number.isFinite(exactProductionClockHours)
+    ? exactProductionClockHours
+    : timelineDay.productionClockHours?.size || 0;
 
   return {
     zd2WashersKg,
@@ -214,7 +223,7 @@ export function dailyPerformanceMetrics({ kgZd1 = 0, kgZd2 = 0, kgWashers = 0, t
   };
 }
 
-export function buildTimelineStats(timelineEntries, { workingMap, startFor, employeeBuckets }) {
+export function buildTimelineStats(timelineEntries, { workingMap, startFor, endFor, employeeBuckets }) {
   const stats = {};
 
   const bucketForGroup = groupName => {
@@ -230,6 +239,8 @@ export function buildTimelineStats(timelineEntries, { workingMap, startFor, empl
     if (!stats[entry.entry_date]) {
       stats[entry.entry_date] = {
         productionClockHours: new Set(),
+        productionClockIntervals: [],
+        productionClockHourCount: 0,
         roles: {
           ZD1: { hrs: 0, emp: new Set() },
           ZD2: { hrs: 0, emp: new Set() },
@@ -239,9 +250,12 @@ export function buildTimelineStats(timelineEntries, { workingMap, startFor, empl
     }
 
     const startHour = startFor(entry.employee_id, entry.entry_date);
-    const firstBreakHour = Math.floor(startHour + 3);
-    const secondBreakHour = Math.floor(startHour + 6);
-    const weight = entry.hour === firstBreakHour || entry.hour === secondBreakHour ? 0.75 : 1;
+    // Brak endFor zachowuje zgodność z wcześniejszymi wywołaniami funkcji.
+    const endHour = endFor ? endFor(entry.employee_id, entry.entry_date) : startHour + 24;
+    const segment = getShiftHourSegment(entry.hour, startHour, endHour);
+    if (!segment) return;
+    const weight = getProductiveTimelineHours(entry.hour, startHour, endHour);
+    if (weight <= 0) return;
     // Faktycznie malowane stanowisko decyduje o dziale. Grupa pracownika jest
     // wyłącznie zgodnością wsteczną dla starszych odpowiedzi RPC bez grupy roli.
     const bucket = bucketForGroup(entry.role_group_name)
@@ -254,9 +268,16 @@ export function buildTimelineStats(timelineEntries, { workingMap, startFor, empl
       stats[entry.entry_date].roles[bucket].emp.add(entry.employee_id);
       if (bucket === 'ZD1' || bucket === 'ZD2') {
         const clockHour = Number(entry.hour);
-        if (Number.isFinite(clockHour)) stats[entry.entry_date].productionClockHours.add(clockHour);
+        if (Number.isFinite(clockHour)) {
+          stats[entry.entry_date].productionClockHours.add(clockHour);
+          stats[entry.entry_date].productionClockIntervals.push(segment);
+        }
       }
     }
+  });
+
+  Object.values(stats).forEach((dayStats) => {
+    dayStats.productionClockHourCount = getIntervalUnionHours(dayStats.productionClockIntervals);
   });
 
   return stats;
