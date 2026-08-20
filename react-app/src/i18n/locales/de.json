@@ -676,6 +676,9 @@
     "yourLocation": "Ihr Standort",
     "myLocation": "Mein Standort",
     "locationDenied": "Kein Zugriff auf den Standort",
+    "navigateFullRoute": "Gesamte Route in Google Maps navigieren",
+    "navigateRoutePart": "Etappe {{part}} von {{count}}: Stopps {{first}}–{{last}}",
+    "googleMapsRouteParts": "Google-Maps-Route: {{count}} Etappen",
     "missingGps_one": "⚠️ {{count}} Kunde ohne GPS-Koordinaten — unter „Kunden & Routen“ bearbeiten",
     "missingGps_other": "⚠️ {{count}} Kunden ohne GPS-Koordinaten — unter „Kunden & Routen“ bearbeiten"
   },

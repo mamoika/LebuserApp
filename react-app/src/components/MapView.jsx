@@ -9,6 +9,7 @@ import DataError from './DataError';
 import { useAuth } from '../context/AuthContext';
 import { getRouteColorByIndex } from '../lib/visualSystem';
 import { operationalWeekday } from '../lib/dateUtils';
+import { buildGoogleMapsRouteSegments } from '../lib/googleMapsRoute';
 
 const BASE_LAT = 52.7229319;
 const BASE_LNG = 15.2520164;
@@ -169,7 +170,14 @@ export default function MapView() {
         {sortedRoutes.map((route, i) => {
           const color = getRouteColorByIndex(i);
           const hidden = hiddenRoutes.has(route.id);
-          const hasGps = clients.some(c => c.route_id === route.id && c.lat && c.lng);
+          const routeClients = clients
+            .filter(c => c.route_id === route.id && c.lat && c.lng)
+            .sort((a, b) => a.sort_order - b.sort_order);
+          const routeSegments = buildGoogleMapsRouteSegments(
+            { lat: BASE_LAT, lng: BASE_LNG },
+            routeClients,
+          );
+          const hasGps = routeClients.length > 0;
           const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
           if (!hasGps) return null;
           return (
@@ -193,26 +201,44 @@ export default function MapView() {
                   {isOwnRoute && <span style={{ fontSize: '10px', fontWeight: 800 }}>{t('map.yours')}</span>}
                 </button>
                 {!hidden && (
-                  <button
-                    onClick={() => {
-                      const rc = clients.filter(c => c.route_id === route.id && c.lat && c.lng).sort((a, b) => a.sort_order - b.sort_order);
-                      if (rc.length === 0) return;
-                      const origin = `${BASE_LAT},${BASE_LNG}`;
-                      const dest = rc[rc.length - 1];
-                      const wps = rc.slice(0, -1).map(c => `${c.lat},${c.lng}`).join('|');
-                      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest.lat},${dest.lng}`;
-                      if (wps) url += `&waypoints=${wps}`;
-                      window.open(url, '_blank');
-                    }}
-                    title="Nawiguj całą trasę w Google Maps"
-                    style={{
-                      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                      borderRadius: '8px', padding: '4px 6px', fontSize: '13px',
-                      cursor: 'pointer', color: 'var(--text-primary)'
-                    }}
+                  <div
+                    role="group"
+                    aria-label={t('map.googleMapsRouteParts', { count: routeSegments.length })}
+                    style={{ display: 'flex', gap: '4px' }}
                   >
-                    🗺️
-                  </button>
+                    {routeSegments.map((segment, segmentIndex) => {
+                      const partNumber = segmentIndex + 1;
+                      const multipleParts = routeSegments.length > 1;
+                      const title = multipleParts
+                        ? t('map.navigateRoutePart', {
+                            part: partNumber,
+                            count: routeSegments.length,
+                            first: segment.firstStopNumber,
+                            last: segment.lastStopNumber,
+                          })
+                        : t('map.navigateFullRoute');
+
+                      return (
+                        <a
+                          key={segment.url}
+                          href={segment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={title}
+                          aria-label={title}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '3px',
+                            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                            borderRadius: '8px', padding: '4px 6px', fontSize: '13px',
+                            cursor: 'pointer', color: 'var(--text-primary)', textDecoration: 'none',
+                          }}
+                        >
+                          <span aria-hidden="true">🗺️</span>
+                          {multipleParts && <span>{partNumber}/{routeSegments.length}</span>}
+                        </a>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
           );
