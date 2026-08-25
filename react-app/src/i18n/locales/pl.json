@@ -1127,6 +1127,7 @@
       "otherRouteStop": "punkt z innej trasy",
       "noDirtyStops": "Nie dodano punktów tylko po brudne",
       "dirtyReported": "brudne już zgłoszone",
+      "removeScheduledAria": "Usuń zaplanowany punkt: {{name}}",
       "removeDirtyAria": "Usuń punkt po brudne: {{name}}",
       "dirtyAdded": "Dodano punkt po brudne: {{name}}",
       "dirtyRemoved": "Usunięto punkt po brudne: {{name}}",

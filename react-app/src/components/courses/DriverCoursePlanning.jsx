@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import {
   addDirtyPlannedStop, callExistingTripRpc, pickupPlannedClean, removeDirtyPlannedStop,
-  startFinalizedDriverTrip, undoPlannedCleanPickup,
+  skipPlannedStop, startFinalizedDriverTrip, undoPlannedCleanPickup,
 } from '../../lib/courseRpc';
 import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
@@ -283,6 +283,20 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     }
   };
 
+  const removeScheduledStop = async stop => {
+    if (stop.stop_kind !== 'scheduled') return;
+    try {
+      setBusy(true);
+      await skipPlannedStop(sessionToken, stop.id, 'not_today');
+      toastSuccess(t('course.planning.removedStop', { name: stop.client_name }));
+      await reload();
+    } catch (error) {
+      toastError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const startDrive = async () => {
     if (!trip) return;
     try {
@@ -375,6 +389,18 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
                     {tripRouteIds.size > 0 && !tripRouteIds.has(stop.route_id) && t('course.planning.otherRouteStop')}
                   </span>
                 </div>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="live-dirty-plan-remove"
+                    onClick={() => removeScheduledStop(stop)}
+                    disabled={busy}
+                    aria-label={t('course.planning.removeScheduledAria', { name: stop.client_name })}
+                    title={t('course.planning.remove')}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
