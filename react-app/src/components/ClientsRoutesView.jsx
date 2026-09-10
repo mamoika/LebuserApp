@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
@@ -39,6 +40,7 @@ import {
   paginateRouteGridSlots,
 } from '../lib/routeGridLayout';
 import { fitRoutePagesForPrint } from '../lib/routePrintLayout';
+import WeeklyRoutePlanView from './WeeklyRoutePlanView';
 
 function parseRouteIds(routesStr) {
   return new Set(
@@ -586,7 +588,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
 
 // ---- Main component ----
 
-export default function ClientsRoutesView() {
+function ClientsRoutesBoard() {
   const { t } = useTranslation();
   const rawData = useAppData();
   const { isAdmin, isDriver, user, sessionToken } = useAuth();
@@ -1432,4 +1434,9 @@ export default function ClientsRoutesView() {
 
     </DragDropContext>
   );
+}
+
+export default function ClientsRoutesView() {
+  const location = useLocation();
+  return location.hash === '#plan' ? <WeeklyRoutePlanView /> : <ClientsRoutesBoard />;
 }

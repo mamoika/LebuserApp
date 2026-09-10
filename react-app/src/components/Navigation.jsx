@@ -21,6 +21,8 @@ export default function Navigation() {
     { to: '/schedule', icon: '📅', label: t('nav.schedule') }
   );
 
+  if (canEdit) navItems.splice(1, 0, { to: '/clients#plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
+
   if (canViewLaundry) {
     navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
     navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
