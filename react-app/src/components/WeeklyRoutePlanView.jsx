@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
 import { toastError, toastSuccess } from '../lib/toast';
 import {
@@ -62,11 +63,21 @@ function isWorkingScheduleValue(value) {
   return !['W', 'UW', 'L4', 'NU', 'NN', 'END'].includes(String(value || '').trim().toUpperCase());
 }
 
-function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose, onSave, onRemove, t }) {
+function isRouteScheduledOnDate(route, date) {
+  return effectiveRouteServiceRules(route).some(rule => isRuleScheduledOnDate(rule, date));
+}
+
+function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReservations, busy, onClose, onSave, onRemove, t }) {
   const trip = selection.trip;
   const [driverId, setDriverId] = useState(trip?.driver_id || '');
   const [car, setCar] = useState(trip?.car || '');
   const [startTime, setStartTime] = useState(localTimeValue(trip?.planned_start) || '07:00');
+
+  const changeDriver = nextDriverId => {
+    const reservation = vehicleReservations.get(car);
+    setDriverId(nextDriverId);
+    if (reservation && reservation.driverId !== nextDriverId) setCar('');
+  };
 
   const submit = () => {
     if (!driverId) return;
@@ -94,7 +105,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
 
           <label className="weekly-plan-field" htmlFor="weekly-plan-driver">
             <span>{t('weeklyPlan.driver')}</span>
-            <select id="weekly-plan-driver" value={driverId} onChange={event => setDriverId(event.target.value)}>
+            <select id="weekly-plan-driver" value={driverId} onChange={event => changeDriver(event.target.value)}>
               <option value="">{t('weeklyPlan.chooseDriver')}</option>
               {drivers.map(driver => <option value={driver.id} key={driver.id}>{driver.name}{!availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.unavailable')})` : ''}</option>)}
             </select>
@@ -108,11 +119,23 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
           <div className="weekly-plan-field">
             <span>{t('weeklyPlan.vehicle')}</span>
             <div className="weekly-plan-vehicle-options">
-              {VEHICLES.map(vehicle => (
-                <button key={vehicle.key} type="button" className={car === vehicle.key ? 'active' : ''} onClick={() => setCar(vehicle.key)}>
-                  {vehicle.label}
-                </button>
-              ))}
+              {VEHICLES.map(vehicle => {
+                const reservation = vehicleReservations.get(vehicle.key);
+                const occupiedByOtherDriver = Boolean(reservation && reservation.driverId !== driverId);
+                return (
+                  <button
+                    key={vehicle.key}
+                    type="button"
+                    className={car === vehicle.key ? 'active' : ''}
+                    onClick={() => setCar(vehicle.key)}
+                    disabled={occupiedByOtherDriver}
+                    title={occupiedByOtherDriver ? t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName }) : undefined}
+                  >
+                    <span>{vehicle.label}</span>
+                    {occupiedByOtherDriver && <small>{t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName })}</small>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -178,6 +201,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     });
     return result;
   }, [plan.trips]);
+  const assignmentFor = (date, routeId) => tripsByCell.get(`${ymd(date)}|${routeId}`) || null;
   const availableDriversByDate = useMemo(() => {
     const result = new Map();
     plan.availability.forEach(item => {
@@ -186,6 +210,20 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     });
     return result;
   }, [plan.availability]);
+  const vehicleReservationsForSelection = useMemo(() => {
+    const result = new Map();
+    if (!selection) return result;
+    plan.trips.forEach(trip => {
+      if (
+        trip.trip_date === selection.date
+        && trip.car
+        && !parseRouteIds(trip.routes).includes(selection.route.id)
+      ) {
+        result.set(trip.car, { driverId: trip.driver_id, driverName: trip.driver_name });
+      }
+    });
+    return result;
+  }, [plan.trips, selection]);
   const visibleRoutes = useMemo(() => {
     if (isAdmin) return sortedRoutes;
     const assigned = new Set([...tripsByCell.keys()].map(key => Number(key.split('|')[1])));
@@ -194,6 +232,11 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const weekLabel = `${days[0].toLocaleDateString(locale, { day: '2-digit', month: 'short' })} – ${days[days.length - 1].toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}`;
   const assignedCount = plan.trips.reduce((count, trip) => count + parseRouteIds(trip.routes).length, 0);
+  const unassignedScheduledCount = sortedRoutes.reduce((count, route) => (
+    count + days.filter(date => (
+      isRouteScheduledOnDate(route, ymd(date)) && !assignmentFor(date, route.id)
+    )).length
+  ), 0);
 
   const mutate = async (action, successMessage) => {
     try {
@@ -219,7 +262,6 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     );
   };
 
-  const assignmentFor = (date, routeId) => tripsByCell.get(`${ymd(date)}|${routeId}`) || null;
   const today = ymd(new Date());
 
   return (
@@ -251,7 +293,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         <div className="weekly-plan-summary" aria-label={t('weeklyPlan.summary')}>
           <span><Truck size={14} /> {t('weeklyPlan.assigned', { count: assignedCount })}</span>
           <span><Users size={14} /> {t('weeklyPlan.visibleToDrivers')}</span>
-          <span className={assignedCount < sortedRoutes.length * DAYS ? 'is-warning' : ''}>{t('weeklyPlan.unassigned', { count: Math.max(0, sortedRoutes.length * DAYS - assignedCount) })}</span>
+          <span className={unassignedScheduledCount > 0 ? 'is-warning' : ''}>{t('weeklyPlan.unassigned', { count: unassignedScheduledCount })}</span>
         </div>
       )}
 
@@ -289,11 +331,12 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                   </th>
                   {days.map(date => {
                     const trip = assignmentFor(date, route.id);
+                    const scheduledForDate = isRouteScheduledOnDate(route, ymd(date));
                     return (
-                      <td key={ymd(date)} className={ymd(date) === today ? 'is-today' : ''}>
+                      <td key={ymd(date)} className={`${ymd(date) === today ? 'is-today' : ''} ${!scheduledForDate ? 'is-off-schedule' : ''}`}>
                         <button
                           type="button"
-                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!isAdmin && trip && onRouteSelect ? 'is-route-link' : ''}`}
+                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!scheduledForDate ? 'is-off-schedule' : ''} ${!isAdmin && trip && onRouteSelect ? 'is-route-link' : ''}`}
                           disabled={!isAdmin && !(trip && onRouteSelect)}
                           onClick={() => {
                             if (isAdmin) setSelection({ route, date: ymd(date), trip });
@@ -303,14 +346,14 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                             ? (!isAdmin && onRouteSelect
                               ? t('weeklyPlan.openRoute', { route: route.name })
                               : `${route.name}: ${trip.driver_name}`)
-                            : `${route.name}: ${t('weeklyPlan.unassignedShort')}`}
+                            : `${route.name}: ${scheduledForDate ? t('weeklyPlan.unassignedShort') : t('weeklyPlan.outsideSchedule')}`}
                         >
                           {trip ? <>
                             <strong>{trip.driver_name}</strong>
                             <span>{trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}</span>
                             {formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
-                            <em>{t('weeklyPlan.scheduledShort')}</em>
-                          </> : <span className="weekly-plan-empty">{isAdmin ? t('weeklyPlan.assign') : '—'}</span>}
+                            <em>{scheduledForDate ? t('weeklyPlan.scheduledShort') : t('weeklyPlan.exceptionShort')}</em>
+                          </> : <span className="weekly-plan-empty">{isAdmin ? t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException') : '—'}</span>}
                         </button>
                       </td>
                     );
@@ -338,6 +381,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         selection={selection}
         drivers={plan.drivers}
         availableDriverIds={availableDriversByDate.get(selection.date) || new Set(plan.drivers.map(driver => driver.id))}
+        vehicleReservations={vehicleReservationsForSelection}
         busy={busy}
         t={t}
         onClose={() => !busy && setSelection(null)}
