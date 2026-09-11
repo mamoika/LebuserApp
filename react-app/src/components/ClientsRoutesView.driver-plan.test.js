@@ -82,4 +82,7 @@ test('driver keeps the weekly route table with a compact touch-friendly mobile l
   assert.match(stylesSource, /scroll-snap-type:x proximity/);
   assert.match(stylesSource, /\.weekly-plan-table-wrap\.is-driver-view \.weekly-plan-table\{min-width:708px\}/);
   assert.match(stylesSource, /\.weekly-plan-route-link\{min-height:44px/);
+  assert.match(stylesSource, /\.driver-clients-routes-view\{[^}]*width:100%;[^}]*min-width:0/);
+  assert.match(stylesSource, /\.weekly-route-plan\{[^}]*width:100%;[^}]*min-width:0/);
+  assert.match(stylesSource, /\.weekly-plan-table-wrap\{[^}]*width:100%;[^}]*min-width:0;[^}]*max-width:100%;[^}]*overflow-x:auto/);
 });
