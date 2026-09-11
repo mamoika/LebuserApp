@@ -41,12 +41,6 @@ import {
 import { fitRoutePagesForPrint } from '../lib/routePrintLayout';
 import WeeklyRoutePlanView from './WeeklyRoutePlanView';
 
-function parseRouteIds(routesStr) {
-  return new Set(
-    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
-  );
-}
-
 function normalizeSearch(value) {
   return String(value || '')
     .normalize('NFD')
@@ -167,107 +161,6 @@ function ArchivedClientsModal({
           <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose}>
             {t('common.close')}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DriverRoutesModal({ routes, onClose }) {
-  const { t } = useTranslation();
-  const { sessionToken } = useAuth();
-  const [drivers, setDrivers] = useState([]);
-  const [edited, setEdited] = useState({}); // { driverId: Set of routeIds }
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    supabase.rpc('get_all_users', { p_session_token: sessionToken }).then(({ data }) => {
-      const driverList = (data || []).filter(u => u.role === 'driver' || u.role === 'admin_viewer_driver');
-      setDrivers(driverList);
-      const init = {};
-      driverList.forEach(d => {
-        init[d.id] = new Set(
-          (d.routes || '').split(',').map(s => s.trim()).filter(Boolean).map(Number)
-        );
-      });
-      setEdited(init);
-    });
-  }, [sessionToken]);
-
-  const toggle = (driverId, routeId) => {
-    setEdited(prev => {
-      const next = new Set(prev[driverId]);
-      next.has(routeId) ? next.delete(routeId) : next.add(routeId);
-      return { ...prev, [driverId]: next };
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    for (const driver of drivers) {
-      const routesStr = [...edited[driver.id]].sort((a, b) => a - b).join(',');
-      await supabase.rpc('update_user_routes', { p_session_token: sessionToken, p_user_id: driver.id, p_routes: routesStr });
-    }
-    setSaving(false);
-    onClose();
-  };
-
-  const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-
-  return (
-    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
-        <div className="ap-handle" />
-        <div className="ap-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#5856D6,#3634A3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(88,86,214,0.3)' }}>👨‍✈️</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.driverRoutes')}</div>
-          </div>
-
-          {drivers.length === 0 && (
-            <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>{t('clients.noDrivers')}</div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '55vh', overflowY: 'auto', paddingRight: '4px' }}>
-            {drivers.map(driver => (
-              <div key={driver.id} style={{
-                background: '#fff', borderRadius: '14px',
-                padding: '12px 14px', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.08)',
-              }}>
-                <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px' }}>
-                  {driver.name}
-                  <span style={{ fontWeight: 400, color: 'rgba(60,60,67,0.5)', fontSize: '12px', marginLeft: '6px' }}>@{driver.username}</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {sortedRoutes.map(r => {
-                    const on = edited[driver.id]?.has(r.id);
-                    return (
-                      <button
-                        key={r.id}
-                        onClick={() => toggle(driver.id, r.id)}
-                        style={{
-                          padding: '5px 11px', borderRadius: '20px', border: 'none',
-                          fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                          background: on ? 'var(--accent)' : 'rgba(0,0,0,0.06)',
-                          color: on ? '#fff' : 'var(--text-secondary)',
-                          transition: 'all 0.12s',
-                        }}
-                      >
-                        {r.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="ap-btn-group" style={{ marginTop: '16px' }}>
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? t('common.saving') : t('clients.saveChanges')}
-            </button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
-          </div>
         </div>
       </div>
     </div>
@@ -590,9 +483,8 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
 function ClientsRoutesBoard() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, user, sessionToken } = useAuth();
+  const { isAdmin, user, sessionToken } = useAuth();
   const { clients, routes, loading, error, refetch } = rawData;
-  const assignedRouteIds = parseRouteIds(user?.routes);
 
   const [localClients, setLocalClients] = useState([]);
   const [localRoutes, setLocalRoutes] = useState([]);
@@ -606,7 +498,6 @@ function ClientsRoutesBoard() {
   const [editRouteModal, setEditRouteModal] = useState(null);
   const [addClientForRoute, setAddClientForRoute] = useState(null);
   const [editClient, setEditClient] = useState(null);
-  const [driverRoutesOpen, setDriverRoutesOpen] = useState(false);
   const [clientArchiveOpen, setClientArchiveOpen] = useState(false);
   const [archivedClients, setArchivedClients] = useState([]);
   const [archiveLoading, setArchiveLoading] = useState(false);
@@ -1068,7 +959,6 @@ function ClientsRoutesBoard() {
   );
 
   const renderRouteCol = route => {
-    const isOwnRoute = isDriver && assignedRouteIds.has(route.id);
     const routeClients = localClients
       .filter(c => c.route_id === route.id)
       .sort(sortClientsByOrder);
@@ -1086,9 +976,8 @@ function ClientsRoutesBoard() {
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
-          borderColor: routeHasSearchMatch ? 'var(--accent)' : isOwnRoute ? routeColor : undefined,
-          boxShadow: routeHasSearchMatch ? '0 0 0 2px rgba(0,122,255,0.18), 0 10px 24px rgba(0,0,0,0.08)' : isOwnRoute ? `0 0 0 2px ${routeColor}33, 0 10px 24px rgba(0,0,0,0.08)` : undefined,
-          background: isOwnRoute ? `linear-gradient(180deg, ${routeColor}0f 0%, var(--bg-card) 32%)` : undefined,
+          borderColor: routeHasSearchMatch ? 'var(--accent)' : undefined,
+          boxShadow: routeHasSearchMatch ? '0 0 0 2px rgba(0,122,255,0.18), 0 10px 24px rgba(0,0,0,0.08)' : undefined,
         }}
       >
         <div className="col-header route-card-header">
@@ -1116,18 +1005,6 @@ function ClientsRoutesBoard() {
             >
               {route.name}
             </span>
-            {isOwnRoute && (
-              <span
-                className="route-own-badge"
-                style={{
-                  color: routeColor,
-                  background: `${routeColor}18`,
-                  borderColor: `${routeColor}55`,
-                }}
-              >
-                {t('map.yourRoute')}
-              </span>
-            )}
           </div>
 
           <div className="route-card-controls">
@@ -1286,7 +1163,6 @@ function ClientsRoutesBoard() {
             {isAdmin && (
               <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
-              <button className="add-route-btn" onClick={() => setDriverRoutesOpen(true)}>{t('clients.driverRoutesBtn')}</button>
               <button className="add-route-btn" onClick={openClientArchive}>
                 <Archive size={15} aria-hidden="true" /> {t('clients.archive.open')}
               </button>
@@ -1422,14 +1298,6 @@ function ClientsRoutesBoard() {
           onClose={() => setClientArchiveOpen(false)}
         />
       )}
-
-      {driverRoutesOpen && (
-        <DriverRoutesModal
-          routes={rawData.allRoutes}
-          onClose={() => setDriverRoutesOpen(false)}
-        />
-      )}
-
 
     </DragDropContext>
   );

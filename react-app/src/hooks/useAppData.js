@@ -213,18 +213,3 @@ export function useAppData() {
 
   return { ...data, loading, error, refetch };
 }
-
-// Helper: przefiltruj dane dla kierowcy na podstawie jego tras
-export function filterForDriver(data, routesStr) {
-  if (!routesStr) return data; // brak tras = brak filtrowania
-  const ids = new Set(
-    routesStr.split(',').map(s => s.trim()).filter(Boolean).map(Number)
-  );
-  if (ids.size === 0) return data;
-  return {
-    ...data,
-    clients: data.clients.filter(c => ids.has(c.route_id)),
-    routes: data.routes.filter(r => ids.has(r.id)),
-    entries: data.entries.filter(e => ids.has(e.route_id)),
-  };
-}

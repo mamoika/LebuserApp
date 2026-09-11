@@ -5,7 +5,7 @@ import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
-import { OWN_ROUTE_STYLE, routeBadgeStyle } from '../lib/visualSystem';
+import { routeBadgeStyle } from '../lib/visualSystem';
 import { supabase } from '../lib/supabaseClient';
 import { getScheduleDriverTrips } from '../lib/driverTripsRpc';
 import { VEHICLE_LABELS } from '../lib/vehicles';
@@ -194,9 +194,8 @@ function groupPickupEntries(entries, compareEntries) {
 export default function ScheduleView() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, user, sessionToken } = useAuth();
+  const { isAdmin, isDriver, sessionToken } = useAuth();
   const { entries, clients, routes, receipts, loading, error, refetch } = rawData;
-  const assignedRouteIds = parseRouteIds(user?.routes);
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
   const [weekOffset, setWeekOffset] = useState(0);
@@ -421,7 +420,6 @@ export default function ScheduleView() {
     const displayNum = rIndex >= 0 ? rIndex + 1 : routeId;
     const pointNum = clientPointByName.get(entry.client_name);
     const typeBadgeClass = ['P', 'O', 'F', 'R'].includes(entry.type) ? `type-${entry.type}` : 'type-P';
-    const isOwnPickup = mode === 'pick' && isDriver && assignedRouteIds.has(routeId);
     const relatedEntries = entry.isPickupGroup ? entry.entries : [entry];
     const totalWeight = entry.isPickupGroup
       ? (entry.done ? entry.totalWeight : entry.pendingWeight)
@@ -442,7 +440,6 @@ export default function ScheduleView() {
           setSelectedEntryMode(mode);
           setViewModalOpen(true);
         }}
-        style={isOwnPickup ? OWN_ROUTE_STYLE : undefined}
       >
         {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
         <span className="schedule-tag-content">

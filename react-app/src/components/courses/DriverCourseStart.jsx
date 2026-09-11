@@ -8,7 +8,6 @@ import { callExistingTripRpc } from '../../lib/courseRpc';
 import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
 import { parseRouteIds, routeNamesForTrip, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
 import { operationalYmd } from '../../lib/dateUtils';
-import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import '../mockups/mockups.css';
@@ -31,7 +30,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   const [allTrips, setAllTrips] = useState([]);
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
-  const [selectedRoutes, setSelectedRoutes] = useState(() => parseRouteIds(user?.routes));
+  const [selectedRoutes, setSelectedRoutes] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -111,22 +110,13 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     }
   }, [loading, existingPlanned, plannedTrip, onStarted]);
 
-  const toggleRoute = routeId => {
-    setSelectedRoutes(prev => {
-      const next = new Set(prev);
-      if (next.has(routeId)) next.delete(routeId);
-      else next.add(routeId);
-      return next;
-    });
-  };
-
   const startCourse = async () => {
     if (existingPlanned && !plannedTrip) {
       await onStarted?.();
       return;
     }
-    if (selectedRoutes.size === 0) {
-      toastError(t('course.start.selectRoute'));
+    if (!plannedTrip) {
+      toastError(t('weeklyPlan.noTrips'));
       return;
     }
     const occupiedBy = carsInUse.get(selectedCar);
@@ -266,38 +256,38 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           </div>
         </StartSection>
 
-        <StartSection
-          label={t('course.start.routesToday')}
-          hint={selectedRoutes.size === 0 ? t('course.start.selectRoute') : null}
-        >
+        {plannedTrip && <StartSection label={t('course.start.routesToday')}>
           <div className="live-start-route-grid" role="group" aria-label={t('course.start.routesToday')}>
             {allRoutes.map((route, index) => {
               const active = selectedRoutes.has(route.id);
+              if (!active) return null;
               const display = index + 1;
-              const color = getRouteColorByDisplay(display);
               return (
-                <button
+                <div
                   key={route.id}
-                  type="button"
-                  className={`live-start-route-chip ${active ? 'is-selected' : ''}`}
-                  onClick={() => toggleRoute(route.id)}
-                  style={active ? { borderColor: color, background: `${color}14` } : undefined}
+                  className="live-start-route-chip is-selected"
                 >
                   <span
                     className="live-start-route-num"
-                    style={active ? routeBadgeStyle(display) : undefined}
                   >
                     T{display}
                   </span>
                   <span className="live-start-route-name">{route.name}</span>
-                </button>
+                </div>
               );
             })}
           </div>
-        </StartSection>
+        </StartSection>}
       </div>
 
-      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || (!existingPlanned && selectedRoutes.size === 0)}>
+      {!plannedTrip && !existingPlanned && (
+        <div className="live-start-banner">
+          <UserCheck size={20} aria-hidden="true" />
+          <div>{t('weeklyPlan.noTrips')}</div>
+        </div>
+      )}
+
+      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || (!existingPlanned && !plannedTrip)}>
         <PlayCircle size={20} aria-hidden="true" />
         {existingPlanned && !plannedTrip
           ? t('course.start.continuePlanning')

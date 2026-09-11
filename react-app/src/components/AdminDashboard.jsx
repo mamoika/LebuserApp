@@ -14,7 +14,6 @@ import {
   getAdminGroupEmployeeCount,
   getAdminGroups,
   getAdminRoles,
-  getAdminRouteOptions,
   getAdminSessionDetails,
   getAdminSessionOverview,
   getAdminUsersData,
@@ -306,58 +305,6 @@ function AdminOverview({ users, driverCars, onOpenTab }) {
   );
 }
 
-// Picker tras — pokazuje wszystkie trasy jako chip-toggley
-function RoutesPicker({ value, onChange }) {
-  const { t } = useTranslation();
-  const { sessionToken } = useAuth();
-  const [allRoutes, setAllRoutes] = useState([]);
-
-  useEffect(() => {
-    if (!sessionToken) return;
-    getAdminRouteOptions(sessionToken)
-      .then(data => setAllRoutes(data?.routes || []))
-      .catch(err => toastError(t('common.error') + ': ' + err.message));
-  }, [sessionToken, t]);
-
-  // value = string "1,3,5"
-  const selected = new Set(
-    (value || '').split(',').map(s => s.trim()).filter(Boolean).map(Number)
-  );
-
-  const toggle = (id) => {
-    const next = new Set(selected);
-    next.has(id) ? next.delete(id) : next.add(id);
-    onChange([...next].sort((a, b) => a - b).join(','));
-  };
-
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-      {allRoutes.map(r => {
-        const on = selected.has(r.id);
-        return (
-          <button
-            key={r.id}
-            type="button"
-            onClick={() => toggle(r.id)}
-            style={{
-              padding: '6px 12px', borderRadius: '20px', border: 'none',
-              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-              background: on ? 'var(--accent)' : 'rgba(0,0,0,0.06)',
-              color: on ? '#fff' : 'var(--text-secondary)',
-              transition: 'all 0.12s',
-            }}
-          >
-            {r.name}
-          </button>
-        );
-      })}
-      {allRoutes.length === 0 && (
-        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('admin.loadingRoutes')}</span>
-      )}
-    </div>
-  );
-}
-
 function AddUserModal({ onClose, onSave }) {
   const { t } = useTranslation();
   const [username, setUsername] = useState('');
@@ -434,7 +381,6 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
   const { t } = useTranslation();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
-  const [routes, setRoutes] = useState(user.routes || '');
   const [car, setCar] = useState(defaultCar || '');
   const [employeeId, setEmployeeId] = useState(user.employee_id || '');
   const [saving, setSaving] = useState(false);
@@ -444,7 +390,7 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(user.id, name.trim(), role, routes.trim(), car, canAssignDriverSettings(role) ? employeeId : '');
+    await onSave(user.id, name.trim(), role, car, canAssignDriverSettings(role) ? employeeId : '');
     setSaving(false);
   };
 
@@ -501,9 +447,6 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
                   </option>
                 ))}
               </select>
-
-              <div style={LABEL_STYLE}>{t('admin.assignedRoutes')}</div>
-              <RoutesPicker value={routes} onChange={setRoutes} />
 
               <div style={LABEL_STYLE}>{t('admin.defaultCar')}</div>
               <select className="ap-input" value={car} onChange={e => setCar(e.target.value)} style={{ marginBottom: '12px' }}>
@@ -1885,9 +1828,9 @@ export default function AdminDashboard() {
     return { ok: true };
   };
 
-  const handleSaveUser = async (userId, name, role, routes, car, employeeId) => {
+  const handleSaveUser = async (userId, name, role, car, employeeId) => {
     try {
-      await updateAdminUserProfile(sessionToken, userId, name, role, routes, employeeId, car);
+      await updateAdminUserProfile(sessionToken, userId, name, role, '', employeeId, car);
     } catch (saveError) {
       toastError(t('admin.errSaveRole') + ' ' + saveError.message);
       return;
@@ -1982,7 +1925,6 @@ export default function AdminDashboard() {
               <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                 @{u.username} · {roleLabel(t, u.role)}
-                {u.routes ? ` · ${t('admin.routes')}: ${u.routes}` : ''}
               </div>
               {canAssignDriverSettings(u.role) && (
                 <div style={{ fontSize: '11px', color: u.employee_id ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
