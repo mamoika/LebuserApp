@@ -93,6 +93,7 @@
     "driverTitle": "Meine Routenwoche",
     "adminDescription": "Planen Sie die Routenbesetzung für eine beliebige zukünftige Woche. Jede Speicherung ist sofort für den zugewiesenen Fahrer sichtbar.",
     "driverDescription": "Sie sehen ausschließlich Ihre geplanten Fahrten. Klicken Sie auf eine Route, um zu deren Kunden zu springen.",
+    "today": "Heute",
     "swipeTable": "Wischen Sie, um die nächsten Tage zu sehen",
     "openRoute": "Route {{route}} in der Kundenliste anzeigen",
     "allRoutesKicker": "Routenverzeichnis",

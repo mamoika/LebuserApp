@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Truck, Users, X
 import { useAuth } from '../context/AuthContext';
 import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
+import { getRouteColorByDisplay } from '../lib/visualSystem';
 import { toastError, toastSuccess } from '../lib/toast';
 import {
   copyWeeklyRoutePlan,
@@ -306,7 +307,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                 <th>{t('weeklyPlan.route')}</th>
                 {days.map(date => (
                   <th key={ymd(date)} className={ymd(date) === today ? 'is-today' : ''}>
-                    <span>{date.toLocaleDateString(locale, { weekday: 'short' })}</span>
+                    <span>{ymd(date) === today ? t('weeklyPlan.today') : date.toLocaleDateString(locale, { weekday: 'short' })}</span>
                     <strong>{date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}</strong>
                   </th>
                 ))}
@@ -314,7 +315,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
             </thead>
             <tbody>
               {visibleRoutes.map(route => (
-                <tr key={route.id}>
+                <tr key={route.id} style={{ '--route-color': getRouteColorByDisplay(routeNumber.get(route.id)) }}>
                   <th scope="row">
                     {!isAdmin && onRouteSelect ? (
                       <button
