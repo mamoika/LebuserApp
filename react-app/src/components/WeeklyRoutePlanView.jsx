@@ -75,7 +75,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
   };
 
   return (
-    <div className="ap-overlay weekly-plan-overlay" onPointerDown={onClose}>
+    <div className="ap-overlay weekly-plan-overlay" style={{ display: 'flex' }} onPointerDown={onClose}>
       <section className="ap-sheet weekly-plan-sheet" role="dialog" aria-modal="true" aria-labelledby="weekly-plan-assignment-title" onPointerDown={event => event.stopPropagation()}>
         <div className="ap-handle" />
         <div className="ap-content">
