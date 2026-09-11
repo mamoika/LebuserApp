@@ -39,3 +39,11 @@ test('clicking an assigned route scrolls to and highlights its directory card', 
   assert.match(clientsRoutesSource, /id=\{routeCardId\(route\.id\)\}/);
   assert.match(stylesSource, /\.clients-routes-view \.route-card\.is-plan-target/);
 });
+
+test('assignment sheet keeps the selected plan day fixed and edits only the start time', () => {
+  assert.match(weeklyPlanSource, /id="weekly-plan-start" type="time"/);
+  assert.doesNotMatch(weeklyPlanSource, /type="datetime-local"/);
+  assert.match(weeklyPlanSource, /localTimeValue\(trip\?\.planned_start\) \|\| '07:00'/);
+  assert.match(weeklyPlanSource, /plannedStartIso\(selection\.date, startTime\)/);
+  assert.match(weeklyPlanSource, /new Date\(`\$\{date\}T\$\{time\}:00`\)/);
+});

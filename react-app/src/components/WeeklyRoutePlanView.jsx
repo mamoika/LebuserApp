@@ -38,12 +38,17 @@ function parseRouteIds(value) {
     .filter(Number.isFinite);
 }
 
-function localDateTimeValue(value) {
+function localTimeValue(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function plannedStartIso(date, time) {
+  if (!date || !time) return null;
+  const plannedStart = new Date(`${date}T${time}:00`);
+  return Number.isNaN(plannedStart.getTime()) ? null : plannedStart.toISOString();
 }
 
 function formatTime(value) {
@@ -61,7 +66,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
   const trip = selection.trip;
   const [driverId, setDriverId] = useState(trip?.driver_id || '');
   const [car, setCar] = useState(trip?.car || '');
-  const [plannedStart, setPlannedStart] = useState(localDateTimeValue(trip?.planned_start));
+  const [startTime, setStartTime] = useState(localTimeValue(trip?.planned_start) || '07:00');
 
   const submit = () => {
     if (!driverId) return;
@@ -70,7 +75,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
       tripDate: selection.date,
       driverId,
       car,
-      plannedStart: plannedStart ? new Date(plannedStart).toISOString() : null,
+      plannedStart: plannedStartIso(selection.date, startTime),
     });
   };
 
@@ -97,7 +102,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
 
           <label className="weekly-plan-field" htmlFor="weekly-plan-start">
             <span>{t('weeklyPlan.startTime')}</span>
-            <input id="weekly-plan-start" type="datetime-local" value={plannedStart} onChange={event => setPlannedStart(event.target.value)} />
+            <input id="weekly-plan-start" type="time" value={startTime} onChange={event => setStartTime(event.target.value)} />
           </label>
 
           <div className="weekly-plan-field">
