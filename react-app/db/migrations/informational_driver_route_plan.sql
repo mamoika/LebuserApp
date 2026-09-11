@@ -361,10 +361,41 @@ begin
       select distinct c.name from public.clients c
       where c.route_id = any(v_visible_route_ids) or c.name = any(v_extra_client_names)
     );
-    select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_clients
-    from (select * from public.clients where name = any(v_visible_client_names) order by sort_order) x;
-    select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_routes
-    from (select * from public.routes where id = any(v_visible_route_ids) order by sort_order) x;
+    select coalesce(json_agg(row_to_json(client_row)), '[]'::json) into v_clients
+    from (
+      select client.*,
+        coalesce((
+          select json_agg(json_build_object(
+            'id', rule.id,
+            'weekday', rule.weekday,
+            'interval_weeks', rule.interval_weeks,
+            'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+          ) order by rule.weekday)
+          from public.client_service_rules rule
+          where rule.client_id = client.id
+        ), '[]'::json) as service_rules
+      from public.clients client
+      where client.archived_at is null
+        and client.name = any(v_visible_client_names)
+      order by client.sort_order
+    ) client_row;
+    select coalesce(json_agg(row_to_json(route_row)), '[]'::json) into v_routes
+    from (
+      select route.*,
+        coalesce((
+          select json_agg(json_build_object(
+            'id', rule.id,
+            'weekday', rule.weekday,
+            'interval_weeks', rule.interval_weeks,
+            'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+          ) order by rule.weekday)
+          from public.route_service_rules rule
+          where rule.route_id = route.id
+        ), '[]'::json) as service_rules
+      from public.routes route
+      where route.id = any(v_visible_route_ids)
+      order by route.sort_order
+    ) route_row;
     select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_entries
     from (
       select * from public.entries
@@ -378,8 +409,39 @@ begin
       from (select * from public.laundry_receipts where deleted_at is null and client_name = any(v_visible_client_names) order by doc_no desc) x;
     end if;
   else
-    select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_clients from (select * from public.clients order by sort_order) x;
-    select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_routes from (select * from public.routes order by sort_order) x;
+    select coalesce(json_agg(row_to_json(client_row)), '[]'::json) into v_clients
+    from (
+      select client.*,
+        coalesce((
+          select json_agg(json_build_object(
+            'id', rule.id,
+            'weekday', rule.weekday,
+            'interval_weeks', rule.interval_weeks,
+            'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+          ) order by rule.weekday)
+          from public.client_service_rules rule
+          where rule.client_id = client.id
+        ), '[]'::json) as service_rules
+      from public.clients client
+      where client.archived_at is null
+      order by client.sort_order
+    ) client_row;
+    select coalesce(json_agg(row_to_json(route_row)), '[]'::json) into v_routes
+    from (
+      select route.*,
+        coalesce((
+          select json_agg(json_build_object(
+            'id', rule.id,
+            'weekday', rule.weekday,
+            'interval_weeks', rule.interval_weeks,
+            'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+          ) order by rule.weekday)
+          from public.route_service_rules rule
+          where rule.route_id = route.id
+        ), '[]'::json) as service_rules
+      from public.routes route
+      order by route.sort_order
+    ) route_row;
     select coalesce(json_agg(row_to_json(x)), '[]'::json) into v_entries from (
       select * from public.entries where deleted_at is null
         and (done = false or week_key >= v_last_week_key or pick_week_key >= v_last_week_key)
