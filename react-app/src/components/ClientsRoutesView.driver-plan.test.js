@@ -37,7 +37,7 @@ test('driver sees the weekly plan followed by the complete read-only route direc
 });
 
 test('clicking an assigned route scrolls to and highlights its directory card', () => {
-  assert.match(weeklyPlanSource, /onRouteSelect\?\.\(route\)/);
+  assert.match(weeklyPlanSource, /onRouteSelect\(route\)/);
   assert.match(clientsRoutesSource, /document\.getElementById\(routeCardId\(route\.id\)\)/);
   assert.match(clientsRoutesSource, /scrollIntoView\(\{ behavior: 'smooth'/);
   assert.match(clientsRoutesSource, /id=\{routeCardId\(route\.id\)\}/);
@@ -73,18 +73,13 @@ test('route schedule greys out non-service days but keeps them available as exce
   assert.match(stylesSource, /\.weekly-plan-table td\.is-off-schedule/);
 });
 
-test('driver uses a responsive day-card agenda while admin keeps the planning table', () => {
-  const agendaStart = weeklyPlanSource.indexOf('function DriverWeeklyAgenda');
-  const agendaEnd = weeklyPlanSource.indexOf('export default function WeeklyRoutePlanView');
-  const agendaSource = weeklyPlanSource.slice(agendaStart, agendaEnd);
-
-  assert.ok(agendaStart >= 0);
-  assert.ok(agendaEnd > agendaStart);
-  assert.match(weeklyPlanSource, /!isAdmin \? \(\s*<DriverWeeklyAgenda/);
-  assert.match(weeklyPlanSource, /: \(\s*<div className="weekly-plan-table-wrap">/);
-  assert.match(agendaSource, /className="driver-week-grid"/);
-  assert.match(agendaSource, /weeklyPlan\.noRouteForDay/);
-  assert.doesNotMatch(agendaSource, /trip\.driver_name/);
-  assert.match(stylesSource, /\.driver-week-grid\{display:grid;grid-template-columns:repeat\(3/);
-  assert.match(stylesSource, /@media\(max-width:640px\)\{\.driver-week-grid\{grid-template-columns:1fr/);
+test('driver keeps the weekly route table with a compact touch-friendly mobile layout', () => {
+  assert.doesNotMatch(weeklyPlanSource, /DriverWeeklyAgenda/);
+  assert.match(weeklyPlanSource, /weekly-plan-table-wrap \$\{!isAdmin \? 'is-driver-view'/);
+  assert.match(weeklyPlanSource, /weeklyPlan\.swipeTable/);
+  assert.match(weeklyPlanSource, /className="weekly-plan-driver-time"/);
+  assert.match(stylesSource, /\.weekly-plan-table-wrap\.is-driver-view\{[^}]*overscroll-behavior-x:contain/);
+  assert.match(stylesSource, /scroll-snap-type:x proximity/);
+  assert.match(stylesSource, /\.weekly-plan-table-wrap\.is-driver-view \.weekly-plan-table\{min-width:708px\}/);
+  assert.match(stylesSource, /\.weekly-plan-route-link\{min-height:44px/);
 });
