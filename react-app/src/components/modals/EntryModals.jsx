@@ -54,6 +54,12 @@ function normalizeSearch(str) {
     .replace(/\u0142/g, 'l');
 }
 
+function parseRouteIds(routesStr) {
+  return new Set(
+    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
+  );
+}
+
 function firstClientByRouteOrder(clients, routes) {
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const firstRoute = sortedRoutes.find(r => clients.some(c => c.route_id === r.id));
@@ -558,6 +564,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   const [clientName, setClientName] = useState('');
   const [clientQuery, setClientQuery] = useState('');
   const [clientListOpen, setClientListOpen] = useState(false);
+  const [showOtherRoutes, setShowOtherRoutes] = useState(false);
   const [type, setType] = useState('P');
   const [weight, setWeight] = useState('');
   const [arrDay, setArrDay] = useState(defaultArrDay || 1);
@@ -579,7 +586,16 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   }, [weekKey, defaultArrDay]);
   const isDriverStopFlow = isClientScoped && Boolean(weekKey) && isDriver;
 
-  const selectableClients = clients;
+  const assignedRouteIds = useMemo(() => parseRouteIds(user?.routes), [user?.routes]);
+  const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
+  const ownClients = useMemo(() => hasAssignedRouteFilter
+    ? clients.filter(c => assignedRouteIds.has(c.route_id))
+    : clients, [assignedRouteIds, clients, hasAssignedRouteFilter]);
+  const otherClients = useMemo(() => hasAssignedRouteFilter
+    ? clients.filter(c => c.route_id && !assignedRouteIds.has(c.route_id))
+    : [], [assignedRouteIds, clients, hasAssignedRouteFilter]);
+  const selectableClients = useMemo(() => hasAssignedRouteFilter && showOtherRoutes ? otherClients : ownClients, [hasAssignedRouteFilter, showOtherRoutes, otherClients, ownClients]);
+  const canToggleOtherRoutes = hasAssignedRouteFilter && otherClients.length > 0;
   const filteredClients = useMemo(() => {
     const q = normalizeSearch(clientQuery);
     if (!q) return selectableClients;
@@ -605,11 +621,12 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       if (defaultClientName) {
         initClient = clients.find(c => c.name === defaultClientName);
       }
-      if (!initClient) initClient = firstClientByRouteOrder(selectableClients, routes);
+      if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
       const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(day, resolvedWeekKey, clients, routes, initClient?.name);
       setArrDay(day);
       setPickDay(pd);
       setPickWeek(pw);
+      setShowOtherRoutes(false);
       setClientName(initClient?.name || '');
       setClientQuery(initClient?.name || '');
       setClientListOpen(false);
@@ -620,7 +637,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       setUrgent(false);
       setExplicitRouteId('');
     }
-  }, [isOpen, defaultArrDay, clients, routes, selectableClients, defaultClientName, defaultType, resolvedWeekKey]);
+  }, [isOpen, defaultArrDay, clients, routes, ownClients, defaultClientName, defaultType, resolvedWeekKey]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -727,7 +744,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                       .map(r => (
                         <div key={r.id}>
                           <div style={{ padding: '6px 14px', fontSize: '10px', fontWeight: 700, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', background: 'var(--bg-secondary)' }}>
-                            {r.name}
+                            {r.name}{hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}
                           </div>
                           {filteredClients
                             .filter(c => c.route_id === r.id)
@@ -757,6 +774,20 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                   </div>
                 )}
               </div>
+              {canToggleOtherRoutes && (
+                <button
+                  type="button"
+                  onClick={() => setShowOtherRoutes(value => !value)}
+                  style={{
+                    width: '100%', border: '1px solid rgba(0,122,255,0.22)',
+                    background: showOtherRoutes ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.06)',
+                    color: 'var(--accent)', borderRadius: '12px', padding: '10px 12px',
+                    fontSize: '13px', fontWeight: 700, cursor: 'pointer', marginTop: '-4px', marginBottom: '12px',
+                  }}
+                >
+                  {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
+                </button>
+              )}
             </>
           )}
 

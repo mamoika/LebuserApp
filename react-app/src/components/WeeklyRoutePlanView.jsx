@@ -3,13 +3,11 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useAppData } from '../hooks/useAppData';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
 import { toastError, toastSuccess } from '../lib/toast';
 import {
   copyWeeklyRoutePlan,
   getWeeklyRoutePlan,
-  publishWeeklyRoutePlan,
   removeWeeklyRouteAssignment,
   saveWeeklyRouteAssignment,
 } from '../lib/weeklyRoutePlanRpc';
@@ -93,7 +91,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
             <span>{t('weeklyPlan.driver')}</span>
             <select id="weekly-plan-driver" value={driverId} onChange={event => setDriverId(event.target.value)}>
               <option value="">{t('weeklyPlan.chooseDriver')}</option>
-              {drivers.map(driver => <option value={driver.id} key={driver.id} disabled={!availableDriverIds.has(driver.id) && driver.id !== trip?.driver_id}>{driver.name}{!availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.unavailable')})` : ''}</option>)}
+              {drivers.map(driver => <option value={driver.id} key={driver.id}>{driver.name}{!availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.unavailable')})` : ''}</option>)}
             </select>
           </label>
 
@@ -114,7 +112,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
           </div>
 
           <div className="ap-btn-group weekly-plan-sheet-actions">
-            {trip?.status === 'planned' && (
+            {trip && (
               <button type="button" className="ap-btn weekly-plan-remove" onClick={onRemove} disabled={busy}>{t('weeklyPlan.remove')}</button>
             )}
             <span />
@@ -130,9 +128,8 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
 export default function WeeklyRoutePlanView({ showBackLink = true }) {
   const { t, i18n } = useTranslation();
   const { isAdmin, sessionToken } = useAuth();
-  const { allRoutes, loading: appLoading } = useAppData();
   const [weekStart, setWeekStart] = useState(() => mondayOf());
-  const [plan, setPlan] = useState({ trips: [], drivers: [], availability: [] });
+  const [plan, setPlan] = useState({ trips: [], routes: [], drivers: [], availability: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState(null);
@@ -142,7 +139,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
     setLoading(true);
     try {
       const data = await getWeeklyRoutePlan(sessionToken, ymd(weekStart));
-      setPlan({ trips: data?.trips || [], drivers: data?.drivers || [], availability: data?.availability || [] });
+      setPlan({ trips: data?.trips || [], routes: data?.routes || [], drivers: data?.drivers || [], availability: data?.availability || [] });
     } catch (error) {
       toastError(`${t('weeklyPlan.loadError')}: ${error.message}`);
     } finally {
@@ -154,8 +151,8 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
 
   const days = useMemo(() => Array.from({ length: DAYS }, (_, index) => addDays(weekStart, index)), [weekStart]);
   const sortedRoutes = useMemo(
-    () => [...allRoutes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
-    [allRoutes],
+    () => [...plan.routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [plan.routes],
   );
   const routeNumber = useMemo(
     () => new Map(sortedRoutes.map((route, index) => [route.id, index + 1])),
@@ -204,7 +201,6 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
     mutate(
       async () => {
         await copyWeeklyRoutePlan(sessionToken, ymd(addDays(weekStart, -7)), ymd(weekStart));
-        await publishWeeklyRoutePlan(sessionToken, ymd(weekStart));
       },
       t('weeklyPlan.copySuccess'),
     );
@@ -246,7 +242,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
         </div>
       )}
 
-      {(loading || appLoading) ? <div className="loader">{t('common.loading')}</div> : (
+      {loading ? <div className="loader">{t('common.loading')}</div> : (
         <div className="weekly-plan-table-wrap">
           <table className="weekly-plan-table">
             <thead>
@@ -279,7 +275,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
                             <strong>{trip.driver_name}</strong>
                             <span>{trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}</span>
                             {formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
-                            <em>{trip.status === 'planned' ? t('weeklyPlan.scheduledShort') : t(`weeklyPlan.status.${trip.status}`)}</em>
+                            <em>{t('weeklyPlan.scheduledShort')}</em>
                           </> : <span className="weekly-plan-empty">{isAdmin ? t('weeklyPlan.assign') : '—'}</span>}
                         </button>
                       </td>
@@ -313,7 +309,6 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
         onClose={() => !busy && setSelection(null)}
         onSave={assignment => mutate(async () => {
           await saveWeeklyRouteAssignment(sessionToken, assignment);
-          await publishWeeklyRoutePlan(sessionToken, ymd(weekStart));
         }, t('weeklyPlan.saveSuccess'))}
         onRemove={() => mutate(() => removeWeeklyRouteAssignment(sessionToken, selection.route.id, selection.date), t('weeklyPlan.removeSuccess'))}
       />}
