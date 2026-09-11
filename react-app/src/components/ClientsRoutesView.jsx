@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
@@ -480,9 +480,14 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
 
 // ---- Main component ----
 
-function ClientsRoutesBoard() {
+function routeCardId(routeId) {
+  return `clients-route-${routeId}`;
+}
+
+function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) {
   const { t } = useTranslation();
-  const rawData = useAppData();
+  const appData = useAppData();
+  const rawData = dataOverride || appData;
   const { isAdmin, user, sessionToken } = useAuth();
   const { clients, routes, loading, error, refetch } = rawData;
 
@@ -971,8 +976,10 @@ function ClientsRoutesBoard() {
     );
     return (
       <div
+        id={routeCardId(route.id)}
         key={route.id}
-        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''}`}
+        className={`col route-card ${routeHasSearchMatch ? 'has-search-match' : ''} ${draggingRouteId === route.id ? 'is-route-dragging' : ''} ${Number(highlightedRouteId) === Number(route.id) ? 'is-plan-target' : ''}`}
+        tabIndex={-1}
         style={{
           '--route-color': routeColor,
           borderTopColor: routeColor,
@@ -1305,5 +1312,72 @@ function ClientsRoutesBoard() {
 
 export default function ClientsRoutesView() {
   const { isDriver } = useAuth();
-  return isDriver ? <WeeklyRoutePlanView showBackLink={false} /> : <ClientsRoutesBoard />;
+  const { t } = useTranslation();
+  const [driverDirectory, setDriverDirectory] = useState(null);
+  const [highlightedRouteId, setHighlightedRouteId] = useState(null);
+  const highlightTimerRef = useRef(null);
+
+  const handlePlanLoad = useCallback((plan) => {
+    setDriverDirectory({
+      clients: plan.clients || [],
+      routes: plan.routes || [],
+      entries: [],
+      receipts: [],
+      loading: false,
+      error: null,
+      refetch: () => {},
+    });
+  }, []);
+
+  const handleRouteSelect = useCallback((route) => {
+    setHighlightedRouteId(route.id);
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(routeCardId(route.id));
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      target?.focus({ preventScroll: true });
+    });
+
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedRouteId(null);
+      highlightTimerRef.current = null;
+    }, 2200);
+  }, []);
+
+  useEffect(() => () => {
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+  }, []);
+
+  if (!isDriver) return <ClientsRoutesBoard />;
+
+  return (
+    <div className="driver-clients-routes-view">
+      <WeeklyRoutePlanView
+        showBackLink={false}
+        onRouteSelect={handleRouteSelect}
+        onPlanLoad={handlePlanLoad}
+      />
+
+      <section className="driver-route-directory" aria-labelledby="driver-route-directory-title">
+        <header className="driver-route-directory-header">
+          <div className="weekly-plan-kicker">{t('weeklyPlan.allRoutesKicker')}</div>
+          <h2 id="driver-route-directory-title">{t('weeklyPlan.allRoutesTitle')}</h2>
+          <p>{t('weeklyPlan.allRoutesDescription')}</p>
+        </header>
+        <ClientsRoutesBoard
+          dataOverride={driverDirectory || {
+            clients: [],
+            routes: [],
+            entries: [],
+            receipts: [],
+            loading: true,
+            error: null,
+            refetch: () => {},
+          }}
+          highlightedRouteId={highlightedRouteId}
+        />
+      </section>
+    </div>
+  );
 }

@@ -34,6 +34,7 @@ declare
   v_start date;
   v_assignments json := '[]'::json;
   v_routes json := '[]'::json;
+  v_clients json := '[]'::json;
   v_drivers json := '[]'::json;
   v_availability json := '[]'::json;
 begin
@@ -66,10 +67,6 @@ begin
       order by name
     ) x;
 
-    select coalesce(json_agg(row_to_json(x) order by x.sort_order), '[]'::json)
-    into v_routes
-    from (select id, name, sort_order from public.routes) x;
-
     select coalesce(json_agg(row_to_json(x) order by x.driver_id, x.work_date), '[]'::json)
     into v_availability
     from (
@@ -99,20 +96,48 @@ begin
         and plan_date >= v_start and plan_date < v_start + 6
     ) x;
 
-    select coalesce(json_agg(row_to_json(x) order by x.sort_order), '[]'::json)
-    into v_routes
-    from (
-      select distinct r.id, r.name, r.sort_order
-      from public.routes r
-      join public.driver_route_plan_assignments assignment on assignment.route_id = r.id
-      where assignment.driver_id = v_user.id
-        and assignment.plan_date >= v_start and assignment.plan_date < v_start + 6
-    ) x;
   end if;
+
+  -- Pełny katalog jest częścią wyłącznie informacyjnego modułu planu.
+  -- Nie zmienia operacyjnego dostępu kierowcy w get_app_data ani driver_trips.
+  select coalesce(json_agg(row_to_json(route_row) order by route_row.sort_order), '[]'::json)
+  into v_routes
+  from (
+    select route.*,
+      coalesce((
+        select json_agg(json_build_object(
+          'id', rule.id,
+          'weekday', rule.weekday,
+          'interval_weeks', rule.interval_weeks,
+          'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+        ) order by rule.weekday)
+        from public.route_service_rules rule
+        where rule.route_id = route.id
+      ), '[]'::json) as service_rules
+    from public.routes route
+  ) route_row;
+
+  select coalesce(json_agg(row_to_json(client_row) order by client_row.sort_order), '[]'::json)
+  into v_clients
+  from (
+    select client.*,
+      coalesce((
+        select json_agg(json_build_object(
+          'id', rule.id,
+          'weekday', rule.weekday,
+          'interval_weeks', rule.interval_weeks,
+          'anchor_week', to_char(rule.anchor_week, 'YYYY-MM-DD')
+        ) order by rule.weekday)
+        from public.client_service_rules rule
+        where rule.client_id = client.id
+      ), '[]'::json) as service_rules
+    from public.clients client
+    where client.archived_at is null
+  ) client_row;
 
   return json_build_object(
     'ok', true, 'week_start', v_start, 'trips', v_assignments, 'routes', v_routes,
-    'drivers', v_drivers, 'availability', v_availability
+    'clients', v_clients, 'drivers', v_drivers, 'availability', v_availability
   );
 end;
 $$;

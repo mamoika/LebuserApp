@@ -125,7 +125,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
   );
 }
 
-export default function WeeklyRoutePlanView({ showBackLink = true }) {
+export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect = null, onPlanLoad = null }) {
   const { t, i18n } = useTranslation();
   const { isAdmin, sessionToken } = useAuth();
   const [weekStart, setWeekStart] = useState(() => mondayOf());
@@ -139,13 +139,21 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
     setLoading(true);
     try {
       const data = await getWeeklyRoutePlan(sessionToken, ymd(weekStart));
-      setPlan({ trips: data?.trips || [], routes: data?.routes || [], drivers: data?.drivers || [], availability: data?.availability || [] });
+      const nextPlan = {
+        trips: data?.trips || [],
+        routes: data?.routes || [],
+        clients: data?.clients || [],
+        drivers: data?.drivers || [],
+        availability: data?.availability || [],
+      };
+      setPlan(nextPlan);
+      onPlanLoad?.(nextPlan);
     } catch (error) {
       toastError(`${t('weeklyPlan.loadError')}: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, t, weekStart]);
+  }, [onPlanLoad, sessionToken, t, weekStart]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -259,17 +267,38 @@ export default function WeeklyRoutePlanView({ showBackLink = true }) {
             <tbody>
               {visibleRoutes.map(route => (
                 <tr key={route.id}>
-                  <th scope="row"><span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span><span>{route.name}</span></th>
+                  <th scope="row">
+                    {!isAdmin && onRouteSelect ? (
+                      <button
+                        type="button"
+                        className="weekly-plan-route-link"
+                        onClick={() => onRouteSelect(route)}
+                        aria-label={t('weeklyPlan.openRoute', { route: route.name })}
+                      >
+                        <span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span>
+                        <span>{route.name}</span>
+                      </button>
+                    ) : (
+                      <><span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span><span>{route.name}</span></>
+                    )}
+                  </th>
                   {days.map(date => {
                     const trip = assignmentFor(date, route.id);
                     return (
                       <td key={ymd(date)} className={ymd(date) === today ? 'is-today' : ''}>
                         <button
                           type="button"
-                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'}`}
-                          disabled={!isAdmin}
-                          onClick={() => isAdmin && setSelection({ route, date: ymd(date), trip })}
-                          aria-label={trip ? `${route.name}: ${trip.driver_name}` : `${route.name}: ${t('weeklyPlan.unassignedShort')}`}
+                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!isAdmin && trip && onRouteSelect ? 'is-route-link' : ''}`}
+                          disabled={!isAdmin && !(trip && onRouteSelect)}
+                          onClick={() => {
+                            if (isAdmin) setSelection({ route, date: ymd(date), trip });
+                            else if (trip && onRouteSelect) onRouteSelect(route);
+                          }}
+                          aria-label={trip
+                            ? (!isAdmin && onRouteSelect
+                              ? t('weeklyPlan.openRoute', { route: route.name })
+                              : `${route.name}: ${trip.driver_name}`)
+                            : `${route.name}: ${t('weeklyPlan.unassignedShort')}`}
                         >
                           {trip ? <>
                             <strong>{trip.driver_name}</strong>
