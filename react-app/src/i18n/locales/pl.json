@@ -135,6 +135,7 @@
     "route": { "title": "Moja trasa", "subtitle": "Dostawy, odbiory i licznik" },
     "routes": { "title": "Trasy na żywo", "subtitle": "Aktualny progres tras kierowców" },
     "clients": { "title": "Klienci i Trasy", "subtitle": "Baza klientów i tras" },
+    "routePlan": { "title": "Plan tras", "subtitle": "Tygodniowe planowanie obsady kierowców" },
     "map": { "title": "Mapa", "subtitle": "Klienci na mapie" },
     "tunnel": { "title": "Tunel", "subtitle": "Worki, programy i tory prania" },
     "history": { "title": "Historia", "subtitle": "Archiwum przyjazdów i zmian" },

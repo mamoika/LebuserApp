@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
@@ -1437,6 +1436,6 @@ function ClientsRoutesBoard() {
 }
 
 export default function ClientsRoutesView() {
-  const location = useLocation();
-  return location.hash === '#plan' ? <WeeklyRoutePlanView /> : <ClientsRoutesBoard />;
+  const { isDriver } = useAuth();
+  return isDriver ? <WeeklyRoutePlanView showBackLink={false} /> : <ClientsRoutesBoard />;
 }

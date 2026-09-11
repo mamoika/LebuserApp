@@ -16,6 +16,7 @@ const ScheduleView = lazy(() => import('../components/ScheduleView'));
 const DriverCourse = lazy(() => import('../components/courses/DriverCourse'));
 const DispatchBoard = lazy(() => import('../components/courses/DispatchBoard'));
 const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
+const WeeklyRoutePlanView = lazy(() => import('../components/WeeklyRoutePlanView'));
 const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
 const MapView = lazy(() => import('../components/MapView'));
 const HistoryView = lazy(() => import('../components/HistoryView'));
@@ -35,6 +36,7 @@ const PAGE_KEYS = {
   '/route': 'route',
   '/routes': 'routes',
   '/clients': 'clients',
+  '/route-plan': 'routePlan',
   '/map': 'map',
   '/history': 'history',
   '/grafik': 'grafik',
@@ -190,6 +192,7 @@ export default function Dashboard() {
           <Route path="/routes" element={canViewAdminData ? <DispatchBoard /> : <Navigate to="/" replace />} />
           <Route path="/routes/plan" element={<Navigate to="/routes" replace />} />
           <Route path="/clients" element={<ClientsRoutesView />} />
+          <Route path="/route-plan" element={isAdmin ? <WeeklyRoutePlanView /> : <Navigate to="/clients" replace />} />
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/history" element={<HistoryView />} />
           <Route path="/grafik" element={<WorkScheduleView />} />

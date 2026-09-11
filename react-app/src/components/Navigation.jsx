@@ -21,8 +21,6 @@ export default function Navigation() {
     { to: '/schedule', icon: '📅', label: t('nav.schedule') }
   );
 
-  if (canEdit) navItems.splice(1, 0, { to: '/clients#plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
-
   if (canViewLaundry) {
     navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
     navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
@@ -37,6 +35,7 @@ export default function Navigation() {
   }
 
   if (isAdmin) {
+    navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
     navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
   }

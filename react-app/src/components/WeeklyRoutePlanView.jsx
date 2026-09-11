@@ -127,7 +127,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, busy, onClose
   );
 }
 
-export default function WeeklyRoutePlanView() {
+export default function WeeklyRoutePlanView({ showBackLink = true }) {
   const { t, i18n } = useTranslation();
   const { isAdmin, sessionToken } = useAuth();
   const { allRoutes, loading: appLoading } = useAppData();
@@ -221,7 +221,7 @@ export default function WeeklyRoutePlanView() {
           <h1 id="weekly-plan-title">{isAdmin ? t('weeklyPlan.adminTitle') : t('weeklyPlan.driverTitle')}</h1>
           <p>{isAdmin ? t('weeklyPlan.adminDescription') : t('weeklyPlan.driverDescription')}</p>
         </div>
-        <Link className="weekly-plan-back" to="/clients">{t('weeklyPlan.backToRoutes')}</Link>
+        {showBackLink && <Link className="weekly-plan-back" to="/clients">{t('weeklyPlan.backToRoutes')}</Link>}
       </header>
 
       <div className="weekly-plan-toolbar">
