@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Send, Truck, Users, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
@@ -184,7 +184,6 @@ export default function WeeklyRoutePlanView() {
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const weekLabel = `${days[0].toLocaleDateString(locale, { day: '2-digit', month: 'short' })} – ${days[days.length - 1].toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}`;
   const assignedCount = plan.trips.reduce((count, trip) => count + parseRouteIds(trip.routes).length, 0);
-  const publishedCount = plan.trips.filter(trip => trip.plan_published_at).length;
 
   const mutate = async (action, successMessage) => {
     try {
@@ -203,15 +202,13 @@ export default function WeeklyRoutePlanView() {
   const copyPreviousWeek = () => {
     if (!window.confirm(t('weeklyPlan.copyConfirm'))) return;
     mutate(
-      () => copyWeeklyRoutePlan(sessionToken, ymd(addDays(weekStart, -7)), ymd(weekStart)),
+      async () => {
+        await copyWeeklyRoutePlan(sessionToken, ymd(addDays(weekStart, -7)), ymd(weekStart));
+        await publishWeeklyRoutePlan(sessionToken, ymd(weekStart));
+      },
       t('weeklyPlan.copySuccess'),
     );
   };
-
-  const publish = () => mutate(
-    () => publishWeeklyRoutePlan(sessionToken, ymd(weekStart)),
-    t('weeklyPlan.publishSuccess'),
-  );
 
   const assignmentFor = (date, routeId) => tripsByCell.get(`${ymd(date)}|${routeId}`) || null;
   const today = ymd(new Date());
@@ -237,7 +234,6 @@ export default function WeeklyRoutePlanView() {
         {isAdmin && (
           <div className="weekly-plan-actions">
             <button type="button" className="weekly-plan-action" onClick={copyPreviousWeek} disabled={busy}><ClipboardCopy size={15} /> {t('weeklyPlan.copyPrevious')}</button>
-            <button type="button" className="weekly-plan-publish" onClick={publish} disabled={busy}><Send size={15} /> {t('weeklyPlan.publish')}</button>
           </div>
         )}
       </div>
@@ -245,7 +241,7 @@ export default function WeeklyRoutePlanView() {
       {isAdmin && (
         <div className="weekly-plan-summary" aria-label={t('weeklyPlan.summary')}>
           <span><Truck size={14} /> {t('weeklyPlan.assigned', { count: assignedCount })}</span>
-          <span><Users size={14} /> {t('weeklyPlan.published', { count: publishedCount })}</span>
+          <span><Users size={14} /> {t('weeklyPlan.visibleToDrivers')}</span>
           <span className={assignedCount < sortedRoutes.length * DAYS ? 'is-warning' : ''}>{t('weeklyPlan.unassigned', { count: Math.max(0, sortedRoutes.length * DAYS - assignedCount) })}</span>
         </div>
       )}
@@ -270,12 +266,11 @@ export default function WeeklyRoutePlanView() {
                   <th scope="row"><span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span><span>{route.name}</span></th>
                   {days.map(date => {
                     const trip = assignmentFor(date, route.id);
-                    const isPublished = Boolean(trip?.plan_published_at) || trip?.status !== 'planned';
                     return (
                       <td key={ymd(date)} className={ymd(date) === today ? 'is-today' : ''}>
                         <button
                           type="button"
-                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${isPublished ? 'is-published' : 'is-draft'}`}
+                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'}`}
                           disabled={!isAdmin}
                           onClick={() => isAdmin && setSelection({ route, date: ymd(date), trip })}
                           aria-label={trip ? `${route.name}: ${trip.driver_name}` : `${route.name}: ${t('weeklyPlan.unassignedShort')}`}
@@ -284,7 +279,7 @@ export default function WeeklyRoutePlanView() {
                             <strong>{trip.driver_name}</strong>
                             <span>{trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}</span>
                             {formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
-                            <em>{trip.status === 'planned' ? (isPublished ? t('weeklyPlan.publishedShort') : t('weeklyPlan.draftShort')) : t(`weeklyPlan.status.${trip.status}`)}</em>
+                            <em>{trip.status === 'planned' ? t('weeklyPlan.scheduledShort') : t(`weeklyPlan.status.${trip.status}`)}</em>
                           </> : <span className="weekly-plan-empty">{isAdmin ? t('weeklyPlan.assign') : '—'}</span>}
                         </button>
                       </td>
@@ -316,7 +311,10 @@ export default function WeeklyRoutePlanView() {
         busy={busy}
         t={t}
         onClose={() => !busy && setSelection(null)}
-        onSave={assignment => mutate(() => saveWeeklyRouteAssignment(sessionToken, assignment), t('weeklyPlan.saveSuccess'))}
+        onSave={assignment => mutate(async () => {
+          await saveWeeklyRouteAssignment(sessionToken, assignment);
+          await publishWeeklyRoutePlan(sessionToken, ymd(weekStart));
+        }, t('weeklyPlan.saveSuccess'))}
         onRemove={() => mutate(() => removeWeeklyRouteAssignment(sessionToken, selection.route.id, selection.date), t('weeklyPlan.removeSuccess'))}
       />}
     </section>
