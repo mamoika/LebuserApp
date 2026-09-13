@@ -717,11 +717,8 @@
       "END": "Beendet",
       "hours": "Std.",
       "plus": "Start (Std) + Arb.zeit (h)",
-      "range": "Von-Bis (Std)",
-      "underHours": "< 8h (zu wenig)",
       "normHours": "8h (Soll)",
-      "overHours": "9–10h (+)",
-      "heavyHours": "11h+ / 5+8 (++)"
+      "otherHours": "Andere Std. (7, 9, 11…)"
     },
     "excelSumHours": "Σ Std",
     "excelNorm": "Soll",

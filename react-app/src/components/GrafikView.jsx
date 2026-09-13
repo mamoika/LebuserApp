@@ -15,7 +15,7 @@ import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpe
 const VALUE_STYLE = {
   'W':   { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
   'UW':  { bg: '#bfdbfe', color: '#1e40af', pattern: false },
-  'L4':  { bg: '#fce7f3', color: '#be185d', pattern: false },
+  'L4':  { bg: '#ffe4e6', color: '#be123c', pattern: false },
   'NU':  { bg: '#fef3c7', color: '#92400e', pattern: false },
   'NN':  { bg: '#ff0000', color: '#fff', pattern: false },
   'I':   { bg: null, color: '#6d28d9', pattern: true },
@@ -28,41 +28,10 @@ function getCellStyle(value, isWeekendOrHoliday) {
   if (!v) return { bg: isWeekendOrHoliday ? '#f4f4f6' : '#fff', color: '#d1d5db', pattern: false };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
   
-  // Zmiany dzielone / nadgodziny z plusem (np. 5+8, 6,5+8, 4,75+12) -> głębokie indygo / kobalt
-  if (v.includes('+')) return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
+  if (parseHours(v) === 8) return VALUE_STYLE['8'];
 
-  // Zakresy godzin z myślnikiem (np. 6-14)
-  if (v.includes('-')) {
-    const h = parseHours(v);
-    if (h > 0 && h < 8) return { bg: '#fee2e2', color: '#b91c1c', pattern: false };
-    if (h === 8) return { bg: '#dcfce7', color: '#15803d', pattern: false };
-    if (h > 8 && h <= 10) return { bg: '#ccfbf1', color: '#0f766e', pattern: false };
-    if (h > 10) return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
-    return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
-  }
-
-  // Wartości liczbowe godzin:
-  const num = parseFloat(v.replace(',', '.'));
-  if (!isNaN(num)) {
-    if (num < 8) {
-      // MINUS (za mało godzin / niedogodziny, np. 1, 4, 6.5, 7) -> łososiowa czerwień
-      return { bg: '#fee2e2', color: '#b91c1c', pattern: false };
-    }
-    if (num === 8) {
-      // NORMA (wzorcowe 8h) -> czysta zieleń
-      return { bg: '#dcfce7', color: '#15803d', pattern: false };
-    }
-    if (num > 8 && num <= 10) {
-      // LEKKI PLUS (9h, 10h) -> morski szmaragd / turkus
-      return { bg: '#ccfbf1', color: '#0f766e', pattern: false };
-    }
-    if (num > 10) {
-      // DUŻY PLUS (11h+) -> głębokie indygo / kobalt
-      return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
-    }
-  }
-
-  return { bg: '#fff', color: '#374151', pattern: false };
+  // Wszystkie inne godziny pracy (7, 9, 11, 1, 5+8, 6.5 itd.) -> czyste białe tło z wyraźną, ciemną czcionką
+  return { bg: '#fff', color: '#0f172a', pattern: false };
 }
 
 // Dłuższe wpisy (np. "7,30+11") nie mieszczą się w wąskiej kolumnie — dobieramy
@@ -612,10 +581,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
             {[
               ['I', t('grafik.legend.I')],
-              ['7', t('grafik.legend.underHours', '< 8h (za mało)')],
               ['8', t('grafik.legend.normHours', '8h (norma)')],
-              ['9', t('grafik.legend.overHours', '9–10h (+)')],
-              ['11+', t('grafik.legend.heavyHours', '11h+ / 5+8 (++)')],
+              ['7/9', t('grafik.legend.otherHours', 'Inne godz. (7, 9, 11…)')],
               ['W', t('grafik.legend.W')],
               ['UW', t('grafik.legend.UW')],
               ['L4', t('grafik.legend.L4')],
