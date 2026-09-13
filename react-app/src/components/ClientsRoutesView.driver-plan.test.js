@@ -108,3 +108,8 @@ test('admin can hide routes from the plan constructor without changing driver da
   assert.doesNotMatch(visibilityMigrationSource, /delete from public\.routes/);
   assert.match(stylesSource, /\.weekly-plan-route-picker/);
 });
+
+test('administrators and managers see the clients board instead of the embedded driver plan', () => {
+  assert.match(clientsRoutesSource, /user\?\.role === 'driver'/);
+  assert.match(clientsRoutesSource, /if \(!isDriverOnly\) return <ClientsRoutesBoard/);
+});

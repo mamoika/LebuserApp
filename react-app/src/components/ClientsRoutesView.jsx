@@ -1312,8 +1312,9 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
 }
 
 export default function ClientsRoutesView() {
-  const { isDriver } = useAuth();
+  const { user, canEditModule } = useAuth();
   const { t } = useTranslation();
+  const isDriverOnly = user?.role === 'driver' && !canEditModule('clients');
   const [driverDirectory, setDriverDirectory] = useState(null);
   const [highlightedRouteId, setHighlightedRouteId] = useState(null);
   const highlightTimerRef = useRef(null);
@@ -1331,13 +1332,15 @@ export default function ClientsRoutesView() {
   }, []);
 
   const handleRouteSelect = useCallback((route) => {
+    if (!route?.id) return;
+    const target = document.getElementById(routeCardId(route.id));
+    if (!target) return;
     setHighlightedRouteId(route.id);
     if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     window.requestAnimationFrame(() => {
-      const target = document.getElementById(routeCardId(route.id));
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
-      target?.focus({ preventScroll: true });
+      target?.focus?.({ preventScroll: true });
     });
 
     highlightTimerRef.current = window.setTimeout(() => {
@@ -1350,7 +1353,7 @@ export default function ClientsRoutesView() {
     if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
   }, []);
 
-  if (!isDriver) return <ClientsRoutesBoard />;
+  if (!isDriverOnly) return <ClientsRoutesBoard />;
 
   return (
     <div className="driver-clients-routes-view">
