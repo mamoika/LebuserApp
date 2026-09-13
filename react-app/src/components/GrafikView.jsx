@@ -13,13 +13,13 @@ import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput 
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
 
 const VALUE_STYLE = {
-  'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
+  'W':   { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
   'UW':  { bg: '#bfdbfe', color: '#1e40af', pattern: false },
   'L4':  { bg: '#ffe4e6', color: '#be123c', pattern: false },
-  'NU':  { bg: '#fef3c7', color: '#b45309', pattern: false },
+  'NU':  { bg: '#fef3c7', color: '#92400e', pattern: false },
   'NN':  { bg: '#ff0000', color: '#fff', pattern: false },
   'I':   { bg: null, color: '#6d28d9', pattern: true },
-  'END': { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
+  'END': { bg: '#e2e8f0', color: '#475569', pattern: false },
   '8':   { bg: '#dcfce7', color: '#15803d', pattern: false },
 };
 
@@ -28,11 +28,9 @@ function getCellStyle(value, isWeekendOrHoliday) {
   if (!v) return { bg: isWeekendOrHoliday ? '#f4f4f6' : '#fff', color: '#d1d5db', pattern: false };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
   
-  if (parseHours(v) === 8) return VALUE_STYLE['8'];
-
-  if (v.includes('-')) return { bg: '#dbeafe', color: '#1d4ed8', pattern: false };
-  if (v.includes('+')) return { bg: '#fff7ed', color: '#c2410c', pattern: false };
-  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#fef3c7', color: '#b45309', pattern: false };
+  if (v.includes('-')) return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
+  if (v.includes('+')) return { bg: '#ffedd5', color: '#c2410c', pattern: false };
+  if (!isNaN(parseFloat(v.replace(',', '.')))) return { bg: '#dcfce7', color: '#15803d', pattern: false };
   return { bg: '#fff', color: '#374151', pattern: false };
 }
 
@@ -701,7 +699,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
               <th style={{ ...thBase, width: '44px', color: '#2e7d32', borderLeft: '2px solid #e8e8ec', fontSize: '10px' }}>{t('grafik.sumH')}</th>
               <th style={{ ...thBase, width: '38px', color: '#888', fontSize: '10px' }}>{t('grafik.normShort')}</th>
               <th style={{ ...thBase, width: '38px', color: '#c62828', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
-              <th style={{ ...thBase, width: '28px', color: '#f57f17', fontSize: '9px', borderLeft: '1px solid #e8e8ec' }}>L4</th>
+              <th style={{ ...thBase, width: '28px', color: '#be123c', fontSize: '9px', borderLeft: '1px solid #e8e8ec' }}>L4</th>
               <th style={{ ...thBase, width: '28px', color: '#1565c0', fontSize: '9px' }}>UW</th>
               <th style={{ ...thBase, width: '28px', color: '#b45309', fontSize: '9px' }}>NU</th>
               <th style={{ ...thBase, width: '28px', color: '#b71c1c', fontSize: '9px' }}>NN</th>
@@ -833,9 +831,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         {totalHours === 0 ? '—' : formatDiff(diff)}
                       </td>
                       {/* L4, UW, NU, NN */}
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: l4Count > 0 ? '#f57f17' : '#ddd', borderLeft: '1px solid #eee', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{l4Count || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: l4Count > 0 ? '#be123c' : '#ddd', borderLeft: '1px solid #eee', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{l4Count || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: uwCount > 0 ? '#1565c0' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{uwCount || '—'}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nuCount > 0 ? '#b45309' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nuCount || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nuCount > 0 ? '#92400e' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nuCount || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: nnCount > 0 ? '#b71c1c' : '#ddd', borderBottom: '1px solid #f0f0f0', background: rowBg }}>{nnCount || '—'}</td>
                     </tr>
                   );
