@@ -4591,14 +4591,29 @@ select.ap-input {
 .grafik-modern-row {
   transition: background-color 0.15s ease;
 }
-.grafik-modern-row:hover > td {
-  background-color: rgba(0, 0, 0, 0.02) !important;
-}
 .grafik-modern-row:hover > td.grafik-name-td {
-  background-color: rgba(0, 0, 0, 0.025) !important;
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+.grafik-modern-row:hover > td.grafik-cell-hoverable {
+  background-color: rgba(0, 122, 255, 0.05) !important;
 }
 .grafik-summary-td {
   font-variant-numeric: tabular-nums;
+}
+.grafik-scroll-container::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.grafik-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+.grafik-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 8px;
+}
+.grafik-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
 }
 .grafik-th-name{
   position:sticky;

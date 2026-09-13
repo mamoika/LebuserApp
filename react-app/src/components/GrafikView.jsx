@@ -547,7 +547,19 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     transition: 'all 0.15s ease'
   };
 
-  const thBase  = { padding: '7px 2px', fontSize: '10px', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f8f9fb', letterSpacing: '0.01em' };
+  const thBase  = { 
+    padding: '7px 2px', 
+    fontSize: '10px', 
+    fontWeight: 600, 
+    textAlign: 'center', 
+    whiteSpace: 'nowrap', 
+    borderBottom: '1px solid rgba(0,0,0,0.08)', 
+    background: '#f8f9fb', 
+    letterSpacing: '0.01em',
+    position: 'sticky',
+    top: 0,
+    zIndex: 10
+  };
   const nameColW = 185;
   const dayColW  = 30;
 
@@ -704,17 +716,39 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleContainerKeyDown}
+        className="grafik-scroll-container"
         style={{
-          overflowX: 'auto', borderRadius: '16px',
+          overflow: 'auto',
+          maxHeight: 'calc(100vh - 200px)',
+          borderRadius: '16px',
           border: '1px solid rgba(0,0,0,0.08)',
-          outline: 'none', background: '#fff',
-          scrollBehavior: 'smooth'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08)',
+          outline: 'none',
+          background: '#fff',
+          scrollBehavior: 'smooth',
+          position: 'relative'
         }}
       >
         <table className="grafik-modern-table" style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 250}px`, width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '14px', color: '#48484a', borderRight: '1px solid rgba(0,0,0,0.08)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.02em' }}>
+              <th style={{
+                ...thBase,
+                width: `${nameColW}px`,
+                position: 'sticky',
+                top: 0,
+                left: 0,
+                zIndex: 30,
+                textAlign: 'left',
+                paddingLeft: '14px',
+                color: '#48484a',
+                borderRight: '1px solid rgba(0,0,0,0.08)',
+                boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                background: '#f8f9fb'
+              }}>
                 {t('grafik.employee')}
               </th>
               {days.map(d => {
@@ -775,7 +809,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   </th>
                 );
               })}
-              <th style={{ ...thBase, width: '46px', color: '#34C759', borderLeft: '1px solid rgba(0,0,0,0.10)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
+              <th style={{ ...thBase, width: '46px', color: '#248A3D', borderLeft: '2px solid rgba(0,0,0,0.12)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
               <th style={{ ...thBase, width: '38px', color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
               <th style={{ ...thBase, width: '42px', color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
               <th style={{ ...thBase, width: '30px', color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
@@ -789,21 +823,22 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
               return [
                 <tr key={`grp-${g}`} style={{ height: '32px' }}>
                   <td style={{
-                    position: 'sticky', left: 0, zIndex: 2,
-                    background: '#F2F2F7', padding: '0 14px',
+                    position: 'sticky', left: 0, zIndex: 3,
+                    background: '#F5F5F7', padding: '0 14px',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
-                    borderRight: '1px solid rgba(0,0,0,0.06)', width: `${nameColW}px`,
+                    borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)',
+                    width: `${nameColW}px`,
                   }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: grpColor }} />
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: grpColor }} />
                       <span style={{ fontWeight: 700, fontSize: '11px', color: '#1c1c1e', letterSpacing: '0.02em' }}>{g}</span>
-                      <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 500, background: 'rgba(0,0,0,0.04)', padding: '1px 6px', borderRadius: '6px' }}>
+                      <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600, background: 'rgba(0,0,0,0.05)', padding: '1px 7px', borderRadius: '10px' }}>
                         {members.length}
                       </span>
                     </div>
                   </td>
                   <td colSpan={daysInMonth + 7} style={{
-                    background: '#F2F2F7',
+                    background: '#F5F5F7',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
                   }} />
                 </tr>,
@@ -821,7 +856,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                   return (
                     <tr key={emp.id} className="grafik-modern-row" style={{ height: '32px' }}>
-                      <td className="grafik-name-td" style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                      <td className="grafik-name-td" style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 2, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
                           <span
                             style={{
@@ -891,7 +926,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         );
                       })}
                       {/* Σ godzin */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#34C759' : 'rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(0,0,0,0.10)', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 3px', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#248A3D' : 'rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 3px', background: rowBg }}>
                         {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
@@ -954,7 +989,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
               const sumFn = fn || ((d) => employees.filter(e => isPresent(getValue(e, d))).length);
               return (
                 <tr key={label} style={{ height: '32px' }}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 1, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
+                  <td style={{ position: 'sticky', left: 0, zIndex: 3, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
                     {label}
                   </td>
                   {days.map(d => {
@@ -970,7 +1005,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       </td>
                     );
                   })}
-                  <td colSpan={7} style={{ background: nameBg, borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                  <td colSpan={7} style={{ background: nameBg, borderTop: '1px solid rgba(0,0,0,0.06)', borderLeft: '2px solid rgba(0,0,0,0.12)' }} />
                 </tr>
               );
             })}
