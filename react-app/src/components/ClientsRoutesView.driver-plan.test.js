@@ -22,6 +22,10 @@ const vehicleGuardMigrationSource = await readFile(
   new URL('../../db/migrations/weekly_route_plan_vehicle_guard.sql', import.meta.url),
   'utf8',
 );
+const visibilityMigrationSource = await readFile(
+  new URL('../../db/migrations/weekly_route_plan_visibility.sql', import.meta.url),
+  'utf8',
+);
 
 test('driver sees the weekly plan followed by the complete read-only route directory', () => {
   const planIndex = clientsRoutesSource.indexOf('<WeeklyRoutePlanView');
@@ -90,4 +94,17 @@ test('driver keeps the weekly route table with a compact touch-friendly mobile l
   assert.match(stylesSource, /\.driver-clients-routes-view\{[^}]*width:100%;[^}]*min-width:0/);
   assert.match(stylesSource, /\.weekly-route-plan\{[^}]*width:100%;[^}]*min-width:0/);
   assert.match(stylesSource, /\.weekly-plan-table-wrap\{[^}]*width:100%;[^}]*min-width:0;[^}]*max-width:100%;[^}]*overflow-x:auto/);
+});
+
+test('admin can hide routes from the plan constructor without changing driver data', () => {
+  assert.match(weeklyPlanSource, /getWeeklyRoutePlanVisibility/);
+  assert.match(weeklyPlanSource, /saveWeeklyRoutePlanVisibility/);
+  assert.match(weeklyPlanSource, /function RouteVisibilitySheet/);
+  assert.match(weeklyPlanSource, /sortedRoutes\.filter\(route => !hiddenRouteIds\.has\(route\.id\)\)/);
+  assert.match(weeklyPlanSource, /if \(isAdmin\) return/);
+  assert.match(visibilityMigrationSource, /weekly_route_plan_visibility/);
+  assert.match(visibilityMigrationSource, /perform public\.require_admin\(p_session_token\)/);
+  assert.match(visibilityMigrationSource, /p_expected_updated_at/);
+  assert.doesNotMatch(visibilityMigrationSource, /delete from public\.routes/);
+  assert.match(stylesSource, /\.weekly-plan-route-picker/);
 });

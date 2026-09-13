@@ -15,6 +15,19 @@ export const getWeeklyRoutePlan = (sessionToken, weekStart) => call(
   'get_weekly_route_plan', sessionToken, { p_week_start: weekStart },
 );
 
+export const getWeeklyRoutePlanVisibility = sessionToken => call(
+  'get_weekly_route_plan_visibility', sessionToken,
+);
+
+export const saveWeeklyRoutePlanVisibility = (
+  sessionToken,
+  hiddenRouteIds,
+  expectedUpdatedAt,
+) => call('admin_save_weekly_route_plan_visibility', sessionToken, {
+  p_hidden_route_ids: hiddenRouteIds,
+  p_expected_updated_at: expectedUpdatedAt || null,
+});
+
 export const saveWeeklyRouteAssignment = (sessionToken, assignment) => call(
   'admin_upsert_weekly_route_assignment', sessionToken, {
     p_route_id: assignment.routeId,

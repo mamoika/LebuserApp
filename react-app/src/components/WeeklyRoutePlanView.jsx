@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Truck, Users, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Search, Settings2, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
@@ -10,8 +10,10 @@ import { toastError, toastSuccess } from '../lib/toast';
 import {
   copyWeeklyRoutePlan,
   getWeeklyRoutePlan,
+  getWeeklyRoutePlanVisibility,
   removeWeeklyRouteAssignment,
   saveWeeklyRouteAssignment,
+  saveWeeklyRoutePlanVisibility,
 } from '../lib/weeklyRoutePlanRpc';
 
 const DAYS = 6;
@@ -154,6 +156,85 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
   );
 }
 
+function RouteVisibilitySheet({ routes, hiddenRouteIds, busy, onClose, onSave, t }) {
+  const [draftHiddenRouteIds, setDraftHiddenRouteIds] = useState(() => new Set(hiddenRouteIds));
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matchingRoutes = routes.filter(route => (
+    !normalizedQuery || route.name.toLocaleLowerCase().includes(normalizedQuery)
+  ));
+  const routeNumber = new Map(routes.map((route, index) => [route.id, index + 1]));
+  const visibleCount = routes.length - draftHiddenRouteIds.size;
+
+  const toggleRoute = routeId => {
+    setDraftHiddenRouteIds(current => {
+      const next = new Set(current);
+      if (next.has(routeId)) next.delete(routeId);
+      else next.add(routeId);
+      return next;
+    });
+  };
+
+  return (
+    <div className="ap-overlay weekly-plan-overlay" style={{ display: 'flex' }} onPointerDown={onClose}>
+      <section className="ap-sheet weekly-plan-sheet weekly-plan-visibility-sheet" role="dialog" aria-modal="true" aria-labelledby="weekly-plan-visibility-title" onPointerDown={event => event.stopPropagation()}>
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div className="weekly-plan-sheet-heading">
+            <div>
+              <div className="weekly-plan-kicker"><Settings2 size={14} /> {t('weeklyPlan.visibilityKicker')}</div>
+              <h2 id="weekly-plan-visibility-title" className="ap-title">{t('weeklyPlan.visibilityTitle')}</h2>
+              <p className="weekly-plan-visibility-description">{t('weeklyPlan.visibilityDescription')}</p>
+            </div>
+            <button type="button" className="weekly-plan-close" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button>
+          </div>
+
+          <label className="weekly-plan-route-search">
+            <Search size={16} aria-hidden="true" />
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder={t('weeklyPlan.searchRoutes')} aria-label={t('weeklyPlan.searchRoutes')} autoFocus />
+          </label>
+
+          <div className="weekly-plan-visibility-controls">
+            <strong>{t('weeklyPlan.routesVisible', { visible: visibleCount, total: routes.length })}</strong>
+            <div>
+              <button type="button" onClick={() => setDraftHiddenRouteIds(new Set())}>{t('weeklyPlan.showAll')}</button>
+              <button type="button" onClick={() => setDraftHiddenRouteIds(new Set(routes.map(route => route.id)))}>{t('weeklyPlan.hideAll')}</button>
+            </div>
+          </div>
+
+          <div className="weekly-plan-route-picker">
+            {matchingRoutes.map(route => {
+              const visible = !draftHiddenRouteIds.has(route.id);
+              const displayNumber = routeNumber.get(route.id);
+              return (
+                <button
+                  type="button"
+                  className={visible ? 'is-visible' : 'is-hidden'}
+                  key={route.id}
+                  onClick={() => toggleRoute(route.id)}
+                  aria-pressed={visible}
+                >
+                  <span className="weekly-plan-route-number" style={{ '--route-color': getRouteColorByDisplay(displayNumber) }}>T{displayNumber}</span>
+                  <strong>{route.name}</strong>
+                  <span>{visible ? <Eye size={17} /> : <EyeOff size={17} />}{t(visible ? 'weeklyPlan.visible' : 'weeklyPlan.hidden')}</span>
+                </button>
+              );
+            })}
+            {!matchingRoutes.length && <div className="weekly-plan-route-picker-empty">{t('weeklyPlan.noMatchingRoutes')}</div>}
+          </div>
+
+          <div className="ap-btn-group weekly-plan-sheet-actions weekly-plan-visibility-actions">
+            <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+            <button type="button" className="ap-btn ap-btn-primary" onClick={() => onSave([...draftHiddenRouteIds])} disabled={busy}>
+              {busy ? t('common.saving') : t('common.save')}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect = null, onPlanLoad = null }) {
   const { t, i18n } = useTranslation();
   const { isAdmin, sessionToken } = useAuth();
@@ -162,12 +243,18 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState(null);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const [hiddenRouteIds, setHiddenRouteIds] = useState(new Set());
+  const [visibilityUpdatedAt, setVisibilityUpdatedAt] = useState(null);
 
   const load = useCallback(async () => {
     if (!sessionToken) return;
     setLoading(true);
     try {
-      const data = await getWeeklyRoutePlan(sessionToken, ymd(weekStart));
+      const [data, visibility] = await Promise.all([
+        getWeeklyRoutePlan(sessionToken, ymd(weekStart)),
+        isAdmin ? getWeeklyRoutePlanVisibility(sessionToken) : Promise.resolve(null),
+      ]);
       const nextPlan = {
         trips: data?.trips || [],
         routes: data?.routes || [],
@@ -176,13 +263,17 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         availability: data?.availability || [],
       };
       setPlan(nextPlan);
+      if (visibility) {
+        setHiddenRouteIds(new Set((visibility.hidden_route_ids || []).map(Number)));
+        setVisibilityUpdatedAt(visibility.updated_at || null);
+      }
       onPlanLoad?.(nextPlan);
     } catch (error) {
       toastError(`${t('weeklyPlan.loadError')}: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [onPlanLoad, sessionToken, t, weekStart]);
+  }, [isAdmin, onPlanLoad, sessionToken, t, weekStart]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -226,14 +317,17 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     return result;
   }, [plan.trips, selection]);
   const visibleRoutes = useMemo(() => {
-    if (isAdmin) return sortedRoutes;
+    if (isAdmin) return sortedRoutes.filter(route => !hiddenRouteIds.has(route.id));
     const assigned = new Set([...tripsByCell.keys()].map(key => Number(key.split('|')[1])));
     return sortedRoutes.filter(route => assigned.has(route.id));
-  }, [isAdmin, sortedRoutes, tripsByCell]);
+  }, [hiddenRouteIds, isAdmin, sortedRoutes, tripsByCell]);
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const weekLabel = `${days[0].toLocaleDateString(locale, { day: '2-digit', month: 'short' })} – ${days[days.length - 1].toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}`;
-  const assignedCount = plan.trips.reduce((count, trip) => count + parseRouteIds(trip.routes).length, 0);
-  const unassignedScheduledCount = sortedRoutes.reduce((count, route) => (
+  const visibleRouteIdSet = useMemo(() => new Set(visibleRoutes.map(route => route.id)), [visibleRoutes]);
+  const assignedCount = plan.trips.reduce((count, trip) => (
+    count + parseRouteIds(trip.routes).filter(routeId => visibleRouteIdSet.has(routeId)).length
+  ), 0);
+  const unassignedScheduledCount = visibleRoutes.reduce((count, route) => (
     count + days.filter(date => (
       isRouteScheduledOnDate(route, ymd(date)) && !assignmentFor(date, route.id)
     )).length
@@ -263,6 +357,25 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     );
   };
 
+  const saveVisibility = async nextHiddenRouteIds => {
+    try {
+      setBusy(true);
+      const result = await saveWeeklyRoutePlanVisibility(
+        sessionToken,
+        nextHiddenRouteIds,
+        visibilityUpdatedAt,
+      );
+      setHiddenRouteIds(new Set((result.hidden_route_ids || []).map(Number)));
+      setVisibilityUpdatedAt(result.updated_at || null);
+      setVisibilityOpen(false);
+      toastSuccess(t('weeklyPlan.visibilitySaveSuccess'));
+    } catch (error) {
+      toastError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const today = ymd(new Date());
 
   return (
@@ -285,6 +398,10 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         </div>
         {isAdmin && (
           <div className="weekly-plan-actions">
+            <button type="button" className="weekly-plan-action" onClick={() => setVisibilityOpen(true)} disabled={busy}>
+              <Settings2 size={15} /> {t('weeklyPlan.chooseRoutes')}
+              {hiddenRouteIds.size > 0 && <span className="weekly-plan-hidden-count">{hiddenRouteIds.size}</span>}
+            </button>
             <button type="button" className="weekly-plan-action" onClick={copyPreviousWeek} disabled={busy}><ClipboardCopy size={15} /> {t('weeklyPlan.copyPrevious')}</button>
           </div>
         )}
@@ -294,6 +411,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         <div className="weekly-plan-summary" aria-label={t('weeklyPlan.summary')}>
           <span><Truck size={14} /> {t('weeklyPlan.assigned', { count: assignedCount })}</span>
           <span><Users size={14} /> {t('weeklyPlan.visibleToDrivers')}</span>
+          {hiddenRouteIds.size > 0 && <span><EyeOff size={14} /> {t('weeklyPlan.hiddenRoutes', { count: hiddenRouteIds.size })}</span>}
           <span className={unassignedScheduledCount > 0 ? 'is-warning' : ''}>{t('weeklyPlan.unassigned', { count: unassignedScheduledCount })}</span>
         </div>
       )}
@@ -389,6 +507,14 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
           await saveWeeklyRouteAssignment(sessionToken, assignment);
         }, t('weeklyPlan.saveSuccess'))}
         onRemove={() => mutate(() => removeWeeklyRouteAssignment(sessionToken, selection.route.id, selection.date), t('weeklyPlan.removeSuccess'))}
+      />}
+      {visibilityOpen && <RouteVisibilitySheet
+        routes={sortedRoutes}
+        hiddenRouteIds={hiddenRouteIds}
+        busy={busy}
+        t={t}
+        onClose={() => !busy && setVisibilityOpen(false)}
+        onSave={saveVisibility}
       />}
     </section>
   );
