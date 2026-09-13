@@ -30,16 +30,16 @@ set search_path = ''
 as $$
   select case
     when p_role = 'admin' then 2
-    when p_role = 'admin_viewer' and p_module = 'route_plan' then 2
+    when p_role = 'admin_viewer' and p_module in ('clients', 'route_plan') then 2
     when p_role = 'admin_viewer' and p_module in (
-      'clients', 'map', 'schedule', 'wash', 'warehouse', 'history',
+      'map', 'schedule', 'wash', 'warehouse', 'history',
       'live_routes', 'work_schedule', 'costs'
     ) then 1
     when p_role = 'admin_viewer_driver' and p_module in (
-      'route', 'route_plan', 'schedule', 'wash', 'warehouse'
+      'route', 'clients', 'route_plan', 'schedule', 'wash', 'warehouse'
     ) then 2
     when p_role = 'admin_viewer_driver' and p_module in (
-      'clients', 'map', 'history', 'live_routes', 'work_schedule', 'costs'
+      'map', 'history', 'live_routes', 'work_schedule', 'costs'
     ) then 1
     when p_role = 'driver' and p_module in ('route', 'schedule') then 2
     when p_role = 'driver' and p_module in (

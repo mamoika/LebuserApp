@@ -488,7 +488,8 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
   const { t } = useTranslation();
   const appData = useAppData();
   const rawData = dataOverride || appData;
-  const { isAdmin, user, sessionToken } = useAuth();
+  const { canEditModule, user, sessionToken } = useAuth();
+  const canManageClients = canEditModule('clients');
   const { clients, routes, loading, error, refetch } = rawData;
 
   const [localClients, setLocalClients] = useState([]);
@@ -708,7 +709,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
   };
 
   const handleRouteDragStart = (event, routeId) => {
-    if (!isAdmin || savingLayout) {
+    if (!canManageClients || savingLayout) {
       event.preventDefault();
       return;
     }
@@ -870,7 +871,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
   // ---- Drag & Drop ----
 
   const onDragEnd = async (result) => {
-    if (!isAdmin) return;
+    if (!canManageClients) return;
     const { source, destination, draggableId } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
@@ -988,7 +989,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
         }}
       >
         <div className="col-header route-card-header">
-          {isAdmin && (
+          {canManageClients && (
             <span
               className="route-card-drag-handle"
               draggable={!savingLayout}
@@ -1007,8 +1008,8 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
           <div className="route-card-heading">
             <span
               className="route-title"
-              style={{ color: routeColor, cursor: isAdmin ? 'pointer' : 'default' }}
-              onDoubleClick={() => isAdmin && setEditRouteModal(route)}
+              style={{ color: routeColor, cursor: canManageClients ? 'pointer' : 'default' }}
+              onDoubleClick={() => canManageClients && setEditRouteModal(route)}
             >
               {route.name}
             </span>
@@ -1018,7 +1019,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
             <span className="route-service-summary" title={routeServiceSummary}>
               {routeServiceSummary}
             </span>
-            {isAdmin && (
+            {canManageClients && (
               <div className="route-header-actions">
                 <button
                   type="button"
@@ -1068,7 +1069,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                 routeClients.map((client, index) => {
                   const clientRules = effectiveServiceRules(client, routes);
                   return (
-                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!isAdmin}>
+                  <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!canManageClients}>
                     {(provided, snapshot) => (
                       <div
                         ref={(node) => {
@@ -1078,7 +1079,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                         }}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className={`tag-client ${isAdmin ? 'draggable' : ''} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
+                        className={`tag-client ${canManageClients ? 'draggable' : ''} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
                         title={client.name}
                         style={{
                           ...provided.draggableProps.style,
@@ -1086,7 +1087,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                           opacity: snapshot.isDragging ? 0.9 : 1,
                         }}
                       >
-                        {isAdmin && <span className="drag-handle">⠿</span>}
+                        {canManageClients && <span className="drag-handle">⠿</span>}
                         <span className="client-order">{index + 1}</span>
                         <span className="client-details">
                           <span className="client-name">{client.name}</span>
@@ -1107,7 +1108,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                           className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
                           title={(client.lat && client.lng) ? t('clients.hasGps') : t('clients.noGps')}
                         />
-                        {isAdmin && (
+                        {canManageClients && (
                           <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => setEditClient(client)}>{t('clients.edit')}</span>
                         )}
                       </div>
@@ -1123,7 +1124,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
 
         <div className="route-card-fill" style={{ flex: 1 }} />
         <div className="divider route-card-footer-divider" style={{ margin: '8px 0' }} />
-        {isAdmin && (
+        {canManageClients && (
           <button className="add-btn" onClick={() => setAddClientForRoute(route.id)}>{t('clients.addClientBtn')}</button>
         )}
       </div>
@@ -1167,7 +1168,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
             <button className="add-route-btn" onClick={handlePrint} title={t('clients.printTitle')}>
               <Printer size={15} /> {t('clients.print')}
             </button>
-            {isAdmin && (
+            {canManageClients && (
               <>
               <button className="add-route-btn" onClick={() => setAddRouteOpen(true)}>{t('clients.newRouteBtn')}</button>
               <button className="add-route-btn" onClick={openClientArchive}>
@@ -1179,7 +1180,7 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
         </div>
 
         <div className="clients-hint print-hide" style={{ marginBottom: '16px' }}>
-          {isAdmin && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
+          {canManageClients && <span>{t('clients.dragHint')} &nbsp;·&nbsp;</span>}
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-green)', verticalAlign: 'middle', margin: '0 2px' }} /> <span>{t('clients.hasGps')}</span> &nbsp;·&nbsp;
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-orange)', verticalAlign: 'middle', margin: '0 2px', opacity: 0.6 }} /> <span>{t('clients.noGps')}</span>
         </div>

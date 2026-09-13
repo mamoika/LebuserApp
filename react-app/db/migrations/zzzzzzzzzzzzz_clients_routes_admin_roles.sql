@@ -1,5 +1,5 @@
--- Plan tras jest edytowalny dla wszystkich ról administracyjnych.
--- Uprawnienie modułowe nadal może odebrać dostęp konkretnej osobie.
+-- Wszystkie role administracyjne mogą edytować moduł „Klienci i Trasy”.
+-- Dostęp pozostaje ograniczony indywidualnym poziomem uprawnienia modułowego.
 
 begin;
 
@@ -35,21 +35,23 @@ as $$
   end::smallint;
 $$;
 
--- Wcześniej role administracyjne miały tu wymuszony poziom 0, więc nie była
--- to świadoma konfiguracja użytkownika. Podnosimy go do nowej wartości domyślnej.
+-- Poziom 1 był dotychczasowym maksimum roli, więc podnosimy go do nowej
+-- wartości domyślnej. Świadomie ukryty moduł (poziom 0) pozostaje ukryty.
 insert into public.user_module_permissions (
   user_id, module, access_level, base_role, updated_at, updated_by
 )
-select app_user.id, 'route_plan', 2, app_user.role, now(), null
+select app_user.id, 'clients', 2, app_user.role, now(), null
 from public.users app_user
 where app_user.role in ('admin_viewer', 'admin_viewer_driver')
 on conflict (user_id, module) do update
-set access_level = 2,
+set access_level = excluded.access_level,
     base_role = excluded.base_role,
     updated_at = now(),
-    updated_by = null;
+    updated_by = null
+where public.user_module_permissions.base_role is distinct from excluded.base_role
+   or public.user_module_permissions.access_level = 1;
 
-create or replace function private.require_route_plan_editor(p_session_token text)
+create or replace function private.require_clients_routes_editor(p_session_token text)
 returns uuid
 language plpgsql
 security definer
@@ -63,18 +65,19 @@ begin
     raise exception 'Invalid or expired session' using errcode = '28000';
   end if;
   if v_user.role not in ('admin', 'admin_viewer', 'admin_viewer_driver')
-     or private.user_module_access(v_user.id, 'route_plan') < 2 then
-    raise exception 'Route plan edit access required' using errcode = '42501';
+     or private.user_module_access(v_user.id, 'clients') < 2 then
+    raise exception 'Clients and routes edit access required' using errcode = '42501';
   end if;
   return v_user.id;
 end;
 $$;
 
-revoke all on function private.require_route_plan_editor(text)
+revoke all on function private.require_clients_routes_editor(text)
   from public, anon, authenticated;
 
--- Zachowujemy aktualne implementacje i zabezpieczenia funkcji planu, zmieniając
--- wyłącznie ich kontrolę dostępu z pełnego admina na edytora planu tras.
+-- Zmieniamy kontrolę dostępu wyłącznie w funkcjach składających się na
+-- ekran „Klienci i Trasy”. Pozostałe funkcje administratora nadal wymagają
+-- public.require_admin().
 do $$
 declare
   v_signature text;
@@ -83,32 +86,37 @@ declare
   v_updated text;
 begin
   foreach v_signature in array array[
-    'public.admin_upsert_weekly_route_assignment(text,integer,date,uuid,text,timestamp with time zone)',
-    'public.admin_remove_weekly_route_assignment(text,integer,date)',
-    'public.admin_copy_weekly_route_plan(text,date,date)',
-    'public.admin_publish_weekly_route_plan(text,date)',
-    'public.admin_save_weekly_route_plan_visibility(text,jsonb,timestamp with time zone)'
+    'public.admin_create_route(text,text,text,integer,boolean)',
+    'public.admin_update_route(text,integer,text,text,boolean)',
+    'public.admin_delete_route(text,integer)',
+    'public.admin_save_route_service_rules(text,integer,jsonb)',
+    'public.admin_insert_client(text,text,integer)',
+    'public.admin_update_client(text,uuid,text,integer,numeric,numeric)',
+    'public.admin_save_client_service_rules(text,uuid,text,jsonb)',
+    'public.admin_update_client_with_service_rules(text,uuid,text,integer,numeric,numeric,text,jsonb)',
+    'public.admin_archive_client(text,uuid)',
+    'public.admin_restore_client(text,uuid)',
+    'public.admin_get_archived_clients(text)',
+    'public.admin_merge_clients(text,uuid,uuid)',
+    'public.admin_reorder_clients(text,jsonb)',
+    'public.admin_reorder_routes(text,jsonb)',
+    'public.admin_move_route_card(text,integer,integer)'
   ] loop
     v_oid := to_regprocedure(v_signature);
     if v_oid is null then
-      raise exception 'Missing route plan function: %', v_signature;
+      raise exception 'Missing clients/routes function: %', v_signature;
     end if;
 
     v_definition := pg_get_functiondef(v_oid);
     v_updated := replace(
       v_definition,
-      'perform public.require_admin(p_session_token);',
-      'perform private.require_route_plan_editor(p_session_token);'
-    );
-    v_updated := replace(
-      v_updated,
-      'PERFORM public.require_admin(p_session_token);',
-      'PERFORM private.require_route_plan_editor(p_session_token);'
+      'public.require_admin(p_session_token)',
+      'private.require_clients_routes_editor(p_session_token)'
     );
 
     if v_updated = v_definition
-       and position('private.require_route_plan_editor(p_session_token)' in v_definition) = 0 then
-      raise exception 'Could not update route plan authorization: %', v_signature;
+       and position('private.require_clients_routes_editor(p_session_token)' in v_definition) = 0 then
+      raise exception 'Could not update clients/routes authorization: %', v_signature;
     end if;
     if v_updated <> v_definition then execute v_updated; end if;
   end loop;

@@ -18,11 +18,11 @@ export const APP_MODULES = Object.freeze([
 const BASE_ACCESS = Object.freeze({
   admin: Object.fromEntries(APP_MODULES.map(module => [module.key, MODULE_ACCESS.edit])),
   admin_viewer: {
-    clients: 1, route_plan: 2, map: 1, schedule: 1, wash: 1, warehouse: 1, history: 1,
+    clients: 2, route_plan: 2, map: 1, schedule: 1, wash: 1, warehouse: 1, history: 1,
     live_routes: 1, work_schedule: 1, costs: 1,
   },
   admin_viewer_driver: {
-    route: 2, clients: 1, route_plan: 2, map: 1, schedule: 2, wash: 2, warehouse: 2,
+    route: 2, clients: 2, route_plan: 2, map: 1, schedule: 2, wash: 2, warehouse: 2,
     history: 1, live_routes: 1, work_schedule: 1, costs: 1,
   },
   driver: { route: 2, clients: 1, map: 1, schedule: 2, wash: 1, warehouse: 1, history: 1 },
