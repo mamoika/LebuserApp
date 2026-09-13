@@ -15,8 +15,13 @@ export default function Navigation() {
   // Dla kierowców: Moja trasa jest pierwsza
   if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
 
+  navItems.push({ to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') });
+
+  if (isAdmin) {
+    navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
+  }
+
   navItems.push(
-    { to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') },
     { to: '/map', icon: '🗺', label: t('nav.map') },
     { to: '/schedule', icon: '📅', label: t('nav.schedule') }
   );
@@ -35,7 +40,6 @@ export default function Navigation() {
   }
 
   if (isAdmin) {
-    navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
     navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
   }
