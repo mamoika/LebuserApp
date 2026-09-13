@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
   const { t } = useTranslation();
-  const { isAdmin, canViewModule } = useAuth();
+  const { canViewModule } = useAuth();
   const scrollerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -35,10 +35,6 @@ export default function Navigation() {
   if (canViewModule('admin')) {
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
   }
-  if (isAdmin) {
-    navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
-  }
-
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return undefined;
