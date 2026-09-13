@@ -120,7 +120,8 @@ export default function MapView() {
     setHiddenRoutes(new Set(routes.map(r => r.id)));
   };
 
-  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || 'cb1_3jck_1_46a1edaa88c066115549f5d1';
+  const tileUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`;
 
   // Pozycje do FitBounds — uwzględniamy tylko klientów z aktualnie włączonych tras.
   const visibleClients = clients.filter(c => !hiddenRoutes.has(c.route_id) && c.lat && c.lng);
@@ -255,7 +256,7 @@ export default function MapView() {
         >
           <TileLayer
             url={tileUrl}
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
 
           <FitBounds positions={allPositions} />
