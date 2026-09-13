@@ -237,8 +237,8 @@ function RouteVisibilitySheet({ routes, hiddenRouteIds, busy, onClose, onSave, t
 
 export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect = null, onPlanLoad = null }) {
   const { t, i18n } = useTranslation();
-  const { canEditModule, sessionToken } = useAuth();
-  const canManagePlan = canEditModule('route_plan') && !onRouteSelect;
+  const { user, canEditModule, sessionToken } = useAuth();
+  const canManagePlan = !onRouteSelect && (user?.role !== 'driver' || canEditModule('route_plan'));
   const [weekStart, setWeekStart] = useState(() => mondayOf());
   const [plan, setPlan] = useState({ trips: [], routes: [], drivers: [], availability: [] });
   const [loading, setLoading] = useState(true);
