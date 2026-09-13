@@ -102,17 +102,6 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     [allTrips, user?.id, user?.name],
   );
 
-  const assignedRouteIds = useMemo(() => {
-    const ids = new Set();
-    if (existingPlanned?.routes) {
-      parseRouteIds(existingPlanned.routes).forEach(id => ids.add(id));
-    }
-    if (user?.routes) {
-      parseRouteIds(user.routes).forEach(id => ids.add(id));
-    }
-    return ids;
-  }, [existingPlanned?.routes, user?.routes]);
-
   const toggleRoute = routeId => {
     setSelectedRoutes(prev => {
       const next = new Set(prev);
@@ -294,13 +283,12 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
         </StartSection>
 
         <StartSection
-          label={existingPlanned && !plannedTrip ? t('course.start.orChooseOther') : t('course.start.routesToday')}
+          label={t('course.start.routesToday')}
           hint={selectedRoutes.size === 0 ? t('course.start.selectRoute') : null}
         >
           <div className="live-start-route-grid" role="group" aria-label={t('course.start.routesToday')}>
             {allRoutes.map((route, index) => {
               const active = selectedRoutes.has(route.id);
-              const isAssigned = assignedRouteIds.has(route.id);
               const display = index + 1;
               const color = getRouteColorByDisplay(display);
               return (
@@ -318,26 +306,6 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
                     T{display}
                   </span>
                   <span className="live-start-route-name">{route.name}</span>
-                  {isAssigned && (
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        background: 'rgba(255, 159, 10, 0.2)',
-                        color: '#b26500',
-                        padding: '2px 6px',
-                        borderRadius: '6px',
-                        marginLeft: 'auto',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        flexShrink: 0,
-                      }}
-                      title={t('course.start.assignedBadge')}
-                    >
-                      ⭐ {t('course.start.assignedBadge')}
-                    </span>
-                  )}
                 </button>
               );
             })}
