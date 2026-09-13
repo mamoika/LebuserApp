@@ -31,7 +31,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   const [allTrips, setAllTrips] = useState([]);
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
-  const [selectedRoutes, setSelectedRoutes] = useState(() => parseRouteIds(user?.routes));
+  const [selectedRoutes, setSelectedRoutes] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 

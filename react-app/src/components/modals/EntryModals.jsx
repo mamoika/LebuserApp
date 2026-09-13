@@ -586,7 +586,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   }, [weekKey, defaultArrDay]);
   const isDriverStopFlow = isClientScoped && Boolean(weekKey) && isDriver;
 
-  const assignedRouteIds = useMemo(() => parseRouteIds(user?.routes), [user?.routes]);
+  const assignedRouteIds = useMemo(() => new Set(), []);
   const hasAssignedRouteFilter = isDriver && assignedRouteIds.size > 0;
   const ownClients = useMemo(() => hasAssignedRouteFilter
     ? clients.filter(c => assignedRouteIds.has(c.route_id))
