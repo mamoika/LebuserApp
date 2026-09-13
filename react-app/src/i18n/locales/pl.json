@@ -721,7 +721,11 @@
       "END": "Zakończono",
       "hours": "Godz.",
       "plus": "Start (godz) + Praca (h)",
-      "range": "Od-Do (godz)"
+      "range": "Od-Do (godz)",
+      "underHours": "< 8h (za mało)",
+      "normHours": "8h (norma)",
+      "overHours": "9–10h (+)",
+      "heavyHours": "11h+ / 5+8 (++)"
     },
     "excelSumHours": "Σ godz",
     "excelNorm": "Norma",
