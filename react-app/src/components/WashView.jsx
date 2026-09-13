@@ -307,7 +307,7 @@ function StagePill({ stage }) {
 }
 
 export default function WashView() {
-  const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver } = useAuth();
+  const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver, canEditModule } = useAuth();
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
   const [trolleys, setTrolleys] = useState([]);
@@ -320,9 +320,10 @@ export default function WashView() {
   const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
   const [workFilter, setWorkFilter] = useState('all');
 
-  const hasWashRole = isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker;
-  const hasPackRole = isAdmin || user?.role === 'admin_viewer_driver' || isPacker;
-  const isReadOnly = isDriver && !isAdmin && user?.role !== 'admin_viewer_driver';
+  const canEditWash = canEditModule('wash');
+  const hasWashRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker);
+  const hasPackRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isPacker);
+  const isReadOnly = !canEditWash || (isDriver && !isAdmin && user?.role !== 'admin_viewer_driver');
 
   const fetchWorkflow = useCallback(async () => {
     if (!sessionToken) {

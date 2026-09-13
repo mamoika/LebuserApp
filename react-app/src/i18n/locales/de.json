@@ -1349,6 +1349,40 @@
       "completeHintDelivery": "Saubere Wäsche zum Kunden liefern"
     }
   },
+  "permissions": {
+    "tab": "Berechtigungen",
+    "kicker": "Zugriffskontrolle",
+    "title": "Sichtbarkeit und Benutzeraktionen",
+    "description": "Wählen Sie einen Benutzer und legen Sie fest, welche Bereiche sichtbar sind und ob Änderungen erlaubt sind.",
+    "chooseUser": "Benutzer auswählen",
+    "visibleCount": "sichtbare Module: {{count}}",
+    "adminProtected": "Vollzugriff geschützt",
+    "roleLimit": "Die gewählte Rolle unterstützt diese Zugriffsstufe nicht",
+    "routeRequiresEdit": "Meine Route benötigt operativen Zugriff: ausblenden oder Bearbeiten erlauben",
+    "restoreDefaults": "Rollenstandard",
+    "saved": "Benutzerberechtigungen gespeichert",
+    "levels": { "0": "Ausgeblendet", "1": "Ansicht", "2": "Bearbeiten" },
+    "modules": {
+      "route": "Meine Route", "clients": "Kunden & Routen", "route_plan": "Routenplan",
+      "map": "Karte", "schedule": "Wochenplan", "wash": "Wäscherei", "warehouse": "Lager",
+      "history": "Verlauf", "live_routes": "Live-Routen", "work_schedule": "Arbeitsplan",
+      "costs": "Kosten", "admin": "Admin-Panel"
+    },
+    "moduleDescriptions": {
+      "route": "Fahrten, Abholungen und Lieferungen des Fahrers",
+      "clients": "Kunden-, Routen- und Serviceverzeichnis",
+      "route_plan": "Wöchentliche Fahrer- und Fahrzeugplanung",
+      "map": "Kundenstandorte auf der Karte",
+      "schedule": "Aktuelle Einträge und Serviceplanung",
+      "wash": "Waschen, Verpacken und Wagenumlauf",
+      "warehouse": "Bestände, Kartons und Lagerbewegungen",
+      "history": "Verlauf abgeschlossener Vorgänge",
+      "live_routes": "Übersicht laufender Fahrten",
+      "work_schedule": "Mitarbeiterplan und Stundenbesetzung",
+      "costs": "Kosten, Einstellungen und Finanzberichte",
+      "admin": "Benutzer, Logs, Sitzungen und Einstellungen"
+    }
+  },
   "admin": {
     "rodoFullLink": "Vollständige DSGVO-Klausel",
     "loadingRoutes": "Routen werden geladen…",

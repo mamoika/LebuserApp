@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import i18n, { SUPPORTED_LANGUAGES } from '../i18n';
 import { setSentryUser, clearSentryUser } from '../lib/sentry';
 import { getSessionDeviceInfo } from '../lib/deviceInfo';
+import { MODULE_ACCESS, normalizeModuleAccess } from '../lib/modulePermissions';
 
 const applyLanguage = (lang) => {
   if (lang && SUPPORTED_LANGUAGES.includes(lang) && i18n.language !== lang) {
@@ -17,6 +18,20 @@ const STORAGE_KEY = 'lebuser_user';
 const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impersonacji
 const MAX_SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 export const PRIVACY_NOTICE_VERSION = 'privacy_notice_v1';
+
+const loadModuleAccess = async (sessionToken, role, fallback = null) => {
+  if (!sessionToken) return normalizeModuleAccess(role, fallback);
+  try {
+    const { data, error } = await supabase.rpc('get_my_module_permissions', {
+      p_session_token: sessionToken,
+    });
+    if (error || data?.error) return normalizeModuleAccess(role, fallback);
+    return normalizeModuleAccess(role, data?.module_access);
+  } catch {
+    // Zachowaj dotychczasowe prawa roli podczas wdrażania migracji lub awarii RPC.
+    return normalizeModuleAccess(role, fallback);
+  }
+};
 
 const isSessionExpired = (session) => {
   if (!session?.session_expires_at) return false;
@@ -43,6 +58,11 @@ const readStoredSession = (key) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => readStoredSession(STORAGE_KEY));
   const [adminBackup, setAdminBackup] = useState(() => readStoredSession(BACKUP_KEY));
+  const moduleAccessRef = useRef(user?.module_access || null);
+
+  useEffect(() => {
+    moduleAccessRef.current = user?.module_access || null;
+  }, [user?.module_access]);
 
   // Po odświeżeniu strony przywróć język z zapisanej sesji (źródło prawdy = baza).
   useEffect(() => {
@@ -94,6 +114,7 @@ export const AuthProvider = ({ children }) => {
       clearSession();
       return;
     }
+    const moduleAccess = await loadModuleAccess(user.session_token, fresh.role, moduleAccessRef.current);
     setUser((prev) => {
       if (!prev || prev.session_token !== user.session_token) return prev;
       const next = {
@@ -103,6 +124,7 @@ export const AuthProvider = ({ children }) => {
         name: fresh.name,
         role: fresh.role,
         routes: fresh.routes,
+        module_access: moduleAccess,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
@@ -111,6 +133,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     refreshUserProfile();
+  }, [refreshUserProfile]);
+
+  useEffect(() => {
+    const refreshPermissions = () => {
+      if (document.visibilityState === 'visible') refreshUserProfile();
+    };
+    window.addEventListener('focus', refreshPermissions);
+    document.addEventListener('visibilitychange', refreshPermissions);
+    return () => {
+      window.removeEventListener('focus', refreshPermissions);
+      document.removeEventListener('visibilitychange', refreshPermissions);
+    };
   }, [refreshUserProfile]);
 
   useEffect(() => {
@@ -171,6 +205,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
+    userData.module_access = await loadModuleAccess(data.session_token, data.role);
     await attachDeviceInfo(data.session_token);
     storeUser(userData);
     applyLanguage(data.language);
@@ -203,6 +238,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
+    targetUser.module_access = await loadModuleAccess(data.session_token, data.role);
     await attachDeviceInfo(data.session_token);
     storeUser(targetUser);
     applyLanguage(data.language);
@@ -291,12 +327,13 @@ export const AuthProvider = ({ children }) => {
   const isViewer = role === 'viewer';
   const isTunnel = role === 'tunnel';
   const isPacker = role === 'packer';
-  
-  // Who can see the Laundry (Pralnia) tab:
-  const canViewLaundry = isAdmin || isAdminViewer || isDriver || isTunnel || isPacker;
-  
-  // General admin data view permission (used for other things)
-  const canViewAdminData = isAdmin || isAdminViewer;
+  const moduleAccess = normalizeModuleAccess(role, user?.module_access);
+  const canViewModule = module => (moduleAccess[module] || 0) >= MODULE_ACCESS.view;
+  const canEditModule = module => (moduleAccess[module] || 0) >= MODULE_ACCESS.edit;
+
+  // Zgodność ze starszymi komponentami; nowe widoki używają canViewModule/canEditModule.
+  const canViewLaundry = canViewModule('wash');
+  const canViewAdminData = ['live_routes', 'work_schedule', 'costs'].some(canViewModule);
 
   return (
     <AuthContext.Provider value={{
@@ -316,8 +353,11 @@ export const AuthProvider = ({ children }) => {
       isAdminViewer,
       isDriver,
       isViewer,
+      moduleAccess,
+      canViewModule,
+      canEditModule,
       canViewAdminData,
-      canEdit:  isAdmin || isDriver,
+      canEdit: canEditModule('route') || canEditModule('schedule'),
       isTunnel,
       isPacker,
       canViewLaundry

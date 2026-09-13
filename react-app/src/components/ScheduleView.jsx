@@ -194,7 +194,8 @@ function groupPickupEntries(entries, compareEntries) {
 export default function ScheduleView() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, sessionToken } = useAuth();
+  const { isAdmin, isDriver, sessionToken, canEditModule } = useAuth();
+  const canEditSchedule = canEditModule('schedule');
   const { entries, clients, routes, receipts, loading, error, refetch } = rawData;
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
@@ -431,7 +432,7 @@ export default function ScheduleView() {
       <button
         type="button"
         key={entry.id}
-        className={`tag ${tagClass} ${isAdmin ? 'draggable' : ''}`}
+        className={`tag ${tagClass} ${isAdmin && canEditSchedule ? 'draggable' : ''}`}
         title={entry.client_name}
         aria-label={`${entry.client_name}, ${entry.urgent ? `${t('schedule.urgent')}, ` : ''}T${displayNum}, ${Number(totalWeight.toFixed(1)) || 0} kg`}
         onClick={() => {
@@ -520,7 +521,7 @@ export default function ScheduleView() {
           </>
         )}
 
-        {isAdmin && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>{t('schedule.addArrival')}</button>}
+        {isAdmin && canEditSchedule && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>{t('schedule.addArrival')}</button>}
       </div>
     );
   };

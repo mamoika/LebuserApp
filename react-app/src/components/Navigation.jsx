@@ -5,42 +5,37 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
   const { t } = useTranslation();
-  const { isAdmin, canEdit, canViewAdminData, canViewLaundry } = useAuth();
+  const { isAdmin, canViewModule } = useAuth();
   const scrollerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   const navItems = [];
 
-  // Dla kierowców: Moja trasa jest pierwsza
-  if (canEdit) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
+  if (canViewModule('route')) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
 
-  navItems.push({ to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') });
+  if (canViewModule('clients')) navItems.push({ to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') });
 
-  if (isAdmin) {
+  if (canViewModule('route_plan')) {
     navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
   }
 
-  navItems.push(
-    { to: '/map', icon: '🗺', label: t('nav.map') },
-    { to: '/schedule', icon: '📅', label: t('nav.schedule') }
-  );
+  if (canViewModule('map')) navItems.push({ to: '/map', icon: '🗺', label: t('nav.map') });
+  if (canViewModule('schedule')) navItems.push({ to: '/schedule', icon: '📅', label: t('nav.schedule') });
 
-  if (canViewLaundry) {
-    navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
-    navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
-  }
+  if (canViewModule('wash')) navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
+  if (canViewModule('warehouse')) navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
 
-  navItems.push({ to: '/history', icon: '📋', label: t('nav.history') });
+  if (canViewModule('history')) navItems.push({ to: '/history', icon: '📋', label: t('nav.history') });
 
-  if (canViewAdminData) {
-    navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
-    navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
-    navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
-  }
+  if (canViewModule('live_routes')) navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
+  if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
+  if (canViewModule('costs')) navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
 
-  if (isAdmin) {
+  if (canViewModule('admin')) {
     navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
+  }
+  if (isAdmin) {
     navItems.push({ to: '/lebuser', icon: '🫧', label: 'Lebuser' });
   }
 

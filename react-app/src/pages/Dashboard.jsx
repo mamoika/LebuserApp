@@ -107,11 +107,16 @@ function PrivacyNoticeModal() {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user, adminBackup, signOut, stopImpersonating, isAdmin, isDriver, canViewAdminData, canViewLaundry } = useAuth();
+  const { user, adminBackup, signOut, stopImpersonating, isDriver, canViewModule } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
+  const firstAllowedPath = [
+    ...(isDriver ? [['route', '/route']] : []),
+    ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
+    ['wash', '/wash'], ['warehouse', '/warehouse'], ['history', '/history'],
+  ].find(([module]) => canViewModule(module))?.[1] || '/rodo';
 
   const handleStopImpersonating = async () => {
     const result = await stopImpersonating();
@@ -185,27 +190,27 @@ export default function Dashboard() {
       <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading', 'Ładowanie…')}</div>}>
         <Routes>
-          <Route path="/" element={isDriver ? <Navigate to="/route" replace /> : <ScheduleView />} />
-          <Route path="/schedule" element={<ScheduleView />} />
-          <Route path="/route" element={<DriverCourse />} />
+          <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
+          <Route path="/schedule" element={canViewModule('schedule') ? <ScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/route" element={canViewModule('route') ? <DriverCourse /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/route/operations" element={<Navigate to="/route" replace />} />
-          <Route path="/routes" element={canViewAdminData ? <DispatchBoard /> : <Navigate to="/" replace />} />
+          <Route path="/routes" element={canViewModule('live_routes') ? <DispatchBoard /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/routes/plan" element={<Navigate to="/routes" replace />} />
-          <Route path="/clients" element={<ClientsRoutesView />} />
-          <Route path="/route-plan" element={isAdmin ? <WeeklyRoutePlanView /> : <Navigate to="/clients" replace />} />
-          <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
-          <Route path="/history" element={<HistoryView />} />
-          <Route path="/grafik" element={<WorkScheduleView />} />
+          <Route path="/clients" element={canViewModule('clients') ? <ClientsRoutesView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/route-plan" element={canViewModule('route_plan') ? <WeeklyRoutePlanView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/admin" element={canViewModule('admin') ? <AdminDashboard /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/history" element={canViewModule('history') ? <HistoryView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/grafik" element={canViewModule('work_schedule') ? <WorkScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/timeline" element={<Navigate to="/grafik#obsada" replace />} />
-          <Route path="/map" element={<MapView />} />
-          <Route path="/costs" element={<CostsView />} />
-          <Route path="/wash" element={canViewLaundry ? <WashView /> : <Navigate to="/" replace />} />
-          <Route path="/warehouse" element={canViewLaundry ? <WarehouseView /> : <Navigate to="/" replace />} />
+          <Route path="/map" element={canViewModule('map') ? <MapView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/costs" element={canViewModule('costs') ? <CostsView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/wash" element={canViewModule('wash') ? <WashView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/warehouse" element={canViewModule('warehouse') ? <WarehouseView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/rodo" element={<RodoNotice />} />
           <Route path="/mock" element={<MockupsHome />} />
-          <Route path="/mock/dyspozytornia" element={canViewAdminData ? <DispatchBoardMock /> : <Navigate to="/mock/kierowca" replace />} />
+          <Route path="/mock/dyspozytornia" element={canViewModule('live_routes') ? <DispatchBoardMock /> : <Navigate to="/mock/kierowca" replace />} />
           <Route path="/mock/kierowca" element={<DriverRouteCardMock />} />
-          <Route path="*" element={<Navigate to={isDriver ? '/route' : '/'} replace />} />
+          <Route path="*" element={<Navigate to={firstAllowedPath} replace />} />
         </Routes>
         </Suspense>
       </main>

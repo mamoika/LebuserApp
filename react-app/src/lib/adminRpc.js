@@ -60,6 +60,17 @@ export function updateAdminUserProfile(sessionToken, userId, name, role, routes,
   });
 }
 
+export function getAdminUserModulePermissions(sessionToken) {
+  return callAdminRpc(sessionToken, 'admin_get_user_module_permissions');
+}
+
+export function saveAdminUserModulePermissions(sessionToken, userId, moduleAccess) {
+  return callAdminRpc(sessionToken, 'admin_save_user_module_permissions', {
+    p_user_id: userId,
+    p_module_access: moduleAccess,
+  });
+}
+
 export function approveWorkTime(sessionToken, reportId, workStart, workEnd) {
   return callAdminRpc(sessionToken, 'admin_approve_work_time', {
     p_report_id: reportId,

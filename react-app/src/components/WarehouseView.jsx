@@ -615,8 +615,9 @@ function WarehouseHistory({ transactions, activeZone, t, locale }) {
 
 export default function WarehouseView() {
   const { t, i18n } = useTranslation();
-  const { user, sessionToken } = useAuth();
-  const canManage = ['admin', 'admin_viewer_driver', 'tunnel', 'packer'].includes(user?.role);
+  const { user, sessionToken, canEditModule } = useAuth();
+  const canManage = canEditModule('warehouse')
+    && ['admin', 'admin_viewer_driver', 'tunnel', 'packer'].includes(user?.role);
   const [data, setData] = useState({ clients: [], items: [], locations: [], transactions: [] });
   const [activeZone, setActiveZone] = useState('ZD2');
   const [view, setView] = useState('stock');

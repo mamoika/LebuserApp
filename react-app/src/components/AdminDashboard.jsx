@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, vehicleEndColumn } from '../lib/vehicles';
-import { pruneUserSessions, revokeUserSession, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
+import { getAdminUserModulePermissions, pruneUserSessions, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
@@ -25,6 +25,7 @@ import { withRetry } from '../lib/fetchRetry';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
 import BarcodeGenerator from './BarcodeGenerator';
+import { APP_MODULES } from '../lib/modulePermissions';
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
 
 const roleLabel = (t, role) => ({
@@ -40,6 +41,7 @@ const roleLabel = (t, role) => ({
 const canAssignDriverSettings = (role) => ['admin', 'driver', 'admin_viewer_driver'].includes(role);
 const SESSION_KEEP_ACTIVE = 10;
 const LAUNDRY_TROLLEY_COUNT_KEY = 'laundry_trolley_count';
+const ACCESS_LEVELS = [0, 1, 2];
 
 const todayKey = () => operationalYmd();
 
@@ -1779,6 +1781,134 @@ function SettingsSection() {
   );
 }
 
+function PermissionsSection({ users }) {
+  const { t } = useTranslation();
+  const { sessionToken } = useAuth();
+  const [permissionUsers, setPermissionUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [draft, setDraft] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const selectUser = useCallback((userId, items = permissionUsers) => {
+    const item = items.find(entry => entry.user_id === userId);
+    setSelectedUserId(userId);
+    setDraft({ ...(item?.module_access || {}) });
+  }, [permissionUsers]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminUserModulePermissions(sessionToken);
+      const items = data?.users || [];
+      setPermissionUsers(items);
+      const nextId = (items.find(item => item.role !== 'admin') || items[0])?.user_id || '';
+      if (nextId) {
+        const item = items.find(entry => entry.user_id === nextId);
+        setSelectedUserId(nextId);
+        setDraft({ ...(item?.module_access || {}) });
+      }
+    } catch (loadError) {
+      toastError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const selectedPermissions = permissionUsers.find(item => item.user_id === selectedUserId);
+  const selectedUser = users.find(user => user.id === selectedUserId);
+  const locked = selectedPermissions?.role === 'admin';
+
+  const save = async () => {
+    if (!selectedUserId || locked) return;
+    setSaving(true);
+    try {
+      const result = await saveAdminUserModulePermissions(sessionToken, selectedUserId, draft);
+      setPermissionUsers(current => current.map(item => (
+        item.user_id === selectedUserId ? { ...item, module_access: result.module_access } : item
+      )));
+      setDraft({ ...(result.module_access || {}) });
+      toastSuccess(t('permissions.saved'));
+    } catch (saveError) {
+      toastError(saveError.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="loader">{t('common.loading')}</div>;
+
+  return (
+    <section className="permissions-panel">
+      <header className="permissions-header">
+        <div className="weekly-plan-kicker"><ShieldCheck size={14} /> {t('permissions.kicker')}</div>
+        <h2>{t('permissions.title')}</h2>
+        <p>{t('permissions.description')}</p>
+      </header>
+
+      <div className="permissions-layout">
+        <aside className="permissions-users" aria-label={t('permissions.chooseUser')}>
+          {users.map(user => {
+            const item = permissionUsers.find(entry => entry.user_id === user.id);
+            const visibleCount = Object.values(item?.module_access || {}).filter(level => Number(level) > 0).length;
+            return (
+              <button type="button" className={user.id === selectedUserId ? 'is-active' : ''} key={user.id} onClick={() => selectUser(user.id)}>
+                <span>{user.name}</span>
+                <small>@{user.username} · {t('permissions.visibleCount', { count: visibleCount })}</small>
+              </button>
+            );
+          })}
+        </aside>
+
+        <div className="permissions-editor">
+          {selectedUser && <div className="permissions-editor-head">
+            <div><strong>{selectedUser.name}</strong><span>@{selectedUser.username} · {roleLabel(t, selectedUser.role)}</span></div>
+            {locked && <span className="permissions-lock"><ShieldCheck size={14} /> {t('permissions.adminProtected')}</span>}
+          </div>}
+
+          <div className="permissions-matrix">
+            {APP_MODULES.map(module => {
+              const maxAccess = Number(selectedPermissions?.max_access?.[module.key] || 0);
+              const currentAccess = Number(draft[module.key] || 0);
+              return (
+                <div className="permissions-row" key={module.key}>
+                  <div className="permissions-module">
+                    <span aria-hidden="true">{module.icon}</span>
+                    <div><strong>{t(`permissions.modules.${module.key}`)}</strong><small>{t(`permissions.moduleDescriptions.${module.key}`)}</small></div>
+                  </div>
+                  <div className="permissions-levels">
+                    {ACCESS_LEVELS.map(level => (
+                      <button
+                        type="button"
+                        className={currentAccess === level ? 'is-active' : ''}
+                        key={level}
+                        disabled={locked || level > maxAccess || (module.key === 'route' && level === 1)}
+                        onClick={() => setDraft(current => ({ ...current, [module.key]: level }))}
+                        title={module.key === 'route' && level === 1
+                          ? t('permissions.routeRequiresEdit')
+                          : (level > maxAccess ? t('permissions.roleLimit') : undefined)}
+                      >
+                        {t(`permissions.levels.${level}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="permissions-actions">
+            <button type="button" className="ap-btn ap-btn-secondary" disabled={locked || saving} onClick={() => setDraft({ ...(selectedPermissions?.max_access || {}) })}>{t('permissions.restoreDefaults')}</button>
+            <button type="button" className="ap-btn ap-btn-primary" disabled={locked || saving} onClick={save}>{saving ? t('common.saving') : t('common.save')}</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const { impersonate, isAdmin, sessionToken } = useAuth();
@@ -1877,6 +2007,7 @@ export default function AdminDashboard() {
       <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
         <button type="button" className={`seg-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>{t('admin.overview')}</button>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
+        <button type="button" className={`seg-btn ${tab === 'permissions' ? 'active' : ''}`} onClick={() => setTab('permissions')}>{t('permissions.tab')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
         <button type="button" className={`seg-btn ${tab === 'barcodes' ? 'active' : ''}`} onClick={() => setTab('barcodes')}>Etykiety</button>
@@ -1884,6 +2015,7 @@ export default function AdminDashboard() {
       </div>
 
       {tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}
+      {tab === 'permissions' && <PermissionsSection users={users} />}
       {tab === 'logs' && <LogsSection />}
       {tab === 'sessions' && <SessionsSection />}
       {tab === 'barcodes' && <BarcodeGenerator />}

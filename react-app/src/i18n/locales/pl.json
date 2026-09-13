@@ -1359,6 +1359,40 @@
       "completeHintDelivery": "Dostarcz czyste do klienta"
     }
   },
+  "permissions": {
+    "tab": "Uprawnienia",
+    "kicker": "Kontrola dostępu",
+    "title": "Widoczność i działania użytkowników",
+    "description": "Wybierz użytkownika i określ, które punkty aplikacji widzi oraz czy może w nich wprowadzać zmiany.",
+    "chooseUser": "Wybierz użytkownika",
+    "visibleCount": "widoczne moduły: {{count}}",
+    "adminProtected": "Pełny dostęp chroniony",
+    "roleLimit": "Wybrana rola nie obsługuje tego poziomu dostępu",
+    "routeRequiresEdit": "Moja trasa wymaga dostępu operacyjnego: ukryj ją albo pozostaw edycję",
+    "restoreDefaults": "Przywróć rolę",
+    "saved": "Zapisano uprawnienia użytkownika",
+    "levels": { "0": "Ukryte", "1": "Podgląd", "2": "Edycja" },
+    "modules": {
+      "route": "Moja trasa", "clients": "Klienci i Trasy", "route_plan": "Plan tras",
+      "map": "Mapa", "schedule": "Harmonogram", "wash": "Pralnia", "warehouse": "Magazyn",
+      "history": "Historia", "live_routes": "Trasy na żywo", "work_schedule": "Grafik pracy",
+      "costs": "Koszty", "admin": "Panel Admina"
+    },
+    "moduleDescriptions": {
+      "route": "Kursy, odbiory i dostawy kierowcy",
+      "clients": "Katalog klientów, tras i dni obsługi",
+      "route_plan": "Tygodniowa obsada tras, kierowców i aut",
+      "map": "Lokalizacje klientów na mapie",
+      "schedule": "Bieżące wpisy i harmonogram obsługi",
+      "wash": "Pranie, pakowanie i obieg wózków",
+      "warehouse": "Stany, kartony i ruchy magazynowe",
+      "history": "Historia wykonanych operacji",
+      "live_routes": "Podgląd realizowanych kursów",
+      "work_schedule": "Grafik pracowników i obsada godzinowa",
+      "costs": "Koszty, ustawienia i raporty finansowe",
+      "admin": "Użytkownicy, logi, sesje i ustawienia"
+    }
+  },
   "admin": {
     "rodoFullLink": "Pełna klauzula RODO",
     "loadingRoutes": "Ładowanie tras…",

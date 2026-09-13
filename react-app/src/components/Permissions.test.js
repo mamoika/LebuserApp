@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+import { defaultModuleAccess, normalizeModuleAccess } from '../lib/modulePermissions.js';
+
+const authSource = await readFile(new URL('../context/AuthContext.jsx', import.meta.url), 'utf8');
+const navigationSource = await readFile(new URL('./Navigation.jsx', import.meta.url), 'utf8');
+const dashboardSource = await readFile(new URL('../pages/Dashboard.jsx', import.meta.url), 'utf8');
+const adminSource = await readFile(new URL('./AdminDashboard.jsx', import.meta.url), 'utf8');
+const washSource = await readFile(new URL('./WashView.jsx', import.meta.url), 'utf8');
+const warehouseSource = await readFile(new URL('./WarehouseView.jsx', import.meta.url), 'utf8');
+const migrationSource = await readFile(new URL('../../db/migrations/user_module_permissions.sql', import.meta.url), 'utf8');
+
+test('role defaults preserve current access and custom values can only restrict it', () => {
+  assert.equal(defaultModuleAccess('driver').route, 2);
+  assert.equal(defaultModuleAccess('driver').costs, 0);
+  assert.equal(defaultModuleAccess('packer').warehouse, 2);
+  assert.equal(normalizeModuleAccess('viewer', { costs: 2 }).costs, 0);
+  assert.equal(normalizeModuleAccess('packer', { warehouse: 1 }).warehouse, 1);
+  assert.equal(normalizeModuleAccess('admin', { admin: 0 }).admin, 2);
+});
+
+test('module permissions control navigation and direct page routes', () => {
+  assert.match(authSource, /get_my_module_permissions/);
+  assert.match(authSource, /canViewModule/);
+  assert.match(authSource, /canEditModule/);
+  assert.match(navigationSource, /canViewModule\('clients'\)/);
+  assert.match(navigationSource, /canViewModule\('warehouse'\)/);
+  assert.match(dashboardSource, /canViewModule\('route_plan'\)/);
+  assert.match(dashboardSource, /canViewModule\('costs'\)/);
+});
+
+test('admin has a per-user hidden, view and edit permissions matrix', () => {
+  assert.match(adminSource, /function PermissionsSection/);
+  assert.match(adminSource, /ACCESS_LEVELS = \[0, 1, 2\]/);
+  assert.match(adminSource, /adminProtected/);
+  assert.match(adminSource, /saveAdminUserModulePermissions/);
+});
+
+test('permission storage is private, role-bounded and administrator managed', () => {
+  assert.match(migrationSource, /alter table public\.user_module_permissions enable row level security/);
+  assert.match(migrationSource, /revoke all on table public\.user_module_permissions from public, anon, authenticated/);
+  assert.match(migrationSource, /least\([\s\S]*private\.default_module_access/);
+  assert.match(migrationSource, /if v_role = 'admin'/);
+  assert.match(migrationSource, /perform public\.insert_log/);
+  assert.match(migrationSource, /perform public\.require_admin/);
+});
+
+test('view-only laundry and warehouse permissions remove operational controls', () => {
+  assert.match(washSource, /canEditModule\('wash'\)/);
+  assert.match(washSource, /const isReadOnly = !canEditWash/);
+  assert.match(warehouseSource, /canEditModule\('warehouse'\)/);
+  assert.match(warehouseSource, /const canManage = canEditModule/);
+});

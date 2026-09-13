@@ -12,5 +12,5 @@ test('admin route plan appears directly after clients in navigation', () => {
   assert.ok(clientsIndex >= 0);
   assert.ok(routePlanIndex > clientsIndex);
   assert.ok(mapIndex > routePlanIndex);
-  assert.match(source.slice(clientsIndex, routePlanIndex), /if \(isAdmin\)/);
+  assert.match(source.slice(clientsIndex, routePlanIndex), /if \(canViewModule\('route_plan'\)\)/);
 });
