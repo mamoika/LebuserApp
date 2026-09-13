@@ -613,6 +613,8 @@
     "noClients": "Brak klientów",
     "hasGps": "ma GPS",
     "noGps": "brak GPS",
+    "navigateToClient": "Nawiguj do klienta w Google Maps",
+    "noGpsWarning": "Klient {{name}} nie ma zadanych współrzędnych GPS ani adresu.",
     "edit": "Edytuj",
     "addClientBtn": "+ dodaj klienta",
     "dragHint": "⠿ Przeciągaj trasy, aby ustawić układ · klientów przeciągaj między trasami · strzałki zmieniają tylko numer T",

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Package, PlayCircle, Plus,
+  CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Navigation2, Package, PlayCircle, Plus,
   RotateCcw, Truck, UserCheck, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -18,7 +18,7 @@ import { parseRouteIds, routeNamesForTrip } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLE_LABELS } from '../../lib/vehicles';
-import { RouteChip } from './CourseUiBits';
+import { RouteChip, mapsUrlForStop } from './CourseUiBits';
 import '../mockups/mockups.css';
 
 function formatPackedAt(value, language) {
@@ -477,30 +477,53 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
           <div className="live-dirty-plan-empty">{t('course.planning.noDirtyStops')}</div>
         ) : (
           <div className="live-dirty-plan-list">
-            {dirtyStops.map(stop => (
-              <div className="live-dirty-plan-item" key={stop.id}>
-                <span className="live-dirty-plan-pin" aria-hidden="true"><MapPin size={16} /></span>
-                <div className="live-dirty-plan-copy">
-                  <strong>{stop.client_name}</strong>
-                  <span>
-                    <RouteChip routeId={stop.route_id} routeMap={routeMap} />
-                    {tripRouteIds.size > 0 && !tripRouteIds.has(stop.route_id) && t('course.planning.otherRouteStop')}
-                    {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
-                  </span>
+            {dirtyStops.map(stop => {
+              const clientObj = clients.find(c => c.name === stop.client_name);
+              const effectiveStop = {
+                ...stop,
+                lat: stop.lat || clientObj?.lat,
+                lng: stop.lng || clientObj?.lng,
+                address: stop.address || clientObj?.address,
+              };
+              const navUrl = mapsUrlForStop(effectiveStop);
+
+              return (
+                <div className="live-dirty-plan-item" key={stop.id}>
+                  <span className="live-dirty-plan-pin" aria-hidden="true"><MapPin size={16} /></span>
+                  <div className="live-dirty-plan-copy">
+                    <strong>{stop.client_name}</strong>
+                    <span>
+                      <RouteChip routeId={stop.route_id} routeMap={routeMap} />
+                      {tripRouteIds.size > 0 && !tripRouteIds.has(stop.route_id) && t('course.planning.otherRouteStop')}
+                      {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
+                    </span>
+                  </div>
+                  {navUrl && (
+                    <a
+                      href={navUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="driver-nav-btn live-stop-nav"
+                      style={{ marginLeft: 'auto', marginRight: (!readOnly && stop.stop_kind === 'dirty_only') ? '6px' : '0' }}
+                      title={t('clients.navigateToClient', 'Nawiguj do klienta w Google Maps')}
+                    >
+                      <Navigation2 size={14} />
+                    </a>
+                  )}
+                  {!readOnly && stop.stop_kind === 'dirty_only' && (
+                    <button
+                      type="button"
+                      className="live-dirty-plan-remove"
+                      onClick={() => removeDirtyStop(stop)}
+                      disabled={busy}
+                      aria-label={t('course.planning.removeDirtyAria', { name: stop.client_name })}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
-                {!readOnly && stop.stop_kind === 'dirty_only' && (
-                  <button
-                    type="button"
-                    className="live-dirty-plan-remove"
-                    onClick={() => removeDirtyStop(stop)}
-                    disabled={busy}
-                    aria-label={t('course.planning.removeDirtyAria', { name: stop.client_name })}
-                  >
-                    <X size={16} aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -611,6 +611,8 @@
     "noClients": "Keine Kunden",
     "hasGps": "GPS vorhanden",
     "noGps": "kein GPS",
+    "navigateToClient": "Zu Kunden in Google Maps navigieren",
+    "noGpsWarning": "Kunde {{name}} hat keine GPS-Koordinaten oder Adresse hinterlegt.",
     "edit": "Bearbeiten",
     "addClientBtn": "+ Kunde hinzufügen",
     "dragHint": "⠿ Routen ziehen, um das Layout festzulegen · Kunden zwischen Routen ziehen · Pfeile ändern nur die T-Nummer",

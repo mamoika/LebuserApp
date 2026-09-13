@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
+  Navigation2,
   Pencil,
   Printer,
   RotateCcw,
@@ -55,6 +56,16 @@ function sortClientsByOrder(a, b) {
   const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), 'pl');
   if (nameDiff !== 0) return nameDiff;
   return String(a.id).localeCompare(String(b.id));
+}
+
+export function getClientMapsUrl(client) {
+  if (client?.lat != null && client?.lng != null && client.lat !== '' && client.lng !== '') {
+    return `https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}`;
+  }
+  if (client?.address) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`;
+  }
+  return null;
 }
 
 // ---- Modals ----
@@ -1068,6 +1079,19 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
               ) : (
                 routeClients.map((client, index) => {
                   const clientRules = effectiveServiceRules(client, routes);
+                  const hasGps = Boolean(client.lat && client.lng);
+                  const navUrl = getClientMapsUrl(client);
+
+                  const handleRowClick = (e) => {
+                    if (e.target.closest('button, a, input, select, .edit-icon, .drag-handle')) return;
+                    if (canManageClients) return;
+                    if (navUrl) {
+                      window.open(navUrl, '_blank', 'noopener,noreferrer');
+                    } else {
+                      toastWarn(t('clients.noGpsWarning', { name: client.name }));
+                    }
+                  };
+
                   return (
                   <Draggable key={client.id} draggableId={client.id} index={index} isDragDisabled={!canManageClients}>
                     {(provided, snapshot) => (
@@ -1079,12 +1103,14 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                         }}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className={`tag-client ${canManageClients ? 'draggable' : ''} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
-                        title={client.name}
+                        className={`tag-client ${canManageClients ? 'draggable' : 'is-navigable'} ${hasClientSearch && matchingClientIds.has(client.id) ? 'is-search-match' : ''} ${hasClientSearch && !matchingClientIds.has(client.id) ? 'is-search-dimmed' : ''}`}
+                        title={!canManageClients && navUrl ? t('clients.navigateToClient') : client.name}
+                        onClick={handleRowClick}
                         style={{
                           ...provided.draggableProps.style,
                           boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.1)' : 'none',
                           opacity: snapshot.isDragging ? 0.9 : 1,
+                          cursor: canManageClients ? undefined : (navUrl ? 'pointer' : 'default'),
                         }}
                       >
                         {canManageClients && <span className="drag-handle">⠿</span>}
@@ -1105,9 +1131,60 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                           )}
                         </span>
                         <span
-                          className={(client.lat && client.lng) ? 'gps-dot ok' : 'gps-dot missing'}
-                          title={(client.lat && client.lng) ? t('clients.hasGps') : t('clients.noGps')}
+                          className={hasGps ? 'gps-dot ok' : 'gps-dot missing'}
+                          title={hasGps ? t('clients.hasGps') : t('clients.noGps')}
+                          onClick={(e) => {
+                            if (navUrl) {
+                              e.stopPropagation();
+                              window.open(navUrl, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          style={{ cursor: navUrl ? 'pointer' : 'default' }}
                         />
+                        {navUrl ? (
+                          <a
+                            href={navUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="client-nav-btn"
+                            title={t('clients.navigateToClient')}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              background: 'rgba(52, 199, 89, 0.12)',
+                              color: '#34C759',
+                              marginLeft: '6px',
+                              textDecoration: 'none',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Navigation2 size={13} aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <span
+                            className="client-nav-btn is-disabled"
+                            title={t('clients.noGps')}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              color: 'var(--text-tertiary)',
+                              opacity: 0.35,
+                              marginLeft: '6px',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Navigation2 size={13} aria-hidden="true" />
+                          </span>
+                        )}
                         {canManageClients && (
                           <span className="edit-icon" style={{ marginLeft: '8px' }} onClick={() => setEditClient(client)}>{t('clients.edit')}</span>
                         )}
