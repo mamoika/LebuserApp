@@ -720,9 +720,11 @@
       "I": "Planowany",
       "END": "Zakończono",
       "hours": "Godz.",
-      "plus": "Start (godz) + Praca (h)",
-      "normHours": "8h (norma)",
-      "otherHours": "Inne godz. (7, 9, 11…)"
+      "h1": "1–4h",
+      "h7": "7h",
+      "h8": "8h / 5+8",
+      "h9": "9–10h",
+      "h11": "11h+"
     },
     "excelSumHours": "Σ godz",
     "excelNorm": "Norma",

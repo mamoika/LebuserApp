@@ -716,9 +716,11 @@
       "I": "Geplant",
       "END": "Beendet",
       "hours": "Std.",
-      "plus": "Start (Std) + Arb.zeit (h)",
-      "normHours": "8h (Soll)",
-      "otherHours": "Andere Std. (7, 9, 11…)"
+      "h1": "1–4h",
+      "h7": "7h",
+      "h8": "8h / 5+8",
+      "h9": "9–10h",
+      "h11": "11h+"
     },
     "excelSumHours": "Σ Std",
     "excelNorm": "Soll",

@@ -28,9 +28,36 @@ function getCellStyle(value, isWeekendOrHoliday) {
   if (!v) return { bg: isWeekendOrHoliday ? '#f4f4f6' : '#fff', color: '#d1d5db', pattern: false };
   if (VALUE_STYLE[v]) return VALUE_STYLE[v];
   
-  if (parseHours(v) === 8) return VALUE_STYLE['8'];
+  const h = parseHours(v);
+  if (h > 0) {
+    if (h <= 4.5) {
+      // 1h – 4.5h: bardzo mało -> mocny, wyrazisty pomarańcz
+      return { bg: '#fed7aa', color: '#9a3412', pattern: false };
+    }
+    if (h < 7) {
+      // 5h – 6.5h: średnio mało -> ciepła morela / brzoskwinia
+      return { bg: '#ffedd5', color: '#c2410c', pattern: false };
+    }
+    if (h < 8) {
+      // 7h – 7.5h: drobny brak -> jasna limonka („mniej zielony”)
+      return { bg: '#ecfccb', color: '#4d7c0f', pattern: false };
+    }
+    if (h === 8) {
+      // 8h norma (w tym standardowe "8" oraz "5+8", "6-14") -> czysta zieleń
+      return { bg: '#dcfce7', color: '#15803d', pattern: false };
+    }
+    if (h <= 10) {
+      // 8.5h – 10h: lekki plus (np. 9, 10) -> morski turkus / szmaragd
+      return { bg: '#ccfbf1', color: '#0f766e', pattern: false };
+    }
+    if (h <= 12) {
+      // 11h – 12h: duży plus (np. 11, 12, 6,67+11) -> kobalt / jasne indygo
+      return { bg: '#e0e7ff', color: '#3730a3', pattern: false };
+    }
+    // 13h+: potężne godziny / split -> głęboki fiolet / purpura
+    return { bg: '#ede9fe', color: '#5b21b6', pattern: false };
+  }
 
-  // Wszystkie inne godziny pracy (7, 9, 11, 1, 5+8, 6.5 itd.) -> czyste białe tło z wyraźną, ciemną czcionką
   return { bg: '#fff', color: '#0f172a', pattern: false };
 }
 
@@ -581,8 +608,11 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
             {[
               ['I', t('grafik.legend.I')],
-              ['8', t('grafik.legend.normHours', '8h (norma)')],
-              ['7/9', t('grafik.legend.otherHours', 'Inne godz. (7, 9, 11…)')],
+              ['1', t('grafik.legend.h1', '1–4h')],
+              ['7', t('grafik.legend.h7', '7h')],
+              ['8', t('grafik.legend.h8', '8h / 5+8')],
+              ['9', t('grafik.legend.h9', '9–10h')],
+              ['11', t('grafik.legend.h11', '11h+')],
               ['W', t('grafik.legend.W')],
               ['UW', t('grafik.legend.UW')],
               ['L4', t('grafik.legend.L4')],
