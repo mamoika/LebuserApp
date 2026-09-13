@@ -807,7 +807,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
 
-                const bg = isToday ? 'rgba(0, 122, 255, 0.04)' : isWe ? 'rgba(142, 142, 147, 0.06)' : hol ? 'rgba(255, 59, 48, 0.05)' : '#f8f9fb';
+                // Sticky headers must be fully opaque; translucent fills allow
+                // scrolled row values to show through and visually overlap text.
+                const bg = isToday ? '#007AFF' : isWe ? '#f1f3f6' : hol ? '#fff1f0' : '#f8f9fb';
 
                 return (
                   <th
@@ -818,6 +820,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       ...thBase,
                       width: `${DAY_COLUMN_WIDTH}px`,
                       background: bg,
+                      boxShadow: isToday ? 'inset 1px 0 rgba(255,255,255,.18), inset -1px 0 rgba(0,0,0,.08)' : 'none',
                       position: 'sticky',
                       top: 0,
                       zIndex: 10,
@@ -835,7 +838,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         width: '20px',
                         height: '20px',
                         borderRadius: '50%',
-                        background: isToday ? '#007AFF' : 'transparent',
+                        background: 'transparent',
                         color: isToday ? '#ffffff' : hol ? '#FF3B30' : isWe ? '#8e8e93' : '#1c1c1e',
                         fontSize: '11px',
                         fontWeight: isToday ? 700 : 600,
@@ -849,7 +852,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       <div style={{
                         fontSize: '8px',
                         fontWeight: isToday ? 700 : 500,
-                        color: isToday ? '#007AFF' : isWe ? '#8e8e93' : hol ? '#FF3B30' : '#8e8e93',
+                        color: isToday ? 'rgba(255,255,255,.88)' : isWe ? '#8e8e93' : hol ? '#FF3B30' : '#8e8e93',
                         lineHeight: 1,
                         letterSpacing: '0.02em',
                       }}>
