@@ -742,6 +742,8 @@
     "navigateRoutePart": "Etappe {{part}} von {{count}}: Stopps {{first}}–{{last}}",
     "googleMapsRouteParts": "Google-Maps-Route: {{count}} Etappen",
     "missingGps_one": "⚠️ {{count}} Kunde ohne GPS-Koordinaten — unter „Kunden & Routen“ bearbeiten",
+    "showAll": "Alle anzeigen",
+    "hideAll": "Alle ausblenden",
     "missingGps_other": "⚠️ {{count}} Kunden ohne GPS-Koordinaten — unter „Kunden & Routen“ bearbeiten"
   },
   "history": {
@@ -1148,9 +1150,16 @@
       "startError": "Fehler beim Start: {{message}}",
       "claimError": "Fehler bei Übernahme: {{message}}",
       "defaultCar": "Standardfahrzeug",
+      "assignedRouteBanner": "Deine zugewiesene Route: {{route}}",
+      "assignedBadge": "Zugewiesen",
+      "mustFollowAssigned": "Der Fahrer kann jede Route starten, sollte sich jedoch an die im Dienstplan zugewiesene Route halten.",
+      "orChooseOther": "Oder eine Route aus der Liste wählen:",
+      "startCustomRoute": "Ausgewählte Route starten",
+      "startAssigned": "Zugewiesene Route fortsetzen",
       "planned": "Kurs vorbereitet — Route planen und Fahrt starten"
     },
     "planning": {
+      "changeRoute": "Andere Route wählen",
       "kicker": "Vor der Fahrt",
       "title": "Route planen",
       "subtitle": "Punkte prüfen, fertige saubere Wäsche hinzufügen, dann losfahren.",

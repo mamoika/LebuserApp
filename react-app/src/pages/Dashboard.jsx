@@ -115,8 +115,9 @@ export default function Dashboard() {
   const firstAllowedPath = [
     ...(isDriver ? [['route', '/route']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
+    ['map', '/map'],
     ['wash', '/wash'], ['warehouse', '/warehouse'], ['history', '/history'],
-  ].find(([module]) => canViewModule(module))?.[1] || '/rodo';
+  ].find(([module]) => canViewModule(module) || (module === 'map' && isDriver))?.[1] || '/rodo';
 
   const handleStopImpersonating = async () => {
     const result = await stopImpersonating();
@@ -202,7 +203,7 @@ export default function Dashboard() {
           <Route path="/history" element={canViewModule('history') ? <HistoryView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/grafik" element={canViewModule('work_schedule') ? <WorkScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/timeline" element={<Navigate to="/grafik#obsada" replace />} />
-          <Route path="/map" element={canViewModule('map') ? <MapView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/map" element={(canViewModule('map') || isDriver) ? <MapView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/costs" element={canViewModule('costs') ? <CostsView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/wash" element={canViewModule('wash') ? <WashView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/warehouse" element={canViewModule('warehouse') ? <WarehouseView /> : <Navigate to={firstAllowedPath} replace />} />

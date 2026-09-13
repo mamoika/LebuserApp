@@ -74,11 +74,15 @@ function FitBounds({ positions }) {
   const map = useMap();
   const lastBoundsRef = useRef(null);
   useEffect(() => {
-    if (positions.length === 0) return;
+    if (!positions || positions.length === 0) return;
+    if (positions.length === 1) {
+      map.setView(positions[0], 11);
+      return;
+    }
     const bounds = L.latLngBounds(positions);
     if (lastBoundsRef.current?.equals(bounds)) return;
     lastBoundsRef.current = bounds;
-    map.fitBounds(bounds, { padding: [40, 40] });
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
   }, [map, positions]);
   return null;
 }
@@ -93,17 +97,8 @@ export default function MapView() {
 
   useEffect(() => {
     if (routes.length > 0 && !initialized) {
-      const hidden = new Set();
-      const day = operationalWeekday();
-      routes.forEach(r => {
-        const schedule = r.schedule || 'other';
-        let isActive = true;
-        if (schedule === 'mwf') isActive = [1, 3, 5].includes(day);
-        else if (schedule === 'tth') isActive = [2, 4].includes(day);
-        
-        if (!isActive) hidden.add(r.id);
-      });
-      setHiddenRoutes(hidden);
+      // Domyślnie wszystkie punkty/trasy są wyłączone — kierowca/użytkownik sam włącza trasy, które chce zobaczyć.
+      setHiddenRoutes(new Set(routes.map(r => r.id)));
       setInitialized(true);
     }
   }, [routes, initialized]);
@@ -118,18 +113,24 @@ export default function MapView() {
     });
   };
 
+  const showAllRoutes = () => {
+    setHiddenRoutes(new Set());
+  };
+
+  const hideAllRoutes = () => {
+    setHiddenRoutes(new Set(routes.map(r => r.id)));
+  };
+
   const tileUrl = darkMode
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
-  // Wszystkie pozycje do FitBounds — trzymamy referencję stabilną między
-  // odświeżeniami realtime, które nie zmieniają współrzędnych klientów
-  // (np. status prania), żeby nie wywoływać fitBounds() bez potrzeby.
-  const geoClients = clients.filter(c => c.lat && c.lng);
-  const positionsKey = geoClients.map(c => `${c.id}:${c.lat}:${c.lng}`).sort().join('|');
+  // Pozycje do FitBounds — uwzględniamy tylko klientów z aktualnie włączonych tras.
+  const visibleClients = clients.filter(c => !hiddenRoutes.has(c.route_id) && c.lat && c.lng);
+  const positionsKey = visibleClients.map(c => `${c.id}:${c.lat}:${c.lng}`).sort().join('|');
   const allPositions = useMemo(() => [
     [BASE_LAT, BASE_LNG],
-    ...geoClients.map(c => [c.lat, c.lng]),
+    ...visibleClients.map(c => [c.lat, c.lng]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [positionsKey]);
 
@@ -154,6 +155,30 @@ export default function MapView() {
           }}
         >
           {darkMode ? t('map.lightMode') : t('map.darkMode')}
+        </button>
+
+        <button
+          onClick={showAllRoutes}
+          style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: '8px', padding: '4px 10px', fontSize: '12px',
+            cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 500,
+          }}
+          title={t('map.showAll')}
+        >
+          {t('map.showAll')}
+        </button>
+
+        <button
+          onClick={hideAllRoutes}
+          style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: '8px', padding: '4px 10px', fontSize: '12px',
+            cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 500,
+          }}
+          title={t('map.hideAll')}
+        >
+          {t('map.hideAll')}
         </button>
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />

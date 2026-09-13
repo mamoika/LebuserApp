@@ -57,6 +57,7 @@ export default function DriverCourse() {
   const [nextCar, setNextCar] = useState('');
   const [segmentKm, setSegmentKm] = useState('');
   const [endKm, setEndKm] = useState('');
+  const [chooseOtherRoute, setChooseOtherRoute] = useState(false);
   const [workStart, setWorkStart] = useState('');
   const [workEnd, setWorkEnd] = useState('');
   const [workMode, setWorkMode] = useState('range');
@@ -454,8 +455,16 @@ export default function DriverCourse() {
     );
   }
 
-  if (!trip) {
-    return <DriverCourseStart onStarted={loadCourse} onHistory={() => setShowHistory(true)} />;
+  if (!trip || (trip.status === 'planned' && chooseOtherRoute)) {
+    return (
+      <DriverCourseStart
+        onStarted={async () => {
+          setChooseOtherRoute(false);
+          await loadCourse();
+        }}
+        onHistory={() => setShowHistory(true)}
+      />
+    );
   }
 
   if (trip.status === 'planned') {
@@ -464,6 +473,7 @@ export default function DriverCourse() {
         trip={trip}
         stops={stops}
         onUpdated={loadCourse}
+        onSwitchRoute={() => setChooseOtherRoute(true)}
       />
     );
   }

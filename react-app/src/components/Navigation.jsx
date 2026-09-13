@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
   const { t } = useTranslation();
-  const { canViewModule } = useAuth();
+  const { canViewModule, user } = useAuth();
   const scrollerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -20,7 +20,7 @@ export default function Navigation() {
     navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
   }
 
-  if (canViewModule('map')) navItems.push({ to: '/map', icon: '🗺', label: t('nav.map') });
+  if (canViewModule('map') || user?.role === 'driver') navItems.push({ to: '/map', icon: '🗺', label: t('nav.map') });
   if (canViewModule('schedule')) navItems.push({ to: '/schedule', icon: '📅', label: t('nav.schedule') });
 
   if (canViewModule('wash')) navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });

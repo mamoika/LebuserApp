@@ -748,6 +748,8 @@
     "missingGps_one": "⚠️ {{count}} klient nie ma współrzędnych GPS — edytuj w „Klienci i Trasy”",
     "missingGps_few": "⚠️ {{count}} klienci nie mają współrzędnych GPS — edytuj w „Klienci i Trasy”",
     "missingGps_many": "⚠️ {{count}} klientów nie ma współrzędnych GPS — edytuj w „Klienci i Trasy”",
+    "showAll": "Pokaż wszystkie",
+    "hideAll": "Ukryj wszystkie",
     "missingGps_other": "⚠️ {{count}} klientów nie ma współrzędnych GPS — edytuj w „Klienci i Trasy”"
   },
   "history": {
@@ -1158,9 +1160,16 @@
       "startError": "Błąd startu kursu: {{message}}",
       "claimError": "Błąd przejęcia: {{message}}",
       "defaultCar": "Domyślne auto",
+      "assignedRouteBanner": "Twoja przypisana trasa: {{route}}",
+      "assignedBadge": "Przypisana",
+      "mustFollowAssigned": "Kierowca może rozpocząć każdą trasę, ale powinien stosować się do trasy przypisanej w grafiku.",
+      "orChooseOther": "Lub wybierz trasę z listy:",
+      "startCustomRoute": "Rozpocznij wybraną trasę",
+      "startAssigned": "Kontynuuj przypisaną trasę",
       "planned": "Kurs przygotowany — ułóż trasę i rozpocznij przejazd"
     },
     "planning": {
+      "changeRoute": "Wybierz inną trasę",
       "kicker": "Przed wyjazdem",
       "title": "Ułóż trasę",
       "subtitle": "Sprawdź punkty na dziś, dołóż gotowe czyste i dopiero wtedy jedź.",

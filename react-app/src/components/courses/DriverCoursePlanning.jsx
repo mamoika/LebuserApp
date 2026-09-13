@@ -90,7 +90,7 @@ function ReadyCleanCard({ group, busy, readOnly, language, onPickup, onUndo, t }
   );
 }
 
-export default function DriverCoursePlanning({ trip, stops = [], adminMode = false, readOnly = false, onUpdated, onCancelled }) {
+export default function DriverCoursePlanning({ trip, stops = [], adminMode = false, readOnly = false, onUpdated, onCancelled, onSwitchRoute = null }) {
   const { t, i18n } = useTranslation();
   const { sessionToken } = useAuth();
   const { entries, clients, allRoutes, refetch } = useAppData();
@@ -552,6 +552,11 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
             {busy ? <LoaderCircle className="is-spinning" size={20} aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
             {t('course.planning.startDrive')}
           </button>
+          {onSwitchRoute && (
+            <button type="button" className="driver-secondary-btn" onClick={onSwitchRoute} disabled={busy}>
+              {t('course.planning.changeRoute')}
+            </button>
+          )}
           <button type="button" className="driver-secondary-btn" onClick={cancelPlanning} disabled={busy}>
             {t('course.planning.cancelPlanning')}
           </button>

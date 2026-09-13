@@ -102,14 +102,16 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     [allTrips, user?.id, user?.name],
   );
 
-  const autoResumed = useRef(false);
-
-  useEffect(() => {
-    if (!loading && existingPlanned && !plannedTrip && !autoResumed.current) {
-      autoResumed.current = true;
-      onStarted?.();
+  const assignedRouteIds = useMemo(() => {
+    const ids = new Set();
+    if (existingPlanned?.routes) {
+      parseRouteIds(existingPlanned.routes).forEach(id => ids.add(id));
     }
-  }, [loading, existingPlanned, plannedTrip, onStarted]);
+    if (user?.routes) {
+      parseRouteIds(user.routes).forEach(id => ids.add(id));
+    }
+    return ids;
+  }, [existingPlanned?.routes, user?.routes]);
 
   const toggleRoute = routeId => {
     setSelectedRoutes(prev => {
@@ -121,10 +123,6 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   };
 
   const startCourse = async () => {
-    if (existingPlanned && !plannedTrip) {
-      await onStarted?.();
-      return;
-    }
     if (selectedRoutes.size === 0) {
       toastError(t('course.start.selectRoute'));
       return;
@@ -201,12 +199,24 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       </header>
 
       {existingPlanned && !plannedTrip && (
-        <div className="live-start-banner is-planned">
-          <UserCheck size={20} aria-hidden="true" />
-          <div>
-            <strong>{t('course.start.continuePlanning')}</strong>
-            <p>{t('course.start.planningExists')}</p>
+        <div className="live-start-banner is-planned" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <UserCheck size={22} aria-hidden="true" style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <div>
+              <strong>{t('course.start.assignedRouteBanner', { route: routeNamesForTrip(existingPlanned, routeMap) })}</strong>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>{t('course.start.planningExists')}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            className="driver-primary-btn"
+            style={{ width: 'auto', alignSelf: 'flex-start', padding: '7px 14px', fontSize: '13px' }}
+            onClick={() => onStarted?.()}
+            disabled={busy}
+          >
+            <PlayCircle size={16} aria-hidden="true" />
+            {t('course.start.startAssigned')} ({routeNamesForTrip(existingPlanned, routeMap)})
+          </button>
         </div>
       )}
 
@@ -219,6 +229,23 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           </div>
         </div>
       )}
+
+      <div style={{
+        margin: '10px 0 14px',
+        padding: '10px 14px',
+        background: 'rgba(255, 159, 10, 0.08)',
+        border: '1px solid rgba(255, 159, 10, 0.25)',
+        borderRadius: '12px',
+        fontSize: '13px',
+        lineHeight: 1.4,
+        color: 'var(--text-secondary)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        <span style={{ fontSize: '16px', flexShrink: 0 }}>ℹ️</span>
+        <span>{t('course.start.mustFollowAssigned')}</span>
+      </div>
 
       {handoverPool.length > 0 && (
         <div className="driver-focus-card live-start-handover">
@@ -267,12 +294,13 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
         </StartSection>
 
         <StartSection
-          label={t('course.start.routesToday')}
+          label={existingPlanned && !plannedTrip ? t('course.start.orChooseOther') : t('course.start.routesToday')}
           hint={selectedRoutes.size === 0 ? t('course.start.selectRoute') : null}
         >
           <div className="live-start-route-grid" role="group" aria-label={t('course.start.routesToday')}>
             {allRoutes.map((route, index) => {
               const active = selectedRoutes.has(route.id);
+              const isAssigned = assignedRouteIds.has(route.id);
               const display = index + 1;
               const color = getRouteColorByDisplay(display);
               return (
@@ -290,6 +318,26 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
                     T{display}
                   </span>
                   <span className="live-start-route-name">{route.name}</span>
+                  {isAssigned && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background: 'rgba(255, 159, 10, 0.2)',
+                        color: '#b26500',
+                        padding: '2px 6px',
+                        borderRadius: '6px',
+                        marginLeft: 'auto',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        flexShrink: 0,
+                      }}
+                      title={t('course.start.assignedBadge')}
+                    >
+                      ⭐ {t('course.start.assignedBadge')}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -297,11 +345,11 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
         </StartSection>
       </div>
 
-      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || (!existingPlanned && selectedRoutes.size === 0)}>
+      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
         <PlayCircle size={20} aria-hidden="true" />
         {existingPlanned && !plannedTrip
-          ? t('course.start.continuePlanning')
-          : plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute')}
+          ? t('course.start.startCustomRoute')
+          : (plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute'))}
       </button>
     </section>
   );
