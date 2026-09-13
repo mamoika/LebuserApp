@@ -547,7 +547,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     transition: 'all 0.15s ease'
   };
 
-  const thBase  = { padding: '7px 2px', fontSize: '10px', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(248,250,252,0.85)', letterSpacing: '0.01em' };
+  const thBase  = { padding: '7px 2px', fontSize: '10px', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f8f9fb', letterSpacing: '0.01em' };
   const nameColW = 185;
   const dayColW  = 30;
 
@@ -705,16 +705,16 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         tabIndex={0}
         onKeyDown={handleContainerKeyDown}
         style={{
-          overflowX: 'auto', borderRadius: '18px',
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06)',
-          border: '1px solid rgba(0,0,0,0.06)',
-          outline: 'none', background: '#fff'
+          overflowX: 'auto', borderRadius: '16px',
+          border: '1px solid rgba(0,0,0,0.08)',
+          outline: 'none', background: '#fff',
+          scrollBehavior: 'smooth'
         }}
       >
         <table className="grafik-modern-table" style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 250}px`, width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '14px', color: '#48484a', borderRight: '1px solid rgba(0,0,0,0.06)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.02em' }}>
+              <th style={{ ...thBase, width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 3, textAlign: 'left', paddingLeft: '14px', color: '#48484a', borderRight: '1px solid rgba(0,0,0,0.08)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.02em' }}>
                 {t('grafik.employee')}
               </th>
               {days.map(d => {
@@ -724,7 +724,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
 
-                const bg = isToday ? 'rgba(0, 122, 255, 0.06)' : isWe ? 'rgba(142, 142, 147, 0.06)' : hol ? 'rgba(255, 59, 48, 0.05)' : 'rgba(248,250,252,0.85)';
+                const bg = isToday ? 'rgba(0, 122, 255, 0.06)' : isWe ? 'rgba(142, 142, 147, 0.06)' : hol ? 'rgba(255, 59, 48, 0.05)' : '#f8f9fb';
                 const borderBottomColor = isToday ? '#007AFF' : isWe ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.06)';
 
                 return (
@@ -758,11 +758,11 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       <div style={{ fontSize: '12px', fontWeight: isToday ? 800 : 600, lineHeight: 1.15 }}>{d}</div>
                       <div style={{ fontSize: '8px', fontWeight: isToday ? 600 : 500, opacity: isToday ? 0.92 : 0.55, marginTop: '1px' }}>{DAY_NAMES[dw]}</div>
                     </div>
-                    {hol && !isToday && <div style={{ position: 'absolute', top: 2, right: 2, width: '4px', height: '4px', background: '#dc2626', borderRadius: '50%' }} />}
+                    {hol && !isToday && <div style={{ position: 'absolute', top: 2, right: 2, width: '4px', height: '4px', background: '#FF3B30', borderRadius: '50%' }} />}
                   </th>
                 );
               })}
-              <th style={{ ...thBase, width: '46px', color: '#34C759', borderLeft: '1px solid rgba(0,0,0,0.06)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
+              <th style={{ ...thBase, width: '46px', color: '#34C759', borderLeft: '1px solid rgba(0,0,0,0.10)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
               <th style={{ ...thBase, width: '38px', color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
               <th style={{ ...thBase, width: '42px', color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
               <th style={{ ...thBase, width: '30px', color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
@@ -774,26 +774,24 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           <tbody>
             {groups.map(({ g, color: grpColor, members }) => {
               return [
-                <tr key={`grp-${g}`} style={{ height: '30px' }}>
+                <tr key={`grp-${g}`} style={{ height: '32px' }}>
                   <td style={{
                     position: 'sticky', left: 0, zIndex: 2,
-                    background: 'rgba(242,242,247,0.92)', padding: '0 14px',
+                    background: '#F2F2F7', padding: '0 14px',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
-                    borderRight: '1px solid rgba(0,0,0,0.04)', width: `${nameColW}px`,
-                    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                    borderRight: '1px solid rgba(0,0,0,0.06)', width: `${nameColW}px`,
                   }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: grpColor, boxShadow: `0 0 4px ${grpColor}60` }} />
+                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: grpColor }} />
                       <span style={{ fontWeight: 700, fontSize: '11px', color: '#1c1c1e', letterSpacing: '0.02em' }}>{g}</span>
-                      <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600, background: 'rgba(0,0,0,0.04)', padding: '1px 6px', borderRadius: '6px' }}>
+                      <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 500, background: 'rgba(0,0,0,0.04)', padding: '1px 6px', borderRadius: '6px' }}>
                         {members.length}
                       </span>
                     </div>
                   </td>
                   <td colSpan={daysInMonth + 7} style={{
-                    background: 'rgba(242,242,247,0.92)',
+                    background: '#F2F2F7',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
-                    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
                   }} />
                 </tr>,
                 ...members.map((emp) => {
@@ -806,31 +804,30 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
                   const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
 
-                  const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#fafcfe';
+                  const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#f8f9fb';
 
                   return (
-                    <tr key={emp.id} className="grafik-modern-row" style={{ height: '30px' }}>
-                      <td className="grafik-name-td" style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.05)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                    <tr key={emp.id} className="grafik-modern-row" style={{ height: '32px' }}>
+                      <td className="grafik-name-td" style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
                           <span
                             style={{
                               fontSize: '9px',
-                              fontWeight: 800,
-                              padding: '1px 4px',
+                              fontWeight: 700,
+                              padding: '1px 5px',
                               borderRadius: '4px',
                               marginRight: '6px',
                               flexShrink: 0,
                               letterSpacing: '0.3px',
                               background: emp.contract_type === 'UoP' ? 'rgba(52, 199, 89, 0.14)' : 'rgba(0, 122, 255, 0.14)',
-                              color: emp.contract_type === 'UoP' ? '#15803d' : '#1d4ed8',
-                              border: emp.contract_type === 'UoP' ? '1px solid rgba(52, 199, 89, 0.3)' : '1px solid rgba(0, 122, 255, 0.3)',
+                              color: emp.contract_type === 'UoP' ? '#248A3D' : '#0055CC',
                             }}
                             title={emp.contract_type === 'UoP' ? 'Umowa o Pracę' : 'Umowa Zlecenie'}
                           >
                             {emp.contract_type || 'UoP'}
                           </span>
                           <span title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
-                          <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
+                          <span style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
                         </div>
                       </td>
                       {days.map(d => {
@@ -881,7 +878,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         );
                       })}
                       {/* Σ godzin */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#34C759' : 'rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 3px', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#34C759' : 'rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(0,0,0,0.10)', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 3px', background: rowBg }}>
                         {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
@@ -889,7 +886,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         className="grafik-summary-td"
                         style={{
                           textAlign: 'center',
-                          fontWeight: emp.contract_type === 'UoP' && empNorm !== norm ? 700 : 500,
+                          fontWeight: emp.contract_type === 'UoP' && empNorm !== norm ? 600 : 500,
                           fontSize: '10px',
                           color: emp.contract_type === 'UoP' && empNorm !== norm ? '#007AFF' : '#8e8e93',
                           borderBottom: '1px solid rgba(0,0,0,0.04)',
@@ -916,7 +913,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         )}
                       </td>
                       {/* L4, UW, NU, NN */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.04)', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
                         {l4Count > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{l4Count}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
                       </td>
                       <td className="grafik-summary-td" style={{ textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
@@ -943,8 +940,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             ].map(({ label, labelColor, nameBg, cellBgBase, cellBgWe, cellBgToday, color, fn }) => {
               const sumFn = fn || ((d) => employees.filter(e => isPresent(getValue(e, d))).length);
               return (
-                <tr key={label} style={{ height: '30px' }}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 1, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 10px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', borderTop: '1px solid rgba(0,0,0,0.06)', letterSpacing: '0.01em' }}>
+                <tr key={label} style={{ height: '32px' }}>
+                  <td style={{ position: 'sticky', left: 0, zIndex: 1, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
                     {label}
                   </td>
                   {days.map(d => {
@@ -955,7 +952,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     const cnt = sumFn(d);
                     const bg = isToday ? cellBgToday : isWe ? cellBgWe : cellBgBase;
                     return (
-                      <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, borderTop: '1px solid rgba(0,0,0,0.06)', borderRight: '1px solid rgba(0,0,0,0.04)' }}>
+                      <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, borderTop: '1px solid rgba(0,0,0,0.08)', borderRight: '1px solid rgba(0,0,0,0.04)', fontVariantNumeric: 'tabular-nums' }}>
                         {cnt || ''}
                       </td>
                     );

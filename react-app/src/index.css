@@ -4588,20 +4588,18 @@ select.ap-input {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
-.grafik-modern-table thead th {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
 .grafik-modern-row {
-  transition: background-color 0.18s ease;
+  transition: background-color 0.15s ease;
 }
 .grafik-modern-row:hover > td {
-  background-color: rgba(0, 122, 255, 0.028) !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
 }
 .grafik-modern-row:hover > td.grafik-name-td {
-  background-color: rgba(0, 122, 255, 0.04) !important;
+  background-color: rgba(0, 0, 0, 0.025) !important;
 }
-
+.grafik-summary-td {
+  font-variant-numeric: tabular-nums;
+}
 .grafik-th-name{
   position:sticky;
   left:0;
