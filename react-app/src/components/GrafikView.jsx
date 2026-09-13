@@ -7,9 +7,10 @@ import { getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
 import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
 import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
+import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
 
 const VALUE_STYLE = {
   'W':   { bg: '#f0f0f0', color: '#aaa', pattern: false },
@@ -57,31 +58,6 @@ function renderCellValue(value) {
     ));
   }
   return s;
-}
-
-function parseHours(value) {
-  const v = String(value || '').trim().toUpperCase();
-  if (!v || v === 'W' || v === 'UW' || v === 'L4' || v === 'NU' || v === 'NN' || v === 'I' || v === 'END') return 0;
-  
-  if (v.includes('-')) {
-    const parts = v.split('-');
-    if (parts.length === 2 && (parts[0].includes(':') || parts[1].includes(':'))) {
-      const startMinutes = clockToMinutes(parts[0]);
-      const endMinutes = clockToMinutes(parts[1]);
-      if (startMinutes != null && endMinutes != null) {
-        const minutes = endMinutes >= startMinutes ? endMinutes - startMinutes : 1440 - startMinutes + endMinutes;
-        return minutes / 60;
-      }
-    }
-    const st = parseFloat(parts[0].replace(',', '.'));
-    const en = parseFloat(parts[1].replace(',', '.'));
-    if (!isNaN(st) && !isNaN(en)) {
-      return en >= st ? en - st : (24 - st) + en;
-    }
-  }
-
-  if (v.includes('+')) return parseFloat(v.split('+')[1].replace(',', '.')) || 0;
-  return parseFloat(v.replace(',', '.')) || 0;
 }
 
 function countSymbol(employees, getValue, day, sym) {
@@ -179,14 +155,6 @@ function formatTotalHours(totalNum) {
   if (!totalNum) return '';
   const rounded = Math.round(totalNum * 10) / 10;
   return `${rounded}`;
-}
-
-function formatDiff(diff) {
-  if (diff === 0) return '0';
-  const sign = diff > 0 ? '+' : '-';
-  const abs = Math.abs(diff);
-  const rounded = Math.round(abs * 10) / 10;
-  return `${sign}${rounded}`;
 }
 
 function WorkTimeApprovalRow({ report, sessionToken, onChanged }) {
@@ -348,6 +316,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const [workTimeEvents, setWorkTimeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [showGuide, setShowGuide] = useState(false);
   const containerRef = useRef(null);
   const todayRef = useRef(null);
 
@@ -487,16 +456,19 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       wsData.push([g]);
       members.forEach(emp => {
         const totalHours = days.reduce((sum, d) => sum + parseHours(getValue(emp, d)), 0);
+        const empNorm = getEmployeeMonthNorm(emp, norm, days, year, month, getValue);
+        const diff = totalHours - empNorm;
         const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
         const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
         const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
         const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
+        const contractTag = emp.contract_type ? `[${emp.contract_type}] ` : '';
         const row = [
-          emp.name,
+          `${contractTag}${emp.name}`,
           ...days.map(d => getValue(emp, d) || ''),
           totalHours,
-          norm,
-          totalHours - norm,
+          empNorm,
+          totalHours === 0 ? 0 : diff,
           l4Count,
           uwCount,
           nuCount,
@@ -605,20 +577,88 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         </div>
       </div>
 
-      {/* Legenda */}
-      <div className="print-hide" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        {[['I',t('grafik.legend.I')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')],['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NU',t('grafik.legend.NU')],['NN',t('grafik.legend.NN')],['END',t('grafik.legend.END')]].map(([sym, label]) => {
-          const st = getCellStyle(sym, false);
-          const chipBg = st.pattern
-            ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
-            : (st.bg || '#f5f5f5');
-          return (
-            <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600 }}>
-              <span style={{ background: chipBg, color: st.color, padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.07)', minWidth: '28px', textAlign: 'center' }}>{sym}</span>
-              <span style={{ color: 'var(--text-tertiary)', paddingRight: '8px' }}>{label}</span>
+      {/* Legenda i Przewodnik UoP / UZ */}
+      <div className="print-hide" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            {[['I',t('grafik.legend.I')],['8',t('grafik.legend.hours')],['6+',t('grafik.legend.plus')],['6-14',t('grafik.legend.range')],['W',t('grafik.legend.W')],['UW',t('grafik.legend.UW')],['L4',t('grafik.legend.L4')],['NU',t('grafik.legend.NU')],['NN',t('grafik.legend.NN')],['END',t('grafik.legend.END')]].map(([sym, label]) => {
+              const st = getCellStyle(sym, false);
+              const chipBg = st.pattern
+                ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
+                : (st.bg || '#f5f5f5');
+              return (
+                <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600 }}>
+                  <span style={{ background: chipBg, color: st.color, padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.07)', minWidth: '28px', textAlign: 'center' }}>{sym}</span>
+                  <span style={{ color: 'var(--text-tertiary)', paddingRight: '8px' }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowGuide(prev => !prev)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+              background: showGuide ? 'var(--bg-secondary)' : 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <BookOpen size={14} style={{ color: 'var(--accent)' }} />
+            <span>Zasady rozliczeń UoP vs UZ</span>
+            {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+
+        {showGuide && (
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            fontSize: '12px',
+            lineHeight: 1.5,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '16px',
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            <div style={{ borderLeft: '3px solid #15803d', paddingLeft: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: 'rgba(52, 199, 89, 0.15)', color: '#15803d', border: '1px solid rgba(52, 199, 89, 0.3)' }}>UoP</span>
+                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Umowa o Pracę (etat — Kodeks Pracy)</strong>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li><strong>UW (Urlop wypoczynkowy)</strong>: płatny urlop pracownika — obniża wymiar pracy o <strong>8h na każdy dzień roboczy</strong>.</li>
+                <li><strong>L4 (Chorobowe)</strong>: obniża wymiar pracy o <strong>8h na każdy dzień roboczy</strong>.</li>
+                <li><strong>NU (Nieob. usprawiedliwiona)</strong>: np. uzgodniona nieobecność bezpłatna — obniża normę o 8h (nie generuje długu godzin).</li>
+                <li><strong>NN (Nieob. nieusprawiedliwiona)</strong>: nieobecność bez zgody — nie obniża normy (powstaje -8h niedogodzin w bilansie).</li>
+                <li><strong>Norma & Różnica</strong>: norma pracownika jest korygowana o dni UW/L4/NU. Godziny powyżej skorygowanej normy to <strong>płatne nadgodziny (+)</strong>.</li>
+              </ul>
             </div>
-          );
-        })}
+
+            <div style={{ borderLeft: '3px solid #1d4ed8', paddingLeft: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: 'rgba(0, 122, 255, 0.15)', color: '#1d4ed8', border: '1px solid rgba(0, 122, 255, 0.3)' }}>UZ</span>
+                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Umowa Zlecenie (godzinowa — Kodeks Cywilny)</strong>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li><strong>Rozliczenie za godziny</strong>: wypłata zleceniobiorcy to zawsze czysta suma: <strong>Σ h × stawka</strong>.</li>
+                <li><strong>Stosuj NU zamiast UW</strong>: zleceniobiorcy <u>nie przysługuje</u> urlop wypoczynkowy (UW). W dni niedyspozycyjności/wyjazdu wpisujemy <strong>NU</strong> lub <strong>W</strong> (dzień niepłatny).</li>
+                <li><strong>L4 na zleceniu</strong>: w przypadku choroby również wpisujemy <strong>L4</strong> lub <strong>NU</strong> (brak godzin do wypłaty).</li>
+                <li><strong>Norma & Różnica</strong>: mają dla zlecenia charakter wyłącznie <strong>orientacyjny</strong> (pokazują porównanie do pełnego etatu).</li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabela */}
@@ -690,7 +730,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 ...members.map((emp) => {
                   const empIdx = allEmps.indexOf(emp);
                   const totalHours = days.reduce((sum, d) => sum + parseHours(getValue(emp, d)), 0);
-                  const diff = totalHours - norm;
+                  const empNorm = getEmployeeMonthNorm(emp, norm, days, year, month, getValue);
+                  const diff = totalHours - empNorm;
                   const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
                   const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
                   const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
@@ -701,8 +742,25 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   return (
                     <tr key={emp.id} style={{ height: '30px' }}>
                       <td style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '0 8px 0 12px', borderRight: '1px solid #e8e8ec', borderBottom: '1px solid #f0f0f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
-                          <span title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              padding: '1px 4px',
+                              borderRadius: '4px',
+                              marginRight: '6px',
+                              flexShrink: 0,
+                              letterSpacing: '0.3px',
+                              background: emp.contract_type === 'UoP' ? 'rgba(52, 199, 89, 0.14)' : 'rgba(0, 122, 255, 0.14)',
+                              color: emp.contract_type === 'UoP' ? '#15803d' : '#1d4ed8',
+                              border: emp.contract_type === 'UoP' ? '1px solid rgba(52, 199, 89, 0.3)' : '1px solid rgba(0, 122, 255, 0.3)',
+                            }}
+                            title={emp.contract_type === 'UoP' ? 'Umowa o Pracę' : 'Umowa Zlecenie'}
+                          >
+                            {emp.contract_type || 'UoP'}
+                          </span>
+                          <span title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
                           <span style={{ fontSize: '9px', color: '#bbb', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
                         </div>
                       </td>
@@ -757,8 +815,18 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
-                      <td style={{ textAlign: 'center', fontWeight: 500, fontSize: '10px', color: '#bbb', borderBottom: '1px solid #f0f0f0', background: rowBg }}>
-                        {norm}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          fontWeight: emp.contract_type === 'UoP' && empNorm !== norm ? 700 : 500,
+                          fontSize: '10px',
+                          color: emp.contract_type === 'UoP' && empNorm !== norm ? '#2563eb' : '#bbb',
+                          borderBottom: '1px solid #f0f0f0',
+                          background: rowBg
+                        }}
+                        title={emp.contract_type === 'UoP' && empNorm !== norm ? `Norma bazowa: ${norm}h, skorygowana o urlop/L4/NU: ${empNorm}h` : undefined}
+                      >
+                        {empNorm}
                       </td>
                       {/* Różnica */}
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '10px', color: totalHours === 0 ? '#ddd' : diff > 0 ? '#2e7d32' : diff < 0 ? '#c62828' : '#aaa', borderBottom: '1px solid #f0f0f0', background: rowBg }}>
