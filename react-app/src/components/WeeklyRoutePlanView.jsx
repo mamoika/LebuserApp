@@ -237,7 +237,8 @@ function RouteVisibilitySheet({ routes, hiddenRouteIds, busy, onClose, onSave, t
 
 export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect = null, onPlanLoad = null }) {
   const { t, i18n } = useTranslation();
-  const { isAdmin, sessionToken } = useAuth();
+  const { canEditModule, sessionToken } = useAuth();
+  const canManagePlan = canEditModule('route_plan') && !onRouteSelect;
   const [weekStart, setWeekStart] = useState(() => mondayOf());
   const [plan, setPlan] = useState({ trips: [], routes: [], drivers: [], availability: [] });
   const [loading, setLoading] = useState(true);
@@ -253,7 +254,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     try {
       const [data, visibility] = await Promise.all([
         getWeeklyRoutePlan(sessionToken, ymd(weekStart)),
-        isAdmin ? getWeeklyRoutePlanVisibility(sessionToken) : Promise.resolve(null),
+        canManagePlan ? getWeeklyRoutePlanVisibility(sessionToken) : Promise.resolve(null),
       ]);
       const nextPlan = {
         trips: data?.trips || [],
@@ -273,7 +274,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, onPlanLoad, sessionToken, t, weekStart]);
+  }, [canManagePlan, onPlanLoad, sessionToken, t, weekStart]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -317,10 +318,10 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     return result;
   }, [plan.trips, selection]);
   const visibleRoutes = useMemo(() => {
-    if (isAdmin) return sortedRoutes.filter(route => !hiddenRouteIds.has(route.id));
+    if (canManagePlan) return sortedRoutes.filter(route => !hiddenRouteIds.has(route.id));
     const assigned = new Set([...tripsByCell.keys()].map(key => Number(key.split('|')[1])));
     return sortedRoutes.filter(route => assigned.has(route.id));
-  }, [hiddenRouteIds, isAdmin, sortedRoutes, tripsByCell]);
+  }, [canManagePlan, hiddenRouteIds, sortedRoutes, tripsByCell]);
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const weekLabel = `${days[0].toLocaleDateString(locale, { day: '2-digit', month: 'short' })} – ${days[days.length - 1].toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}`;
   const visibleRouteIdSet = useMemo(() => new Set(visibleRoutes.map(route => route.id)), [visibleRoutes]);
@@ -379,12 +380,12 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
   const today = ymd(new Date());
 
   return (
-    <section className={`weekly-route-plan ${!isAdmin ? 'is-driver-plan' : ''}`} aria-labelledby="weekly-plan-title">
+    <section className={`weekly-route-plan ${!canManagePlan ? 'is-driver-plan' : ''}`} aria-labelledby="weekly-plan-title">
       <header className="weekly-plan-header">
         <div>
-          <div className="weekly-plan-kicker"><CalendarDays size={14} aria-hidden="true" /> {isAdmin ? t('weeklyPlan.adminKicker') : t('weeklyPlan.driverKicker')}</div>
-          <h1 id="weekly-plan-title">{isAdmin ? t('weeklyPlan.adminTitle') : t('weeklyPlan.driverTitle')}</h1>
-          <p>{isAdmin ? t('weeklyPlan.adminDescription') : t('weeklyPlan.driverDescription')}</p>
+          <div className="weekly-plan-kicker"><CalendarDays size={14} aria-hidden="true" /> {canManagePlan ? t('weeklyPlan.adminKicker') : t('weeklyPlan.driverKicker')}</div>
+          <h1 id="weekly-plan-title">{canManagePlan ? t('weeklyPlan.adminTitle') : t('weeklyPlan.driverTitle')}</h1>
+          <p>{canManagePlan ? t('weeklyPlan.adminDescription') : t('weeklyPlan.driverDescription')}</p>
         </div>
         {showBackLink && <Link className="weekly-plan-back" to="/clients">{t('weeklyPlan.backToRoutes')}</Link>}
       </header>
@@ -396,7 +397,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
           <button type="button" className="week-nav-btn" aria-label={t('weeklyPlan.nextWeek')} onClick={() => setWeekStart(value => addDays(value, 7))}><ChevronRight size={19} /></button>
           <button type="button" className="week-today-btn" onClick={() => setWeekStart(mondayOf())}>{t('weeklyPlan.currentWeek')}</button>
         </div>
-        {isAdmin && (
+        {canManagePlan && (
           <div className="weekly-plan-actions">
             <button type="button" className="weekly-plan-action" onClick={() => setVisibilityOpen(true)} disabled={busy}>
               <Settings2 size={15} /> {t('weeklyPlan.chooseRoutes')}
@@ -407,7 +408,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         )}
       </div>
 
-      {isAdmin && (
+      {canManagePlan && (
         <div className="weekly-plan-summary" aria-label={t('weeklyPlan.summary')}>
           <span><Truck size={14} /> {t('weeklyPlan.assigned', { count: assignedCount })}</span>
           <span><Users size={14} /> {t('weeklyPlan.visibleToDrivers')}</span>
@@ -417,8 +418,8 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
       )}
 
       {loading ? <div className="loader">{t('common.loading')}</div> : (<>
-        {!isAdmin && <div className="weekly-plan-mobile-hint"><ChevronRight size={15} aria-hidden="true" /> {t('weeklyPlan.swipeTable')}</div>}
-        <div className={`weekly-plan-table-wrap ${!isAdmin ? 'is-driver-view' : ''}`}>
+        {!canManagePlan && <div className="weekly-plan-mobile-hint"><ChevronRight size={15} aria-hidden="true" /> {t('weeklyPlan.swipeTable')}</div>}
+        <div className={`weekly-plan-table-wrap ${!canManagePlan ? 'is-driver-view' : ''}`}>
           <table className="weekly-plan-table">
             <thead>
               <tr>
@@ -435,7 +436,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
               {visibleRoutes.map(route => (
                 <tr key={route.id} style={{ '--route-color': getRouteColorByDisplay(routeNumber.get(route.id)) }}>
                   <th scope="row">
-                    {!isAdmin && onRouteSelect ? (
+                    {!canManagePlan && onRouteSelect ? (
                       <button
                         type="button"
                         className="weekly-plan-route-link"
@@ -454,31 +455,31 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                       <td key={ymd(date)} className={`${ymd(date) === today ? 'is-today' : ''} ${!scheduledForDate ? 'is-off-schedule' : ''}`}>
                         <button
                           type="button"
-                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!scheduledForDate ? 'is-off-schedule' : ''} ${!isAdmin && trip && onRouteSelect ? 'is-route-link' : ''}`}
-                          disabled={!isAdmin && !(trip && onRouteSelect)}
+                          className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!scheduledForDate ? 'is-off-schedule' : ''} ${!canManagePlan && trip && onRouteSelect ? 'is-route-link' : ''}`}
+                          disabled={!canManagePlan && !(trip && onRouteSelect)}
                           onClick={() => {
-                            if (isAdmin) setSelection({ route, date: ymd(date), trip });
+                            if (canManagePlan) setSelection({ route, date: ymd(date), trip });
                             else if (trip && onRouteSelect) onRouteSelect(route);
                           }}
                           aria-label={trip
-                            ? (!isAdmin && onRouteSelect
+                            ? (!canManagePlan && onRouteSelect
                               ? t('weeklyPlan.openRoute', { route: route.name })
                               : `${route.name}: ${trip.driver_name}`)
                             : `${route.name}: ${scheduledForDate ? t('weeklyPlan.unassignedShort') : t('weeklyPlan.outsideSchedule')}`}
                         >
                           {trip ? <>
-                            {isAdmin ? <strong>{trip.driver_name}</strong> : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
+                            {canManagePlan ? <strong>{trip.driver_name}</strong> : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
                             <span>{trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}</span>
-                            {isAdmin && formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
-                            {(isAdmin || !scheduledForDate) && <em>{scheduledForDate ? t('weeklyPlan.scheduledShort') : t('weeklyPlan.exceptionShort')}</em>}
-                          </> : <span className="weekly-plan-empty">{isAdmin ? t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException') : '—'}</span>}
+                            {canManagePlan && formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
+                            {(canManagePlan || !scheduledForDate) && <em>{scheduledForDate ? t('weeklyPlan.scheduledShort') : t('weeklyPlan.exceptionShort')}</em>}
+                          </> : <span className="weekly-plan-empty">{canManagePlan ? t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException') : '—'}</span>}
                         </button>
                       </td>
                     );
                   })}
                 </tr>
               ))}
-              {isAdmin && (
+              {canManagePlan && (
                 <tr className="weekly-plan-free-row">
                   <th scope="row">{t('weeklyPlan.freeDrivers')}</th>
                   {days.map(date => {

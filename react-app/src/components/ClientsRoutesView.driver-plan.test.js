@@ -79,7 +79,7 @@ test('route schedule greys out non-service days but keeps them available as exce
 
 test('driver keeps the weekly route table with a compact touch-friendly mobile layout', () => {
   assert.doesNotMatch(weeklyPlanSource, /DriverWeeklyAgenda/);
-  assert.match(weeklyPlanSource, /weekly-plan-table-wrap \$\{!isAdmin \? 'is-driver-view'/);
+  assert.match(weeklyPlanSource, /weekly-plan-table-wrap \$\{!canManagePlan \? 'is-driver-view'/);
   assert.match(weeklyPlanSource, /weeklyPlan\.swipeTable/);
   assert.match(weeklyPlanSource, /className="weekly-plan-driver-time"/);
   assert.match(weeklyPlanSource, /getRouteColorByDisplay\(routeNumber\.get\(route\.id\)\)/);
@@ -101,7 +101,7 @@ test('admin can hide routes from the plan constructor without changing driver da
   assert.match(weeklyPlanSource, /saveWeeklyRoutePlanVisibility/);
   assert.match(weeklyPlanSource, /function RouteVisibilitySheet/);
   assert.match(weeklyPlanSource, /sortedRoutes\.filter\(route => !hiddenRouteIds\.has\(route\.id\)\)/);
-  assert.match(weeklyPlanSource, /if \(isAdmin\) return/);
+  assert.match(weeklyPlanSource, /if \(canManagePlan\) return/);
   assert.match(visibilityMigrationSource, /weekly_route_plan_visibility/);
   assert.match(visibilityMigrationSource, /perform public\.require_admin\(p_session_token\)/);
   assert.match(visibilityMigrationSource, /p_expected_updated_at/);

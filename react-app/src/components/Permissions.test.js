@@ -10,10 +10,13 @@ const adminSource = await readFile(new URL('./AdminDashboard.jsx', import.meta.u
 const washSource = await readFile(new URL('./WashView.jsx', import.meta.url), 'utf8');
 const warehouseSource = await readFile(new URL('./WarehouseView.jsx', import.meta.url), 'utf8');
 const migrationSource = await readFile(new URL('../../db/migrations/user_module_permissions.sql', import.meta.url), 'utf8');
+const routePlanAdminMigrationSource = await readFile(new URL('../../db/migrations/zzzzzzzzzzzz_route_plan_admin_roles.sql', import.meta.url), 'utf8');
 
 test('role defaults preserve current access and custom values can only restrict it', () => {
   assert.equal(defaultModuleAccess('driver').route, 2);
   assert.equal(defaultModuleAccess('driver').costs, 0);
+  assert.equal(defaultModuleAccess('admin_viewer').route_plan, 2);
+  assert.equal(defaultModuleAccess('admin_viewer_driver').route_plan, 2);
   assert.equal(defaultModuleAccess('packer').warehouse, 2);
   assert.equal(normalizeModuleAccess('viewer', { costs: 2 }).costs, 0);
   assert.equal(normalizeModuleAccess('packer', { warehouse: 1 }).warehouse, 1);
@@ -51,4 +54,13 @@ test('view-only laundry and warehouse permissions remove operational controls', 
   assert.match(washSource, /const isReadOnly = !canEditWash/);
   assert.match(warehouseSource, /canEditModule\('warehouse'\)/);
   assert.match(warehouseSource, /const canManage = canEditModule/);
+});
+
+test('all administrative roles can edit the route plan through module-bounded RPCs', () => {
+  assert.match(routePlanAdminMigrationSource, /'admin', 'admin_viewer', 'admin_viewer_driver'/);
+  assert.match(routePlanAdminMigrationSource, /private\.user_module_access\(v_user\.id, 'route_plan'\) < 2/);
+  assert.match(routePlanAdminMigrationSource, /admin_upsert_weekly_route_assignment/);
+  assert.match(routePlanAdminMigrationSource, /admin_remove_weekly_route_assignment/);
+  assert.match(routePlanAdminMigrationSource, /admin_copy_weekly_route_plan/);
+  assert.match(routePlanAdminMigrationSource, /admin_save_weekly_route_plan_visibility/);
 });
