@@ -4581,6 +4581,21 @@ select.ap-input {
   border-collapse:collapse;
   min-width:max-content;
   width:100%;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.grafik-modern-row {
+  transition: background-color 0.12s ease;
+}
+.grafik-modern-row:hover td.grafik-name-td {
+  background: #f8fafc !important;
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
+.grafik-modern-row:hover td.grafik-cell-hoverable {
+  background: rgba(37, 99, 235, 0.04) !important;
+}
+.grafik-modern-row:hover td.grafik-summary-td {
+  background: #f8fafc !important;
 }
 .grafik-th-name{
   position:sticky;
