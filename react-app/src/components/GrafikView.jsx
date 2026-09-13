@@ -523,7 +523,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   };
 
   const thBase  = { padding: '6px 2px', fontSize: '10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '2px solid #e8e8e8', background: '#f8f8f9' };
-  const nameColW = 148;
+  const nameColW = 185;
   const dayColW  = 30;
 
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;

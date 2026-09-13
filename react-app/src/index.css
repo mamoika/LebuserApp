@@ -56,7 +56,7 @@ body{
 }
 
 .app-shell {
-  width:min(100%, 1440px);
+  width:min(100%, 1920px);
   margin:0 auto;
 }
 .skip-link {
