@@ -9,7 +9,7 @@ import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
 import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
 import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
-import { clockToMinutes, formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
+import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
 
 const VALUE_STYLE = {
@@ -22,6 +22,14 @@ const VALUE_STYLE = {
   'END': { bg: '#e2e8f0', color: '#475569', pattern: false },
   '8':   { bg: '#dcfce7', color: '#15803d', pattern: false },
 };
+
+const NAME_COLUMN_WIDTH = 185;
+const DAY_COLUMN_WIDTH = 30;
+const SUMMARY_COLUMN_WIDTHS = [46, 38, 42, 30, 30, 30, 30];
+const SUMMARY_TOTAL_WIDTH = SUMMARY_COLUMN_WIDTHS.reduce((sum, width) => sum + width, 0);
+const SUMMARY_RIGHT_OFFSETS = SUMMARY_COLUMN_WIDTHS.map((_, index) => (
+  SUMMARY_COLUMN_WIDTHS.slice(index + 1).reduce((sum, width) => sum + width, 0)
+));
 
 function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
@@ -385,6 +393,42 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Keep keyboard navigation inside the visible strip between the frozen name
+  // column and the frozen monthly summary. Native scrollIntoView does not know
+  // about sticky table cells, so it can leave the selected day hidden below them.
+  useEffect(() => {
+    if (!selectedCell) return undefined;
+    const container = containerRef.current;
+    const cell = container?.querySelector(`[data-cell="${selectedCell.empIdx}-${selectedCell.day}"]`);
+    if (!container || !cell) return undefined;
+
+    const frame = requestAnimationFrame(() => {
+      const containerRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const headerHeight = container.querySelector('thead')?.getBoundingClientRect().height || 36;
+      const contentWidth = containerRect.width - NAME_COLUMN_WIDTH - SUMMARY_TOTAL_WIDTH;
+      const visibleLeft = containerRect.left + NAME_COLUMN_WIDTH;
+      const visibleRight = contentWidth >= DAY_COLUMN_WIDTH
+        ? containerRect.right - SUMMARY_TOTAL_WIDTH
+        : containerRect.right;
+      const visibleTop = containerRect.top + headerHeight;
+      const visibleBottom = containerRect.bottom;
+
+      let left = 0;
+      let top = 0;
+      if (cellRect.left < visibleLeft) left = cellRect.left - visibleLeft;
+      else if (cellRect.right > visibleRight) left = cellRect.right - visibleRight;
+      if (cellRect.top < visibleTop) top = cellRect.top - visibleTop;
+      else if (cellRect.bottom > visibleBottom) top = cellRect.bottom - visibleBottom;
+
+      if ((left || top) && typeof container.scrollBy === 'function') {
+        container.scrollBy({ left, top, behavior: 'auto' });
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [selectedCell]);
+
   const groups = useMemo(() => {
     // Pracownicy w grupie sortowani alfabetycznie po nazwisku (locale PL).
     const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pl');
@@ -447,7 +491,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       const newDay = Math.max(1, Math.min(daysInMonth, day + dDay));
       setSelectedCell({ empIdx: newEmp, day: newDay });
       e.preventDefault();
-      // Scroll into view logic could be added here
     };
 
     if (e.key === 'ArrowRight')  move(0, 1);
@@ -560,13 +603,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     top: 0,
     zIndex: 10
   };
-  const nameColW = 185;
-  const dayColW  = 30;
+  const stickySummaryStyle = (index, background, zIndex = 4) => ({
+    position: 'sticky',
+    right: `${SUMMARY_RIGHT_OFFSETS[index]}px`,
+    zIndex,
+    width: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+    minWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+    maxWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+    background,
+  });
 
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
 
   return (
-    <div className="grafik-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="grafik-container grafik-modern-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {isAdmin && selectedCell && (
         <ValuePicker
           key={`${selectedCell.empIdx}-${selectedCell.day}`}
@@ -725,16 +775,15 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08)',
           outline: 'none',
           background: '#fff',
-          scrollBehavior: 'smooth',
           position: 'relative'
         }}
       >
-        <table className="grafik-modern-table" style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: `${nameColW + days.length * dayColW + 250}px`, width: '100%' }}>
+        <table className="grafik-modern-table" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', minWidth: `${NAME_COLUMN_WIDTH + days.length * DAY_COLUMN_WIDTH + SUMMARY_TOTAL_WIDTH}px`, width: '100%' }}>
           <thead>
             <tr>
               <th style={{
                 ...thBase,
-                width: `${nameColW}px`,
+                width: `${NAME_COLUMN_WIDTH}px`,
                 position: 'sticky',
                 top: 0,
                 left: 0,
@@ -767,9 +816,11 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     title={hol ? hol.name : ''}
                     style={{
                       ...thBase,
-                      width: `${dayColW}px`,
+                      width: `${DAY_COLUMN_WIDTH}px`,
                       background: bg,
-                      position: 'relative',
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 10,
                       padding: '4px 0 5px',
                     }}
                   >
@@ -809,13 +860,13 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   </th>
                 );
               })}
-              <th style={{ ...thBase, width: '46px', color: '#248A3D', borderLeft: '2px solid rgba(0,0,0,0.12)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
-              <th style={{ ...thBase, width: '38px', color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
-              <th style={{ ...thBase, width: '42px', color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
-              <th style={{ ...thBase, width: '30px', color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
-              <th style={{ ...thBase, width: '30px', color: '#007AFF', fontSize: '9px' }}>UW</th>
-              <th style={{ ...thBase, width: '30px', color: '#FF9500', fontSize: '9px' }}>NU</th>
-              <th style={{ ...thBase, width: '30px', color: '#FF3B30', fontSize: '9px' }}>NN</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(0, '#f8f9fb', 20), color: '#248A3D', borderLeft: '2px solid rgba(0,0,0,0.12)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(1, '#f8f9fb', 20), color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(2, '#f8f9fb', 20), color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(3, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(4, '#f8f9fb', 20), color: '#007AFF', fontSize: '9px' }}>UW</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(5, '#f8f9fb', 20), color: '#FF9500', fontSize: '9px' }}>NU</th>
+              <th style={{ ...thBase, ...stickySummaryStyle(6, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px' }}>NN</th>
             </tr>
           </thead>
           <tbody>
@@ -827,7 +878,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     background: '#F5F5F7', padding: '0 14px',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
                     borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)',
-                    width: `${nameColW}px`,
+                    width: `${NAME_COLUMN_WIDTH}px`,
                   }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: grpColor }} />
@@ -856,7 +907,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                   return (
                     <tr key={emp.id} className="grafik-modern-row" style={{ height: '32px' }}>
-                      <td className="grafik-name-td" style={{ width: `${nameColW}px`, position: 'sticky', left: 0, zIndex: 2, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                      <td className="grafik-name-td" style={{ width: `${NAME_COLUMN_WIDTH}px`, position: 'sticky', left: 0, zIndex: 5, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
                           <span
                             style={{
@@ -898,7 +949,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                         return (
                           <td key={d}
-                            className={hasVal ? '' : 'grafik-cell-hoverable'}
+                            className={`${hasVal ? '' : 'grafik-cell-hoverable'}${isAdmin ? ' grafik-editable-cell' : ''}`}
                             data-cell={`${empIdx}-${d}`}
                             onClick={() => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); }}
                             onDoubleClick={() => {}}
@@ -911,8 +962,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                               borderBottom: '1px solid rgba(0,0,0,0.04)',
                               borderRight: '1px solid rgba(0,0,0,0.04)',
                               boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
-                              cursor: 'default',
-                              padding: 0, width: `${dayColW}px`,
+                              cursor: isAdmin ? 'pointer' : 'default',
+                              padding: 0, width: `${DAY_COLUMN_WIDTH}px`,
                               boxSizing: 'border-box',
                               position: 'relative',
                               verticalAlign: 'middle', overflow: 'hidden'
@@ -926,7 +977,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         );
                       })}
                       {/* Σ godzin */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#248A3D' : 'rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 3px', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(0, rowBg), textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#248A3D' : 'rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)', borderBottom: '1px solid rgba(0,0,0,0.04)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', padding: '0 3px' }}>
                         {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
                       </td>
                       {/* Norma */}
@@ -938,14 +989,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                           fontSize: '10px',
                           color: emp.contract_type === 'UoP' && empNorm !== norm ? '#007AFF' : '#8e8e93',
                           borderBottom: '1px solid rgba(0,0,0,0.04)',
-                          background: rowBg
+                          ...stickySummaryStyle(1, rowBg),
                         }}
                         title={emp.contract_type === 'UoP' && empNorm !== norm ? `Norma bazowa: ${norm}h, skorygowana o urlop/L4/NU: ${empNorm}h` : undefined}
                       >
                         {empNorm}
                       </td>
                       {/* Różnica */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg, padding: '0 2px' }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(2, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 2px' }}>
                         {totalHours === 0 ? (
                           <span style={{ color: 'rgba(0,0,0,0.12)' }}>—</span>
                         ) : diff > 0 ? (
@@ -961,16 +1012,16 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         )}
                       </td>
                       {/* L4, UW, NU, NN */}
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(3, rowBg), textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         {l4Count > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{l4Count}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
                       </td>
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(4, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         {uwCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(0,122,255,0.1)', color: '#007AFF', fontWeight: 700, fontSize: '9px' }}>{uwCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
                       </td>
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(5, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         {nuCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontWeight: 700, fontSize: '9px' }}>{nuCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
                       </td>
-                      <td className="grafik-summary-td" style={{ textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', background: rowBg }}>
+                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(6, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                         {nnCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{nnCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
                       </td>
                     </tr>
