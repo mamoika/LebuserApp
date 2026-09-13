@@ -93,7 +93,6 @@ export default function MapView() {
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [initialized, setInitialized] = useState(false);
   const [userPos, setUserPos] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     if (routes.length > 0 && !initialized) {
@@ -121,9 +120,7 @@ export default function MapView() {
     setHiddenRoutes(new Set(routes.map(r => r.id)));
   };
 
-  const tileUrl = darkMode
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
   // Pozycje do FitBounds — uwzględniamy tylko klientów z aktualnie włączonych tras.
   const visibleClients = clients.filter(c => !hiddenRoutes.has(c.route_id) && c.lat && c.lng);
@@ -146,17 +143,6 @@ export default function MapView() {
         padding: '10px 16px', alignItems: 'center',
         background: 'var(--bg-card)', borderBottom: '1px solid var(--border)',
       }}>
-        <button
-          onClick={() => setDarkMode(d => !d)}
-          style={{
-            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '4px 10px', fontSize: '12px',
-            cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 500,
-          }}
-        >
-          {darkMode ? t('map.lightMode') : t('map.darkMode')}
-        </button>
-
         <button
           onClick={showAllRoutes}
           style={{

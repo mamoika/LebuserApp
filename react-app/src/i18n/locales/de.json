@@ -732,8 +732,6 @@
     "minUnit": "Min"
   },
   "map": {
-    "lightMode": "☀️ Hell",
-    "darkMode": "🌙 Dunkel",
     "yours": "Ihre",
     "base": "Basis",
     "yourRoute": "Ihre Route",

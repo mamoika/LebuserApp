@@ -736,8 +736,6 @@
     "minUnit": "min"
   },
   "map": {
-    "lightMode": "☀️ Jasna",
-    "darkMode": "🌙 Ciemna",
     "yours": "Twoja",
     "base": "Baza",
     "yourRoute": "Twoja trasa",
