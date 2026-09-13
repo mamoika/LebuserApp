@@ -724,8 +724,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
 
-                const bg = isToday ? 'rgba(0, 122, 255, 0.06)' : isWe ? 'rgba(142, 142, 147, 0.06)' : hol ? 'rgba(255, 59, 48, 0.05)' : '#f8f9fb';
-                const borderBottomColor = isToday ? '#007AFF' : isWe ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.06)';
+                const bg = isToday ? 'rgba(0, 122, 255, 0.04)' : isWe ? 'rgba(142, 142, 147, 0.06)' : hol ? 'rgba(255, 59, 48, 0.05)' : '#f8f9fb';
 
                 return (
                   <th
@@ -736,27 +735,41 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       ...thBase,
                       width: `${dayColW}px`,
                       background: bg,
-                      borderBottom: `2px solid ${borderBottomColor}`,
                       position: 'relative',
-                      padding: '4px 1px',
+                      padding: '4px 0 5px',
                     }}
                   >
                     <div style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minWidth: isToday ? '26px' : 'auto',
-                      height: isToday ? '28px' : 'auto',
-                      borderRadius: isToday ? '8px' : '0',
-                      background: isToday ? 'linear-gradient(135deg, #007AFF, #0055CC)' : 'transparent',
-                      color: isToday ? '#fff' : isWe ? '#8e8e93' : hol ? '#FF3B30' : '#1c1c1e',
-                      boxShadow: isToday ? '0 2px 8px rgba(0, 122, 255, 0.3)' : 'none',
-                      margin: '0 auto',
-                      padding: isToday ? '2px 4px' : '0',
+                      gap: '2px',
                     }}>
-                      <div style={{ fontSize: '12px', fontWeight: isToday ? 800 : 600, lineHeight: 1.15 }}>{d}</div>
-                      <div style={{ fontSize: '8px', fontWeight: isToday ? 600 : 500, opacity: isToday ? 0.92 : 0.55, marginTop: '1px' }}>{DAY_NAMES[dw]}</div>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: isToday ? '#007AFF' : 'transparent',
+                        color: isToday ? '#ffffff' : hol ? '#FF3B30' : isWe ? '#8e8e93' : '#1c1c1e',
+                        fontSize: '11px',
+                        fontWeight: isToday ? 700 : 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                      }}>
+                        {d}
+                      </div>
+                      <div style={{
+                        fontSize: '8px',
+                        fontWeight: isToday ? 700 : 500,
+                        color: isToday ? '#007AFF' : isWe ? '#8e8e93' : hol ? '#FF3B30' : '#8e8e93',
+                        lineHeight: 1,
+                        letterSpacing: '0.02em',
+                      }}>
+                        {DAY_NAMES[dw]}
+                      </div>
                     </div>
                     {hol && !isToday && <div style={{ position: 'absolute', top: 2, right: 2, width: '4px', height: '4px', background: '#FF3B30', borderRadius: '50%' }} />}
                   </th>
