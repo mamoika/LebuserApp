@@ -711,6 +711,7 @@
     "present": "Obecni",
     "totalHours": "Godz. łącznie",
     "otherValue": "Inna…",
+    "mobileSwipeHint": "Przesuń tabelę, aby zobaczyć kolejne dni i podsumowanie",
     "legend": {
       "W": "Wolne",
       "UW": "Urlop",

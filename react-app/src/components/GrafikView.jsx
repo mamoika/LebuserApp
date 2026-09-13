@@ -116,7 +116,8 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
   useEffect(() => {
     setCustomValue(selectedValue || '');
     const tId = setTimeout(() => {
-      if (inputRef.current) {
+      const hasCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches;
+      if (inputRef.current && !hasCoarsePointer) {
         inputRef.current.focus();
         inputRef.current.select();
         try { inputRef.current.setSelectionRange(0, 9999); } catch { /* setSelectionRange nieobsługiwane dla tego typu inputa */ }
@@ -126,7 +127,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
   }, [selectedValue]);
 
   return (
-    <div className="print-hide" style={{
+    <div className="print-hide grafik-value-picker" style={{
       position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999,
       background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
       border: '1px solid rgba(0,0,0,0.12)', borderRadius: '16px', padding: '8px 12px',
@@ -140,7 +141,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
           ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
           : (st.bg || '#f5f5f5');
         return [
-          <button key={b} onClick={() => onSelect(b)} style={{
+          <button className="grafik-value-option" key={b} onClick={() => onSelect(b)} style={{
             background: btnBg, color: st.color,
             border: '1px solid rgba(0,0,0,0.08)',
             borderRadius: '8px', padding: '4px 9px',
@@ -149,9 +150,8 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
             opacity: isActive ? 0.65 : 1,
           }}>{b}</button>,
           idx === 0 && [
-            <input key="inna"
+            <input className="grafik-value-input" key="inna"
               ref={inputRef}
-              autoFocus
               value={customValue} onChange={e => setCustomValue(e.target.value)}
               onFocus={e => { e.target.select(); try { e.target.setSelectionRange(0, 9999); } catch { /* setSelectionRange nieobsługiwane dla tego typu inputa */ } }}
               placeholder={t('grafik.otherValue')}
@@ -161,17 +161,17 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               }}
               style={{ width: '64px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
-            <button key="ok" onClick={() => { onSelect(customValue.trim()); setCustomValue(''); }} style={{
+            <button className="grafik-value-ok" key="ok" onClick={() => { onSelect(customValue.trim()); setCustomValue(''); }} style={{
               background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', padding: '4px 4px'
             }}>OK</button>,
-            <div key="sep" style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />,
+            <div className="grafik-value-separator" key="sep" style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />,
           ]
         ];
       })}
       {onCancel && (
         <>
-          <div style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
-          <button onClick={onCancel} style={{
+          <div className="grafik-value-separator" style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
+          <button className="grafik-value-close" aria-label={t('common.close')} onClick={onCancel} style={{
             background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '50%',
             width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'all 0.2s',
@@ -406,10 +406,18 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       const containerRect = container.getBoundingClientRect();
       const cellRect = cell.getBoundingClientRect();
       const headerHeight = container.querySelector('thead')?.getBoundingClientRect().height || 36;
-      const contentWidth = containerRect.width - NAME_COLUMN_WIDTH - SUMMARY_TOTAL_WIDTH;
-      const visibleLeft = containerRect.left + NAME_COLUMN_WIDTH;
+      const nameCell = container.querySelector('.grafik-name-td');
+      const renderedNameWidth = nameCell?.getBoundingClientRect().width || NAME_COLUMN_WIDTH;
+      const firstEmployeeRow = container.querySelector('.grafik-modern-row');
+      const summaryCells = Array.from(firstEmployeeRow?.querySelectorAll('.grafik-summary-td') || []);
+      const summaryIsSticky = summaryCells.some((summaryCell) => getComputedStyle(summaryCell).position === 'sticky');
+      const renderedSummaryWidth = summaryIsSticky
+        ? summaryCells.reduce((sum, summaryCell) => sum + summaryCell.getBoundingClientRect().width, 0)
+        : 0;
+      const contentWidth = containerRect.width - renderedNameWidth - renderedSummaryWidth;
+      const visibleLeft = containerRect.left + renderedNameWidth;
       const visibleRight = contentWidth >= DAY_COLUMN_WIDTH
-        ? containerRect.right - SUMMARY_TOTAL_WIDTH
+        ? containerRect.right - renderedSummaryWidth
         : containerRect.right;
       const visibleTop = containerRect.top + headerHeight;
       const visibleBottom = containerRect.bottom;
@@ -630,28 +638,28 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       <WorkTimeDecisionHistory events={workTimeEvents} open={historyOpen} onClose={onHistoryClose} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
-      <div className="print-hide" style={{ 
+      <div className="print-hide grafik-month-toolbar" style={{
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
         background: 'var(--bg-card)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
         padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)'
       }}>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button style={{ ...btnStyle, opacity: atMinMonth ? 0.4 : 1, cursor: atMinMonth ? 'not-allowed' : 'pointer' }} disabled={atMinMonth} onClick={prevMonth} onMouseOver={e=>{ if(!atMinMonth) e.currentTarget.style.background='var(--bg-secondary)'; }} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            <ChevronLeft size={16} /> {t('grafik.prev')}
+        <div className="grafik-month-navigation" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="grafik-month-button" aria-label={t('grafik.prev')} style={{ ...btnStyle, opacity: atMinMonth ? 0.4 : 1, cursor: atMinMonth ? 'not-allowed' : 'pointer' }} disabled={atMinMonth} onClick={prevMonth} onMouseOver={e=>{ if(!atMinMonth) e.currentTarget.style.background='var(--bg-secondary)'; }} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
+            <ChevronLeft size={16} /> <span className="grafik-month-button-label">{t('grafik.prev')}</span>
           </button>
           
-          <div style={{ fontWeight: 800, fontSize: '18px', minWidth: '160px', textAlign: 'center', color: 'var(--text-primary)' }}>
+          <div className="grafik-month-title" style={{ fontWeight: 800, fontSize: '18px', minWidth: '160px', textAlign: 'center', color: 'var(--text-primary)' }}>
             {MONTH_NAMES[month - 1]} {year}
           </div>
           
-          <button style={btnStyle} onClick={nextMonth} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
-            {t('grafik.next')} <ChevronRight size={16} />
+          <button className="grafik-month-button" aria-label={t('grafik.next')} style={btnStyle} onClick={nextMonth} onMouseOver={e=>e.currentTarget.style.background='var(--bg-secondary)'} onMouseOut={e=>e.currentTarget.style.background='var(--bg-card-solid)'}>
+            <span className="grafik-month-button-label">{t('grafik.next')}</span> <ChevronRight size={16} />
           </button>
         </div>
 
-        <div className="action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
+        <div className="action-buttons grafik-action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="grafik-month-stats" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
             <Info size={14} />
             <span>{t('grafik.workdays')} <strong style={{color:'var(--text-primary)'}}>{workingDays}</strong> | {t('grafik.norm')} <strong style={{color:'var(--text-primary)'}}>{norm} h</strong></span>
           </div>
@@ -666,8 +674,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
       {/* Legenda i Przewodnik UoP / UZ */}
       <div className="print-hide" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+        <div className="grafik-legend-card" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'var(--bg-card-solid)', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="grafik-legend-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
             {[
               ['I', t('grafik.legend.I')],
               ['1', t('grafik.legend.h1', '1–4h')],
@@ -687,7 +695,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
                 : (st.bg || '#f5f5f5');
               return (
-                <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600 }}>
+                <div className="grafik-legend-entry" key={sym} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600 }}>
                   <span style={{ background: chipBg, color: st.color, padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.07)', minWidth: '28px', textAlign: 'center' }}>{sym}</span>
                   <span style={{ color: 'var(--text-tertiary)', paddingRight: '8px' }}>{label}</span>
                 </div>
@@ -696,6 +704,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           </div>
 
           <button
+            className="grafik-guide-button"
             type="button"
             onClick={() => setShowGuide(prev => !prev)}
             style={{
@@ -719,7 +728,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         </div>
 
         {showGuide && (
-          <div style={{
+          <div className="grafik-guide-panel" style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
             borderRadius: '12px',
@@ -762,6 +771,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       </div>
 
       {/* Tabela */}
+      <div className="grafik-mobile-swipe-hint print-hide" aria-hidden="true">↔ {t('grafik.mobileSwipeHint')}</div>
       <div
         ref={containerRef}
         tabIndex={0}
@@ -781,7 +791,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         <table className="grafik-modern-table" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', minWidth: `${NAME_COLUMN_WIDTH + days.length * DAY_COLUMN_WIDTH + SUMMARY_TOTAL_WIDTH}px`, width: '100%' }}>
           <thead>
             <tr>
-              <th style={{
+              <th className="grafik-name-th" style={{
                 ...thBase,
                 width: `${NAME_COLUMN_WIDTH}px`,
                 position: 'sticky',
@@ -813,6 +823,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                 return (
                   <th
+                    className="grafik-day-th"
                     key={d}
                     ref={isToday ? todayRef : null}
                     title={hol ? hol.name : ''}
@@ -863,20 +874,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   </th>
                 );
               })}
-              <th style={{ ...thBase, ...stickySummaryStyle(0, '#f8f9fb', 20), color: '#248A3D', borderLeft: '2px solid rgba(0,0,0,0.12)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(1, '#f8f9fb', 20), color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(2, '#f8f9fb', 20), color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(3, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(4, '#f8f9fb', 20), color: '#007AFF', fontSize: '9px' }}>UW</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(5, '#f8f9fb', 20), color: '#FF9500', fontSize: '9px' }}>NU</th>
-              <th style={{ ...thBase, ...stickySummaryStyle(6, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px' }}>NN</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(0, '#f8f9fb', 20), color: '#248A3D', borderLeft: '2px solid rgba(0,0,0,0.12)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', fontSize: '10px', fontWeight: 700 }}>{t('grafik.sumH')}</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(1, '#f8f9fb', 20), color: '#8e8e93', fontSize: '10px' }}>{t('grafik.normShort')}</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(2, '#f8f9fb', 20), color: '#48484a', fontSize: '10px' }}>{t('grafik.diffShort')}</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(3, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px', borderLeft: '1px solid rgba(0,0,0,0.05)' }}>L4</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(4, '#f8f9fb', 20), color: '#007AFF', fontSize: '9px' }}>UW</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(5, '#f8f9fb', 20), color: '#FF9500', fontSize: '9px' }}>NU</th>
+              <th className="grafik-summary-th" style={{ ...thBase, ...stickySummaryStyle(6, '#f8f9fb', 20), color: '#FF3B30', fontSize: '9px' }}>NN</th>
             </tr>
           </thead>
           <tbody>
             {groups.map(({ g, color: grpColor, members }) => {
               return [
                 <tr key={`grp-${g}`} style={{ height: '32px' }}>
-                  <td style={{
+                  <td className="grafik-group-name" style={{
                     position: 'sticky', left: 0, zIndex: 3,
                     background: '#F5F5F7', padding: '0 14px',
                     borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)',
@@ -928,8 +939,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                           >
                             {emp.contract_type || 'UoP'}
                           </span>
-                          <span title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
-                          <span style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
+                          <span className="grafik-employee-name" title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
+                          <span className="grafik-employee-hours" style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
                         </div>
                       </td>
                       {days.map(d => {
@@ -952,7 +963,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                         return (
                           <td key={d}
-                            className={`${hasVal ? '' : 'grafik-cell-hoverable'}${isAdmin ? ' grafik-editable-cell' : ''}`}
+                            className={`grafik-day-cell${hasVal ? '' : ' grafik-cell-hoverable'}${isAdmin ? ' grafik-editable-cell' : ''}`}
                             data-cell={`${empIdx}-${d}`}
                             onClick={() => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); }}
                             onDoubleClick={() => {}}
@@ -1036,14 +1047,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             {/* Wiersze podsumowania */}
             {[
               { label: t('grafik.present'), labelColor: '#fff', nameBg: '#1c1c1e', cellBgBase: '#1c1c1e', cellBgWe: '#2c2c2e', cellBgToday: '#007AFF', color: '#fff' },
-              { label: t('grafik.totalHours'), labelColor: '#34C759', nameBg: 'rgba(242,242,247,0.92)', cellBgBase: 'rgba(242,242,247,0.92)', cellBgWe: 'rgba(232,232,237,0.92)', cellBgToday: 'rgba(52,199,89,0.1)', color: '#34C759',
+              { label: t('grafik.totalHours'), labelColor: '#248A3D', nameBg: '#f2f2f7', cellBgBase: '#f2f2f7', cellBgWe: '#e8e8ed', cellBgToday: '#e7f8ec', color: '#248A3D',
                 fn: (d) => { const t = employees.reduce((s, e) => s + parseHours(getValue(e, d)), 0); return formatTotalHours(t); }
               }
             ].map(({ label, labelColor, nameBg, cellBgBase, cellBgWe, cellBgToday, color, fn }) => {
               const sumFn = fn || ((d) => employees.filter(e => isPresent(getValue(e, d))).length);
               return (
                 <tr key={label} style={{ height: '32px' }}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 3, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
+                  <td className="grafik-footer-name" style={{ position: 'sticky', left: 0, zIndex: 3, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
                     {label}
                   </td>
                   {days.map(d => {
@@ -1054,7 +1065,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     const cnt = sumFn(d);
                     const bg = isToday ? cellBgToday : isWe ? cellBgWe : cellBgBase;
                     return (
-                      <td key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, borderTop: '1px solid rgba(0,0,0,0.08)', borderRight: '1px solid rgba(0,0,0,0.04)', fontVariantNumeric: 'tabular-nums' }}>
+                      <td className="grafik-day-cell" key={d} style={{ textAlign: 'center', fontWeight: 700, fontSize: '11px', background: bg, color, borderTop: '1px solid rgba(0,0,0,0.08)', borderRight: '1px solid rgba(0,0,0,0.04)', fontVariantNumeric: 'tabular-nums' }}>
                         {cnt || ''}
                       </td>
                     );
@@ -1067,13 +1078,13 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         </table>
       </div>
 
-      <div className="print-hide" style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap', background: 'rgba(242,242,247,0.8)', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '14px', padding: '10px 16px', fontSize: '10px', color: '#8e8e93' }}>
+      <div className="print-hide grafik-tip-card" style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap', background: 'rgba(242,242,247,0.8)', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '14px', padding: '10px 16px', fontSize: '10px', color: '#8e8e93' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#555', fontWeight: 500 }}>
           <span style={{ fontSize: '13px' }}>💡</span>
           <span>{t('grafik.tipRanges')} <strong style={{ color: '#1565c0' }}>6-14</strong> &nbsp;|&nbsp; {t('grafik.tipFractions')} <strong style={{ color: '#2e7d32' }}>7.5</strong> / <strong style={{ color: '#2e7d32' }}>7,5</strong></span>
         </div>
         <div style={{ width: '1px', background: '#ddd', alignSelf: 'stretch' }} />
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', color: '#999' }}>
+        <div className="grafik-minute-reference" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', color: '#999' }}>
           {[['10','0,17'],['15','0,25'],['20','0,33'],['30','0,50'],['40','0,67'],['45','0,75'],['50','0,83']].map(([min, val]) => (
             <span key={min}>{min} {t('grafik.minUnit')} = <strong style={{ color: '#555' }}>{val}</strong></span>
           ))}

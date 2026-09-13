@@ -707,6 +707,7 @@
     "present": "Anwesend",
     "totalHours": "Stunden gesamt",
     "otherValue": "Andere…",
+    "mobileSwipeHint": "Tabelle wischen, um weitere Tage und die Zusammenfassung zu sehen",
     "legend": {
       "W": "Frei",
       "UW": "Urlaub",
