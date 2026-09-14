@@ -1,0 +1,457 @@
+/* ArrivalTrolleyPicker.css — Apple Design System & Bulletproof Scroll Containment */
+
+.live-trolley-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.live-trolley-picker-sheet {
+  width: 100%;
+  max-width: 440px;
+  max-height: min(86vh, 680px);
+  height: min(86vh, 680px);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ap-sheet-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (max-width: 480px) {
+  .live-trolley-picker-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .live-trolley-picker-sheet {
+    max-width: 100%;
+    max-height: 90dvh;
+    height: 90dvh;
+    border-radius: 20px 20px 0 0;
+    animation: ap-sheet-up 0.36s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+}
+
+.live-trolley-picker-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+}
+
+.live-trolley-picker-title {
+  color: #1c1c1e;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-trolley-picker-subtitle {
+  margin-top: 3px;
+  color: #8e8e93;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-trolley-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0, 122, 255, 0.12);
+  color: #007AFF;
+}
+
+.live-trolley-picker-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #48484a;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.live-trolley-picker-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.live-trolley-picker-close:active {
+  transform: scale(0.94);
+}
+
+/* Pasek wyszukiwania i filtrów */
+.live-trolley-picker-toolbar {
+  flex-shrink: 0;
+  padding: 8px 20px 10px;
+  background: #fbfbfd;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.live-trolley-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.live-trolley-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #8e8e93;
+  pointer-events: none;
+}
+
+.live-trolley-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 28px 0 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f2f2f7;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1c1c1e;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.live-trolley-search-input:focus {
+  background: #ffffff;
+  border-color: #007AFF;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.live-trolley-search-clear {
+  position: absolute;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: #8e8e93;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-trolley-filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.live-trolley-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.live-trolley-chip {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #f2f2f7;
+  color: #48484a;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.live-trolley-chip.is-active {
+  background: #1c1c1e;
+  color: #ffffff;
+  border-color: #1c1c1e;
+}
+
+/* Przewijany obszar zawartości */
+.live-trolley-picker-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 20px 16px;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-trolley-picker-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.live-trolley-picker-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.live-trolley-picker-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+}
+
+/* Wózki u klienta (sugerowane) */
+.live-arrival-trolley-returning {
+  background: rgba(52, 199, 89, 0.08);
+  border: 1px solid rgba(52, 199, 89, 0.25);
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.live-arrival-trolley-returning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.live-arrival-trolley-returning-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #248A3D;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.live-arrival-trolley-select-all {
+  border: none;
+  background: transparent;
+  color: #248A3D;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.live-arrival-trolley-returning-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.live-arrival-trolley-return-btn {
+  min-width: 46px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(52, 199, 89, 0.4);
+  background: #ffffff;
+  color: #248A3D;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.live-arrival-trolley-return-btn:hover {
+  background: rgba(52, 199, 89, 0.15);
+}
+
+.live-arrival-trolley-return-btn.is-selected {
+  background: #007AFF;
+  border-color: #007AFF;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 122, 255, 0.3);
+}
+
+/* Siatka wózków */
+.live-arrival-trolley-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.live-arrival-trolley-cell {
+  height: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1c1c1e;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.12s ease;
+}
+
+.live-arrival-trolley-cell:hover:not(:disabled):not(.is-selected) {
+  border-color: rgba(0, 122, 255, 0.4);
+  background: rgba(0, 122, 255, 0.04);
+}
+
+.live-arrival-trolley-cell:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.live-arrival-trolley-cell.is-selected {
+  background: #007AFF;
+  border-color: #007AFF;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35);
+}
+
+.live-arrival-trolley-cell.is-returning:not(.is-selected) {
+  border-color: rgba(52, 199, 89, 0.4);
+  background: rgba(52, 199, 89, 0.09);
+  color: #248A3D;
+}
+
+.live-arrival-trolley-cell.is-busy {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #f2f2f7;
+  color: #8e8e93;
+  border-color: rgba(0, 0, 0, 0.04);
+  text-decoration: line-through;
+  box-shadow: none;
+}
+
+/* Legenda i skanowanie */
+.live-arrival-trolley-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8e8e93;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.live-arrival-trolley-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.live-arrival-trolley-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+
+.live-arrival-trolley-legend-dot.is-returning {
+  border-color: rgba(52, 199, 89, 0.5);
+  background: rgba(52, 199, 89, 0.2);
+}
+
+.live-arrival-trolley-legend-dot.is-selected {
+  border-color: #007AFF;
+  background: #007AFF;
+}
+
+.live-arrival-trolley-scan-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8f9fb;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 11px;
+  color: #6e6e73;
+  font-weight: 500;
+}
+
+/* Przyklejona stopka modalna */
+.live-trolley-picker-footer {
+  flex-shrink: 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-trolley-picker-clear-btn {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #f2f2f7;
+  color: #48484a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.live-trolley-picker-clear-btn:hover {
+  background: #e5e5ea;
+}
+
+.live-trolley-picker-save-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: #007AFF;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.28);
+  transition: all 0.15s ease;
+}
+
+.live-trolley-picker-save-btn:hover:not(:disabled) {
+  background: #0066CC;
+}
+
+.live-trolley-picker-save-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.live-trolley-picker-save-btn:disabled {
+  background: #e5e5ea;
+  color: #8e8e93;
+  cursor: not-allowed;
+  box-shadow: none;
+}

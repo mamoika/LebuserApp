@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, ScanBarcode, ShoppingCart, X } from 'lucide-react';
+import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getLaundryWorkflow } from '../../lib/laundryRpc';
 import { trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import './ArrivalTrolleyPicker.css';
 
 const DEFAULT_TROLLEY_COUNT = 25;
 
@@ -55,6 +56,8 @@ export default function ArrivalTrolleyPicker({
   const [error, setError] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'returning' | 'free' | 'selected'
 
   useEffect(() => {
     let cancelled = false;
@@ -102,18 +105,37 @@ export default function ArrivalTrolleyPicker({
   );
 
   const visibleTrolleyNumbers = useMemo(
-    () => visibleArrivalTrolleyNumbers(
-      trolleyNumbers,
-      draftSelected,
-      activeTrolleyByNo,
-      clientName,
-    ),
-    [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName],
+    () => {
+      const all = visibleArrivalTrolleyNumbers(
+        trolleyNumbers,
+        draftSelected,
+        activeTrolleyByNo,
+        clientName,
+      );
+      return all.filter(no => {
+        if (searchQuery.trim() && !no.includes(searchQuery.trim())) return false;
+        if (filterTab === 'returning') {
+          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+          return state === 'returning';
+        }
+        if (filterTab === 'selected') {
+          return draftSelected.includes(no);
+        }
+        if (filterTab === 'free') {
+          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+          return state === 'free';
+        }
+        return true;
+      });
+    },
+    [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, searchQuery, filterTab],
   );
 
   const openPicker = () => {
     setDraftSelected(selected);
     setError('');
+    setSearchQuery('');
+    setFilterTab('all');
     setPickerOpen(true);
   };
 
@@ -125,6 +147,17 @@ export default function ArrivalTrolleyPicker({
   const savePicker = () => {
     onSelectedChange(draftSelected);
     closePicker();
+  };
+
+  const selectAllReturning = () => {
+    const toAdd = returningTrolleys.filter(no => !draftSelected.includes(no));
+    if (toAdd.length > 0) {
+      setDraftSelected([...draftSelected, ...toAdd]);
+    }
+  };
+
+  const clearSelection = () => {
+    setDraftSelected([]);
   };
 
   const toggleTrolley = (trolleyNo) => {
@@ -215,14 +248,73 @@ export default function ArrivalTrolleyPicker({
             <div className="ap-handle" />
             <div className="live-trolley-picker-header">
               <div>
-                <div className="live-trolley-picker-title">{t('entry.trolleyPickerTitle')}</div>
+                <div className="live-trolley-picker-title">
+                  <ShoppingCart size={18} style={{ color: '#007AFF' }} />
+                  <span>{t('entry.trolleyPickerTitle')}</span>
+                </div>
                 <div className="live-trolley-picker-subtitle">
-                  {clientName} · {t('entry.trolleySelected', { count: draftSelected.length })}
+                  <span>{clientName || t('entry.client')}</span>
+                  {draftSelected.length > 0 && (
+                    <span className="live-trolley-badge">{draftSelected.length} {t('entry.trolleySelectedCount', 'wybrano')}</span>
+                  )}
                 </div>
               </div>
               <button type="button" className="live-trolley-picker-close" onClick={closePicker} aria-label={t('common.close')}>
-                <X size={18} />
+                <X size={16} />
               </button>
+            </div>
+
+            {/* Pasek wyszukiwania i zakładek filtrów */}
+            <div className="live-trolley-picker-toolbar">
+              <div className="live-trolley-search-box">
+                <Search size={14} className="live-trolley-search-icon" />
+                <input
+                  type="text"
+                  className="live-trolley-search-input"
+                  placeholder="Filtruj nr wózka lub skanuj TRL-N..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button type="button" className="live-trolley-search-clear" onClick={() => setSearchQuery('')}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="live-trolley-filter-chips">
+                <button
+                  type="button"
+                  className={`live-trolley-chip${filterTab === 'all' ? ' is-active' : ''}`}
+                  onClick={() => setFilterTab('all')}
+                >
+                  Wszystkie ({trolleyNumbers.length})
+                </button>
+                {returningTrolleys.length > 0 && (
+                  <button
+                    type="button"
+                    className={`live-trolley-chip${filterTab === 'returning' ? ' is-active' : ''}`}
+                    onClick={() => setFilterTab('returning')}
+                    style={filterTab === 'returning' ? {} : { color: '#248A3D', borderColor: 'rgba(52,199,89,0.3)' }}
+                  >
+                    U klienta ({returningTrolleys.length})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`live-trolley-chip${filterTab === 'free' ? ' is-active' : ''}`}
+                  onClick={() => setFilterTab('free')}
+                >
+                  Wolne
+                </button>
+                <button
+                  type="button"
+                  className={`live-trolley-chip${filterTab === 'selected' ? ' is-active' : ''}`}
+                  onClick={() => setFilterTab('selected')}
+                  style={filterTab === 'selected' ? {} : { color: '#007AFF', borderColor: 'rgba(0,122,255,0.2)' }}
+                >
+                  Wybrane ({draftSelected.length})
+                </button>
+              </div>
             </div>
 
             <div className="live-trolley-picker-content">
@@ -232,9 +324,26 @@ export default function ArrivalTrolleyPicker({
                 </div>
               ) : (
                 <>
-                  {returningTrolleys.length > 0 && (
+                  {/* Sugerowane wózki u klienta */}
+                  {returningTrolleys.length > 0 && filterTab === 'all' && !searchQuery && (
                     <div className="live-arrival-trolley-returning">
-                      <div className="live-arrival-trolley-returning-label">{t('entry.trolleyReturningFromClient')}</div>
+                      <div className="live-arrival-trolley-returning-head">
+                        <div className="live-arrival-trolley-returning-label">
+                          <Sparkles size={13} />
+                          <span>{t('entry.trolleyReturningFromClient')}</span>
+                        </div>
+                        {returningTrolleys.some(no => !draftSelected.includes(no)) ? (
+                          <button
+                            type="button"
+                            className="live-arrival-trolley-select-all"
+                            onClick={selectAllReturning}
+                          >
+                            Zaznacz wszystkie ({returningTrolleys.length})
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#248A3D', fontWeight: 600 }}>Wszystkie zaznaczone ✓</span>
+                        )}
+                      </div>
                       <div className="live-arrival-trolley-returning-row">
                         {returningTrolleys.map(no => (
                           <button
@@ -255,41 +364,52 @@ export default function ArrivalTrolleyPicker({
                   {visibleTrolleyNumbers.length > 0 ? (
                     <div className="live-arrival-trolley-grid" role="group" aria-label={t('entry.trolleys')}>
                       {visibleTrolleyNumbers.map(no => {
-                      const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
-                      return (
-                        <button
-                          key={no}
-                          type="button"
-                          className={`live-arrival-trolley-cell is-${state}`}
-                          onClick={() => toggleTrolley(no)}
-                          disabled={disabled}
-                          aria-pressed={state === 'selected'}
-                          title={
-                            state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
-                              : state === 'busy' ? t('entry.trolleyBusy', { no, client: activeTrolleyByNo.get(no.toLowerCase())?.client_name || '?' })
-                                : t('entry.trolleyFree', { no })
-                          }
-                        >
-                          {state === 'selected' && <Check size={14} />}
-                          {no}
-                        </button>
-                      );
+                        const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+                        return (
+                          <button
+                            key={no}
+                            type="button"
+                            className={`live-arrival-trolley-cell is-${state}`}
+                            onClick={() => toggleTrolley(no)}
+                            disabled={disabled}
+                            aria-pressed={state === 'selected'}
+                            title={
+                              state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
+                                : state === 'busy' ? t('entry.trolleyBusy', { no, client: activeTrolleyByNo.get(no.toLowerCase())?.client_name || '?' })
+                                  : t('entry.trolleyFree', { no })
+                            }
+                          >
+                            {state === 'selected' && <Check size={14} />}
+                            {no}
+                          </button>
+                        );
                       })}
                     </div>
-                  ) : returningTrolleys.length === 0 && (
+                  ) : (
                     <div className="live-arrival-trolley-none">
-                      {t('entry.trolleyNoneAvailable')}
+                      {searchQuery || filterTab !== 'all'
+                        ? 'Brak wózków spełniających kryteria wyszukiwania.'
+                        : t('entry.trolleyNoneAvailable')}
                     </div>
                   )}
 
                   <div className="live-arrival-trolley-legend">
-                    <span className="live-arrival-trolley-legend-item is-free">{t('entry.trolleyLegendFree')}</span>
-                    <span className="live-arrival-trolley-legend-item is-returning">{t('entry.trolleyLegendReturning')}</span>
-                    <span className="live-arrival-trolley-legend-item is-selected">{t('entry.trolleyLegendSelected')}</span>
+                    <span className="live-arrival-trolley-legend-item">
+                      <span className="live-arrival-trolley-legend-dot" />
+                      {t('entry.trolleyLegendFree')}
+                    </span>
+                    <span className="live-arrival-trolley-legend-item">
+                      <span className="live-arrival-trolley-legend-dot is-returning" />
+                      {t('entry.trolleyLegendReturning')}
+                    </span>
+                    <span className="live-arrival-trolley-legend-item">
+                      <span className="live-arrival-trolley-legend-dot is-selected" />
+                      {t('entry.trolleyLegendSelected')}
+                    </span>
                   </div>
 
                   <div className="live-arrival-trolley-scan-hint">
-                    <ScanBarcode size={16} aria-hidden="true" />
+                    <ScanBarcode size={15} aria-hidden="true" style={{ color: '#007AFF', flexShrink: 0 }} />
                     <span>{t('entry.trolleyScanHintShort')}</span>
                   </div>
 
@@ -299,10 +419,30 @@ export default function ArrivalTrolleyPicker({
             </div>
 
             <div className="live-trolley-picker-footer">
-              <button type="button" className="ap-btn ap-btn-primary" onClick={savePicker} disabled={disabled || draftSelected.length === 0}>
-                {draftSelected.length > 0
-                  ? t('entry.trolleyDoneCount', { count: draftSelected.length })
-                  : t('entry.trolleyChooseRequired')}
+              {draftSelected.length > 0 && (
+                <button
+                  type="button"
+                  className="live-trolley-picker-clear-btn"
+                  onClick={clearSelection}
+                  title="Wyczyść zaznaczenie"
+                >
+                  Wyczyść
+                </button>
+              )}
+              <button
+                type="button"
+                className="live-trolley-picker-save-btn"
+                onClick={savePicker}
+                disabled={disabled || draftSelected.length === 0}
+              >
+                {draftSelected.length > 0 ? (
+                  <>
+                    <Check size={16} />
+                    <span>{t('entry.trolleyDoneCount', { count: draftSelected.length })}</span>
+                  </>
+                ) : (
+                  <span>{t('entry.trolleyChooseRequired')}</span>
+                )}
               </button>
             </div>
           </div>
