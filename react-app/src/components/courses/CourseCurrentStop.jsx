@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck, WashingMachine } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
@@ -379,7 +379,7 @@ export default function CourseCurrentStop({
 
           <section className="live-stop-task-card tone-dirty is-dirty">
             <header className="live-stop-task-head">
-              <span className="live-stop-task-icon tone-dirty" aria-hidden="true"><Plus size={18} /></span>
+              <span className="live-stop-task-icon tone-dirty" aria-hidden="true"><WashingMachine size={18} /></span>
               <div className="live-stop-task-title">
                 <strong>{t('course.currentStop.dirtySection')}</strong>
                 {dirtyToday.length > 0 && (
