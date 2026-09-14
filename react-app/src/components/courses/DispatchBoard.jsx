@@ -13,6 +13,7 @@ import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
 import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripCourse, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
 import { dispatchCourseMode } from '../../lib/dispatchCourseMode';
+import { upsertCourseStop } from '../../lib/courseStopState';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
 import { operationalYmd } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -79,6 +80,12 @@ function DispatchPlanningView({ trip, sessionToken, readOnly, onReload, onCancel
       adminMode
       readOnly={readOnly}
       onUpdated={reload}
+      onStopAdded={stop => {
+        setCourse(current => ({
+          ...current,
+          stops: upsertCourseStop(current.stops, stop),
+        }));
+      }}
       onCancelled={onCancelled}
     />
   );

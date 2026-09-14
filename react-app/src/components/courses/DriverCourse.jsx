@@ -14,6 +14,7 @@ import { printTripWorkCard } from '../../lib/coursePrint';
 import {
   canCompleteStop, pickedNotDeliveredStops, tripHasProgress,
 } from '../../lib/courseTaskHelpers';
+import { upsertCourseStop } from '../../lib/courseStopState';
 import { buildCourseStopComparator } from '../../lib/courseStopOrder';
 import { parseExtraClients, pickupDateStr, routeNamesForTrip, stopDisplayOrder, tripDateInfo, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
 import { operationalYmd } from '../../lib/dateUtils';
@@ -473,6 +474,10 @@ export default function DriverCourse() {
         trip={trip}
         stops={stops}
         onUpdated={loadCourse}
+        onStopAdded={stop => setData(current => ({
+          ...current,
+          stops: upsertCourseStop(current.stops, stop),
+        }))}
         onSwitchRoute={() => setChooseOtherRoute(true)}
       />
     );

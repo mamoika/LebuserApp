@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronRight, ScanBarcode, ShoppingCart, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getLaundryWorkflow } from '../../lib/laundryRpc';
+import { trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 const DEFAULT_TROLLEY_COUNT = 25;
@@ -36,14 +37,6 @@ export function arrivalTrolleyPayload(mode, numbers) {
     trolleys: cleaned.length,
     arrival_trolley_nos: cleaned.length ? formatTrolleyNos(cleaned) : null,
   };
-}
-
-function trolleyCellState(no, selected, activeTrolleyByNo, clientName) {
-  if (selected.includes(no)) return 'selected';
-  const active = activeTrolleyByNo.get(no.toLowerCase());
-  if (!active) return 'free';
-  if (active.status === 'at_client' && active.client_name === clientName) return 'returning';
-  return 'busy';
 }
 
 export default function ArrivalTrolleyPicker({
@@ -106,6 +99,16 @@ export default function ArrivalTrolleyPicker({
       return active?.status === 'at_client' && active.client_name === clientName;
     }),
     [trolleyNumbers, activeTrolleyByNo, clientName]
+  );
+
+  const visibleTrolleyNumbers = useMemo(
+    () => visibleArrivalTrolleyNumbers(
+      trolleyNumbers,
+      draftSelected,
+      activeTrolleyByNo,
+      clientName,
+    ),
+    [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName],
   );
 
   const openPicker = () => {
@@ -249,8 +252,9 @@ export default function ArrivalTrolleyPicker({
                     </div>
                   )}
 
-                  <div className="live-arrival-trolley-grid" role="group" aria-label={t('entry.trolleys')}>
-                    {trolleyNumbers.map(no => {
+                  {visibleTrolleyNumbers.length > 0 ? (
+                    <div className="live-arrival-trolley-grid" role="group" aria-label={t('entry.trolleys')}>
+                      {visibleTrolleyNumbers.map(no => {
                       const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
                       return (
                         <button
@@ -258,7 +262,7 @@ export default function ArrivalTrolleyPicker({
                           type="button"
                           className={`live-arrival-trolley-cell is-${state}`}
                           onClick={() => toggleTrolley(no)}
-                          disabled={disabled || state === 'busy'}
+                          disabled={disabled}
                           aria-pressed={state === 'selected'}
                           title={
                             state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
@@ -270,8 +274,13 @@ export default function ArrivalTrolleyPicker({
                           {no}
                         </button>
                       );
-                    })}
-                  </div>
+                      })}
+                    </div>
+                  ) : returningTrolleys.length === 0 && (
+                    <div className="live-arrival-trolley-none">
+                      {t('entry.trolleyNoneAvailable')}
+                    </div>
+                  )}
 
                   <div className="live-arrival-trolley-legend">
                     <span className="live-arrival-trolley-legend-item is-free">{t('entry.trolleyLegendFree')}</span>

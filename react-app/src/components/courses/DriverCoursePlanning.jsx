@@ -90,7 +90,7 @@ function ReadyCleanCard({ group, busy, readOnly, language, onPickup, onUndo, t }
   );
 }
 
-export default function DriverCoursePlanning({ trip, stops = [], adminMode = false, readOnly = false, onUpdated, onCancelled, onSwitchRoute = null }) {
+export default function DriverCoursePlanning({ trip, stops = [], adminMode = false, readOnly = false, onUpdated, onStopAdded, onCancelled, onSwitchRoute = null }) {
   const { t, i18n } = useTranslation();
   const { sessionToken } = useAuth();
   const { entries, clients, allRoutes, refetch } = useAppData();
@@ -241,16 +241,15 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     if (!candidate || busy) return;
     try {
       setBusy(true);
-      if (adminMode) {
-        await callExistingTripRpc('admin_add_dirty_planned_stop', sessionToken, {
+      const result = adminMode
+        ? await callExistingTripRpc('admin_add_dirty_planned_stop', sessionToken, {
           p_trip_id: trip.id,
           p_client_id: candidate.client_id,
-        });
-      } else {
-        await addDirtyPlannedStop(sessionToken, trip.id, candidate.client_id);
-      }
+        })
+        : await addDirtyPlannedStop(sessionToken, trip.id, candidate.client_id);
+
+      if (result?.stop) onStopAdded?.(result.stop);
       toastSuccess(t('course.planning.dirtyAdded', { name: candidate.client_name }));
-      await reload();
     } catch (error) {
       toastError(error.message);
     } finally {

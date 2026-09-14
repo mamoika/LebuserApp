@@ -62,6 +62,17 @@ test('choosing a dirty-only client adds the stop immediately without a separate 
     /onClick=\{addDirtyStop\}/,
     'there must not be a redundant add button',
   );
+  const addHandler = source.match(/const addDirtyStop = async candidate => \{([\s\S]*?)\n {2}\};/)?.[1] || '';
+  assert.match(
+    addHandler,
+    /const result = adminMode[\s\S]*?onStopAdded\?\.\(result\.stop\)/,
+    'the returned stop must be inserted into local state',
+  );
+  assert.doesNotMatch(
+    addHandler,
+    /await reload\(\)/,
+    'adding a stop must not reload the planning page',
+  );
 });
 
 test('dirty-stop actions stay aligned in one row with accessible touch targets', () => {

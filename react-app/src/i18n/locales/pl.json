@@ -459,6 +459,7 @@
     "trolleyChoose": "Wybierz numery wózków",
     "trolleyChooseHint": "Dotknij, aby otworzyć listę",
     "trolleyPickerTitle": "Wybierz wózki",
+    "trolleyNoneAvailable": "Brak dostępnych wózków.",
     "trolleyDoneCount": "Gotowe ({{count}})",
     "trolleyChooseRequired": "Wybierz wózek",
     "trolleyManual": "Dodaj wózek ręcznie:",

@@ -5,16 +5,25 @@ import test from 'node:test';
 const pickerSource = await readFile(new URL('./ArrivalTrolleyPicker.jsx', import.meta.url), 'utf8');
 const entryModalsSource = await readFile(new URL('./EntryModals.jsx', import.meta.url), 'utf8');
 
-test('arrival form defaults to no trolley and shows that option first', () => {
+test('new arrival form defaults to with trolley while preserving the option order', () => {
   const modeControlStart = pickerSource.indexOf('className="segmented-control live-arrival-trolley-mode"');
   const modeControlEnd = pickerSource.indexOf("\n      {mode === 'trolley' ?", modeControlStart);
   const modeControlSource = pickerSource.slice(modeControlStart, modeControlEnd);
 
-  assert.match(entryModalsSource, /const \[trolleyMode, setTrolleyMode\] = useState\('none'\)/);
-  assert.match(entryModalsSource, /setTrolleyMode\('none'\)/);
+  assert.match(entryModalsSource, /const \[trolleyMode, setTrolleyMode\] = useState\('trolley'\)/);
+  assert.match(entryModalsSource, /setTrolleyMode\('trolley'\)/);
   assert.ok(
     modeControlSource.indexOf("t('entry.trolleyModeNone')")
       < modeControlSource.indexOf("t('entry.trolleyModeNumbered')"),
     'the no-trolley option must be rendered before the with-trolley option',
   );
+});
+
+test('the trolley grid renders only numbers that are available in the current context', () => {
+  assert.match(
+    pickerSource,
+    /const visibleTrolleyNumbers = useMemo\([\s\S]*?visibleArrivalTrolleyNumbers\(/,
+  );
+  assert.match(pickerSource, /visibleTrolleyNumbers\.map\(no =>/);
+  assert.doesNotMatch(pickerSource, /trolleyNumbers\.map\(no =>/);
 });
