@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { History, LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -6,7 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
 import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
+import { getWeeklyRoutePlan } from '../../lib/weeklyRoutePlanRpc';
 import { parseRouteIds, routeNamesForTrip, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
+import { assignedRouteIdsForDate } from '../../lib/driverPlanAssignments';
 import { operationalYmd } from '../../lib/dateUtils';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -54,18 +56,26 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     (async () => {
       setLoading(true);
       try {
-        const [trips, settings] = await Promise.all([
+        const [trips, settings, routePlan] = await Promise.all([
           loadTrips(),
           getDriverAppSettings(sessionToken),
+          getWeeklyRoutePlan(sessionToken, today),
         ]);
         if (cancelled) return;
         const car = settings?.driver_cars?.[user?.id] || null;
+        const routesAssignedToday = assignedRouteIdsForDate(
+          routePlan?.trips || [],
+          user?.id,
+          user?.name,
+          today,
+        );
         setDefaultCar(car);
         if (plannedTrip) {
           setSelectedCar(plannedTrip.car || car || VEHICLES[0].key);
           setSelectedRoutes(parseRouteIds(plannedTrip.routes));
-        } else if (car) {
-          setSelectedCar(car);
+        } else {
+          setSelectedRoutes(routesAssignedToday);
+          if (car) setSelectedCar(car);
         }
         setAllTrips(trips || []);
       } catch (error) {
@@ -75,7 +85,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       }
     })();
     return () => { cancelled = true; };
-  }, [loadTrips, plannedTrip, sessionToken, t, user?.id]);
+  }, [loadTrips, plannedTrip, sessionToken, t, today, user?.id, user?.name]);
 
   const carsInUse = useMemo(() => {
     const map = new Map();
@@ -297,6 +307,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
                   type="button"
                   className={`live-start-route-chip ${active ? 'is-selected' : ''}`}
                   onClick={() => toggleRoute(route.id)}
+                  aria-pressed={active}
                   style={active ? { borderColor: color, background: `${color}14` } : undefined}
                 >
                   <span
