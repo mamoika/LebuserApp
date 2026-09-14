@@ -76,6 +76,13 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
   const [car, setCar] = useState(trip?.car || '');
   const [startTime, setStartTime] = useState(localTimeValue(trip?.planned_start) || '07:00');
 
+  const selectableDrivers = useMemo(() => {
+    return (drivers || []).filter(driver => {
+      if (driver.is_archived && driver.id !== driverId) return false;
+      return availableDriverIds.has(driver.id) || driver.id === driverId;
+    });
+  }, [drivers, availableDriverIds, driverId]);
+
   const changeDriver = nextDriverId => {
     const reservation = vehicleReservations.get(car);
     setDriverId(nextDriverId);
@@ -110,8 +117,18 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
             <span>{t('weeklyPlan.driver')}</span>
             <select id="weekly-plan-driver" value={driverId} onChange={event => changeDriver(event.target.value)}>
               <option value="">{t('weeklyPlan.chooseDriver')}</option>
-              {drivers.map(driver => <option value={driver.id} key={driver.id}>{driver.name}{!availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.unavailable')})` : ''}</option>)}
+              {selectableDrivers.map(driver => (
+                <option value={driver.id} key={driver.id}>
+                  {driver.name}
+                  {driver.id === driverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
+                </option>
+              ))}
             </select>
+            {selectableDrivers.length === 0 && (
+              <span style={{ fontSize: '11px', color: '#CC6600', marginTop: '4px', display: 'block' }}>
+                {t('weeklyPlan.noAvailableDrivers') || 'Brak dostępnych kierowców w grafiku na ten dzień.'}
+              </span>
+            )}
           </label>
 
           <label className="weekly-plan-field" htmlFor="weekly-plan-start">
@@ -488,7 +505,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                   {days.map(date => {
                     const assignedIds = new Set(plan.trips.filter(trip => trip.trip_date === ymd(date)).map(trip => trip.driver_id));
                     const available = availableDriversByDate.get(ymd(date)) || new Set(plan.drivers.map(driver => driver.id));
-                    const free = plan.drivers.filter(driver => available.has(driver.id) && !assignedIds.has(driver.id));
+                    const free = plan.drivers.filter(driver => !driver.is_archived && available.has(driver.id) && !assignedIds.has(driver.id));
                     return <td key={ymd(date)}>{free.length ? free.map(driver => <span key={driver.id} className="weekly-plan-free-chip">{driver.name}</span>) : '—'}</td>;
                   })}
                 </tr>

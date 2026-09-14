@@ -70,7 +70,7 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
       <label style={pfLabel} htmlFor="assign-driver">Kierowca</label>
       <select id="assign-driver" className="ap-input" value={driverId} onChange={event => setDriverId(event.target.value)}>
         <option value="">— wybierz kierowcę —</option>
-        {drivers.map(driver => (
+        {drivers.filter(driver => !driver.is_archived).map(driver => (
           <option key={driver.id} value={driver.id}>{driver.name}{driver.role === 'admin' ? ' (admin)' : ''}</option>
         ))}
       </select>

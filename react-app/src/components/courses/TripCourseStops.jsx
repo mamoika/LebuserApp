@@ -460,7 +460,7 @@ export default function TripCourseStops({
           <label className="live-field-label" htmlFor="admin-handoff-driver">Kierowca</label>
           <select id="admin-handoff-driver" className="ap-input" value={handoffTarget} onChange={event => setHandoffTarget(event.target.value)}>
             <option value="">Wybierz kierowcę</option>
-            {drivers.filter(driver => String(driver.id) !== String(trip.driver_id)).map(driver => (
+            {drivers.filter(driver => !driver.is_archived && String(driver.id) !== String(trip.driver_id)).map(driver => (
               <option key={driver.id} value={driver.id}>{driver.name}</option>
             ))}
           </select>

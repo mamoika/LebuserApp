@@ -85,3 +85,10 @@ export function rejectWorkTime(sessionToken, reportId, note) {
     p_note: note || null,
   });
 }
+
+export function archiveAdminUser(sessionToken, userId, archive = true) {
+  return callAdminRpc(sessionToken, 'admin_archive_user', {
+    p_user_id: userId,
+    p_archive: Boolean(archive),
+  });
+}

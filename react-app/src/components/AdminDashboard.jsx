@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, KeyRound, RefreshCw, Route, ShieldCheck, Trash2, Users, WashingMachine } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, vehicleEndColumn } from '../lib/vehicles';
-import { getAdminUserModulePermissions, pruneUserSessions, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
+import { archiveAdminUser, getAdminUserModulePermissions, pruneUserSessions, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
@@ -170,9 +170,9 @@ function AdminOverview({ users, driverCars, onOpenTab }) {
   const finishedToday = tripsToday.filter(trip => trip.status === 'finished');
   const activeTrolleys = data.trolleys.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status));
   const trolleysAtClient = activeTrolleys.filter(cycle => cycle.status === 'at_client');
-  const noPasswordUsers = users.filter(user => !user.has_password);
-  const rodoMissingUsers = users.filter(user => !user.privacy_notice_ack_version);
-  const driversWithoutCar = users.filter(user => canAssignDriverSettings(user.role) && !driverCars[user.id]);
+  const noPasswordUsers = users.filter(user => !user.is_archived && !user.has_password);
+  const rodoMissingUsers = users.filter(user => !user.is_archived && !user.privacy_notice_ack_version);
+  const driversWithoutCar = users.filter(user => !user.is_archived && canAssignDriverSettings(user.role) && !driverCars[user.id]);
   const pendingKmTrips = data.trips.filter(trip => {
     if (trip.status !== 'finished' || !trip.end_km) return false;
     if (trip.km_approval_status === 'approved') return false;
@@ -379,7 +379,7 @@ function AddUserModal({ onClose, onSave }) {
   );
 }
 
-function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPassword, onDelete, onImpersonate }) {
+function EditUserModal({ user, employees, defaultCar, isCurrentUser, onClose, onSave, onResetPassword, onDelete, onArchive, onImpersonate }) {
   const { t } = useTranslation();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
@@ -389,6 +389,8 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -411,18 +413,58 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
     setSaving(false);
   };
 
+  const handleToggleArchive = async () => {
+    if (!user.is_archived && !confirmArchive) {
+      setConfirmArchive(true);
+      return;
+    }
+    setArchiving(true);
+    await onArchive(user.id, !user.is_archived);
+    setArchiving(false);
+  };
+
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
       <div className="ap-sheet" onClick={e => e.stopPropagation()}>
         <div className="ap-handle" />
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
+            <div style={{
+              width: '44px', height: '44px', borderRadius: '12px',
+              background: user.is_archived
+                ? 'linear-gradient(145deg, #8E8E93, #636366)'
+                : 'linear-gradient(145deg,#FF9500,#CC6600)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '20px', flexShrink: 0,
+              boxShadow: user.is_archived ? '0 3px 10px rgba(142,142,147,0.3)' : '0 3px 10px rgba(255,149,0,0.3)',
+            }}>
+              {user.is_archived ? '🔒' : '✏️'}
+            </div>
             <div>
               <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>{t('admin.editUser')}</div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>@{user.username}</div>
             </div>
           </div>
+
+          {user.is_archived && (
+            <div style={{
+              padding: '10px 14px', borderRadius: '12px',
+              background: 'rgba(142, 142, 147, 0.12)', color: '#636366',
+              fontSize: '12px', fontWeight: 500, marginBottom: '16px',
+              display: 'flex', alignItems: 'center', gap: '8px',
+            }}>
+              <span style={{ fontSize: '15px' }}>🔒</span>
+              <div>
+                <strong>{t('admin.archived')}:</strong> {t('admin.archivedNotice')}
+                {user.archived_at && (
+                  <div style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-tertiary)' }}>
+                    {t('admin.archivedAt', { date: new Date(user.archived_at).toLocaleDateString('pl-PL') })}
+                    {user.archived_by ? ` (${user.archived_by})` : ''}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div style={LABEL_STYLE}>{t('auth.fullName')}</div>
           <input className="ap-input" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: '12px' }} autoFocus />
@@ -471,10 +513,10 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
                   : user.has_password ? t('admin.passwordSet') : t('admin.passwordNotSet')}
               </div>
             </div>
-            {user.has_password && !resetDone && (
+            {user.has_password && !resetDone && !user.is_archived && (
               <button
                 onClick={handleReset}
-                disabled={resetting}
+                disabled={resetting || archiving || saving}
                 style={{
                   background: 'rgba(255,59,48,0.1)', color: '#FF3B30',
                   border: 'none', borderRadius: '8px', padding: '6px 12px',
@@ -488,18 +530,41 @@ function EditUserModal({ user, employees, defaultCar, onClose, onSave, onResetPa
           </div>
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving}>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || archiving}>
               {saving ? t('common.saving') : t('admin.saveChanges')}
             </button>
-            <button
-              className="ap-btn"
-              style={{ background: 'rgba(88,86,214,0.1)', color: '#5856D6', fontWeight: 600 }}
-              onClick={onImpersonate}
-              disabled={saving}
-            >
-              {t('admin.impersonateUser')}
-            </button>
-            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>
+            {!user.is_archived && !isCurrentUser && (
+              <button
+                className="ap-btn"
+                style={{ background: 'rgba(88,86,214,0.1)', color: '#5856D6', fontWeight: 600 }}
+                onClick={onImpersonate}
+                disabled={saving || archiving}
+              >
+                {t('admin.impersonateUser')}
+              </button>
+            )}
+            {!isCurrentUser && (
+              <button
+                type="button"
+                className="ap-btn"
+                style={{
+                  background: user.is_archived ? 'rgba(52,199,89,0.12)' : confirmArchive ? 'rgba(255,59,48,0.14)' : 'rgba(255,149,0,0.12)',
+                  color: user.is_archived ? '#25A244' : confirmArchive ? '#FF3B30' : '#CC6600',
+                  fontWeight: 600,
+                }}
+                onClick={handleToggleArchive}
+                disabled={saving || archiving}
+              >
+                {archiving
+                  ? t('common.saving')
+                  : user.is_archived
+                  ? t('admin.unarchiveUser')
+                  : confirmArchive
+                  ? t('admin.confirmArchiveUser')
+                  : t('admin.archiveUser')}
+              </button>
+            )}
+            <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving || archiving}>
               {confirmDelete ? t('admin.confirmDeleteUser') : t('admin.deleteUser')}
             </button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.close')}</button>
@@ -1850,7 +1915,7 @@ function PermissionsSection({ users }) {
 
       <div className="permissions-layout">
         <aside className="permissions-users" aria-label={t('permissions.chooseUser')}>
-          {users.map(user => {
+          {users.filter(user => !user.is_archived).map(user => {
             const item = permissionUsers.find(entry => entry.user_id === user.id);
             const visibleCount = Object.values(item?.module_access || {}).filter(level => Number(level) > 0).length;
             return (
@@ -1911,7 +1976,7 @@ function PermissionsSection({ users }) {
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
-  const { impersonate, isAdmin, sessionToken } = useAuth();
+  const { impersonate, isAdmin, sessionToken, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1920,6 +1985,11 @@ export default function AdminDashboard() {
   const [editUser, setEditUser] = useState(null);
   const [driverCars, setDriverCars] = useState({}); // { userId: carKey }
   const [tab, setTab] = useState('overview'); // 'overview' | 'users' | 'logs' | 'sessions' | 'settings' | 'barcodes'
+  const [userFilter, setUserFilter] = useState('active'); // 'active' | 'archived'
+
+  const activeUsers = useMemo(() => users.filter(u => !u.is_archived), [users]);
+  const archivedUsers = useMemo(() => users.filter(u => u.is_archived), [users]);
+  const displayedUsers = userFilter === 'active' ? activeUsers : archivedUsers;
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -1991,6 +2061,21 @@ export default function AdminDashboard() {
     fetchUsers();
   };
 
+  const handleArchiveUser = async (userId, shouldArchive) => {
+    if (userId === currentUser?.id && shouldArchive) {
+      toastError(t('admin.cannotArchiveSelf'));
+      return;
+    }
+    try {
+      await archiveAdminUser(sessionToken, userId, shouldArchive);
+      toastSuccess(shouldArchive ? t('admin.userArchived') : t('admin.userUnarchived'));
+      setEditUser(null);
+      fetchUsers();
+    } catch (err) {
+      toastError((shouldArchive ? t('admin.errArchive') : t('admin.errUnarchive')) + ' ' + err.message);
+    }
+  };
+
   const handleImpersonate = async (userId) => {
     const result = await impersonate(userId);
     if (result?.error) { toastError(t('common.error') + ': ' + result.error); return; }
@@ -2022,8 +2107,26 @@ export default function AdminDashboard() {
       {tab === 'settings' && <SettingsSection />}
 
       {tab === 'users' && <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.usersWithCount', { count: users.length })}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.users')}</div>
+          <div className="segmented-control" style={{ margin: 0 }}>
+            <button
+              type="button"
+              className={`seg-btn ${userFilter === 'active' ? 'active' : ''}`}
+              onClick={() => setUserFilter('active')}
+            >
+              {t('admin.tabActiveUsers', { count: activeUsers.length })}
+            </button>
+            <button
+              type="button"
+              className={`seg-btn ${userFilter === 'archived' ? 'active' : ''}`}
+              onClick={() => setUserFilter('archived')}
+            >
+              {t('admin.tabArchivedUsers', { count: archivedUsers.length })}
+            </button>
+          </div>
+        </div>
         <button
           onClick={() => setAddUserOpen(true)}
           style={{
@@ -2042,7 +2145,7 @@ export default function AdminDashboard() {
       </Link>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {users.map(u => (
+        {displayedUsers.map(u => (
           <div
             key={u.id}
             onClick={() => setEditUser(u)}
@@ -2051,32 +2154,66 @@ export default function AdminDashboard() {
               borderRadius: '14px', padding: '14px 16px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               cursor: 'pointer',
+              opacity: u.is_archived ? 0.75 : 1,
             }}
           >
             <div>
-              <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontWeight: 600, fontSize: '15px' }}>{u.name}</span>
+                {u.is_archived && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+                    padding: '2px 7px', borderRadius: '6px',
+                    background: 'rgba(142, 142, 147, 0.18)', color: '#8E8E93',
+                    letterSpacing: '0.03em',
+                  }}>
+                    {t('admin.archived')}
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                 @{u.username} · {roleLabel(t, u.role)}
               </div>
-              {canAssignDriverSettings(u.role) && (
+              {u.is_archived && u.archived_at && (
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
+                  {t('admin.archivedAt', { date: new Date(u.archived_at).toLocaleDateString('pl-PL') })}
+                  {u.archived_by ? ` · przez ${u.archived_by}` : ''}
+                </div>
+              )}
+              {!u.is_archived && canAssignDriverSettings(u.role) && (
                 <div style={{ fontSize: '11px', color: u.employee_id ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
                   {u.employee_id ? t('admin.linkedWithEmployee', { name: u.employee_name }) : t('admin.employeeLinkMissing')}
                 </div>
               )}
-              <div style={{ fontSize: '11px', color: u.privacy_notice_ack_version ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
-                {t('admin.rodo')}: {u.privacy_notice_ack_version ? t('admin.rodoConfirmed', { version: u.privacy_notice_ack_version }) : t('admin.rodoMissing')}
-              </div>
+              {!u.is_archived && (
+                <div style={{ fontSize: '11px', color: u.privacy_notice_ack_version ? '#25A244' : '#CC6600', marginTop: '4px', fontWeight: 600 }}>
+                  {t('admin.rodo')}: {u.privacy_notice_ack_version ? t('admin.rodoConfirmed', { version: u.privacy_notice_ack_version }) : t('admin.rodoMissing')}
+                </div>
+              )}
             </div>
             <div style={{
               fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px',
-              background: u.has_password ? 'rgba(52,199,89,0.12)' : 'rgba(255,149,0,0.12)',
-              color: u.has_password ? '#25A244' : '#CC6600',
+              background: u.is_archived
+                ? 'rgba(142,142,147,0.15)'
+                : u.has_password ? 'rgba(52,199,89,0.12)' : 'rgba(255,149,0,0.12)',
+              color: u.is_archived
+                ? '#8E8E93'
+                : u.has_password ? '#25A244' : '#CC6600',
               flexShrink: 0,
             }}>
-              {u.has_password ? t('admin.active') : t('admin.noPassword')}
+              {u.is_archived ? t('admin.archived') : u.has_password ? t('admin.active') : t('admin.noPassword')}
             </div>
           </div>
         ))}
+        {displayedUsers.length === 0 && (
+          <div style={{
+            padding: '32px 16px', textAlign: 'center', color: 'var(--text-tertiary)',
+            fontSize: '14px', background: 'var(--bg-card)', borderRadius: '14px',
+            border: '1px solid var(--border)',
+          }}>
+            {userFilter === 'archived' ? t('admin.noArchivedUsers') : t('admin.noActiveUsers')}
+          </div>
+        )}
       </div>
 
       {addUserOpen && (
@@ -2088,10 +2225,12 @@ export default function AdminDashboard() {
           user={editUser}
           employees={employees}
           defaultCar={driverCars[editUser.id] || ''}
+          isCurrentUser={currentUser?.id === editUser.id}
           onClose={() => setEditUser(null)}
           onSave={handleSaveUser}
           onResetPassword={handleResetPassword}
           onDelete={handleDeleteUser}
+          onArchive={handleArchiveUser}
           onImpersonate={() => handleImpersonate(editUser.id)}
         />
       )}
