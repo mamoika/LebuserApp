@@ -4,9 +4,9 @@
   position: fixed;
   inset: 0;
   z-index: 10020;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,16 +15,16 @@
 
 .live-trolley-picker-sheet {
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   max-height: min(86vh, 680px);
   height: min(86vh, 680px);
   background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: ap-sheet-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ap-sheet-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (max-width: 480px) {
