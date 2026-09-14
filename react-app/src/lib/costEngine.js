@@ -33,6 +33,17 @@ export const OPTIONAL_COST_SETTING_FIELDS = [
   'gas_prod_invoice_net',
 ];
 
+// Referencyjne wartości z faktury za czerwiec 2026: 95 698 kWh dla 8 500 m³ Vb.
+export const DEFAULT_GAS_PROD_KWH_PER_M3 = 95698 / 8500;
+export const DEFAULT_GAS_PROD_PRICE_KWH = (21665.07 + 2988.65) / 95698;
+
+export function gasProductionKwh(usageM3, settings = {}) {
+  const usage = Number.isFinite(usageM3) && usageM3 >= 0 ? usageM3 : 0;
+  const factor = Number.isFinite(settings.gas_prod_kwh_per_m3) && settings.gas_prod_kwh_per_m3 > 0
+    ? settings.gas_prod_kwh_per_m3 : DEFAULT_GAS_PROD_KWH_PER_M3;
+  return usage * factor;
+}
+
 export function parseMeterReading(raw) {
   const trimmed = raw == null ? '' : String(raw).trim();
   if (trimmed === '' || trimmed === '-' || trimmed === '—') return { value: null, status: 'missing' };
@@ -112,6 +123,10 @@ export function gasProductionMonthlyCost(usageM3, settings = {}, dayCount = 0) {
     return invoiceNet;
   }
   const usage = Number.isFinite(usageM3) && usageM3 >= 0 ? usageM3 : 0;
+  if (Number.isFinite(settings.gas_prod_price_kwh) && settings.gas_prod_price_kwh >= 0) {
+    return gasProductionKwh(usage, settings) * settings.gas_prod_price_kwh
+      + (settings.gas_prod_fixed_monthly || (settings.gas_prod_fixed_daily || 0) * Math.max(0, dayCount || 0));
+  }
   return usage * (settings.gas_prod_price_m3 || 0)
     + (settings.gas_prod_fixed_daily || 0) * Math.max(0, dayCount || 0);
 }
@@ -127,6 +142,12 @@ export function gasProductionDailyCost(usageM3, totalUsageM3, settings = {}, day
     const fixedTotal = Math.min(invoiceNet, (settings.gas_prod_fixed_daily || 0) * days);
     const variableTotal = invoiceNet - fixedTotal;
     return fixedTotal / days + (usage / totalUsage) * variableTotal;
+  }
+
+  if (Number.isFinite(settings.gas_prod_price_kwh) && settings.gas_prod_price_kwh >= 0) {
+    const fixedDaily = Number.isFinite(settings.gas_prod_fixed_monthly) && settings.gas_prod_fixed_monthly >= 0 && days > 0
+      ? settings.gas_prod_fixed_monthly / days : (settings.gas_prod_fixed_daily || 0);
+    return gasProductionKwh(usage, settings) * settings.gas_prod_price_kwh + fixedDaily;
   }
 
   return usage * (settings.gas_prod_price_m3 || 0)

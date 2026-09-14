@@ -20,8 +20,11 @@ import {
   electricityMonthlyFees,
   electricityReconciliation,
   gasProductionDailyCost,
+  gasProductionKwh,
   gasProductionMonthlyCost,
   gasProductionReconciliation,
+  DEFAULT_GAS_PROD_KWH_PER_M3,
+  DEFAULT_GAS_PROD_PRICE_KWH,
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
@@ -199,6 +202,9 @@ const DEFAULT_SETTINGS = {
   elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
   elec_invoice_kwh: null, elec_invoice_net: null,
   gas_prod_price_m3: 1.95, gas_prod_fixed_daily: 173.51,
+  gas_prod_kwh_per_m3: DEFAULT_GAS_PROD_KWH_PER_M3,
+  gas_prod_price_kwh: DEFAULT_GAS_PROD_PRICE_KWH,
+  gas_prod_fixed_monthly: 5205.24,
   gas_prod_invoice_kwh: null, gas_prod_invoice_net: null,
   gas_heat_price_m3: 6.15, gas_heat_fixed_monthly: 49.78,
   water_price_m3: 16.25, water_fixed_monthly: 20.10,
@@ -350,7 +356,7 @@ export default function CostsView() {
     // Stawki: jeśli miesiąc nie ma własnych, dziedzicz z ostatniego ZAPISANEGO wcześniejszego miesiąca.
     // Domyślne z kodu tylko gdy nie ma żadnej historii.
     if (sets) {
-      setSettings(sets);
+      setSettings({ ...DEFAULT_SETTINGS, ...sets });
     } else {
       if (prevSet) {
         // odrzucamy id (i znacznik czasu), żeby zapis utworzył NOWY wiersz dla tego miesiąca, nie nadpisał poprzedni
@@ -674,6 +680,7 @@ export default function CostsView() {
     const elecMonthlyFees = electricityMonthlyFees(settings);
     const elec_cost = elec_usage * settings.elec_price_kwh + (suppressed ? 0 : (elecMonthlyFees / daysInMonth));
     const gas_prod_usage = suppressed ? 0 : consumptionAt(idx, 'gas_prod');
+    const gas_prod_kwh = suppressed ? 0 : gasProductionKwh(gas_prod_usage, settings);
     const gas_prod_cost = suppressed
       ? 0
       : gasProductionDailyCost(gas_prod_usage, gasProdUsageForMonth, settings, daysInMonth);
@@ -689,7 +696,7 @@ export default function CostsView() {
     const pln_kg = ton > 0 ? total_cost / ton : 0;
     const meterIssues = Object.fromEntries(meterBases.map(base => [base, meterIssueAt(idx, base)]));
 
-    return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg, meterIssues };
+    return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_prod_kwh, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg, meterIssues };
   };
 
   // Monthly totals
@@ -706,10 +713,10 @@ export default function CostsView() {
     acc.total += c.total_cost;
     // consumption totals
     acc.kmFiat += c.fiat_km; acc.kmIsuzu += c.isuzu_km; acc.kmMerc += c.merc_km; acc.kmIveco += c.iveco_km;
-    acc.kWh += c.elec_usage; acc.m3GasProd += c.gas_prod_usage; acc.m3GasHeat += c.gas_heat_usage; acc.m3Water += c.water_usage;
+    acc.kWh += c.elec_usage; acc.m3GasProd += c.gas_prod_usage; acc.kWhGasProd += c.gas_prod_kwh; acc.m3GasHeat += c.gas_heat_usage; acc.m3Water += c.water_usage;
     return acc;
   }, { transport: 0, elec: 0, gasProd: 0, gasHeat: 0, gas: 0, water: 0, workers: 0, other: 0, total: 0,
-       kmFiat: 0, kmIsuzu: 0, kmMerc: 0, kmIveco: 0, kWh: 0, m3GasProd: 0, m3GasHeat: 0, m3Water: 0 });
+       kmFiat: 0, kmIsuzu: 0, kmMerc: 0, kmIveco: 0, kWh: 0, m3GasProd: 0, kWhGasProd: 0, m3GasHeat: 0, m3Water: 0 });
   const monthlyTotals = calculateTotals(false);
   const forecastTotals = calculateTotals(true);
   const elecReconciliation = electricityReconciliation(settings, forecastTotals.kWh, forecastTotals.elec);
@@ -1314,7 +1321,7 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
       ['elec_invoice_net', t('costs.invoiceNet')],
     ]},
     { title: t('costs.productionGas'), color: CAT.gas, fields: [
-      ['gas_prod_price_m3', t('costs.ratePerM3')], ['gas_prod_fixed_daily', t('costs.subscriptionDaily')],
+      ['gas_prod_kwh_per_m3', t('costs.gasKwhPerM3')], ['gas_prod_price_kwh', t('costs.ratePerKwh')], ['gas_prod_fixed_monthly', t('costs.subscriptionMonthly')],
     ]},
     { title: t('costs.productionGasInvoice'), color: CAT.gas, isInvoiceSection: true, fields: [
       ['gas_prod_invoice_kwh', t('costs.invoiceKwh')],
@@ -1493,10 +1500,10 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
     decreased: t('costs.decreasedMeter'),
     missing_baseline: t('costs.missingMeterBaseline'),
   })[status] || '';
-  const reading = (dStr, dt, base, cons, unit, status) => valCell(
+  const reading = (dStr, dt, base, cons, unit, status, calculatedUnit = '') => valCell(
     meterIssueText(status) ? { ...newTdStyle, boxShadow: `inset 0 0 0 2px ${status === 'missing_baseline' ? IOS_THEME.warning : '#EF4444'}` } : newTdStyle,
     <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
-    status === 'reset' ? t('costs.meterResetShort') : cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span></> : '',
+    status === 'reset' ? t('costs.meterResetShort') : cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span>{calculatedUnit ? <> · {calculatedUnit}</> : ''}</> : '',
     undefined,
     { title: meterIssueText(status) },
   );
@@ -1564,7 +1571,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
                     CAT.transport)}
                   {reading(dStr, dt, 'elec', c.elec_usage, 'kWh', c.meterIssues.elec)}
                   {valCell(costCellStyle(CAT.elec), FMT(c.elec_cost), '')}
-                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³', c.meterIssues.gas_prod)}
+                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³', c.meterIssues.gas_prod, `${FMT0(c.gas_prod_kwh)} kWh`)}
                   {valCell(costCellStyle(CAT.gas), FMT(c.gas_prod_cost), '')}
                   {reading(dStr, dt, 'gas_heat', c.gas_heat_usage, 'm³', c.meterIssues.gas_heat)}
                   {valCell(costCellStyle('#4A148C'), FMT(c.gas_heat_cost), '')}
