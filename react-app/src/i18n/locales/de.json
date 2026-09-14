@@ -1186,7 +1186,7 @@
       "otherReadyHint": "Fertige Wäsche einer anderen Route kann direkt übernommen werden.",
       "noOtherReady": "Keine fertige saubere Wäsche von anderen Routen",
       "dirtyOnlyTitle": "2. Stopps nur für Schmutzwäsche",
-      "dirtyOnlyHint": "Kunden aus beliebigen Routen hinzufügen, bei denen heute nur Schmutzwäsche abgeholt wird.",
+      "dirtyOnlyHint": "Kunden aus einer beliebigen Route wählen — der Stopp wird sofort hinzugefügt.",
       "selectDirtyClient": "Kunden wählen…",
       "ownRouteClients": "Kunden aus den Routen dieses Kurses",
       "otherRouteClients": "Kunden aus anderen Routen",

@@ -1196,7 +1196,7 @@
       "otherReadyHint": "Możesz dołożyć gotowe pranie z innej trasy i od razu odebrać je z pralni.",
       "noOtherReady": "Brak gotowego czystego z innych tras",
       "dirtyOnlyTitle": "2. Punkty tylko po brudne",
-      "dirtyOnlyHint": "Dodaj klienta z dowolnej trasy, od którego masz dziś odebrać tylko brudne.",
+      "dirtyOnlyHint": "Wybierz klienta z dowolnej trasy — punkt zostanie dodany od razu.",
       "selectDirtyClient": "Wybierz klienta…",
       "ownRouteClients": "Klienci z tras tego kursu",
       "otherRouteClients": "Klienci z innych tras",

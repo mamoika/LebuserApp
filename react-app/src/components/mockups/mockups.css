@@ -2600,16 +2600,13 @@
 }
 .live-load-undo:active { transform: scale(.97); }
 .live-dirty-plan-add {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
   margin-bottom: 12px;
 }
-.live-dirty-plan-add .live-start-claim-btn {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.live-dirty-plan-select {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  cursor: pointer;
 }
 .live-dirty-plan-list {
   display: grid;
@@ -2617,18 +2614,18 @@
 }
 .live-dirty-plan-item {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  min-height: 54px;
-  padding: 9px 10px;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg-card-solid);
 }
 .live-dirty-plan-pin {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border-radius: 9px;
@@ -2657,9 +2654,24 @@
   font-size: 11px;
   font-weight: 650;
 }
+.live-dirty-plan-actions {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+}
+.live-dirty-plan-actions .live-stop-nav {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+}
 .live-dirty-plan-remove {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border: 0;
@@ -2755,7 +2767,6 @@
 @media (max-width: 380px) {
   .live-start-car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .live-load-actions { grid-template-columns: 1fr; }
-  .live-dirty-plan-add { grid-template-columns: 1fr; }
   .live-load-loaded-row { grid-template-columns: 1fr; }
 }
 

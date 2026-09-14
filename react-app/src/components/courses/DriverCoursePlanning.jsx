@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Navigation2, Package, PlayCircle, Plus,
+  CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Navigation2, Package, PlayCircle,
   RotateCcw, Truck, UserCheck, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -95,7 +95,6 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   const { sessionToken } = useAuth();
   const { entries, clients, allRoutes, refetch } = useAppData();
   const [busy, setBusy] = useState(false);
-  const [dirtyClient, setDirtyClient] = useState('');
   const [otherReadyOpen, setOtherReadyOpen] = useState(false);
 
   const routeMap = useMemo(
@@ -166,11 +165,6 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     }),
     [dirtyCandidates],
   );
-  const selectedDirtyCandidate = useMemo(
-    () => dirtyCandidates.find(candidate => candidate.client_id === dirtyClient) || null,
-    [dirtyCandidates, dirtyClient],
-  );
-
   const loadedGroups = useMemo(
     () => [...ownReady, ...otherReady].filter(group => group.loadedIds.length > 0),
     [ownReady, otherReady],
@@ -243,26 +237,32 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     }
   };
 
-  const addDirtyStop = async () => {
-    if (!selectedDirtyCandidate) return;
+  const addDirtyStop = async candidate => {
+    if (!candidate || busy) return;
     try {
       setBusy(true);
       if (adminMode) {
         await callExistingTripRpc('admin_add_dirty_planned_stop', sessionToken, {
           p_trip_id: trip.id,
-          p_client_id: selectedDirtyCandidate.client_id,
+          p_client_id: candidate.client_id,
         });
       } else {
-        await addDirtyPlannedStop(sessionToken, trip.id, selectedDirtyCandidate.client_id);
+        await addDirtyPlannedStop(sessionToken, trip.id, candidate.client_id);
       }
-      toastSuccess(t('course.planning.dirtyAdded', { name: selectedDirtyCandidate.client_name }));
-      setDirtyClient('');
+      toastSuccess(t('course.planning.dirtyAdded', { name: candidate.client_name }));
       await reload();
     } catch (error) {
       toastError(error.message);
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleDirtyClientChange = event => {
+    const candidate = dirtyCandidates.find(
+      item => String(item.client_id) === event.target.value,
+    );
+    if (candidate) void addDirtyStop(candidate);
   };
 
   const removeDirtyStop = async stop => {
@@ -391,16 +391,18 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
                   </span>
                 </div>
                 {!readOnly && (
-                  <button
-                    type="button"
-                    className="live-dirty-plan-remove"
-                    onClick={() => removeScheduledStop(stop)}
-                    disabled={busy}
-                    aria-label={t('course.planning.removeScheduledAria', { name: stop.client_name })}
-                    title={t('course.planning.remove')}
-                  >
-                    <X size={16} aria-hidden="true" />
-                  </button>
+                  <div className="live-dirty-plan-actions">
+                    <button
+                      type="button"
+                      className="live-dirty-plan-remove"
+                      onClick={() => removeScheduledStop(stop)}
+                      disabled={busy}
+                      aria-label={t('course.planning.removeScheduledAria', { name: stop.client_name })}
+                      title={t('course.planning.remove')}
+                    >
+                      <X size={18} aria-hidden="true" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -443,7 +445,13 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
 
         {!readOnly && dirtyCandidates.length > 0 && (
           <div className="live-dirty-plan-add">
-            <select className="ap-input" value={dirtyClient} onChange={event => setDirtyClient(event.target.value)} disabled={busy}>
+            <select
+              className="ap-input live-dirty-plan-select"
+              value=""
+              onChange={handleDirtyClientChange}
+              disabled={busy}
+              aria-label={t('course.planning.selectDirtyClient')}
+            >
               <option value="">{t('course.planning.selectDirtyClient')}</option>
               {dirtyCandidateGroups.own.length > 0 && (
                 <optgroup label={t('course.planning.ownRouteClients')}>
@@ -468,9 +476,6 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
                 </optgroup>
               )}
             </select>
-            <button type="button" className="live-start-claim-btn" onClick={addDirtyStop} disabled={busy || !selectedDirtyCandidate}>
-              <Plus size={15} aria-hidden="true" /> {t('course.add')}
-            </button>
           </div>
         )}
 
@@ -499,28 +504,32 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
                       {stop.stop_kind !== 'dirty_only' && t('course.planning.dirtyReported')}
                     </span>
                   </div>
-                  {navUrl && (
-                    <a
-                      href={navUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="driver-nav-btn live-stop-nav"
-                      style={{ marginLeft: 'auto', marginRight: (!readOnly && stop.stop_kind === 'dirty_only') ? '6px' : '0' }}
-                      title={t('clients.navigateToClient', 'Nawiguj do klienta w Google Maps')}
-                    >
-                      <Navigation2 size={14} />
-                    </a>
-                  )}
-                  {!readOnly && stop.stop_kind === 'dirty_only' && (
-                    <button
-                      type="button"
-                      className="live-dirty-plan-remove"
-                      onClick={() => removeDirtyStop(stop)}
-                      disabled={busy}
-                      aria-label={t('course.planning.removeDirtyAria', { name: stop.client_name })}
-                    >
-                      <X size={16} aria-hidden="true" />
-                    </button>
+                  {(navUrl || (!readOnly && stop.stop_kind === 'dirty_only')) && (
+                    <div className="live-dirty-plan-actions">
+                      {navUrl && (
+                        <a
+                          href={navUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="driver-nav-btn live-stop-nav"
+                          aria-label={t('clients.navigateToClient', 'Nawiguj do klienta w Google Maps')}
+                          title={t('clients.navigateToClient', 'Nawiguj do klienta w Google Maps')}
+                        >
+                          <Navigation2 size={18} aria-hidden="true" />
+                        </a>
+                      )}
+                      {!readOnly && stop.stop_kind === 'dirty_only' && (
+                        <button
+                          type="button"
+                          className="live-dirty-plan-remove"
+                          onClick={() => removeDirtyStop(stop)}
+                          disabled={busy}
+                          aria-label={t('course.planning.removeDirtyAria', { name: stop.client_name })}
+                        >
+                          <X size={18} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
