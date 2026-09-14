@@ -369,15 +369,13 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
         </div>
       )}
 
-      <div className="driver-focus-card live-planning-section">
-        <h2 className="live-planning-section-title">
-          <CalendarClock size={16} aria-hidden="true" />
-          {t('course.planning.scheduledTitle')}
-        </h2>
-        <p className="live-planning-section-hint">{t('course.planning.scheduledHint')}</p>
-        {scheduledStops.length === 0 ? (
-          <div className="live-dirty-plan-empty">{t('course.planning.noScheduled')}</div>
-        ) : (
+      {scheduledStops.length > 0 && (
+        <div className="driver-focus-card live-planning-section">
+          <h2 className="live-planning-section-title">
+            <CalendarClock size={16} aria-hidden="true" />
+            {t('course.planning.scheduledTitle')}
+          </h2>
+          <p className="live-planning-section-hint">{t('course.planning.scheduledHint')}</p>
           <div className="live-dirty-plan-list">
             {scheduledStops.map(stop => (
               <div className="live-dirty-plan-item" key={stop.id}>
@@ -404,8 +402,8 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="driver-focus-card live-planning-section">
         <h2 className="live-planning-section-title">

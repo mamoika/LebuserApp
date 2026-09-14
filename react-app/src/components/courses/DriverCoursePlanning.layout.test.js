@@ -16,3 +16,16 @@ test('an automatically scheduled stop can be removed during planning', () => {
     'each scheduled stop must expose a labelled remove control',
   );
 });
+
+test('the scheduled-stops module stays hidden until planned points exist', () => {
+  assert.match(
+    source,
+    /\{scheduledStops\.length > 0 && \([\s\S]*?course\.planning\.scheduledTitle[\s\S]*?scheduledStops\.map/,
+    'the whole module should only render when at least one planned stop exists',
+  );
+  assert.doesNotMatch(
+    source,
+    /scheduledStops\.length === 0[\s\S]*?course\.planning\.noScheduled/,
+    'an empty scheduled-stops card should not be rendered',
+  );
+});
