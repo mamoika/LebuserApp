@@ -10,11 +10,18 @@ alter table public.cost_settings
     check (gas_prod_fixed_monthly >= 0);
 
 -- Zachowujemy dotychczasową procedurę zapisu wszystkich starych stawek,
--- a nowy wrapper zapisuje dodatkowo trzy pola gazowe.
-alter function public.admin_upsert_cost_settings(text, jsonb)
-  rename to admin_upsert_cost_settings_legacy;
+-- a nowy wrapper zapisuje dodatkowo trzy pola gazowe. Warunek pozwala
+-- bezpiecznie uruchomić plik ponownie po częściowo wykonanej migracji.
+do $$
+begin
+  if to_regprocedure('public.admin_upsert_cost_settings_legacy(text,jsonb)') is null then
+    alter function public.admin_upsert_cost_settings(text, jsonb)
+      rename to admin_upsert_cost_settings_legacy;
+  end if;
+end;
+$$;
 
-create function public.admin_upsert_cost_settings(
+create or replace function public.admin_upsert_cost_settings(
   p_session_token text,
   p_settings jsonb
 )
