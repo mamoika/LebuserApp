@@ -1322,6 +1322,11 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
     ]},
     { title: t('costs.productionGas'), color: CAT.gas, fields: [
       ['gas_prod_kwh_per_m3', t('costs.gasKwhPerM3')], ['gas_prod_price_kwh', t('costs.ratePerKwh')], ['gas_prod_fixed_monthly', t('costs.subscriptionMonthly')],
+    ], explanation: [
+      t('costs.gasFormulaConversion'),
+      t('costs.gasFormulaVariableRate'),
+      t('costs.gasFormulaFixedRate'),
+      t('costs.gasFormulaDailyCost'),
     ]},
     { title: t('costs.productionGasInvoice'), color: CAT.gas, isInvoiceSection: true, fields: [
       ['gas_prod_invoice_kwh', t('costs.invoiceKwh')],
@@ -1355,6 +1360,12 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
             {g.isInvoiceSection && (
               <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${IOS_THEME.border}`, color: IOS_THEME.textSecondary, fontSize: '12px' }}>
                 <div style={{ color: IOS_THEME.textSecondary }}>{t('costs.invoiceDataHint')}</div>
+              </div>
+            )}
+            {g.explanation && (
+              <div style={{ marginTop: '12px', padding: '10px 11px', borderRadius: '9px', background: opaqueTint(g.color, 0.07), color: IOS_THEME.textSecondary, fontSize: '11.5px', lineHeight: 1.45 }}>
+                <div style={{ color: g.color, fontWeight: 700, marginBottom: '5px' }}>{t('costs.gasFormulaTitle')}</div>
+                {g.explanation.map((line, index) => <div key={line} style={{ marginTop: index ? '4px' : 0 }}>{line}</div>)}
               </div>
             )}
           </div>
@@ -1571,8 +1582,8 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
                     CAT.transport)}
                   {reading(dStr, dt, 'elec', c.elec_usage, 'kWh', c.meterIssues.elec)}
                   {valCell(costCellStyle(CAT.elec), FMT(c.elec_cost), '')}
-                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³', c.meterIssues.gas_prod, `${FMT0(c.gas_prod_kwh)} kWh`)}
-                  {valCell(costCellStyle(CAT.gas), FMT(c.gas_prod_cost), '')}
+                  {reading(dStr, dt, 'gas_prod', c.gas_prod_usage, 'm³', c.meterIssues.gas_prod)}
+                  {valCell(costCellStyle(CAT.gas), FMT(c.gas_prod_cost), c.gas_prod_kwh > 0 ? `${FMT0(c.gas_prod_kwh)} kWh` : '')}
                   {reading(dStr, dt, 'gas_heat', c.gas_heat_usage, 'm³', c.meterIssues.gas_heat)}
                   {valCell(costCellStyle('#4A148C'), FMT(c.gas_heat_cost), '')}
                   {reading(dStr, dt, 'water', c.water_usage, 'm³', c.meterIssues.water)}
