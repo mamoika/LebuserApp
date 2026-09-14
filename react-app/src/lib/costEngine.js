@@ -33,8 +33,9 @@ export const OPTIONAL_COST_SETTING_FIELDS = [
   'gas_prod_invoice_net',
 ];
 
-// Referencyjne wartości z faktury za czerwiec 2026: 95 698 kWh dla 8 500 m³ Vb.
-export const DEFAULT_GAS_PROD_KWH_PER_M3 = 95698 / 8500;
+// Aktualny współczynnik potwierdzony na przeliczniku CMK-03:
+// ΔE 5 611,844 kWh / ΔVb 464,164 m³ = 12,090218 kWh/m³.
+export const DEFAULT_GAS_PROD_KWH_PER_M3 = 12.09021811256326;
 export const DEFAULT_GAS_PROD_PRICE_KWH = (21665.07 + 2988.65) / 95698;
 
 export function gasProductionKwh(usageM3, settings = {}) {

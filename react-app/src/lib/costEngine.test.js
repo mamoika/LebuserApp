@@ -9,6 +9,7 @@ import {
   electricityMonthlyCost,
   electricityReconciliation,
   gasProductionDailyCost,
+  gasProductionKwh,
   gasProductionMonthlyCost,
   gasProductionReconciliation,
   invalidCostSettingFields,
@@ -274,6 +275,13 @@ test('production gas invoice net is the authoritative monthly cost', () => {
     gas_prod_price_m3: 1.95,
     gas_prod_fixed_daily: 173.508,
   }, 30), 36645.09);
+});
+
+test('production gas converts Vb to kWh using the CMK-03 verified factor', () => {
+  assert.equal(
+    Math.round(gasProductionKwh(464.164) * 1000) / 1000,
+    5611.844,
+  );
 });
 
 test('production gas invoice cost is allocated exactly across days without meter readings', () => {

@@ -2,7 +2,7 @@
 -- Dane startowe pochodzą z faktury Elenger za 01–30.06.2026.
 
 alter table public.cost_settings
-  add column if not exists gas_prod_kwh_per_m3 numeric not null default 11.258588235294118
+  add column if not exists gas_prod_kwh_per_m3 numeric not null default 12.09021811256326
     check (gas_prod_kwh_per_m3 > 0),
   add column if not exists gas_prod_price_kwh numeric not null default 0.25762
     check (gas_prod_price_kwh >= 0),
@@ -52,3 +52,14 @@ end;
 $$;
 
 grant execute on function public.admin_upsert_cost_settings(text, jsonb) to anon, authenticated;
+
+-- Korekta po odczytach CMK-03 z 14.09.2026: rzeczywisty przyrost energii
+-- wyniósł 5 611,844 kWh przy 464,164 m³ Vb. Zmieniamy wyłącznie wcześniejszą
+-- domyślną wartość, pozostawiając ręcznie ustawione przeliczniki bez zmian.
+alter table public.cost_settings
+  alter column gas_prod_kwh_per_m3 set default 12.09021811256326;
+
+update public.cost_settings
+set gas_prod_kwh_per_m3 = 12.09021811256326,
+    updated_at = now()
+where abs(gas_prod_kwh_per_m3 - 11.258588235294118) < 0.000001;
