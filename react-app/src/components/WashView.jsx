@@ -3,11 +3,13 @@ import {
   Archive,
   CheckCircle2,
   Clock3,
+  Maximize2,
   MoreHorizontal,
   Package,
   PackageCheck,
   RefreshCw,
   RotateCcw,
+  Trash2,
   Truck,
   WashingMachine,
 } from 'lucide-react';
@@ -231,20 +233,23 @@ function isEntryIssuedToDriver(entry) {
   );
 }
 
+const isRealTrolley = (cycle) => Boolean(cycle?.trolley_no && String(cycle.trolley_no).trim().toLowerCase() !== 'brak');
+
 const getTrolleyStatus = (cycle, entryById) => {
   if (cycle.status === 'canceled') return { key: 'canceled', label: 'COFNIĘTO PAKOWANIE', tone: 'neutral' };
 
   const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
-  const delivered = linked.some(e => e.delivered_at);
-  const picked = linked.some(e => e.picked_at);
+  const delivered = Boolean(cycle.is_delivered || linked.some(e => e.delivered_at || e.delivered));
+  const picked = Boolean(cycle.is_issued_to_driver || linked.some(e => e.picked_at));
 
-  // "Bez wózka" nie ma fizycznego wózka do zwrócenia — returned_at ustawiamy tu
-  // automatycznie w chwili pakowania (żeby nie liczyło się jako zajęty wózek),
-  // więc to pole nie mówi nic o faktycznym postępie. Pomijamy je i pokazujemy
-  // realny status dostawy zamiast mylącego "WRÓCIŁ".
-  if (cycle.trolley_no === 'brak') {
-    if (delivered) return { key: 'delivered', label: 'Dostarczony', tone: 'delivered' };
+  // "Bez wózka" (paczka / worek)
+  if (!isRealTrolley(cycle)) {
+    if (cycle.status === 'returned' || cycle.returned_at || delivered) {
+      return { key: 'delivered', label: 'Dostarczona (bez wózka)', tone: 'delivered' };
+    }
     if (picked) return { key: 'picked', label: 'W trasie', tone: 'picked' };
+    const isOldCycle = cycle.packed_at && (Date.now() - new Date(cycle.packed_at).getTime() > 7 * 86400000);
+    if (isOldCycle) return { key: 'delivered', label: 'Zrealizowana (archiwum)', tone: 'delivered' };
     return { key: 'packed', label: 'Spakowane (bez wózka)', tone: 'packed' };
   }
 
@@ -258,12 +263,16 @@ const getTrolleyStatus = (cycle, entryById) => {
 function getCycleTransportState(cycle, entryById) {
   const status = getTrolleyStatus(cycle, entryById);
   const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
-  const driver = [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
-  const deliveredAt = linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
-  const pickedAt = linked.map(entry => entry.picked_at).filter(Boolean).sort().at(-1);
+  const driver = cycle.driver_name || [...new Set(linked.map(entry => entry.picked_by).filter(Boolean))].join(', ');
+  const deliveredAt = cycle.entry_delivered_at || linked.map(entry => entry.delivered_at).filter(Boolean).sort().at(-1);
+  const pickedAt = cycle.entry_picked_at || linked.map(entry => entry.picked_at).filter(Boolean).sort().at(-1);
+  const isOldCycle = cycle.packed_at && (Date.now() - new Date(cycle.packed_at).getTime() > 7 * 86400000);
   const isIssuedToDriver = Boolean(
-    pickedAt
+    cycle.is_issued_to_driver
+    || cycle.is_delivered
+    || pickedAt
     || deliveredAt
+    || (!isRealTrolley(cycle) && (cycle.status === 'returned' || cycle.returned_at || isOldCycle))
     || status.key === 'picked'
     || status.key === 'delivered'
     || status.key === 'at_client'
@@ -319,6 +328,7 @@ export default function WashView() {
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
   const [workFilter, setWorkFilter] = useState('all');
+  const [trolleyTab, setTrolleyTab] = useState('active'); // 'active' | 'fleet' | 'packages' | 'history'
 
   const canEditWash = canEditModule('wash');
   const hasWashRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker);
@@ -482,8 +492,28 @@ export default function WashView() {
     });
   }, [clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
+  // Tylko realne fizyczne wózki 1–40 (wykluczamy 'brak' pakowany bez wózka)
   const activeTrolleys = useMemo(
-    () => trolleys.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status)),
+    () => trolleys.filter(cycle => 
+      isRealTrolley(cycle) && 
+      !cycle.returned_at && 
+      !['returned', 'canceled'].includes(cycle.status)
+    ),
+    [trolleys]
+  );
+
+  // Wydania bez wózka (worki / paczki)
+  const packageCycles = useMemo(
+    () => trolleys.filter(cycle => !isRealTrolley(cycle)),
+    [trolleys]
+  );
+
+  // Historia zwróconych lub anulowanych wózków
+  const historyTrolleys = useMemo(
+    () => trolleys.filter(cycle => 
+      isRealTrolley(cycle) && 
+      (Boolean(cycle.returned_at) || ['returned', 'canceled'].includes(cycle.status))
+    ),
     [trolleys]
   );
 
@@ -495,7 +525,9 @@ export default function WashView() {
   const activeTrolleyByNo = useMemo(() => {
     const map = new Map();
     activeTrolleys.forEach(cycle => {
-      map.set(String(cycle.trolley_no || '').trim().toLowerCase(), cycle);
+      if (isRealTrolley(cycle)) {
+        map.set(String(cycle.trolley_no || '').trim().toLowerCase(), cycle);
+      }
     });
     return map;
   }, [activeTrolleys]);
@@ -729,14 +761,54 @@ export default function WashView() {
     });
   };
 
-  const handleDeleteTrolley = async (cycle) => {
-    if (!window.confirm(`Czy na pewno chcesz bezpowrotnie USUNĄĆ cykl wózka ${cycle.trolley_no}? Tej operacji nie można cofnąć.`)) return;
+  const handleDeleteTrolley = async (cycle, force = false) => {
+    const isVirtual = !isRealTrolley(cycle);
+    const label = isVirtual ? `wpis paczki (${cycle.client_name})` : `cykl wózka ${cycle.trolley_no}`;
+    const confirmMsg = force 
+      ? `Czy na pewno chcesz WYMUSIĆ usunięcie wpisu ${label}? Zostanie on bezpowrotnie usunięty z bazy.`
+      : `Czy na pewno chcesz bezpowrotnie USUNĄĆ ${label}? Tej operacji nie można cofnąć.`;
+    if (!window.confirm(confirmMsg)) return;
     try {
       setBusyKey(`delete:${cycle.id}`);
-      await deleteLaundryTrolley(sessionToken, cycle.id);
+      const res = await deleteLaundryTrolley(sessionToken, cycle.id, force);
+      if (res?.can_force && !force) {
+        if (window.confirm(`${res.error}\n\nCzy chcesz WYMUSIĆ usunięcie tego wpisu jako Administrator?`)) {
+          await handleDeleteTrolley(cycle, true);
+          return;
+        }
+      }
+      toastSuccess(`Usunięto ${label}`);
       await Promise.all([refetch(), fetchWorkflow()]);
     } catch (e) {
-      alert(`Błąd: ${e.message}`);
+      if (e.message?.includes('can_force') || e.message?.includes('wymuszonego usunięcia') || e.message?.includes('po wydaniu kierowcy')) {
+        if (window.confirm(`${e.message}\n\nCzy chcesz WYMUSIĆ usunięcie tego wpisu jako Administrator?`)) {
+          await handleDeleteTrolley(cycle, true);
+          return;
+        }
+      }
+      toastError(`Błąd: ${e.message}`);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleClearOldPackages = async () => {
+    if (!window.confirm(`Czy na pewno chcesz usunąć wszystkie (${packageCycles.length}) wpisy wydań bez wózka?`)) return;
+    try {
+      setBusyKey('clear-old-packages');
+      let deletedCount = 0;
+      for (const cycle of packageCycles) {
+        try {
+          await deleteLaundryTrolley(sessionToken, cycle.id, true);
+          deletedCount++;
+        } catch {
+          // kontynuuj usuwanie pozostałych
+        }
+      }
+      toastSuccess(`Usunięto ${deletedCount} wpisów bez wózka`);
+      await Promise.all([refetch(), fetchWorkflow()]);
+    } catch (e) {
+      toastError(`Błąd podczas czyszczenia: ${e.message}`);
     } finally {
       setBusyKey(null);
     }
@@ -752,6 +824,161 @@ export default function WashView() {
     } finally {
       setBusyKey(null);
     }
+  };
+
+  const renderTrolleyCardItem = (cycle) => {
+    const { status, driver, deliveredAt, isIssuedToDriver } = getCycleTransportState(cycle, entryById);
+    const busyReturn = busyKey === `return:${cycle.id}`;
+    const busyCancel = busyKey === `cancel:${cycle.id}`;
+    const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
+    const busyDelete = busyKey === `delete:${cycle.id}`;
+    const busyAtClient = busyKey === `at-client:${cycle.id}`;
+    const busyKg = busyKey === `kg:${cycle.id}`;
+    const isNoTrolley = !isRealTrolley(cycle);
+    const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
+    const isEditingKg = cycle.id in kgEdit;
+    const canCancelCycle = hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver;
+    const canUndoPackNoTrolley = hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver;
+    const canUndoReturn = hasPackRole && status.key === 'returned';
+    const canDelete = isAdmin;
+    const canReturnTrolley = hasPackRole && !isNoTrolley && !cycle.returned_at && status.key !== 'canceled' && ['picked', 'delivered', 'at_client'].includes(status.key);
+    const canSetAtClient = hasPackRole && !cycle.returned_at && status.key === 'delivered';
+
+    return (
+      <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
+        <div className="laundry-trolley-top">
+          <div>
+            <span>{isNoTrolley ? 'Wydanie' : 'Wózek'}</span>
+            {isNoTrolley ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                <Package size={18} color="var(--text-secondary)" />
+                <strong style={{ fontSize: '18px' }}>Bez wózka</strong>
+              </div>
+            ) : (
+              <strong>{cycle.trolley_no}</strong>
+            )}
+          </div>
+          <span className={`laundry-trolley-status tone-${status.tone}`}>{status.label}</span>
+        </div>
+        <div className="laundry-trolley-client">{cycle.client_name}</div>
+        <div className="laundry-trolley-grid">
+          <span>kg</span>
+          {kgUnknown && hasPackRole ? (
+            isEditingKg ? (
+              <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  placeholder="kg"
+                  value={kgEdit[cycle.id]}
+                  onChange={e => setKgEdit(prev => ({ ...prev, [cycle.id]: e.target.value }))}
+                  style={{ width: '60px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
+                />
+                <button type="button" onClick={() => handleSaveTrolleyKg(cycle)} disabled={busyKg} style={{ fontSize: '12px', fontWeight: 700 }}>
+                  {busyKg ? 'Zapis…' : 'Zapisz'}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setKgEdit(prev => ({ ...prev, [cycle.id]: '' }))}
+                style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-tertiary)', fontStyle: 'italic', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                waga nieznana — wpisz kg
+              </button>
+            )
+          ) : (
+            <strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
+          )}
+          <span>spakowano</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
+          {driver && <><span>kierowca</span><strong>{driver}</strong></>}
+          {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
+          {!isNoTrolley && cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
+        </div>
+        {hasPackRole && (
+          <div className="laundry-card-actions">
+            {isNoTrolley ? (
+              canUndoPackNoTrolley && (
+                <button
+                  type="button"
+                  className="laundry-return-btn is-danger"
+                  onClick={() => handleUndoPackNoTrolley(cycle)}
+                  disabled={busyCancel}
+                >
+                  <RotateCcw size={15} />
+                  {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
+                </button>
+              )
+            ) : (
+              <>
+                {canCancelCycle && (
+                  <button
+                    type="button"
+                    className="laundry-return-btn is-danger"
+                    onClick={() => handleCancelTrolley(cycle)}
+                    disabled={busyCancel}
+                  >
+                    <RotateCcw size={15} />
+                    {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
+                  </button>
+                )}
+                {canReturnTrolley && (
+                  <button
+                    type="button"
+                    className="laundry-return-btn"
+                    onClick={() => handleReturnTrolley(cycle)}
+                    disabled={busyReturn}
+                  >
+                    <RotateCcw size={15} />
+                    {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
+                  </button>
+                )}
+                {canSetAtClient && (
+                  <button
+                    type="button"
+                    className="laundry-return-btn is-secondary"
+                    onClick={() => handleSetAtClient(cycle)}
+                    disabled={busyAtClient}
+                  >
+                    <Archive size={15} />
+                    {busyAtClient ? 'Zapis…' : 'Został u klienta'}
+                  </button>
+                )}
+                {canUndoReturn && (
+                  <button
+                    type="button"
+                    className="laundry-return-btn is-secondary"
+                    onClick={() => handleUndoReturnTrolley(cycle)}
+                    disabled={busyUndoReturn}
+                  >
+                    <RotateCcw size={15} />
+                    {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
+                  </button>
+                )}
+              </>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                className="laundry-return-btn is-danger"
+                style={{ background: 'rgba(255, 59, 48, 0.08)', color: 'var(--red-600, #dc2626)', border: '1px solid rgba(255, 59, 48, 0.25)' }}
+                onClick={() => handleDeleteTrolley(cycle)}
+                disabled={busyDelete}
+              >
+                <Trash2 size={15} />
+                {busyDelete ? 'Usuwam…' : 'Usuń wpis'}
+              </button>
+            )}
+            {isIssuedToDriver && !canDelete && status.key !== 'returned' && status.key !== 'canceled' && (
+              <div style={{ fontSize: '12px', lineHeight: 1.35, color: 'var(--text-tertiary)', fontWeight: 600, padding: '4px 2px' }}>
+                Wydane kierowcy — najpierw cofnij odbiór/dostawę w trasie, dopiero potem pakowanie.
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    );
   };
 
   const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
@@ -984,170 +1211,226 @@ export default function WashView() {
       <section className="laundry-section">
         <div className="laundry-section-head">
           <div>
-            <h2>Historia i harmonogram wózków</h2>
-            <span>{freeTrolleyCount} wolne · {activeTrolleys.length} zajęte · razem {trolleyCount}</span>
+            <h2>Obieg i harmonogram wózków</h2>
+            <span>{freeTrolleyCount} wolnych w pralni · {activeTrolleys.length} w obiegu · flota {trolleyCount}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {trolleyTab === 'packages' && packageCycles.length > 0 && isAdmin && (
+              <button
+                type="button"
+                className="laundry-header-action is-danger"
+                onClick={handleClearOldPackages}
+                disabled={busyKey === 'clear-old-packages'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 59, 48, 0.25)',
+                  background: 'rgba(255, 59, 48, 0.08)',
+                  color: 'var(--red-600, #dc2626)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <Trash2 size={13} />
+                {busyKey === 'clear-old-packages' ? 'Czyszczenie…' : 'Wyczyść paczki bez wózka'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="laundry-header-action"
+              onClick={() => setTrolleysModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <Maximize2 size={13} />
+              Zarządzaj flotą 1–{trolleyCount}
+            </button>
           </div>
         </div>
 
-        <div className="laundry-trolley-board">
-          {trolleys.length === 0 && (
-            <div className="laundry-empty">
-              Brak historii wózków.
-            </div>
-          )}
-
-          {trolleys.map(cycle => {
-            const { status, driver, deliveredAt, isIssuedToDriver } = getCycleTransportState(cycle, entryById);
-            const busyReturn = busyKey === `return:${cycle.id}`;
-            const busyCancel = busyKey === `cancel:${cycle.id}`;
-            const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
-            const busyDelete = busyKey === `delete:${cycle.id}`;
-            const busyAtClient = busyKey === `at-client:${cycle.id}`;
-            const busyKg = busyKey === `kg:${cycle.id}`;
-            const isNoTrolley = cycle.trolley_no === 'brak';
-            const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
-            const isEditingKg = cycle.id in kgEdit;
-            const canCancelCycle = hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver;
-            const canUndoPackNoTrolley = hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver;
-            const canUndoReturn = hasPackRole && status.key === 'returned';
-            const canDelete = isAdmin && !isIssuedToDriver;
-            const canReturnTrolley = hasPackRole && !isNoTrolley && !cycle.returned_at && status.key !== 'canceled' && ['picked', 'delivered', 'at_client'].includes(status.key);
-            const canSetAtClient = hasPackRole && !cycle.returned_at && status.key === 'delivered';
-
-            return (
-              <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
-                <div className="laundry-trolley-top">
-                  <div>
-                    <span>Wózek</span>
-                    <strong>{cycle.trolley_no}</strong>
-                  </div>
-                  <span className={`laundry-trolley-status tone-${status.tone}`}>{status.label}</span>
-                </div>
-                <div className="laundry-trolley-client">{cycle.client_name}</div>
-                <div className="laundry-trolley-grid">
-                  <span>kg</span>
-                  {kgUnknown && hasPackRole ? (
-                    isEditingKg ? (
-                      <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          autoFocus
-                          placeholder="kg"
-                          value={kgEdit[cycle.id]}
-                          onChange={e => setKgEdit(prev => ({ ...prev, [cycle.id]: e.target.value }))}
-                          style={{ width: '60px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
-                        />
-                        <button type="button" onClick={() => handleSaveTrolleyKg(cycle)} disabled={busyKg} style={{ fontSize: '12px', fontWeight: 700 }}>
-                          {busyKg ? 'Zapis…' : 'Zapisz'}
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setKgEdit(prev => ({ ...prev, [cycle.id]: '' }))}
-                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-tertiary)', fontStyle: 'italic', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-                      >
-                        waga nieznana — wpisz kg
-                      </button>
-                    )
-                  ) : (
-                    <strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
-                  )}
-                  <span>spakowano</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
-                  {driver && <><span>kierowca</span><strong>{driver}</strong></>}
-                  {deliveredAt && <><span>dostarczono</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
-                  {/* "brak" ma returned_at ustawione automatycznie przy pakowaniu — to nie jest
-                      realny powrót wózka, więc dla tych kart tego wiersza nie pokazujemy. */}
-                  {!isNoTrolley && cycle.returned_at && <><span>powrót</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
-                </div>
-                {hasPackRole && (
-                  <div className="laundry-card-actions">
-                    {isNoTrolley ? (
-                      // "Bez wózka" nie jest realnym wózkiem, więc nie ma tu nic do "zwrócenia" —
-                      // jeden przycisk cofa cały pakiet (backend wymaga cofnięcia powrotu przed
-                      // anulowaniem pakowania, robimy to za jednym kliknięciem).
-                      canUndoPackNoTrolley && (
-                        <button
-                          type="button"
-                          className="laundry-return-btn is-danger"
-                          onClick={() => handleUndoPackNoTrolley(cycle)}
-                          disabled={busyCancel}
-                        >
-                          <RotateCcw size={15} />
-                          {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
-                        </button>
-                      )
-                    ) : (
-                      <>
-                        {canCancelCycle && (
-                          <button
-                            type="button"
-                            className="laundry-return-btn is-danger"
-                            onClick={() => handleCancelTrolley(cycle)}
-                            disabled={busyCancel}
-                          >
-                            <RotateCcw size={15} />
-                            {busyCancel ? 'Cofam…' : 'Cofnij pakowanie'}
-                          </button>
-                        )}
-                        {canReturnTrolley && (
-                          <button
-                            type="button"
-                            className="laundry-return-btn"
-                            onClick={() => handleReturnTrolley(cycle)}
-                            disabled={busyReturn}
-                          >
-                            <RotateCcw size={15} />
-                            {busyReturn ? 'Zapis…' : 'Wózek wrócił'}
-                          </button>
-                        )}
-                        {canSetAtClient && (
-                          <button
-                            type="button"
-                            className="laundry-return-btn is-secondary"
-                            onClick={() => handleSetAtClient(cycle)}
-                            disabled={busyAtClient}
-                          >
-                            <Archive size={15} />
-                            {busyAtClient ? 'Zapis…' : 'Został u klienta'}
-                          </button>
-                        )}
-                        {canUndoReturn && (
-                          <button
-                            type="button"
-                            className="laundry-return-btn is-secondary"
-                            onClick={() => handleUndoReturnTrolley(cycle)}
-                            disabled={busyUndoReturn}
-                          >
-                            <RotateCcw size={15} />
-                            {busyUndoReturn ? 'Cofam…' : 'Cofnij powrót'}
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        className="laundry-return-btn is-danger"
-                        style={{ background: 'var(--red-900)' }}
-                        onClick={() => handleDeleteTrolley(cycle)}
-                        disabled={busyDelete}
-                      >
-                        {busyDelete ? 'Usuwam…' : 'Usuń wpis'}
-                      </button>
-                    )}
-                    {isIssuedToDriver && !canDelete && status.key !== 'returned' && status.key !== 'canceled' && (
-                      <div style={{ fontSize: '12px', lineHeight: 1.35, color: 'var(--text-tertiary)', fontWeight: 600, padding: '4px 2px' }}>
-                        Wydane kierowcy — najpierw cofnij odbiór/dostawę w trasie, dopiero potem pakowanie.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })}
+        <div className="segmented-control" style={{ maxWidth: '620px', marginTop: '6px', marginBottom: '14px' }}>
+          <button
+            type="button"
+            className={`seg-btn ${trolleyTab === 'active' ? 'active' : ''}`}
+            onClick={() => setTrolleyTab('active')}
+          >
+            W obiegu ({activeTrolleys.length})
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${trolleyTab === 'fleet' ? 'active' : ''}`}
+            onClick={() => setTrolleyTab('fleet')}
+          >
+            Flota 1–{trolleyCount}
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${trolleyTab === 'packages' ? 'active' : ''}`}
+            onClick={() => setTrolleyTab('packages')}
+          >
+            Bez wózka ({packageCycles.length})
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${trolleyTab === 'history' ? 'active' : ''}`}
+            onClick={() => setTrolleyTab('history')}
+          >
+            Historia ({historyTrolleys.length})
+          </button>
         </div>
+
+        {trolleyTab === 'active' && (
+          activeTrolleys.length === 0 ? (
+            <div className="laundry-empty-state apple-glass" style={{
+              padding: '36px 20px',
+              textAlign: 'center',
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <CheckCircle2 size={36} color="var(--accent-green, #34C759)" />
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Wszystkie wózki są wolne w pralni
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
+                Żaden z {trolleyCount} fizycznych wózków nie jest obecnie zajęty na trasie ani u klienta.
+              </p>
+              <button
+                type="button"
+                className="laundry-return-btn"
+                style={{
+                  display: 'inline-flex',
+                  width: 'auto',
+                  marginTop: '8px',
+                  padding: '7px 16px',
+                  borderRadius: '10px',
+                  gap: '6px',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  fontSize: '13px'
+                }}
+                onClick={() => setTrolleyTab('fleet')}
+              >
+                Przejdź do podglądu floty
+              </button>
+            </div>
+          ) : (
+            <div className="laundry-trolley-board">
+              {activeTrolleys.map(renderTrolleyCardItem)}
+            </div>
+          )
+        )}
+
+        {trolleyTab === 'fleet' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: '10px',
+            marginTop: '4px'
+          }}>
+            {trolleyNumbers.map(tNo => {
+              const active = activeTrolleyByNo.get(tNo);
+              const isFree = !active;
+              const atClient = active?.status === 'at_client';
+              return (
+                <div
+                  key={tNo}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: isFree ? 'var(--bg-card)' : atClient ? 'rgba(255, 149, 0, 0.08)' : 'rgba(0, 122, 255, 0.08)',
+                    border: isFree ? '1px solid var(--border)' : atClient ? '1px solid rgba(255, 149, 0, 0.25)' : '1px solid rgba(0, 122, 255, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <strong style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>#{tNo}</strong>
+                    <span style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: isFree ? 'var(--accent-green, #34C759)' : atClient ? 'var(--accent-orange, #FF9500)' : 'var(--accent, #007AFF)'
+                    }} />
+                  </div>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: isFree ? 'var(--accent-green, #34C759)' : 'var(--text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {isFree ? 'Wolny' : active.client_name}
+                  </span>
+                  {!isFree && (
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      {atClient ? 'U klienta' : `${Number(active.total_kg || 0).toFixed(0)} kg`}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {trolleyTab === 'packages' && (
+          packageCycles.length === 0 ? (
+            <div className="laundry-empty-state" style={{
+              padding: '36px 20px',
+              textAlign: 'center',
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--border)'
+            }}>
+              <Package size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Brak wydań bez wózka w ostatnich 30 dniach.</p>
+            </div>
+          ) : (
+            <div className="laundry-trolley-board">
+              {packageCycles.map(renderTrolleyCardItem)}
+            </div>
+          )
+        )}
+
+        {trolleyTab === 'history' && (
+          historyTrolleys.length === 0 ? (
+            <div className="laundry-empty-state" style={{
+              padding: '36px 20px',
+              textAlign: 'center',
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--border)'
+            }}>
+              <Archive size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Brak historii zwróconych wózków w ostatnich 30 dniach.</p>
+            </div>
+          ) : (
+            <div className="laundry-trolley-board">
+              {historyTrolleys.map(renderTrolleyCardItem)}
+            </div>
+          )
+        )}
       </section>
 
       <section className="laundry-flow-note">

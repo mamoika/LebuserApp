@@ -75,10 +75,11 @@ export function undoReturnLaundryTrolley(sessionToken, cycleId, by) {
   });
 }
 
-export function deleteLaundryTrolley(sessionToken, cycleId) {
+export function deleteLaundryTrolley(sessionToken, cycleId, force = false) {
   return callLaundryRpc('admin_delete_laundry_trolley', {
     p_session_token: sessionToken,
     p_cycle_id: cycleId,
+    p_force: force,
   });
 }
 
