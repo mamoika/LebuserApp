@@ -8,7 +8,7 @@ import { callExistingTripRpc } from '../../lib/courseRpc';
 import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
 import { getWeeklyRoutePlan } from '../../lib/weeklyRoutePlanRpc';
 import { parseRouteIds, routeNamesForTrip, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
-import { assignedRouteIdsForDate } from '../../lib/driverPlanAssignments';
+import { assignedCarForDate, assignedRouteIdsForDate } from '../../lib/driverPlanAssignments';
 import { operationalYmd } from '../../lib/dateUtils';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -32,7 +32,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   const today = operationalYmd();
   const [allTrips, setAllTrips] = useState([]);
   const [defaultCar, setDefaultCar] = useState(null);
-  const [selectedCar, setSelectedCar] = useState(VEHICLES[0].key);
+  const [selectedCar, setSelectedCar] = useState('');
   const [selectedRoutes, setSelectedRoutes] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,13 +69,19 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           user?.name,
           today,
         );
+        const carAssignedToday = assignedCarForDate(
+          routePlan?.trips || [],
+          user?.id,
+          user?.name,
+          today,
+        );
         setDefaultCar(car);
         if (plannedTrip) {
-          setSelectedCar(plannedTrip.car || car || VEHICLES[0].key);
+          setSelectedCar(plannedTrip.car || carAssignedToday || car || '');
           setSelectedRoutes(parseRouteIds(plannedTrip.routes));
         } else {
           setSelectedRoutes(routesAssignedToday);
-          if (car) setSelectedCar(car);
+          setSelectedCar(carAssignedToday || car || '');
         }
         setAllTrips(trips || []);
       } catch (error) {
@@ -122,6 +128,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   };
 
   const startCourse = async () => {
+    if (!selectedCar) return;
     if (selectedRoutes.size === 0) {
       toastError(t('course.start.selectRoute'));
       return;
@@ -264,7 +271,10 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       )}
 
       <div className="driver-focus-card live-start-card">
-        <StartSection label={t('course.start.carToday')}>
+        <StartSection
+          label={t('course.start.carToday')}
+          hint={!selectedCar ? t('course.start.selectCar') : null}
+        >
           <div className="live-start-car-grid" role="group" aria-label={t('course.start.carToday')}>
             {VEHICLES.map(vehicle => {
               const active = selectedCar === vehicle.key;
@@ -324,7 +334,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
         </StartSection>
       </div>
 
-      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || selectedRoutes.size === 0}>
+      <button type="button" className="driver-primary-btn live-start-submit" onClick={startCourse} disabled={busy || !selectedCar || selectedRoutes.size === 0}>
         <PlayCircle size={20} aria-hidden="true" />
         {existingPlanned && !plannedTrip
           ? t('course.start.startCustomRoute')

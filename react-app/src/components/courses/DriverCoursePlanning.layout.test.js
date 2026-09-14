@@ -20,6 +20,16 @@ test('an automatically scheduled stop can be removed during planning', () => {
 test('the scheduled-stops module stays hidden until planned points exist', () => {
   assert.match(
     source,
+    /const isDispatcherPlanned = trip\?\.planning_source === 'dispatcher'/,
+    'dispatcher origin must be explicit and must not be inferred from the planned hour',
+  );
+  assert.match(
+    source,
+    /\(\) => isDispatcherPlanned[\s\S]*?stop\.stop_kind === 'scheduled'/,
+    'driver-created courses must not expose schedule-only stops',
+  );
+  assert.match(
+    source,
     /\{scheduledStops\.length > 0 && \([\s\S]*?course\.planning\.scheduledTitle[\s\S]*?scheduledStops\.map/,
     'the whole module should only render when at least one planned stop exists',
   );
@@ -27,5 +37,10 @@ test('the scheduled-stops module stays hidden until planned points exist', () =>
     source,
     /scheduledStops\.length === 0[\s\S]*?course\.planning\.noScheduled/,
     'an empty scheduled-stops card should not be rendered',
+  );
+  assert.doesNotMatch(
+    source,
+    /trip\?\.driver_name && trip\?\.planned_start/,
+    'dispatcher planning must never be guessed from the informational start hour',
   );
 });

@@ -21,3 +21,10 @@ test('assignment matching does not depend on planned start time', () => {
   );
   assert.doesNotMatch(matchingBlock, /planned_start/);
 });
+
+test('vehicle is empty without an assignment and required before route planning', () => {
+  assert.match(source, /useState\(''\)/);
+  assert.match(source, /setSelectedCar\(carAssignedToday \|\| car \|\| ''\)/);
+  assert.match(source, /disabled=\{busy \|\| !selectedCar \|\| selectedRoutes\.size === 0\}/);
+  assert.match(source, /hint=\{!selectedCar \? t\('course\.start\.selectCar'\) : null\}/);
+});

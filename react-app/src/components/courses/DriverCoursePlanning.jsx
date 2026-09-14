@@ -144,12 +144,15 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
     ),
     [orderedStops],
   );
+  const isDispatcherPlanned = trip?.planning_source === 'dispatcher';
   const scheduledStops = useMemo(
-    () => orderedStops.filter(stop =>
-      stop.status === 'pending'
-      && stop.stop_kind === 'scheduled'
-    ),
-    [orderedStops],
+    () => isDispatcherPlanned
+      ? orderedStops.filter(stop =>
+        stop.status === 'pending'
+        && stop.stop_kind === 'scheduled'
+      )
+      : [],
+    [isDispatcherPlanned, orderedStops],
   );
 
   const dirtyCandidates = useMemo(
@@ -359,7 +362,7 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
         </p>
       </div>
 
-      {trip?.driver_name && trip?.planned_start && (
+      {isDispatcherPlanned && (
         <div className="live-start-banner is-planned">
           <UserCheck size={20} aria-hidden="true" />
           <div>
