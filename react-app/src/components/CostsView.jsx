@@ -1471,11 +1471,11 @@ function ReconciliationMetric({ label, calculated, invoice, difference, differen
 function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false, laborHours = {}, todayKey }) {
   const { t } = useTranslation();
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
-  const meterTh = (icon, label) => (
+  const meterTh = (icon, label, meterLabel = t('costs.meter')) => (
     <th className="sticky-head" style={newThStyle}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{icon} {label}</span>
-        <span style={{ fontSize: '9px', fontWeight: 500, color: IOS_THEME.textSecondary, opacity: 0.7 }}>{t('costs.meter')}</span>
+        <span style={{ fontSize: '9px', fontWeight: 500, color: IOS_THEME.textSecondary, opacity: 0.7 }}>{meterLabel}</span>
       </div>
     </th>
   );
@@ -1522,7 +1522,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.transport, background: opaqueTint(CAT.transport, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.cars')}</span></th>
               {meterTh(<Zap size={13}/>, t('costs.electricity'))}
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.elec, background: opaqueTint(CAT.elec, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.electricity')}</span></th>
-              {meterTh(<Flame size={13}/>, t('costs.productionGasShort'))}
+              {meterTh(<Flame size={13}/>, t('costs.productionGasShort'), t('costs.productionGasMeterLabel'))}
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.gas, background: opaqueTint(CAT.gas, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.productionShort')}</span></th>
               {meterTh(<Flame size={13}/>, t('costs.heatingGasShort'))}
               <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.heatingShort')}</span></th>
