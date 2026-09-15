@@ -461,6 +461,7 @@
     "trolleyChoose": "Wagennummern wählen",
     "trolleyChooseHint": "Antippen, um die Liste zu öffnen",
     "trolleyPickerTitle": "Wagen wählen",
+    "trolleyAvailableCount": "Verfügbar ({{count}})",
     "trolleyNoneAvailable": "Keine verfügbaren Wagen.",
     "trolleyDoneCount": "Fertig ({{count}})",
     "trolleyChooseRequired": "Wagen wählen",

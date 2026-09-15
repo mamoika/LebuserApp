@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const pickerSource = await readFile(new URL('./ArrivalTrolleyPicker.jsx', import.meta.url), 'utf8');
 const entryModalsSource = await readFile(new URL('./EntryModals.jsx', import.meta.url), 'utf8');
+const planPickupSource = await readFile(new URL('../courses/sheets/PlanPickupSheet.jsx', import.meta.url), 'utf8');
 
 test('new arrival form defaults to with trolley while preserving the option order', () => {
   const modeControlStart = pickerSource.indexOf('className="segmented-control live-arrival-trolley-mode"');
@@ -26,4 +27,11 @@ test('the trolley grid renders only numbers that are available in the current co
   );
   assert.match(pickerSource, /visibleTrolleyNumbers\.map\(no =>/);
   assert.doesNotMatch(pickerSource, /trolleyNumbers\.map\(no =>/);
+  assert.match(pickerSource, /t\('entry\.trolleyAvailableCount', \{ count: availableTrolleyCount \}\)/);
+});
+
+test('every arrival picker receives the exact dirty-arrival date', () => {
+  assert.match(entryModalsSource, /arrivalDate=\{ymd\(dateForDay\(resolvedWeekKey, arrDay\)\)\}/);
+  assert.match(entryModalsSource, /arrivalDate=\{ymd\(dateForDay\(targetEntry\.week_key, arrDay\)\)\}/);
+  assert.match(planPickupSource, /arrivalDate=\{draft\.dirtyDate\}/);
 });

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLaundryWorkflow } from '../../lib/laundryRpc';
+import { getArrivalTrolleyReservations, getLaundryWorkflow } from '../../lib/laundryRpc';
 import { trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import './ArrivalTrolleyPicker.css';
@@ -47,12 +47,14 @@ export default function ArrivalTrolleyPicker({
   onModeChange,
   selected,
   onSelectedChange,
+  arrivalDate,
   disabled = false,
 }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [activeTrolleyByNo, setActiveTrolleyByNo] = useState(new Map());
+  const [reservedTrolleyByNo, setReservedTrolleyByNo] = useState(new Map());
   const [error, setError] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
@@ -61,14 +63,19 @@ export default function ArrivalTrolleyPicker({
 
   useEffect(() => {
     let cancelled = false;
-    if (!sessionToken) {
+    if (!sessionToken || !pickerOpen) {
       setLoading(false);
       return undefined;
     }
     setLoading(true);
     (async () => {
       try {
-        const wf = await getLaundryWorkflow(sessionToken);
+        const [wf, reservationData] = await Promise.all([
+          getLaundryWorkflow(sessionToken),
+          arrivalDate
+            ? getArrivalTrolleyReservations(sessionToken, arrivalDate)
+            : Promise.resolve({ reservations: [] }),
+        ]);
         if (cancelled) return;
         const count = Number(wf?.trolley_count || DEFAULT_TROLLEY_COUNT);
         const map = new Map();
@@ -79,17 +86,24 @@ export default function ArrivalTrolleyPicker({
         });
         setTrolleyCount(Math.max(1, count));
         setActiveTrolleyByNo(map);
+        setReservedTrolleyByNo(new Map(
+          (reservationData?.reservations || []).map(reservation => [
+            String(reservation.trolley_no || '').trim().toLowerCase(),
+            reservation,
+          ]),
+        ));
       } catch {
         if (!cancelled) {
           setTrolleyCount(DEFAULT_TROLLEY_COUNT);
           setActiveTrolleyByNo(new Map());
+          setReservedTrolleyByNo(new Map());
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [sessionToken]);
+  }, [sessionToken, arrivalDate, pickerOpen]);
 
   const trolleyNumbers = useMemo(
     () => Array.from({ length: trolleyCount }, (_, index) => String(index + 1)),
@@ -111,27 +125,37 @@ export default function ArrivalTrolleyPicker({
         draftSelected,
         activeTrolleyByNo,
         clientName,
+        reservedTrolleyByNo,
       );
       return all.filter(no => {
         if (searchQuery.trim() && !no.includes(searchQuery.trim())) return false;
         if (filterTab === 'returning') {
-          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
           return state === 'returning';
         }
         if (filterTab === 'selected') {
           return draftSelected.includes(no);
         }
         if (filterTab === 'free') {
-          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
           return state === 'free';
         }
         return true;
       });
     },
-    [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, searchQuery, filterTab],
+    [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo, searchQuery, filterTab],
   );
 
+  const availableTrolleyCount = useMemo(() => visibleArrivalTrolleyNumbers(
+    trolleyNumbers,
+    draftSelected,
+    activeTrolleyByNo,
+    clientName,
+    reservedTrolleyByNo,
+  ).length, [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo]);
+
   const openPicker = () => {
+    setLoading(true);
     setDraftSelected(selected);
     setError('');
     setSearchQuery('');
@@ -163,10 +187,10 @@ export default function ArrivalTrolleyPicker({
   const toggleTrolley = (trolleyNo) => {
     const no = String(trolleyNo || '').trim();
     if (!no || disabled) return;
-    const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+    const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
     if (state === 'busy') {
-      const active = activeTrolleyByNo.get(no.toLowerCase());
-      setError(t('entry.trolleyBusy', { no, client: active?.client_name || '?' }));
+      const occupied = reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase());
+      setError(t('entry.trolleyBusy', { no, client: occupied?.client_name || '?' }));
       return;
     }
     setError('');
@@ -287,7 +311,7 @@ export default function ArrivalTrolleyPicker({
                   className={`live-trolley-chip${filterTab === 'all' ? ' is-active' : ''}`}
                   onClick={() => setFilterTab('all')}
                 >
-                  Wszystkie ({trolleyNumbers.length})
+                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
                 </button>
                 {returningTrolleys.length > 0 && (
                   <button
@@ -364,7 +388,7 @@ export default function ArrivalTrolleyPicker({
                   {visibleTrolleyNumbers.length > 0 ? (
                     <div className="live-arrival-trolley-grid" role="group" aria-label={t('entry.trolleys')}>
                       {visibleTrolleyNumbers.map(no => {
-                        const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName);
+                        const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
                         return (
                           <button
                             key={no}
@@ -375,7 +399,7 @@ export default function ArrivalTrolleyPicker({
                             aria-pressed={state === 'selected'}
                             title={
                               state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
-                                : state === 'busy' ? t('entry.trolleyBusy', { no, client: activeTrolleyByNo.get(no.toLowerCase())?.client_name || '?' })
+                                : state === 'busy' ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
                                   : t('entry.trolleyFree', { no })
                             }
                           >

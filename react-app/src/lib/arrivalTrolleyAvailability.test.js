@@ -26,3 +26,33 @@ test('returning and already selected trolleys remain visible', () => {
     ['1', '2', '3'],
   );
 });
+
+test('trolleys reserved by another dirty entry are hidden at the next client', () => {
+  assert.deepEqual(
+    visibleArrivalTrolleyNumbers(
+      ['1', '2', '3', '4'],
+      [],
+      new Map(),
+      'Następny klient',
+      new Set(['1', '2', '3']),
+    ),
+    ['4'],
+  );
+});
+
+test('a trolley reserved at the same client stays available for another laundry category', () => {
+  const reservations = new Map([
+    ['2', { trolley_no: '2', client_name: 'Aktualny klient' }],
+  ]);
+
+  assert.deepEqual(
+    visibleArrivalTrolleyNumbers(
+      ['1', '2', '3'],
+      [],
+      new Map(),
+      'Aktualny klient',
+      reservations,
+    ),
+    ['1', '2', '3'],
+  );
+});

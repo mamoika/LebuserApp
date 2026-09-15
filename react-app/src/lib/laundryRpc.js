@@ -14,6 +14,13 @@ export function getLaundryWorkflow(sessionToken) {
   });
 }
 
+export function getArrivalTrolleyReservations(sessionToken, arrivalDate) {
+  return callLaundryRpc('get_arrival_trolley_reservations', {
+    p_session_token: sessionToken,
+    p_arrival_date: arrivalDate,
+  });
+}
+
 export function markLaundryWashed(sessionToken, ids, by) {
   return callLaundryRpc('admin_mark_laundry_washed', {
     p_session_token: sessionToken,

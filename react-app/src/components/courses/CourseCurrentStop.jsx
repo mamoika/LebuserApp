@@ -383,7 +383,7 @@ export default function CourseCurrentStop({
               <div className="live-stop-task-title">
                 <strong>{t('course.currentStop.dirtySection')}</strong>
                 {dirtyToday.length > 0 && (
-                  <span className="live-stop-task-status is-active">{dirtyToday.length}</span>
+                  <span className="live-stop-task-status is-active">{t('entry.arrivalsCount', { count: dirtyToday.length })}</span>
                 )}
               </div>
               <LaundryTypeChip {...dirtyTypes} />

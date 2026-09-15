@@ -242,6 +242,7 @@ export default function PlanPickupSheet({
       <ArrivalTrolleyPicker
         sessionToken={sessionToken}
         clientName={draft.clientName}
+        arrivalDate={draft.dirtyDate}
         mode={draft.trolleyMode}
         onModeChange={value => setField('trolleyMode', value)}
         selected={draft.selectedTrolleys}

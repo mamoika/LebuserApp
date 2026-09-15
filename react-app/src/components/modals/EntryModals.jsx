@@ -7,6 +7,7 @@ import { dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
+import { ymd } from '../../lib/tripUiHelpers';
 import {
   LAUNDRY_CATEGORIES,
   firstAllowedLaundryType,
@@ -52,12 +53,6 @@ function normalizeSearch(str) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/\u0142/g, 'l');
-}
-
-function parseRouteIds(routesStr) {
-  return new Set(
-    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
-  );
 }
 
 function firstClientByRouteOrder(clients, routes) {
@@ -852,6 +847,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
           <ArrivalTrolleyPicker
             sessionToken={sessionToken}
             clientName={clientName}
+            arrivalDate={ymd(dateForDay(resolvedWeekKey, arrDay))}
             mode={trolleyMode}
             onModeChange={setTrolleyMode}
             selected={selectedTrolleys}
@@ -1486,6 +1482,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <ArrivalTrolleyPicker
               sessionToken={sessionToken}
               clientName={clientName || targetEntry.client_name}
+              arrivalDate={ymd(dateForDay(targetEntry.week_key, arrDay))}
               mode={trolleyMode}
               onModeChange={setTrolleyMode}
               selected={selectedTrolleys}
