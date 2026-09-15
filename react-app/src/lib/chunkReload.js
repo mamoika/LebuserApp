@@ -6,19 +6,50 @@
 // zdarzeniem `vite:preloadError` — łapiemy je i robimy JEDNORAZOWY reload, żeby
 // pobrać świeży index.html + aktualne chunki. Crash zamienia się w cichy refresh.
 const RELOAD_KEY = 'lebuser_chunk_reload';
+const CHUNK_IMPORT_ERROR = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk [^ ]+ failed|ChunkLoadError/i;
+
+function browserRuntime() {
+  if (typeof window === 'undefined') return null;
+  return {
+    storage: window.sessionStorage,
+    reload: () => window.location.reload(),
+  };
+}
+
+function requestChunkReload(error, runtime = browserRuntime(), force = false) {
+  if (!runtime || (!force && !CHUNK_IMPORT_ERROR.test(String(error?.message || error)))) return false;
+
+  try {
+    if (runtime.storage.getItem(RELOAD_KEY)) return false;
+    runtime.storage.setItem(RELOAD_KEY, '1');
+    runtime.reload();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// React.lazy() może dostać zwykłe odrzucenie Promise bez zdarzenia
+// `vite:preloadError`. Wtedy przeładowujemy aplikację bez przekazywania błędu do
+// ErrorBoundary; oczekujący Promise zostanie porzucony wraz z bieżącą stroną.
+export async function importWithChunkReload(importer, runtime) {
+  try {
+    return await importer();
+  } catch (error) {
+    if (requestChunkReload(error, runtime)) {
+      return new Promise(() => {});
+    }
+    throw error;
+  }
+}
 
 export function setupChunkReload() {
   if (typeof window === 'undefined') return;
 
   window.addEventListener('vite:preloadError', (event) => {
-    if (sessionStorage.getItem(RELOAD_KEY)) {
-      // Już raz przeładowaliśmy, a chunk nadal nie wchodzi — to nie jest zwykły
-      // nieświeży deploy. Nie zapętlamy; niech błąd pójdzie do Sentry.
-      return;
+    if (requestChunkReload(event.payload, browserRuntime(), true)) {
+      event.preventDefault();
     }
-    event.preventDefault();              // pierwszy raz: ucisz błąd...
-    sessionStorage.setItem(RELOAD_KEY, '1');
-    window.location.reload();            // ...i pobierz świeżą wersję
   });
 
   // Dotarliśmy tu = bundle wstał. Po chwili zdrowego działania kasujemy guard,

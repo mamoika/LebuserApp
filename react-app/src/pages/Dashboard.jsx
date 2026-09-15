@@ -9,24 +9,26 @@ import logoImg from '../assets/logo-icon.png';
 import RodoNotice from './RodoNotice';
 
 import ToastContainer from '../components/ToastContainer';
+import { importWithChunkReload } from '../lib/chunkReload';
 
 // Widoki ładowane leniwie (code-splitting) — ciężkie biblioteki, np. mapa i
 // eksport Excela, pobierają się dopiero przy wejściu na dany widok.
-const ScheduleView = lazy(() => import('../components/ScheduleView'));
-const DriverCourse = lazy(() => import('../components/courses/DriverCourse'));
-const DispatchBoard = lazy(() => import('../components/courses/DispatchBoard'));
-const ClientsRoutesView = lazy(() => import('../components/ClientsRoutesView'));
-const WeeklyRoutePlanView = lazy(() => import('../components/WeeklyRoutePlanView'));
-const AdminDashboard = lazy(() => import('../components/AdminDashboard'));
-const MapView = lazy(() => import('../components/MapView'));
-const HistoryView = lazy(() => import('../components/HistoryView'));
-const WorkScheduleView = lazy(() => import('../components/WorkScheduleView'));
-const CostsView = lazy(() => import('../components/CostsView'));
-const WashView = lazy(() => import('../components/WashView'));
-const WarehouseView = lazy(() => import('../components/WarehouseView'));
-const MockupsHome = lazy(() => import('../components/mockups/MockupsHome'));
-const DispatchBoardMock = lazy(() => import('../components/mockups/DispatchBoardMock'));
-const DriverRouteCardMock = lazy(() => import('../components/mockups/DriverRouteCardMock'));
+const lazyView = importer => lazy(() => importWithChunkReload(importer));
+const ScheduleView = lazyView(() => import('../components/ScheduleView'));
+const DriverCourse = lazyView(() => import('../components/courses/DriverCourse'));
+const DispatchBoard = lazyView(() => import('../components/courses/DispatchBoard'));
+const ClientsRoutesView = lazyView(() => import('../components/ClientsRoutesView'));
+const WeeklyRoutePlanView = lazyView(() => import('../components/WeeklyRoutePlanView'));
+const AdminDashboard = lazyView(() => import('../components/AdminDashboard'));
+const MapView = lazyView(() => import('../components/MapView'));
+const HistoryView = lazyView(() => import('../components/HistoryView'));
+const WorkScheduleView = lazyView(() => import('../components/WorkScheduleView'));
+const CostsView = lazyView(() => import('../components/CostsView'));
+const WashView = lazyView(() => import('../components/WashView'));
+const WarehouseView = lazyView(() => import('../components/WarehouseView'));
+const MockupsHome = lazyView(() => import('../components/mockups/MockupsHome'));
+const DispatchBoardMock = lazyView(() => import('../components/mockups/DispatchBoardMock'));
+const DriverRouteCardMock = lazyView(() => import('../components/mockups/DriverRouteCardMock'));
 
 // Mapowanie ścieżki na klucz tłumaczeń strony (pages.<slug>).
 const PAGE_KEYS = {

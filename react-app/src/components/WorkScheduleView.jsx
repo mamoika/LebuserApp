@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { CalendarRange, Clock3, History, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { importWithChunkReload } from '../lib/chunkReload';
 
-const GrafikView = lazy(() => import('./GrafikView'));
-const TimelineView = lazy(() => import('./TimelineView'));
+const GrafikView = lazy(() => importWithChunkReload(() => import('./GrafikView')));
+const TimelineView = lazy(() => importWithChunkReload(() => import('./TimelineView')));
 const WorkScheduleSettings = lazy(() => (
-  import('./AdminDashboard').then(module => ({ default: module.WorkScheduleSettings }))
+  importWithChunkReload(() => (
+    import('./AdminDashboard').then(module => ({ default: module.WorkScheduleSettings }))
+  ))
 ));
 
 function sectionFromHash(hash) {
