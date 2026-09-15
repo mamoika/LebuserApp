@@ -17,7 +17,7 @@ test('dirty-laundry heading uses a descriptive icon while plus remains an action
   );
 });
 
-test('dirty-laundry count says what is being counted', () => {
-  assert.match(source, /t\('course\.currentStop\.dirtyPickupCount', \{ count: dirtyToday\.length \}\)/);
+test('dirty-laundry heading does not repeat the entry count', () => {
+  assert.doesNotMatch(source, /course\.currentStop\.dirtyPickupCount/);
   assert.doesNotMatch(source, />\{dirtyToday\.length\}<\/span>/);
 });

@@ -4,7 +4,6 @@ import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, 
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
-import { laundryTypeLabel } from '../../lib/laundryCategories';
 import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
   isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
@@ -376,9 +375,6 @@ export default function CourseCurrentStop({
               <span className="live-stop-task-icon tone-dirty" aria-hidden="true"><WashingMachine size={18} /></span>
               <div className="live-stop-task-title">
                 <strong>{t('course.currentStop.dirtySection')}</strong>
-                {dirtyToday.length > 0 && (
-                  <span className="live-stop-task-status is-active">{t('course.currentStop.dirtyPickupCount', { count: dirtyToday.length })}</span>
-                )}
               </div>
             </header>
             <div className="live-stop-task-body">
@@ -387,12 +383,8 @@ export default function CourseCurrentStop({
               ) : (
                 <div className="live-dirty-list">
                   {dirtyToday.map(entry => {
-                    const assigned = assignedTripForEntry(entry, { allTrips, trip });
-                    const captionKey = entryAssignmentCaption(assigned);
                     const typeCode = entry.type || 'P';
                     const typeClass = `type-${typeCode}`;
-                    const AssignmentIcon = captionKey === 'brought' ? CheckCircle2 : Truck;
-                    const hasWeight = entry.weight !== null && entry.weight !== undefined && entry.weight !== '';
                     const trolleyText = entry.arrival_trolley_nos
                       ? t('course.currentStop.trolleyNumbers', { numbers: entry.arrival_trolley_nos })
                       : Number(entry.trolleys) > 0
@@ -400,22 +392,15 @@ export default function CourseCurrentStop({
                         : t('course.currentStop.noTrolley');
                     return (
                       <article className={`driver-arrival-chip live-dirty-entry-card ${typeClass}`} key={entry.id}>
-                        <span className="live-dirty-entry-type" aria-hidden="true">{typeCode}</span>
                         <div className="live-dirty-entry-main">
-                          <strong className="live-dirty-entry-name">{laundryTypeLabel(typeCode, t)}</strong>
+                          <div className="live-dirty-entry-summary">
+                            <strong>{typeCode}</strong>
+                            <span aria-hidden="true">·</span>
+                            <span>{formatKg(entry.weight)} kg</span>
+                          </div>
                           <div className="live-dirty-entry-meta">
                             <span><ShoppingCart size={13} aria-hidden="true" /> {trolleyText}</span>
-                            {hasWeight && <span>{t('course.currentStop.weightLabel', { weight: formatKg(entry.weight) })}</span>}
                           </div>
-                          {captionKey && (
-                            <div className="live-dirty-entry-transport">
-                              <AssignmentIcon size={14} aria-hidden="true" />
-                              <span>
-                                <strong>{t(`course.assignment.${captionKey}`)}</strong>
-                                {assigned?.label && <> {assigned.label}</>}
-                              </span>
-                            </div>
-                          )}
                         </div>
                         <div className="live-dirty-entry-actions">
                           <button type="button" className="live-dirty-entry-action" onClick={() => setViewEntry(entry)}>
