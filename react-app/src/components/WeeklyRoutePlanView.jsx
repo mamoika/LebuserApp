@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Search, Settings2, Truck, Users, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Search, Settings2, Trash2, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
@@ -62,6 +62,17 @@ function formatTime(value) {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatPlanDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function isWorkingScheduleValue(value) {
   return !['W', 'UW', 'L4', 'NU', 'NN', 'END'].includes(String(value || '').trim().toUpperCase());
 }
@@ -104,37 +115,45 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
     <div className="ap-overlay weekly-plan-overlay" style={{ display: 'flex' }} onPointerDown={onClose}>
       <section className="ap-sheet weekly-plan-sheet" role="dialog" aria-modal="true" aria-labelledby="weekly-plan-assignment-title" onPointerDown={event => event.stopPropagation()}>
         <div className="ap-handle" />
-        <div className="ap-content">
+        <div className="ap-content weekly-plan-sheet-content">
           <div className="weekly-plan-sheet-heading">
-            <div>
-              <div className="weekly-plan-kicker">{selection.date}</div>
-              <h2 id="weekly-plan-assignment-title" className="ap-title">{selection.route.name}</h2>
+            <div className="weekly-plan-sheet-heading-main">
+              <span className="weekly-plan-sheet-icon" aria-hidden="true"><Truck size={20} /></span>
+              <div>
+                <div className="weekly-plan-kicker">
+                  <CalendarDays size={13} aria-hidden="true" />
+                  <time dateTime={selection.date}>{formatPlanDate(selection.date)}</time>
+                </div>
+                <h2 id="weekly-plan-assignment-title" className="ap-title">{selection.route.name}</h2>
+              </div>
             </div>
-            <button type="button" className="weekly-plan-close" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button>
+            <button type="button" className="weekly-plan-close" onClick={onClose} aria-label={t('common.close')}><X size={20} /></button>
           </div>
 
-          <label className="weekly-plan-field" htmlFor="weekly-plan-driver">
-            <span>{t('weeklyPlan.driver')}</span>
-            <select id="weekly-plan-driver" value={driverId} onChange={event => changeDriver(event.target.value)}>
-              <option value="">{t('weeklyPlan.chooseDriver')}</option>
-              {selectableDrivers.map(driver => (
-                <option value={driver.id} key={driver.id}>
-                  {driver.name}
-                  {driver.id === driverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
-                </option>
-              ))}
-            </select>
-            {selectableDrivers.length === 0 && (
-              <span style={{ fontSize: '11px', color: '#CC6600', marginTop: '4px', display: 'block' }}>
-                {t('weeklyPlan.noAvailableDrivers') || 'Brak dostępnych kierowców w grafiku na ten dzień.'}
-              </span>
-            )}
-          </label>
+          <div className="weekly-plan-form-grid">
+            <label className="weekly-plan-field" htmlFor="weekly-plan-driver">
+              <span>{t('weeklyPlan.driver')}</span>
+              <select id="weekly-plan-driver" value={driverId} onChange={event => changeDriver(event.target.value)}>
+                <option value="">{t('weeklyPlan.chooseDriver')}</option>
+                {selectableDrivers.map(driver => (
+                  <option value={driver.id} key={driver.id}>
+                    {driver.name}
+                    {driver.id === driverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectableDrivers.length === 0 && (
+                <span style={{ fontSize: '11px', color: '#CC6600', marginTop: '4px', display: 'block' }}>
+                  {t('weeklyPlan.noAvailableDrivers') || 'Brak dostępnych kierowców w grafiku na ten dzień.'}
+                </span>
+              )}
+            </label>
 
-          <label className="weekly-plan-field" htmlFor="weekly-plan-start">
-            <span>{t('weeklyPlan.startTime')}</span>
-            <input id="weekly-plan-start" type="time" value={startTime} onChange={event => setStartTime(event.target.value)} />
-          </label>
+            <label className="weekly-plan-field" htmlFor="weekly-plan-start">
+              <span>{t('weeklyPlan.startTime')}</span>
+              <input id="weekly-plan-start" type="time" value={startTime} onChange={event => setStartTime(event.target.value)} />
+            </label>
+          </div>
 
           <div className="weekly-plan-field">
             <span>{t('weeklyPlan.vehicle')}</span>
@@ -149,7 +168,10 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
                     className={car === vehicle.key ? 'active' : ''}
                     onClick={() => setCar(vehicle.key)}
                     disabled={occupiedByOtherDriver}
-                    title={occupiedByOtherDriver ? t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName }) : undefined}
+                    aria-pressed={car === vehicle.key}
+                    aria-label={occupiedByOtherDriver
+                      ? `${vehicle.label}. ${t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName })}`
+                      : vehicle.label}
                   >
                     <span>{vehicle.label}</span>
                     {occupiedByOtherDriver && <small>{t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName })}</small>}
@@ -161,11 +183,15 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
 
           <div className="ap-btn-group weekly-plan-sheet-actions">
             {trip && (
-              <button type="button" className="ap-btn weekly-plan-remove" onClick={onRemove} disabled={busy}>{t('weeklyPlan.remove')}</button>
+              <button type="button" className="ap-btn weekly-plan-remove" onClick={onRemove} disabled={busy}>
+                <Trash2 size={16} aria-hidden="true" />
+                {t('weeklyPlan.remove')}
+              </button>
             )}
-            <span />
-            <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-            <button type="button" className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !driverId}>{busy ? t('common.saving') : t('common.save')}</button>
+            <div className="weekly-plan-primary-actions">
+              <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+              <button type="button" className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !driverId}>{busy ? t('common.saving') : t('common.save')}</button>
+            </div>
           </div>
         </div>
       </section>

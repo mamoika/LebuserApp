@@ -611,6 +611,50 @@ body{
 .weekly-plan-overlay{z-index:2200}.weekly-plan-sheet{width:min(500px,calc(100vw - 28px))}.weekly-plan-sheet-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}.weekly-plan-sheet-heading .ap-title{text-align:left;margin:2px 0 0}.weekly-plan-close{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:10px;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer}.weekly-plan-field{display:flex;flex-direction:column;gap:6px;margin:0 0 16px;color:var(--text-tertiary);font-size:11px;font-weight:800;letter-spacing:.35px;text-transform:uppercase}.weekly-plan-field select,.weekly-plan-field input{width:100%;height:42px;padding:0 10px;border:1px solid var(--border-strong);border-radius:10px;background:var(--bg-card-solid);color:var(--text-primary);font:inherit;font-size:14px;text-transform:none;letter-spacing:0}.weekly-plan-field select:focus,.weekly-plan-field input:focus{outline:2px solid var(--accent-light);border-color:var(--accent)}.weekly-plan-vehicle-options{display:flex;flex-wrap:wrap;gap:7px}.weekly-plan-vehicle-options button{display:flex;flex:1 1 92px;flex-direction:column;align-items:center;justify-content:center;min-height:44px;padding:6px 8px;border:1px solid var(--border);border-radius:9px;background:var(--bg-tertiary);color:var(--text-secondary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;transition:background-color .16s ease,border-color .16s ease,color .16s ease,opacity .16s ease,transform .16s ease}.weekly-plan-vehicle-options button:active:not(:disabled){transform:scale(.97)}.weekly-plan-vehicle-options button.active{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}.weekly-plan-vehicle-options button:disabled{border-style:dashed;cursor:not-allowed;opacity:.58}.weekly-plan-vehicle-options button small{display:block;margin-top:2px;overflow:hidden;max-width:100%;font-size:9px;font-weight:650;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.weekly-plan-sheet-actions{align-items:center}.weekly-plan-sheet-actions>span{flex:1}.weekly-plan-remove{border-color:#f4cccc;color:#b42318}
 .weekly-plan-visibility-sheet{width:min(620px,calc(100vw - 28px))}.weekly-plan-visibility-description{max-width:510px;margin:5px 0 0;color:var(--text-secondary);font-size:12px;line-height:1.45}.weekly-plan-route-search{display:flex;align-items:center;gap:8px;height:42px;padding:0 11px;border:1px solid var(--border-strong);border-radius:11px;background:var(--bg-card-solid);color:var(--text-tertiary)}.weekly-plan-route-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}.weekly-plan-route-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text-primary);font:inherit;font-size:13px}.weekly-plan-visibility-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 8px;color:var(--text-secondary);font-size:11px}.weekly-plan-visibility-controls>div{display:flex;gap:5px}.weekly-plan-visibility-controls button{min-height:30px;padding:0 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-tertiary);color:var(--text-secondary);font:inherit;font-size:10px;font-weight:750;cursor:pointer}.weekly-plan-route-picker{display:grid;max-height:min(48vh,430px);overflow-y:auto;border:1px solid var(--border);border-radius:12px;background:var(--bg-tertiary)}.weekly-plan-route-picker>button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;min-height:48px;padding:7px 10px;border:0;border-bottom:1px solid var(--border);background:var(--bg-card-solid);color:var(--text-primary);font:inherit;text-align:left;cursor:pointer}.weekly-plan-route-picker>button:last-of-type{border-bottom:0}.weekly-plan-route-picker>button:hover{background:var(--accent-light)}.weekly-plan-route-picker>button.is-hidden{opacity:.58;background:transparent}.weekly-plan-route-picker>button>strong{overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.weekly-plan-route-picker>button>span:last-child{display:flex;align-items:center;gap:5px;color:var(--text-tertiary);font-size:10px;font-weight:750}.weekly-plan-route-picker>button.is-visible>span:last-child{color:#137333}.weekly-plan-route-picker .weekly-plan-route-number{margin:0}.weekly-plan-route-picker-empty{padding:30px;text-align:center;color:var(--text-tertiary);font-size:12px}.weekly-plan-visibility-actions{justify-content:flex-end;margin-top:14px}.weekly-plan-visibility-actions .ap-btn{flex:0 1 135px}
 @media(max-width:640px){.weekly-plan-toolbar{align-items:stretch;flex-direction:column}.weekly-plan-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.weekly-plan-action{min-width:0;padding:0 8px}.weekly-plan-visibility-controls{align-items:flex-start;flex-direction:column}.weekly-plan-visibility-controls>div{width:100%}.weekly-plan-visibility-controls button{flex:1}.weekly-plan-route-picker{max-height:42vh}.weekly-plan-route-picker>button{grid-template-columns:auto minmax(0,1fr)}.weekly-plan-route-picker>button>span:last-child{grid-column:2}.weekly-plan-visibility-actions .ap-btn{flex:1}}
+
+/* Compact assignment editor: clear hierarchy without turning every action into a full-width row. */
+.weekly-plan-sheet{width:min(540px,calc(100vw - 24px))}
+.weekly-plan-sheet-content{padding:20px}
+.weekly-plan-sheet-heading{align-items:center;margin-bottom:20px}
+.weekly-plan-sheet-heading-main{display:flex;align-items:center;min-width:0;gap:12px}
+.weekly-plan-sheet-icon{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border:1px solid var(--accent-border);border-radius:13px;background:var(--accent-light);color:var(--accent)}
+.weekly-plan-sheet-heading .weekly-plan-kicker{gap:5px;margin-bottom:3px;font-size:10px;font-variant-numeric:tabular-nums}
+.weekly-plan-sheet-heading .ap-title{overflow:hidden;margin:0;font-size:23px;text-overflow:ellipsis;text-wrap:balance;white-space:nowrap}
+.weekly-plan-close{width:44px;height:44px;flex:0 0 44px;border:1px solid transparent;border-radius:13px;transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.weekly-plan-close:hover{border-color:var(--border);background:var(--bg-card-solid);color:var(--text-primary)}
+.weekly-plan-close:active{transform:scale(.94)}
+.weekly-plan-close:focus-visible{outline:3px solid rgba(0,122,255,.2);outline-offset:1px}
+.weekly-plan-form-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.weekly-plan-field{gap:7px;margin:0;color:var(--text-secondary);font-size:10px;letter-spacing:.55px}
+.weekly-plan-form-grid+.weekly-plan-field{margin-top:16px}
+.weekly-plan-field select,.weekly-plan-field input{height:48px;padding:0 14px;border-radius:12px;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(15,23,42,.025);transition:border-color .16s ease,box-shadow .16s ease}
+.weekly-plan-field select:focus,.weekly-plan-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,122,255,.12)}
+.weekly-plan-vehicle-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.weekly-plan-vehicle-options button{min-width:0;min-height:58px;padding:8px;border-radius:12px;background:var(--bg-card-solid);font-size:13px;box-shadow:0 1px 2px rgba(15,23,42,.025)}
+.weekly-plan-vehicle-options button:hover:not(:disabled){border-color:var(--accent-border);background:#f8fbff}
+.weekly-plan-vehicle-options button.active{border-color:var(--accent);background:var(--accent-light);box-shadow:inset 0 0 0 1px var(--accent)}
+.weekly-plan-vehicle-options button:focus-visible{outline:3px solid rgba(0,122,255,.18);outline-offset:1px}
+.weekly-plan-vehicle-options button:disabled{background:transparent;box-shadow:none;opacity:.62}
+.weekly-plan-vehicle-options button small{margin-top:3px;overflow:visible;font-size:10px;line-height:1.2;text-overflow:clip;text-wrap:pretty;white-space:normal}
+.weekly-plan-sheet-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.weekly-plan-primary-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:8px}
+.weekly-plan-sheet-actions .ap-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:46px;width:100%;padding:0 16px;border-radius:12px;font-size:15px}
+.weekly-plan-primary-actions .ap-btn-secondary{border:1px solid var(--border-strong);background:var(--bg-card-solid);color:var(--text-secondary);font-weight:700}
+.weekly-plan-primary-actions .ap-btn-secondary:hover{border-color:var(--border);background:#f8f8fa;color:var(--text-primary)}
+.weekly-plan-primary-actions .ap-btn-primary{box-shadow:0 5px 14px rgba(0,122,255,.22)}
+.weekly-plan-remove{border:1px solid rgba(180,35,24,.18);background:transparent;color:#b42318;font-weight:700}
+.weekly-plan-remove:hover{border-color:rgba(180,35,24,.28);background:rgba(255,59,48,.07)}
+.weekly-plan-sheet-actions .ap-btn:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
+@media(min-width:600px){
+  .weekly-plan-sheet-content{padding:24px}
+  .weekly-plan-form-grid{grid-template-columns:minmax(0,1.7fr) minmax(140px,.7fr)}
+  .weekly-plan-vehicle-options{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .weekly-plan-sheet-actions{flex-direction:row;align-items:center}
+  .weekly-plan-primary-actions{display:flex;margin-left:auto}
+  .weekly-plan-sheet-actions .ap-btn{width:auto;min-width:112px}
+  .weekly-plan-sheet-actions .ap-btn-primary{min-width:128px}
+  .weekly-plan-remove{min-width:0!important}
+}
 .schedule-mobile-range {
   display:none;
 }

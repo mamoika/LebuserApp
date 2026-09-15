@@ -29,6 +29,10 @@ begin
   where assignment.plan_date = new.plan_date
     and lower(assignment.car) = lower(new.car)
     and assignment.driver_id is distinct from new.driver_id
+    -- INSERT ... ON CONFLICT uruchamia BEFORE INSERT przed rozpoznaniem
+    -- istniejącego przypisania. Pomijamy więc edytowaną trasę po kluczu
+    -- konfliktu, a nie tylko po generowanym na nowo id.
+    and assignment.route_id is distinct from new.route_id
     and assignment.id is distinct from new.id
   limit 1;
 

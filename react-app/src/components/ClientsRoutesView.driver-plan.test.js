@@ -26,6 +26,10 @@ const visibilityMigrationSource = await readFile(
   new URL('../../db/migrations/weekly_route_plan_visibility.sql', import.meta.url),
   'utf8',
 );
+const driverChangeFixMigrationSource = await readFile(
+  new URL('../../db/migrations/zzzzzzzzzzzz_weekly_route_plan_driver_change.sql', import.meta.url),
+  'utf8',
+);
 
 test('driver sees the weekly plan followed by the complete read-only route directory', () => {
   const planIndex = clientsRoutesSource.indexOf('<WeeklyRoutePlanView');
@@ -56,6 +60,16 @@ test('assignment sheet keeps the selected plan day fixed and edits only the star
   assert.match(weeklyPlanSource, /new Date\(`\$\{date\}T\$\{time\}:00`\)/);
 });
 
+test('assignment sheet uses a compact responsive form and action hierarchy', () => {
+  assert.match(weeklyPlanSource, /className="weekly-plan-form-grid"/);
+  assert.match(weeklyPlanSource, /className="weekly-plan-primary-actions"/);
+  assert.match(weeklyPlanSource, /<Trash2 size=\{16\}/);
+  assert.doesNotMatch(weeklyPlanSource, /title=\{occupiedByOtherDriver/);
+  assert.match(stylesSource, /\.weekly-plan-vehicle-options\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(stylesSource, /@media\(min-width:600px\)\{[\s\S]*?\.weekly-plan-vehicle-options\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(stylesSource, /\.weekly-plan-sheet-actions\{display:flex;flex-direction:column/);
+});
+
 test('a vehicle cannot be assigned to different drivers on the same day', () => {
   assert.match(weeklyPlanSource, /vehicleReservations\.get\(vehicle\.key\)/);
   assert.match(weeklyPlanSource, /disabled=\{occupiedByOtherDriver\}/);
@@ -65,6 +79,17 @@ test('a vehicle cannot be assigned to different drivers on the same day', () => 
   assert.match(vehicleGuardMigrationSource, /assignment\.plan_date = p_trip_date/);
   assert.match(vehicleGuardMigrationSource, /assignment\.driver_id is distinct from p_driver_id/);
   assert.match(vehicleGuardMigrationSource, /assignment\.route_id is distinct from p_route_id/);
+});
+
+test('changing the driver on an existing route keeps its vehicle assignment', () => {
+  // INSERT ... ON CONFLICT runs BEFORE INSERT triggers before it resolves the
+  // existing (plan_date, route_id) row, so the guard must ignore that route.
+  for (const source of [vehicleGuardMigrationSource, driverChangeFixMigrationSource]) {
+    const triggerBody = source.match(
+      /create or replace function public\.enforce_weekly_route_plan_vehicle_owner\(\)[\s\S]*?\n\$\$;/,
+    )?.[0] || '';
+    assert.match(triggerBody, /assignment\.route_id is distinct from new\.route_id/);
+  }
 });
 
 test('route schedule greys out non-service days but keeps them available as exceptions', () => {
