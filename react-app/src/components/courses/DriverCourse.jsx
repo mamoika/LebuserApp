@@ -507,30 +507,36 @@ export default function DriverCourse() {
           <div className="driver-progress-fill" style={{ width: `${stops.length ? (completedStops / stops.length) * 100 : 0}%` }} />
         </div>
         {orderedStops.length > 0 ? (
-          <div className="live-stop-picker" role="tablist" aria-label={t('course.driver.stopPicker')}>
-            {orderedStops.map(stop => {
-              const isActive = viewStop?.id === stop.id;
-              const displayNo = stopDisplayOrder(stop, clients);
-              const tone = [
-                stop.status === 'completed' ? 'is-done' : '',
-                stop.status === 'skipped' ? 'is-skipped' : '',
-                isActive ? 'is-active' : '',
-              ].filter(Boolean).join(' ');
-              return (
-                <button
-                  key={stop.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-label={t('course.driver.jumpToStop', { n: displayNo, name: stop.client_name })}
-                  className={`live-stop-picker-btn ${tone}`}
-                  onClick={() => setViewStopId(stop.id)}
-                >
-                  {displayNo}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div className="live-stop-picker-summary">
+              <span>{t('course.driver.stopPickerLabel')}</span>
+              <span>{t('course.driver.stopProgressSummary', { done: completedStops, total: stops.length })}</span>
+            </div>
+            <div className="live-stop-picker" role="tablist" aria-label={t('course.driver.stopPicker')}>
+              {orderedStops.map(stop => {
+                const isActive = viewStop?.id === stop.id;
+                const displayNo = stopDisplayOrder(stop, clients);
+                const tone = [
+                  stop.status === 'completed' ? 'is-done' : '',
+                  stop.status === 'skipped' ? 'is-skipped' : '',
+                  isActive ? 'is-active' : '',
+                ].filter(Boolean).join(' ');
+                return (
+                  <button
+                    key={stop.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-label={t('course.driver.jumpToStop', { n: displayNo, name: stop.client_name })}
+                    className={`live-stop-picker-btn ${tone}`}
+                    onClick={() => setViewStopId(stop.id)}
+                  >
+                    {displayNo}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <div className="driver-progress-label">{t('course.driver.allStopsDone', { count: stops.length })}</div>
         )}

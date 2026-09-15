@@ -18,6 +18,6 @@ test('dirty-laundry heading uses a descriptive icon while plus remains an action
 });
 
 test('dirty-laundry count says what is being counted', () => {
-  assert.match(source, /t\('entry\.arrivalsCount', \{ count: dirtyToday\.length \}\)/);
+  assert.match(source, /t\('course\.currentStop\.dirtyPickupCount', \{ count: dirtyToday\.length \}\)/);
   assert.doesNotMatch(source, />\{dirtyToday\.length\}<\/span>/);
 });

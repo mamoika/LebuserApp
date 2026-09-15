@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Plus, RotateCcw, Truck, WashingMachine } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Pencil, Plus, RotateCcw, ShoppingCart, Trash2, Truck, WashingMachine } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
+import { laundryTypeLabel } from '../../lib/laundryCategories';
 import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
   isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
@@ -11,7 +12,7 @@ import {
 import { formatKg, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { AddEntryModal, ViewEditEntryModal } from '../modals/EntryModals';
-import { LaundryTypeChip, mapsUrlForStop, stopHasNavLocation } from './CourseUiBits';
+import { mapsUrlForStop, stopHasNavLocation } from './CourseUiBits';
 import DeliverPromptSheet from './sheets/DeliverPromptSheet';
 import PartialPickupSheet from './sheets/PartialPickupSheet';
 
@@ -122,13 +123,6 @@ export default function CourseCurrentStop({
     if (clean.pendingDelivery.length > 0) return t('course.currentStop.completeHintDelivery');
     return t('course.driver.completeStopFirst');
   }, [canComplete, clean.pendingDelivery.length, clean.pendingPickup.length, stopViewStatus, t]);
-
-  const dirtyTypes = useMemo(() => ({
-    hasP: dirtyToday.some(entry => (entry.type || 'P') === 'P'),
-    hasO: dirtyToday.some(entry => entry.type === 'O'),
-    hasF: dirtyToday.some(entry => entry.type === 'F'),
-    hasR: dirtyToday.some(entry => entry.type === 'R'),
-  }), [dirtyToday]);
 
   const rpcEntries = async (fn, ids, success, logDetails) => {
     if (!ids.length) {
@@ -383,10 +377,9 @@ export default function CourseCurrentStop({
               <div className="live-stop-task-title">
                 <strong>{t('course.currentStop.dirtySection')}</strong>
                 {dirtyToday.length > 0 && (
-                  <span className="live-stop-task-status is-active">{t('entry.arrivalsCount', { count: dirtyToday.length })}</span>
+                  <span className="live-stop-task-status is-active">{t('course.currentStop.dirtyPickupCount', { count: dirtyToday.length })}</span>
                 )}
               </div>
-              <LaundryTypeChip {...dirtyTypes} />
             </header>
             <div className="live-stop-task-body">
               {dirtyToday.length === 0 ? (
@@ -396,24 +389,49 @@ export default function CourseCurrentStop({
                   {dirtyToday.map(entry => {
                     const assigned = assignedTripForEntry(entry, { allTrips, trip });
                     const captionKey = entryAssignmentCaption(assigned);
-                    const typeClass = `type-${entry.type || 'P'}`;
+                    const typeCode = entry.type || 'P';
+                    const typeClass = `type-${typeCode}`;
+                    const AssignmentIcon = captionKey === 'brought' ? CheckCircle2 : Truck;
+                    const hasWeight = entry.weight !== null && entry.weight !== undefined && entry.weight !== '';
+                    const trolleyText = entry.arrival_trolley_nos
+                      ? t('course.currentStop.trolleyNumbers', { numbers: entry.arrival_trolley_nos })
+                      : Number(entry.trolleys) > 0
+                        ? t('course.currentStop.trolleyCount', { count: Number(entry.trolleys) })
+                        : t('course.currentStop.noTrolley');
                     return (
-                      <div className={`driver-arrival-chip ${typeClass}`} key={entry.id}>
-                        <span className="driver-arrival-label">
-                          <strong>{entry.type || 'P'}</strong>
-                          {entry.weight ? ` · ${entry.weight} kg` : ''}
-                          {captionKey && <span className="live-entry-assignment"> · {t(`course.assignment.${captionKey}`)}</span>}
-                          {assigned?.label && <span className="live-entry-assignment-meta"> ({assigned.label})</span>}
-                        </span>
-                        <button type="button" className="driver-tool-btn" onClick={() => setViewEntry(entry)}>{t('course.edit')}</button>
-                        <button type="button" className="driver-tool-btn" onClick={() => deleteDirty(entry)} disabled={busy}>{t('course.currentStop.delete')}</button>
-                      </div>
+                      <article className={`driver-arrival-chip live-dirty-entry-card ${typeClass}`} key={entry.id}>
+                        <span className="live-dirty-entry-type" aria-hidden="true">{typeCode}</span>
+                        <div className="live-dirty-entry-main">
+                          <strong className="live-dirty-entry-name">{laundryTypeLabel(typeCode, t)}</strong>
+                          <div className="live-dirty-entry-meta">
+                            <span><ShoppingCart size={13} aria-hidden="true" /> {trolleyText}</span>
+                            {hasWeight && <span>{t('course.currentStop.weightLabel', { weight: formatKg(entry.weight) })}</span>}
+                          </div>
+                          {captionKey && (
+                            <div className="live-dirty-entry-transport">
+                              <AssignmentIcon size={14} aria-hidden="true" />
+                              <span>
+                                <strong>{t(`course.assignment.${captionKey}`)}</strong>
+                                {assigned?.label && <> {assigned.label}</>}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="live-dirty-entry-actions">
+                          <button type="button" className="live-dirty-entry-action" onClick={() => setViewEntry(entry)}>
+                            <Pencil size={14} aria-hidden="true" /> {t('course.edit')}
+                          </button>
+                          <button type="button" className="live-dirty-entry-action is-delete" onClick={() => deleteDirty(entry)} disabled={busy}>
+                            <Trash2 size={14} aria-hidden="true" /> {t('course.currentStop.delete')}
+                          </button>
+                        </div>
+                      </article>
                     );
                   })}
                 </div>
               )}
-              <button type="button" className="live-task-action is-secondary" onClick={() => setAddEntryFor(stop.client_name)} disabled={busy}>
-                <Plus size={16} aria-hidden="true" /> {t('course.currentStop.addDirtyArrival')}
+              <button type="button" className="live-task-action is-secondary live-dirty-add-action" onClick={() => setAddEntryFor(stop.client_name)} disabled={busy}>
+                <Plus size={16} aria-hidden="true" /> {dirtyToday.length > 0 ? t('course.currentStop.addAnotherDirtyPickup') : t('course.currentStop.addDirtyArrival')}
               </button>
             </div>
           </section>
@@ -421,7 +439,10 @@ export default function CourseCurrentStop({
       </article>
 
       {!canComplete && completeHint && (
-        <p className="live-stop-complete-hint" role="status">{completeHint}</p>
+        <p className={`live-stop-complete-hint${stopViewStatus !== 'pending' ? ' is-review' : ''}`} role="status">
+          {stopViewStatus !== 'pending' && <CheckCircle2 size={17} aria-hidden="true" />}
+          <span>{completeHint}</span>
+        </p>
       )}
       <div className="live-stop-nav-row">
         <button type="button" className="live-stop-nav-btn" onClick={onPrevStop} disabled={busy || !canPrevStop}>
