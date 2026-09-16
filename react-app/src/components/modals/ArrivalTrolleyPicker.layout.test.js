@@ -20,14 +20,12 @@ test('new arrival form defaults to with trolley while preserving the option orde
   );
 });
 
-test('the trolley grid renders only numbers that are available in the current context', () => {
-  assert.match(
-    pickerSource,
-    /const visibleTrolleyNumbers = useMemo\([\s\S]*?visibleArrivalTrolleyNumbers\(/,
-  );
+test('the trolley grid shows occupied numbers as unavailable until washing', () => {
+  assert.match(pickerSource, /filterTab === 'busy'/);
   assert.match(pickerSource, /visibleTrolleyNumbers\.map\(no =>/);
-  assert.doesNotMatch(pickerSource, /trolleyNumbers\.map\(no =>/);
-  assert.match(pickerSource, /t\('entry\.trolleyAvailableCount', \{ count: availableTrolleyCount \}\)/);
+  assert.match(pickerSource, /disabled=\{disabled \|\| state === 'busy'\}/);
+  assert.match(pickerSource, /t\('entry\.trolleyLegendBusy'\)/);
+  assert.match(pickerSource, /t\('entry\.trolleyOccupiedCount'/);
 });
 
 test('every arrival picker receives the exact dirty-arrival date', () => {

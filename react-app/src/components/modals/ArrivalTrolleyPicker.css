@@ -311,7 +311,9 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: all 0.12s ease;
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
 }
 
 .live-arrival-trolley-cell:hover:not(:disabled):not(.is-selected) {
@@ -337,13 +339,22 @@
 }
 
 .live-arrival-trolley-cell.is-busy {
-  opacity: 0.35;
+  position: relative;
   cursor: not-allowed;
-  background: #f2f2f7;
-  color: #8e8e93;
-  border-color: rgba(0, 0, 0, 0.04);
-  text-decoration: line-through;
+  background: rgba(255, 59, 48, 0.07);
+  color: #b42318;
+  border-color: rgba(255, 59, 48, 0.18);
   box-shadow: none;
+}
+.live-arrival-trolley-cell.is-busy::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff3b30;
 }
 
 /* Legenda i skanowanie */
@@ -380,6 +391,11 @@
 .live-arrival-trolley-legend-dot.is-selected {
   border-color: #007AFF;
   background: #007AFF;
+}
+
+.live-arrival-trolley-legend-dot.is-busy {
+  border-color: rgba(255, 59, 48, 0.45);
+  background: rgba(255, 59, 48, 0.18);
 }
 
 .live-arrival-trolley-scan-hint {

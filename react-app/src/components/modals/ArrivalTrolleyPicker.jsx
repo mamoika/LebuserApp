@@ -59,7 +59,7 @@ export default function ArrivalTrolleyPicker({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'returning' | 'free' | 'selected'
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'returning' | 'free' | 'busy' | 'selected'
 
   useEffect(() => {
     let cancelled = false;
@@ -120,26 +120,19 @@ export default function ArrivalTrolleyPicker({
 
   const visibleTrolleyNumbers = useMemo(
     () => {
-      const all = visibleArrivalTrolleyNumbers(
-        trolleyNumbers,
-        draftSelected,
-        activeTrolleyByNo,
-        clientName,
-        reservedTrolleyByNo,
-      );
-      return all.filter(no => {
+      return trolleyNumbers.filter(no => {
         if (searchQuery.trim() && !no.includes(searchQuery.trim())) return false;
+        const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
         if (filterTab === 'returning') {
-          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
           return state === 'returning';
         }
         if (filterTab === 'selected') {
           return draftSelected.includes(no);
         }
         if (filterTab === 'free') {
-          const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
           return state === 'free';
         }
+        if (filterTab === 'busy') return state === 'busy';
         return true;
       });
     },
@@ -153,6 +146,10 @@ export default function ArrivalTrolleyPicker({
     clientName,
     reservedTrolleyByNo,
   ).length, [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo]);
+
+  const occupiedTrolleyCount = useMemo(() => trolleyNumbers.filter(no => (
+    trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo) === 'busy'
+  )).length, [trolleyNumbers, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo]);
 
   const openPicker = () => {
     setLoading(true);
@@ -311,7 +308,7 @@ export default function ArrivalTrolleyPicker({
                   className={`live-trolley-chip${filterTab === 'all' ? ' is-active' : ''}`}
                   onClick={() => setFilterTab('all')}
                 >
-                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
+                  {t('entry.trolleyAllCount', { count: trolleyNumbers.length })}
                 </button>
                 {returningTrolleys.length > 0 && (
                   <button
@@ -328,8 +325,17 @@ export default function ArrivalTrolleyPicker({
                   className={`live-trolley-chip${filterTab === 'free' ? ' is-active' : ''}`}
                   onClick={() => setFilterTab('free')}
                 >
-                  Wolne
+                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
                 </button>
+                {occupiedTrolleyCount > 0 && (
+                  <button
+                    type="button"
+                    className={`live-trolley-chip is-busy${filterTab === 'busy' ? ' is-active' : ''}`}
+                    onClick={() => setFilterTab('busy')}
+                  >
+                    {t('entry.trolleyOccupiedCount', { count: occupiedTrolleyCount })}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`live-trolley-chip${filterTab === 'selected' ? ' is-active' : ''}`}
@@ -395,8 +401,11 @@ export default function ArrivalTrolleyPicker({
                             type="button"
                             className={`live-arrival-trolley-cell is-${state}`}
                             onClick={() => toggleTrolley(no)}
-                            disabled={disabled}
+                            disabled={disabled || state === 'busy'}
                             aria-pressed={state === 'selected'}
+                            aria-label={state === 'busy'
+                              ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
+                              : undefined}
                             title={
                               state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
                                 : state === 'busy' ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
@@ -429,6 +438,10 @@ export default function ArrivalTrolleyPicker({
                     <span className="live-arrival-trolley-legend-item">
                       <span className="live-arrival-trolley-legend-dot is-selected" />
                       {t('entry.trolleyLegendSelected')}
+                    </span>
+                    <span className="live-arrival-trolley-legend-item">
+                      <span className="live-arrival-trolley-legend-dot is-busy" />
+                      {t('entry.trolleyLegendBusy')}
                     </span>
                   </div>
 

@@ -14,7 +14,7 @@ export function trolleyCellState(
 ) {
   if (selected.includes(no)) return 'selected';
   const reservation = reservationForNo(reservedTrolleyByNo, no);
-  if (reservation && reservation.client_name !== clientName) return 'busy';
+  if (reservation) return 'busy';
   const active = activeTrolleyByNo.get(String(no).toLowerCase());
   if (!active) return 'free';
   if (active.status === 'at_client' && active.client_name === clientName) return 'returning';

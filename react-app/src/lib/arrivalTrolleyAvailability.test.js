@@ -40,7 +40,7 @@ test('trolleys reserved by another dirty entry are hidden at the next client', (
   );
 });
 
-test('a trolley reserved at the same client stays available for another laundry category', () => {
+test('an unwashed trolley stays busy even for another entry at the same client', () => {
   const reservations = new Map([
     ['2', { trolley_no: '2', client_name: 'Aktualny klient' }],
   ]);
@@ -53,6 +53,6 @@ test('a trolley reserved at the same client stays available for another laundry 
       'Aktualny klient',
       reservations,
     ),
-    ['1', '2', '3'],
+    ['1', '3'],
   );
 });
