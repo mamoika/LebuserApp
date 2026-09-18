@@ -81,18 +81,21 @@ function isRouteScheduledOnDate(route, date) {
   return effectiveRouteServiceRules(route).some(rule => isRuleScheduledOnDate(rule, date));
 }
 
-function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReservations, busy, onClose, onSave, onRemove, t }) {
+function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDriverIds, vehicleReservations, busy, onClose, onSave, onRemove, t }) {
   const trip = selection.trip;
-  const [driverId, setDriverId] = useState(trip?.driver_id || '');
+  const currentDriverId = trip?.driver_id || '';
+  const [driverId, setDriverId] = useState(currentDriverId);
   const [car, setCar] = useState(trip?.car || '');
   const [startTime, setStartTime] = useState(localTimeValue(trip?.planned_start) || '07:00');
 
   const selectableDrivers = useMemo(() => {
     return (drivers || []).filter(driver => {
-      if (driver.is_archived && driver.id !== driverId) return false;
-      return availableDriverIds.has(driver.id) || driver.id === driverId;
+      if (driver.is_archived && driver.id !== currentDriverId) return false;
+      const isAvailableAtWork = availableDriverIds.has(driver.id) || driver.id === currentDriverId;
+      const isFreeForRoute = !assignedDriverIds.has(driver.id) || driver.id === currentDriverId;
+      return isAvailableAtWork && isFreeForRoute;
     });
-  }, [drivers, availableDriverIds, driverId]);
+  }, [drivers, availableDriverIds, assignedDriverIds, currentDriverId]);
 
   const changeDriver = nextDriverId => {
     const reservation = vehicleReservations.get(car);
@@ -138,7 +141,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, vehicleReserv
                 {selectableDrivers.map(driver => (
                   <option value={driver.id} key={driver.id}>
                     {driver.name}
-                    {driver.id === driverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
+                    {driver.id === currentDriverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
                   </option>
                 ))}
               </select>
@@ -362,6 +365,19 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     });
     return result;
   }, [plan.trips, selection]);
+  const assignedDriverIdsForSelection = useMemo(() => {
+    const result = new Set();
+    if (!selection) return result;
+    plan.trips.forEach(trip => {
+      if (
+        trip.trip_date === selection.date
+        && !parseRouteIds(trip.routes).includes(selection.route.id)
+      ) {
+        result.add(trip.driver_id);
+      }
+    });
+    return result;
+  }, [plan.trips, selection]);
   const visibleRoutes = useMemo(() => {
     if (canManagePlan) return sortedRoutes.filter(route => !hiddenRouteIds.has(route.id));
     if (isAdminPlanView) return sortedRoutes.filter(route => !hiddenRouteIds.has(route.id));
@@ -546,6 +562,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         selection={selection}
         drivers={plan.drivers}
         availableDriverIds={availableDriversByDate.get(selection.date) || new Set(plan.drivers.map(driver => driver.id))}
+        assignedDriverIds={assignedDriverIdsForSelection}
         vehicleReservations={vehicleReservationsForSelection}
         busy={busy}
         t={t}

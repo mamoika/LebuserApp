@@ -81,6 +81,14 @@ test('a vehicle cannot be assigned to different drivers on the same day', () => 
   assert.match(vehicleGuardMigrationSource, /assignment\.route_id is distinct from p_route_id/);
 });
 
+test('assignment sheet hides drivers already assigned to another route that day', () => {
+  assert.match(weeklyPlanSource, /assignedDriverIdsForSelection/);
+  assert.match(weeklyPlanSource, /trip\.trip_date === selection\.date/);
+  assert.match(weeklyPlanSource, /!parseRouteIds\(trip\.routes\)\.includes\(selection\.route\.id\)/);
+  assert.match(weeklyPlanSource, /!assignedDriverIds\.has\(driver\.id\) \|\| driver\.id === currentDriverId/);
+  assert.match(weeklyPlanSource, /assignedDriverIds=\{assignedDriverIdsForSelection\}/);
+});
+
 test('changing the driver on an existing route keeps its vehicle assignment', () => {
   // INSERT ... ON CONFLICT runs BEFORE INSERT triggers before it resolves the
   // existing (plan_date, route_id) row, so the guard must ignore that route.
