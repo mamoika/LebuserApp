@@ -778,8 +778,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         onKeyDown={handleContainerKeyDown}
         className="grafik-scroll-container"
         style={{
-          overflow: 'auto',
-          maxHeight: 'calc(100vh - 200px)',
           borderRadius: '16px',
           border: '1px solid rgba(0,0,0,0.08)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08)',
