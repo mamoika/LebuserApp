@@ -12,6 +12,8 @@ const warehouseSource = await readFile(new URL('./WarehouseView.jsx', import.met
 const clientsRoutesSource = await readFile(new URL('./ClientsRoutesView.jsx', import.meta.url), 'utf8');
 const migrationSource = await readFile(new URL('../../db/migrations/user_module_permissions.sql', import.meta.url), 'utf8');
 const routePlanAdminMigrationSource = await readFile(new URL('../../db/migrations/zzzzzzzzzzzz_route_plan_admin_roles.sql', import.meta.url), 'utf8');
+const routePlanVehicleGuardMigrationSource = await readFile(new URL('../../db/migrations/weekly_route_plan_vehicle_guard.sql', import.meta.url), 'utf8');
+const routePlanUpsertPermissionFixSource = await readFile(new URL('../../db/migrations/zzzzzzzzzzzzzz_route_plan_upsert_permission_fix.sql', import.meta.url), 'utf8');
 const clientsRoutesAdminMigrationSource = await readFile(new URL('../../db/migrations/zzzzzzzzzzzzz_clients_routes_admin_roles.sql', import.meta.url), 'utf8');
 
 test('role defaults preserve current access and custom values can only restrict it', () => {
@@ -67,6 +69,13 @@ test('all administrative roles can edit the route plan through module-bounded RP
   assert.match(routePlanAdminMigrationSource, /admin_remove_weekly_route_assignment/);
   assert.match(routePlanAdminMigrationSource, /admin_copy_weekly_route_plan/);
   assert.match(routePlanAdminMigrationSource, /admin_save_weekly_route_plan_visibility/);
+});
+
+test('vehicle assignment hardening preserves module-bounded route plan editing', () => {
+  assert.match(routePlanVehicleGuardMigrationSource, /perform private\.require_route_plan_editor\(p_session_token\)/);
+  assert.doesNotMatch(routePlanVehicleGuardMigrationSource, /perform public\.require_admin\(p_session_token\)/);
+  assert.match(routePlanUpsertPermissionFixSource, /admin_upsert_weekly_route_assignment/);
+  assert.match(routePlanUpsertPermissionFixSource, /private\.require_route_plan_editor\(p_session_token\)/);
 });
 
 test('all administrative roles can edit clients and routes through module-bounded RPCs', () => {

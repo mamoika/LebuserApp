@@ -74,7 +74,7 @@ declare
   v_car text := nullif(trim(coalesce(p_car, '')), '');
   v_conflicting_driver_name text;
 begin
-  perform public.require_admin(p_session_token);
+  perform private.require_route_plan_editor(p_session_token);
   if p_route_id is null or not exists (select 1 from public.routes where id = p_route_id) then
     return json_build_object('error', 'Nie znaleziono trasy');
   end if;
