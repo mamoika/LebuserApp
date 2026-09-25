@@ -52,6 +52,27 @@ test('a second chunk failure is reported instead of causing a reload loop', asyn
   assert.equal(reloads, 0);
 });
 
+test('a preload error that resolves without a module stays pending while reload is in progress', async () => {
+  const storage = {
+    getItem: () => '1',
+    setItem: () => assert.fail('the preload handler already requested a reload'),
+  };
+  let reloads = 0;
+
+  const malformedImport = chunkReload.importWithChunkReload(
+    () => Promise.resolve(undefined),
+    { storage, reload: () => { reloads += 1; } },
+  );
+
+  const outcome = await Promise.race([
+    malformedImport.then(value => ({ status: 'resolved', value }), () => ({ status: 'rejected' })),
+    new Promise(resolve => setTimeout(() => resolve({ status: 'pending' }), 10)),
+  ]);
+
+  assert.deepEqual(outcome, { status: 'pending' });
+  assert.equal(reloads, 0);
+});
+
 test('ordinary module errors are not hidden by the chunk recovery', async () => {
   const error = new Error('module initialization failed');
   await assert.rejects(

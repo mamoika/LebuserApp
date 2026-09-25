@@ -7,6 +7,7 @@
 // pobrać świeży index.html + aktualne chunki. Crash zamienia się w cichy refresh.
 const RELOAD_KEY = 'lebuser_chunk_reload';
 const CHUNK_IMPORT_ERROR = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk [^ ]+ failed|ChunkLoadError/i;
+const waitForReload = () => new Promise(() => {});
 
 function browserRuntime() {
   if (typeof window === 'undefined') return null;
@@ -29,15 +30,34 @@ function requestChunkReload(error, runtime = browserRuntime(), force = false) {
   }
 }
 
+function reloadIsPending(runtime) {
+  try {
+    return runtime?.storage.getItem(RELOAD_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // React.lazy() może dostać zwykłe odrzucenie Promise bez zdarzenia
 // `vite:preloadError`. Wtedy przeładowujemy aplikację bez przekazywania błędu do
 // ErrorBoundary; oczekujący Promise zostanie porzucony wraz z bieżącą stroną.
 export async function importWithChunkReload(importer, runtime) {
+  const activeRuntime = runtime ?? browserRuntime();
   try {
-    return await importer();
+    const loadedModule = await importer();
+    if (loadedModule && typeof loadedModule === 'object') return loadedModule;
+
+    // Safari może po obsłużonym `vite:preloadError` rozwiązać import wartością
+    // undefined, zanim rozpoczęty reload przejmie stronę. Nie przekazujemy jej
+    // do React.lazy(), bo kończy się to błędem `_result.default` w React.
+    if (reloadIsPending(activeRuntime)
+        || requestChunkReload(new TypeError('Chunk import returned no module'), activeRuntime, true)) {
+      return waitForReload();
+    }
+    throw new TypeError('Chunk import returned no module');
   } catch (error) {
-    if (requestChunkReload(error, runtime)) {
-      return new Promise(() => {});
+    if (requestChunkReload(error, activeRuntime)) {
+      return waitForReload();
     }
     throw error;
   }
