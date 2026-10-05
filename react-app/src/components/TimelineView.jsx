@@ -540,7 +540,8 @@ const TimelineRow = React.memo(({
 
 export default function TimelineView() {
   const { t, i18n } = useTranslation();
-  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
+  const { user, canViewAdminData, canEditModule, sessionToken } = useAuth();
+  const canEditWorkSchedule = canEditModule('work_schedule');
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
   // Kotwica bieżącego widoku — dowolny dzień w obrębie wyświetlanego fragmentu tygodnia.
@@ -687,7 +688,7 @@ export default function TimelineView() {
 
 
   const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
-    if (!isAdmin || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
+    if (!canEditWorkSchedule || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
     const key = `${empId}_${dateStr}_${hour}`;
     const isErase = brushRole === '__erase__';
     const newRole = isErase ? null : brushRole;
@@ -715,11 +716,11 @@ export default function TimelineView() {
       });
       toastError(t('timeline.saveError'));
     }
-  }, [isAdmin, brushRole, user, sessionToken, t]);
+  }, [canEditWorkSchedule, brushRole, user, sessionToken, t]);
 
   // Kopiowanie dnia jednej osoby na inny dzień (tryb "dołóż")
   const handleCopyClick = useCallback(async (empId, dateStr) => {
-    if (!isAdmin) return;
+    if (!canEditWorkSchedule) return;
     const srcKey = `${empId}_${dateStr}`;
     // pierwszy klik (lub klik w to samo źródło) — ustaw/wyczyść źródło
     if (!copySource || copySource === srcKey) {
@@ -773,7 +774,7 @@ export default function TimelineView() {
       setCopySource(null);
       toastSuccess(t('timeline.copied', { count: toWrite.length, name: tgtEmp.name, date: fmtDate(new Date(dateStr + 'T00:00:00')) }));
     }
-  }, [isAdmin, copySource, employees, scheduleMap, user, sessionToken, t]);
+  }, [canEditWorkSchedule, copySource, employees, scheduleMap, user, sessionToken, t]);
 
   const minMonday = getMondayOfWeek(new Date(2026, 0, 1)); // start: tydzień ze stycznia 2026
   const atMinWeek = segStart <= minMonday;
@@ -966,7 +967,7 @@ export default function TimelineView() {
       </div>
 
       {/* Pasek pędzla */}
-      {isAdmin && (
+      {canEditWorkSchedule && (
         <div className="print-hide" style={{
           display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap',
           background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
@@ -1096,7 +1097,7 @@ export default function TimelineView() {
                     weekDays={weekDays}
                     scheduleMap={scheduleMap}
                     entries={entries}
-                    isAdmin={isAdmin}
+                    isAdmin={canEditWorkSchedule}
                     rowBg={rowBg}
                     roles={ROLES}
                     brushRole={brushRole}

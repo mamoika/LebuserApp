@@ -19,17 +19,17 @@ const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impers
 const MAX_SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 export const PRIVACY_NOTICE_VERSION = 'privacy_notice_v1';
 
-const loadModuleAccess = async (sessionToken, role, fallback = null) => {
-  if (!sessionToken) return normalizeModuleAccess(role, fallback);
+const loadModuleAccess = async (sessionToken, role, username, fallback = null) => {
+  if (!sessionToken) return normalizeModuleAccess(role, fallback, username);
   try {
     const { data, error } = await supabase.rpc('get_my_module_permissions', {
       p_session_token: sessionToken,
     });
-    if (error || data?.error) return normalizeModuleAccess(role, fallback);
-    return normalizeModuleAccess(role, data?.module_access);
+    if (error || data?.error) return normalizeModuleAccess(role, fallback, username);
+    return normalizeModuleAccess(role, data?.module_access, username);
   } catch {
     // Zachowaj dotychczasowe prawa roli podczas wdrażania migracji lub awarii RPC.
-    return normalizeModuleAccess(role, fallback);
+    return normalizeModuleAccess(role, fallback, username);
   }
 };
 
@@ -114,7 +114,12 @@ export const AuthProvider = ({ children }) => {
       clearSession();
       return;
     }
-    const moduleAccess = await loadModuleAccess(user.session_token, fresh.role, moduleAccessRef.current);
+    const moduleAccess = await loadModuleAccess(
+      user.session_token,
+      fresh.role,
+      fresh.username,
+      moduleAccessRef.current
+    );
     setUser((prev) => {
       if (!prev || prev.session_token !== user.session_token) return prev;
       const next = {
@@ -205,7 +210,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
-    userData.module_access = await loadModuleAccess(data.session_token, data.role);
+    userData.module_access = await loadModuleAccess(data.session_token, data.role, data.username);
     await attachDeviceInfo(data.session_token);
     storeUser(userData);
     applyLanguage(data.language);
@@ -238,7 +243,7 @@ export const AuthProvider = ({ children }) => {
       session_token: data.session_token,
       session_expires_at: data.session_expires_at,
     };
-    targetUser.module_access = await loadModuleAccess(data.session_token, data.role);
+    targetUser.module_access = await loadModuleAccess(data.session_token, data.role, data.username);
     await attachDeviceInfo(data.session_token);
     storeUser(targetUser);
     applyLanguage(data.language);
@@ -327,7 +332,7 @@ export const AuthProvider = ({ children }) => {
   const isViewer = role === 'viewer';
   const isTunnel = role === 'tunnel';
   const isPacker = role === 'packer';
-  const moduleAccess = normalizeModuleAccess(role, user?.module_access);
+  const moduleAccess = normalizeModuleAccess(role, user?.module_access, user?.username);
   const canViewModule = module => (moduleAccess[module] || 0) >= MODULE_ACCESS.view;
   const canEditModule = module => (moduleAccess[module] || 0) >= MODULE_ACCESS.edit;
 

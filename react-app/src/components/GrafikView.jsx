@@ -336,7 +336,8 @@ function WorkTimeDecisionHistory({ events, open, onClose }) {
 
 export default function GrafikView({ historyOpen = false, onHistoryClose = () => {} }) {
   const { t } = useTranslation();
-  const { user, isAdmin, canViewAdminData, sessionToken } = useAuth();
+  const { user, isAdmin, canViewAdminData, canEditModule, sessionToken } = useAuth();
+  const canEditWorkSchedule = canEditModule('work_schedule');
   const MONTH_NAMES = monthNames();
   const DAY_NAMES = dayNamesSunSat();
   const today = new Date();
@@ -491,7 +492,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   };
 
   const handleContainerKeyDown = (e) => {
-    if (!selectedCell || !isAdmin) return;
+    if (!selectedCell || !canEditWorkSchedule) return;
     const { empIdx, day } = selectedCell;
 
     const move = (dEmp, dDay) => {
@@ -510,7 +511,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   };
 
     const handlePickerSelect = (val) => {
-    if (!selectedCell || !isAdmin) return;
+    if (!selectedCell || !canEditWorkSchedule) return;
     const { empIdx, day } = selectedCell;
     const emp = allEmps[empIdx];
     if (emp) saveCell(emp.id, day, val);
@@ -625,7 +626,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
   return (
     <div className="grafik-container grafik-modern-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {isAdmin && selectedCell && (
+      {canEditWorkSchedule && selectedCell && (
         <ValuePicker
           key={`${selectedCell.empIdx}-${selectedCell.day}`}
           selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
@@ -961,9 +962,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                         return (
                           <td key={d}
-                            className={`grafik-day-cell${hasVal ? '' : ' grafik-cell-hoverable'}${isAdmin ? ' grafik-editable-cell' : ''}`}
+                            className={`grafik-day-cell${hasVal ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule ? ' grafik-editable-cell' : ''}`}
                             data-cell={`${empIdx}-${d}`}
-                            onClick={() => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); }}
+                            onClick={canEditWorkSchedule ? () => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); } : undefined}
                             onDoubleClick={() => {}}
                             style={{
                               background: cellBg,
@@ -974,7 +975,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                               borderBottom: '1px solid rgba(0,0,0,0.04)',
                               borderRight: '1px solid rgba(0,0,0,0.04)',
                               boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
-                              cursor: isAdmin ? 'pointer' : 'default',
+                              cursor: canEditWorkSchedule ? 'pointer' : 'default',
                               padding: 0, width: `${DAY_COLUMN_WIDTH}px`,
                               boxSizing: 'border-box',
                               position: 'relative',

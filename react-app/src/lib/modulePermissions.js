@@ -36,13 +36,22 @@ export function defaultModuleAccess(role) {
   return Object.fromEntries(APP_MODULES.map(module => [module.key, defaults[module.key] || 0]));
 }
 
-export function normalizeModuleAccess(role, value) {
+export function maxModuleAccess(role, username = '') {
+  const maximum = defaultModuleAccess(role);
+  if (String(username).trim().toLowerCase() === 'muller') {
+    maximum.work_schedule = MODULE_ACCESS.edit;
+  }
+  return maximum;
+}
+
+export function normalizeModuleAccess(role, value, username = '') {
   const defaults = defaultModuleAccess(role);
+  const maximum = maxModuleAccess(role, username);
   if (role === 'admin') return defaults;
   return Object.fromEntries(APP_MODULES.map(module => {
     const requested = Number(value?.[module.key]);
     return [module.key, Number.isInteger(requested)
-      ? Math.max(0, Math.min(defaults[module.key], requested))
+      ? Math.max(MODULE_ACCESS.hidden, Math.min(maximum[module.key], requested))
       : defaults[module.key]];
   }));
 }
