@@ -30,6 +30,13 @@ export function upsertDailyCosts(sessionToken, rows) {
   });
 }
 
+export function upsertCostsPerformanceProgi(sessionToken, monthKey, value) {
+  return callAdminRpc(sessionToken, 'save_costs_performance_progi', {
+    p_month_key: monthKey,
+    p_value: value,
+  });
+}
+
 export function pruneUserSessions(sessionToken, keepActive = 10) {
   return callAdminRpc(sessionToken, 'admin_prune_user_sessions', {
     p_keep_active: keepActive,

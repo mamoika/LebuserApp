@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
-import { upsertAppSetting, upsertCostSettings, upsertDailyCosts } from '../lib/adminRpc';
+import { upsertCostSettings, upsertCostsPerformanceProgi, upsertDailyCosts } from '../lib/adminRpc';
 import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getMonthRoster, getPerformanceProgi } from '../lib/readRpc';
 import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
@@ -152,8 +152,6 @@ const PROGI_DEFAULT = {
   WSP: { slaba: 15, srednia: 20, dobra: 27 },
 };
 // Progi są PER MIESIĄC — osobny klucz w app_settings i osobny cache na każdy month_key
-const PROGI_DB_PREFIX = 'performance_progi_';            // app_settings: performance_progi_2026-06
-const progiDbKey = (mk) => `${PROGI_DB_PREFIX}${mk}`;
 const progiLsKey = (mk) => `lebuser_progi_${mk}`;        // cache lokalny per miesiąc
 // Domknij surowy obiekt progów domyślnymi (odporne na braki pól / starszy kształt)
 const normalizeProgi = (p) => {
@@ -278,7 +276,8 @@ function aggregateMonth(year, month, { costsAsc, settsAsc, laborByMonth }) {
 
 export default function CostsView() {
   const { t } = useTranslation();
-  const { isAdmin, canViewAdminData, sessionToken } = useAuth();
+  const { isAdmin, canViewAdminData, canEditModule, sessionToken } = useAuth();
+  const canEditCosts = canEditModule('costs');
   const currentDateStr = useTodayKey();
 
   const [currentDate, setCurrentDate] = useState(() => {
@@ -298,16 +297,16 @@ export default function CostsView() {
   // progi wydajności (kg/rbh) — PER MIESIĄC (app_settings: performance_progi_<month>)
   const [progi, setProgi] = useState(() => loadProgiCache(`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`));
   const updateProgi = useCallback(async (next) => {
-    if (!isAdmin) return;
+    if (!canEditCosts) return;
     const mk = monthKey;
     setProgi(next);
     try { localStorage.setItem(progiLsKey(mk), JSON.stringify(next)); } catch { /* ignore */ }
     try {
-      await upsertAppSetting(sessionToken, progiDbKey(mk), next);
+      await upsertCostsPerformanceProgi(sessionToken, mk, next);
     } catch {
       toastError(t('costs.errSaveThresholds'));
     }
-  }, [isAdmin, monthKey, sessionToken, t]);
+  }, [canEditCosts, monthKey, sessionToken, t]);
 
   const [settings, setSettings] = useState({});
   const [dailyData, setDailyData] = useState({});
@@ -497,7 +496,7 @@ export default function CostsView() {
 
   // Auto-zapis z debounce — zapisuje tylko „brudne" dni i ewentualnie stawki
   const flushSave = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canEditCosts) return;
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     const dirtySnapshot = [...dirtyFields.current].map(([dateStr, fields]) => [dateStr, [...fields]]);
     const setDirty = dirtySettings.current;
@@ -582,7 +581,7 @@ export default function CostsView() {
       toastError(t(concurrent ? 'costs.errConcurrentChange' : 'costs.errUnsavedChanges'));
       return false;
     }
-  }, [isAdmin, sessionToken, t]);
+  }, [canEditCosts, sessionToken, t]);
 
   const scheduleAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -593,7 +592,7 @@ export default function CostsView() {
   useEffect(() => () => { flushSave(); }, [monthKey, flushSave]);
 
   const handleCostChange = (dateStr, field, value) => {
-    if (!isAdmin) return;
+    if (!canEditCosts) return;
     let parsed = value;
     if (value === '') {
       parsed = null;
@@ -618,7 +617,7 @@ export default function CostsView() {
   };
 
   const handleSettingChange = (field, value) => {
-    if (!isAdmin) return;
+    if (!canEditCosts) return;
     const num = parseDecimalInput(value);
     setSettings(prev => ({ ...prev, [field]: num }));
     dirtySettings.current = true;
@@ -627,7 +626,7 @@ export default function CostsView() {
   };
 
   const saveAll = async () => {
-    if (!isAdmin) return;
+    if (!canEditCosts) return;
     setSaving(true);
     dirtySettings.current = true;
     dirtySettingsMonthKey.current = monthKey;
@@ -877,7 +876,7 @@ export default function CostsView() {
           <button onClick={() => setShowRates(v => !v)} title={t('costs.rates')} style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
             <Settings size={16}/> {t('costs.rates')}
           </button>
-          {isAdmin && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title={t('costs.saveAllNow')} style={{
+          {canEditCosts && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title={t('costs.saveAllNow')} style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: autoSave === 'saved' ? '#34C759' : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
             color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: 600, fontSize: '14px',
@@ -890,7 +889,7 @@ export default function CostsView() {
       </div>
 
       {/* RATES PANEL */}
-      {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!isAdmin} />}
+      {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!canEditCosts} />}
 
       {isAdmin && integrityReport && (meaningfulMeterIssueCount + courseIssueCount > 0) && (
         <div role="alert" style={{ ...cardStyle, padding: '12px 16px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.08)', color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
@@ -909,11 +908,11 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={forecastTotals} onChange={handleCostChange} readOnly={!isAdmin} laborHours={laborHours} todayKey={currentDateStr} />
+            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={forecastTotals} onChange={handleCostChange} readOnly={!canEditCosts} laborHours={laborHours} todayKey={currentDateStr} />
           )}
 
           {activeTab === 'performance' && (
-            <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!isAdmin} todayKey={currentDateStr} />
+            <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!canEditCosts} todayKey={currentDateStr} />
           )}
         </>
       )}

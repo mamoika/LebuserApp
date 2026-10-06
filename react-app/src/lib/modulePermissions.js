@@ -40,6 +40,7 @@ export function maxModuleAccess(role, username = '') {
   const maximum = defaultModuleAccess(role);
   if (String(username).trim().toLowerCase() === 'muller') {
     maximum.work_schedule = MODULE_ACCESS.edit;
+    maximum.costs = MODULE_ACCESS.edit;
   }
   return maximum;
 }
