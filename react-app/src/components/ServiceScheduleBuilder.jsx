@@ -6,16 +6,24 @@ import {
   SERVICE_WEEKDAYS,
 } from '../lib/serviceSchedule';
 
-const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+function departureDayFor(rule) {
+  return ((rule.weekday - 1 + Number(rule.turnaround_days || 0)) % 7) + 1;
+}
 
 export function serviceScheduleSummary(rules, t) {
   const normalized = normalizeServiceRules(rules);
   if (!normalized.length) return t('clients.servicePlan.none');
   return normalized.map(rule => {
     const day = t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`);
+    const departure = rule.turnaround_days
+      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDayFor(rule) - 1] || 'sun'}`)}`
+      : '';
+    const label = `${day}${departure}`;
     return rule.interval_weeks === 1
-      ? day
-      : `${day} · ${t('clients.servicePlan.everyNWeeks', { count: rule.interval_weeks })}`;
+      ? label
+      : `${label} · ${t('clients.servicePlan.everyNWeeks', { count: rule.interval_weeks })}`;
   }).join(' · ');
 }
 
@@ -26,7 +34,11 @@ export function compactServiceScheduleSummary(rules, t) {
   const daysByInterval = new Map();
   normalized.forEach(rule => {
     const days = daysByInterval.get(rule.interval_weeks) || [];
-    days.push(t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`));
+    const arrival = t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`);
+    const departure = rule.turnaround_days
+      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDayFor(rule) - 1] || 'sun'}`)}`
+      : '';
+    days.push(`${arrival}${departure}`);
     daysByInterval.set(rule.interval_weeks, days);
   });
 
@@ -44,6 +56,7 @@ export default function ServiceScheduleBuilder({
   showMode = false,
   onModeChange,
   onRulesChange,
+  showTurnaround = false,
 }) {
   const { t } = useTranslation();
   const normalized = normalizeServiceRules(rules);
@@ -57,7 +70,12 @@ export default function ServiceScheduleBuilder({
     } else {
       setRules([
         ...normalized,
-        { weekday, interval_weeks: 1, anchor_week: mondayKey() },
+        {
+          weekday,
+          interval_weeks: 1,
+          anchor_week: mondayKey(),
+          ...(showTurnaround ? { turnaround_days: 2 } : {}),
+        },
       ]);
     }
   };
@@ -120,8 +138,33 @@ export default function ServiceScheduleBuilder({
           ) : (
             <div className="service-schedule-rules">
               {normalized.map(rule => (
-                <div className="service-schedule-rule" key={rule.weekday}>
+                <div className={`service-schedule-rule${showTurnaround ? ' with-turnaround' : ''}`} key={rule.weekday}>
                   <strong>{t(`clients.servicePlan.dayNames.${DAY_KEYS[rule.weekday - 1]}`)}</strong>
+                  {showTurnaround && (
+                    <label>
+                      <span>{t('clients.servicePlan.cleanDeparture')}</span>
+                      <select
+                        className="ap-input"
+                        value={rule.turnaround_days || ''}
+                        onChange={event => updateRule(rule.weekday, {
+                          turnaround_days: Number(event.target.value),
+                        })}
+                      >
+                        <option value="">{t('clients.servicePlan.automaticDeparture')}</option>
+                        {Array.from({ length: 7 }, (_, index) => index + 1)
+                          .filter(days => ((rule.weekday - 1 + days) % 7) + 1 <= 6)
+                          .map(days => {
+                          const departureDay = ((rule.weekday - 1 + days) % 7) + 1;
+                          const key = DAY_KEYS[departureDay - 1] || 'sun';
+                          return (
+                            <option key={days} value={days}>
+                              {t(`clients.servicePlan.dayNames.${key}`)} (+{days})
+                            </option>
+                          );
+                          })}
+                      </select>
+                    </label>
+                  )}
                   <label>
                     <span>{t('clients.servicePlan.frequency')}</span>
                     <select

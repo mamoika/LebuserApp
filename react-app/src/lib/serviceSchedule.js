@@ -1,4 +1,5 @@
-export const SERVICE_WEEKDAYS = [1, 2, 3, 4, 5];
+export const SERVICE_WEEKDAYS = [1, 2, 3, 4, 5, 6];
+export const STANDARD_WORKDAYS = [1, 2, 3, 4, 5];
 export const SERVICE_SCHEDULE_MODES = ['inherit', 'custom', 'disabled'];
 export const SERVICE_PRESETS = {
   monThu: [1, 4],
@@ -47,9 +48,27 @@ export function normalizeServiceRules(rules = [], fallbackAnchor = mondayKey()) 
       weekday,
       interval_weeks: intervalWeeks,
       anchor_week: anchorWeek,
+      ...(Number.isInteger(Number(raw?.turnaround_days))
+        && Number(raw.turnaround_days) >= 1
+        && Number(raw.turnaround_days) <= 13
+        ? { turnaround_days: Number(raw.turnaround_days) }
+        : {}),
     });
   });
   return [...byDay.values()].sort((a, b) => a.weekday - b.weekday);
+}
+
+export function rulesWithClientTurnarounds(client) {
+  const turnarounds = client?.service_turnaround_days;
+  const mapping = turnarounds && typeof turnarounds === 'object' && !Array.isArray(turnarounds)
+    ? turnarounds
+    : {};
+  return normalizeServiceRules(client?.service_rules).map(rule => {
+    const turnaroundDays = Number(mapping[rule.weekday]);
+    return Number.isInteger(turnaroundDays) && turnaroundDays >= 1 && turnaroundDays <= 13
+      ? { ...rule, turnaround_days: turnaroundDays }
+      : rule;
+  });
 }
 
 export function legacyScheduleRules(schedule = 'other', anchorWeek = '2026-01-05') {
@@ -70,7 +89,7 @@ export function effectiveServiceRules(client, routes = []) {
     ? client.service_schedule_mode
     : 'inherit';
   if (mode === 'disabled') return [];
-  if (mode === 'custom') return normalizeServiceRules(client?.service_rules);
+  if (mode === 'custom') return rulesWithClientTurnarounds(client);
 
   const route = routes.find(item => Number(item.id) === Number(client?.route_id));
   return effectiveRouteServiceRules(route);
@@ -78,9 +97,9 @@ export function effectiveServiceRules(client, routes = []) {
 
 export function isEveryWorkdayService(rules) {
   const normalized = normalizeServiceRules(rules);
-  return normalized.length === SERVICE_WEEKDAYS.length
+  return normalized.length === STANDARD_WORKDAYS.length
     && normalized.every((rule, index) => (
-      rule.weekday === SERVICE_WEEKDAYS[index] && rule.interval_weeks === 1
+      rule.weekday === STANDARD_WORKDAYS[index] && rule.interval_weeks === 1
     ));
 }
 
@@ -109,6 +128,18 @@ export function nextServiceSlot(rules, weekKey, arrivalDay) {
 
   const arrival = new Date(monday);
   arrival.setDate(arrival.getDate() + day - 1);
+  const explicit = normalized.find(rule => (
+    rule.weekday === day && Number.isInteger(rule.turnaround_days)
+  ));
+  if (explicit) {
+    const departure = new Date(arrival);
+    departure.setDate(departure.getDate() + explicit.turnaround_days);
+    const departureMonday = parseDateKey(mondayKey(departure));
+    return {
+      pickDay: departure.getDay() || 7,
+      pickWeek: Math.round((departureMonday.getTime() - monday.getTime()) / (7 * 86400000)),
+    };
+  }
   for (let offset = 1; offset <= 35; offset += 1) {
     const candidate = new Date(arrival);
     candidate.setDate(candidate.getDate() + offset);

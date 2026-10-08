@@ -20,7 +20,7 @@ function addDays(date, days) {
 
 function isWorkday(date) {
   const day = date.getDay();
-  return day >= 1 && day <= 5;
+  return day >= 1 && day <= 6;
 }
 
 function normalizeWorkday(date, direction = 1) {
@@ -110,7 +110,7 @@ function cleanLaundryReadyForDriver(entry) {
   return Boolean(entry?.washed);
 }
 
-// Czas absolutny dnia roboczego (1=Pn..5=Pt) w danym tygodniu — do porównań.
+// Czas absolutny dnia operacyjnego (1=Pn..6=So) w danym tygodniu — do porównań.
 function dayWeekToTime(day, weekKey) {
   const [y, m, d] = (weekKey || '').split('-').map(Number);
   const dt = new Date(y, (m || 1) - 1, d || 1);
@@ -119,7 +119,7 @@ function dayWeekToTime(day, weekKey) {
 }
 
 // Dzień prania danego wpisu — liczony od WYJAZDU (odbioru), nie przyjazdu:
-// - pierzemy w dzień roboczy tuż PRZED wyjazdem (pn → pt poprzedniego tygodnia),
+// - pierzemy w dzień operacyjny tuż PRZED wyjazdem (pn → sobota poprzedniego tygodnia),
 // - dla tras nie-codziennych nie pierzemy w dniu przyjazdu: jeśli „dzień przed
 //   wyjazdem" wypada w dniu przyjazdu lub wcześniej (np. przyjazd Pt → wyjazd Pn,
 //   gdzie pomiędzy jest tylko weekend), pierzemy w dniu wyjazdu.
@@ -138,14 +138,14 @@ function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
   if (!depDay || !depWeek) {
     if (!arrDay || !arrWeek) return null;
     if (isDaily) return `${arrWeek}|${arrDay}`;
-    if (arrDay < 5) return `${arrWeek}|${arrDay + 1}`;
+    if (arrDay < 6) return `${arrWeek}|${arrDay + 1}`;
     return `${addDaysToWeekKey(arrWeek, 7)}|1`;
   }
 
   // Dzień roboczy tuż przed wyjazdem.
   let washDay, washWeek;
   if (depDay > 1) { washDay = depDay - 1; washWeek = depWeek; }
-  else { washDay = 5; washWeek = addDaysToWeekKey(depWeek, -7); } // pn → pt poprz. tygodnia
+  else { washDay = 6; washWeek = addDaysToWeekKey(depWeek, -7); }
 
   // Trasy nie-codzienne: nie pierzemy w dniu przyjazdu (ani wcześniej) → wtedy w dniu wyjazdu.
   if (!isDaily && arrDay && arrWeek) {
@@ -259,8 +259,8 @@ export default function ScheduleView() {
   const week1Key = formatWeekKey(currentMonday);
   const week2Key = formatWeekKey(nextMonday);
   
-  const w1End = addDays(currentMonday, 4);
-  const w2End = addDays(nextMonday, 4);
+  const w1End = addDays(currentMonday, 5);
+  const w2End = addDays(nextMonday, 5);
   const mobileAnchor = addWorkdays(operationalDate(), mobileDayOffset);
 
   const slotForDate = (date) => {

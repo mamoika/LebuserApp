@@ -49,7 +49,7 @@ export function workDateOptions(days = 14) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const wd = (d.getDay() + 6) % 7 + 1;
-    if (wd > 5) continue;
+    if (wd > 6) continue;
     opts.push({
       value: ymd(d),
       label: d.toLocaleDateString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit' }),
@@ -63,7 +63,7 @@ export function nextWorkDateAfter(dateStr) {
   d.setDate(d.getDate() + 1);
   for (let i = 0; i < 10; i += 1) {
     const wd = (d.getDay() + 6) % 7 + 1;
-    if (wd <= 5) return ymd(d);
+    if (wd <= 6) return ymd(d);
     d.setDate(d.getDate() + 1);
   }
   return ymd(d);
@@ -131,7 +131,7 @@ export function arrivalDateStr(entry) {
 
 export function tripDateInfo(dateStr) {
   const dt = dateStr ? new Date(`${dateStr}T00:00:00`) : operationalDate();
-  const day = Math.min(5, Math.max(1, (dt.getDay() + 6) % 7 + 1));
+  const day = Math.min(6, Math.max(1, (dt.getDay() + 6) % 7 + 1));
   const monday = new Date(dt);
   monday.setDate(dt.getDate() - (day - 1));
   return { arrDay: day, weekKey: formatWeekKey(monday) };
@@ -153,7 +153,7 @@ export function buildVirtualPlannedTrips({ entries, allTrips, horizonDays = 14, 
     const d = new Date(anchor);
     d.setDate(anchor.getDate() + i);
     const wd = (d.getDay() + 6) % 7 + 1;
-    if (wd <= 5) horizonSet.add(ymd(d));
+    if (wd <= 6) horizonSet.add(ymd(d));
   }
 
   const plannedByDate = new Map();

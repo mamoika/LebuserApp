@@ -17,7 +17,7 @@ import {
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
 import '../mockups/mockups.css';
 
-// arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT
+// arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT, 6=SO
 function getDefaultPickInfo(arrDay, schedule = 'other', serviceRules = [], weekKey = null) {
   const planned = weekKey ? nextServiceSlot(serviceRules, weekKey, arrDay) : null;
   if (planned) return planned;
@@ -127,7 +127,7 @@ function buildPickDayOptions(baseWeekKey, arrDay, pickWeek, includeDay) {
   const min = Number(pickWeek) >= 1 ? 1 : (parseInt(arrDay) || 1);
   const out = [];
   const seen = new Set();
-  for (let d = min; d <= 5; d++) { out.push({ value: d, label: dayWithDate(wk, d) }); seen.add(d); }
+  for (let d = min; d <= 6; d++) { out.push({ value: d, label: dayWithDate(wk, d) }); seen.add(d); }
   const inc = Number(includeDay);
   if (inc && !seen.has(inc)) out.unshift({ value: inc, label: dayWithDate(wk, inc) });
   return out;

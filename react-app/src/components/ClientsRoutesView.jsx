@@ -27,6 +27,7 @@ import {
   effectiveServiceRules,
   legacyScheduleRules,
   normalizeServiceRules,
+  rulesWithClientTurnarounds,
 } from '../lib/serviceSchedule';
 import {
   DEFAULT_LAUNDRY_CATEGORIES,
@@ -336,6 +337,7 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
           <div style={LABEL_STYLE}>{t('clients.servicePlan.clientPlan')}</div>
           <ServiceScheduleBuilder
             showMode
+            showTurnaround
             mode={scheduleMode}
             rules={serviceRules}
             inheritedRules={inheritedRules}
@@ -365,7 +367,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
   const [lat, setLat] = useState(client.lat != null ? String(client.lat) : '');
   const [lng, setLng] = useState(client.lng != null ? String(client.lng) : '');
   const [scheduleMode, setScheduleMode] = useState(client.service_schedule_mode || 'inherit');
-  const [serviceRules, setServiceRules] = useState(() => normalizeServiceRules(client.service_rules));
+  const [serviceRules, setServiceRules] = useState(() => rulesWithClientTurnarounds(client));
   const [laundryCategories, setLaundryCategories] = useState(() => laundryCategoriesForClient(client, routes));
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -445,6 +447,7 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
           <div style={LABEL_STYLE}>{t('clients.servicePlan.clientPlan')}</div>
           <ServiceScheduleBuilder
             showMode
+            showTurnaround
             mode={scheduleMode}
             rules={serviceRules}
             inheritedRules={inheritedRules}

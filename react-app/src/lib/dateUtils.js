@@ -4,15 +4,13 @@ export function warsawDate(date = new Date()) {
 }
 
 /**
- * Dzień operacyjny: pon–pt bez zmian; sobota i niedziela → poprzedni piątek.
- * W weekend aplikacja pracuje jak w piątek (brak tras w sobotę/niedzielę).
+ * Dzień operacyjny: pon–sob bez zmian; niedziela → poprzednia sobota.
  */
 export function operationalDate(date = new Date()) {
   const d = warsawDate(date);
   d.setHours(0, 0, 0, 0);
   const dow = d.getDay();
-  if (dow === 6) d.setDate(d.getDate() - 1);
-  else if (dow === 0) d.setDate(d.getDate() - 2);
+  if (dow === 0) d.setDate(d.getDate() - 1);
   return d;
 }
 
@@ -21,15 +19,15 @@ export function operationalYmd(date = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 1 = poniedziałek … 5 = piątek (weekend → 5). */
+/** 1 = poniedziałek … 6 = sobota (niedziela → 6). */
 export function operationalWeekday(date = new Date()) {
   const d = operationalDate(date);
-  return Math.min(5, Math.max(1, (d.getDay() + 6) % 7 + 1));
+  return Math.min(6, Math.max(1, (d.getDay() + 6) % 7 + 1));
 }
 
 export function isOperationalWeekend(date = new Date()) {
   const dow = warsawDate(date).getDay();
-  return dow === 0 || dow === 6;
+  return dow === 0;
 }
 
 /** Czy data YYYY-MM-DD wpada w podany miesiąc (month 1–12). */
@@ -71,9 +69,9 @@ const arr = (key, fallback) => {
 };
 
 // Pełne nazwy dni roboczych, indeks 0 = Poniedziałek.
-export const dayNamesFull = () => arr('dates.dayFull', ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek']);
-// Skróty Pn–Pt, indeks 0 = Poniedziałek.
-export const dayNamesShort = () => arr('dates.dayShortMonFri', ['Pn', 'Wt', 'Śr', 'Cz', 'Pt']);
+export const dayNamesFull = () => arr('dates.dayFull', ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']);
+// Skróty Pn–So, indeks 0 = Poniedziałek.
+export const dayNamesShort = () => arr('dates.dayShortMonFri', ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So']);
 // Skróty Nd–So, indeks 0 = Niedziela (zgodne z Date.getDay()).
 export const dayNamesSunSat = () => arr('dates.dayShortSunSat', ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So']);
 // Pełne nazwy dni całego tygodnia, indeks 0 = Poniedziałek (Pn–Nd).

@@ -7,6 +7,7 @@ import {
   legacyScheduleRules,
   nextServiceSlot,
   normalizeServiceRules,
+  rulesWithClientTurnarounds,
   scheduleCodeForRules,
 } from './serviceSchedule.js';
 
@@ -82,4 +83,36 @@ test('daily laundry behavior follows the effective client plan', () => {
 test('constructor domain accepts only weekly and biweekly frequencies', () => {
   assert.deepEqual(normalizeServiceRules([rule(2, 3)]), []);
   assert.deepEqual(normalizeServiceRules([rule(5, 4)]), []);
+});
+
+test('Saturday is a supported service day without changing the Mon-Fri daily preset', () => {
+  assert.deepEqual(normalizeServiceRules([rule(6)]).map(item => item.weekday), [6]);
+  assert.equal(isEveryWorkdayService(legacyScheduleRules('daily')), true);
+  assert.equal(isEveryWorkdayService([...legacyScheduleRules('daily'), rule(6)]), false);
+});
+
+test('explicit turnaround maps an arrival to the correct departure across week boundaries', () => {
+  const radisson = [
+    { ...rule(1), turnaround_days: 2 },
+    { ...rule(2), turnaround_days: 2 },
+    { ...rule(4), turnaround_days: 4 },
+    { ...rule(5), turnaround_days: 4 },
+  ];
+  assert.deepEqual(nextServiceSlot(radisson, '2026-07-20', 4), { pickDay: 1, pickWeek: 1 });
+  assert.deepEqual(nextServiceSlot(radisson, '2026-07-20', 5), { pickDay: 2, pickWeek: 1 });
+
+  const motel = [
+    { ...rule(4), turnaround_days: 2 },
+    { ...rule(6), turnaround_days: 2 },
+  ];
+  assert.deepEqual(nextServiceSlot(motel, '2026-07-20', 4), { pickDay: 6, pickWeek: 0 });
+  assert.deepEqual(nextServiceSlot(motel, '2026-07-20', 6), { pickDay: 1, pickWeek: 1 });
+});
+
+test('client turnaround JSON is merged into service rules returned by app data', () => {
+  const merged = rulesWithClientTurnarounds({
+    service_rules: [rule(4), rule(6)],
+    service_turnaround_days: { 4: 2, 6: 2 },
+  });
+  assert.deepEqual(merged.map(item => item.turnaround_days), [2, 2]);
 });
