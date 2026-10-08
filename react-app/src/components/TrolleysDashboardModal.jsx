@@ -1,4 +1,4 @@
-import { X, Archive, Truck, CheckCircle2, CalendarClock } from 'lucide-react';
+import { X, Archive, Truck, CheckCircle2, CalendarClock, WashingMachine } from 'lucide-react';
 
 export default function TrolleysDashboardModal({
   onClose,
@@ -26,11 +26,14 @@ export default function TrolleysDashboardModal({
   let freeCount = 0;
   let inUseCount = 0;
   let atClientCount = 0;
+  let dirtyLaundryCount = 0;
 
   trolleyNumbers.forEach(tNo => {
     const active = activeTrolleyByNo.get(tNo);
     if (!active) {
       freeCount++;
+    } else if (active.occupancy_source === 'arrival') {
+      dirtyLaundryCount++;
     } else if (active.status === 'at_client') {
       atClientCount++;
     } else {
@@ -114,6 +117,10 @@ export default function TrolleysDashboardModal({
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent)' }}></span>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>W użyciu: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{inUseCount}</strong></span>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#AF52DE' }}></span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Brudne: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{dirtyLaundryCount}</strong></span>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-orange)' }}></span>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Zostawione: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{atClientCount}</strong></span>
@@ -139,7 +146,14 @@ export default function TrolleysDashboardModal({
 
               if (active) {
                 client = active.client_name;
-                if (active.status === 'at_client') {
+                if (active.occupancy_source === 'arrival') {
+                  statusLabel = 'W pralni · brudne';
+                  Icon = WashingMachine;
+                  bgColor = 'rgba(175, 82, 222, 0.04)';
+                  borderColor = 'rgba(175, 82, 222, 0.18)';
+                  accentColor = '#AF52DE';
+                  textColor = '#7E22CE';
+                } else if (active.status === 'at_client') {
                   statusLabel = 'Zostawiony';
                   Icon = Archive;
                   daysAtClient = getDaysAtClient(active);

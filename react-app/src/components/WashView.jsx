@@ -34,6 +34,7 @@ import DataError from './DataError';
 import PackingModal from './modals/PackingModal';
 import { operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
+import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -320,6 +321,7 @@ export default function WashView() {
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
   const [trolleys, setTrolleys] = useState([]);
+  const [arrivalReservations, setArrivalReservations] = useState([]);
   const [workflowLoading, setWorkflowLoading] = useState(true);
   const [workflowError, setWorkflowError] = useState('');
   const [busyKey, setBusyKey] = useState('');
@@ -338,6 +340,7 @@ export default function WashView() {
   const fetchWorkflow = useCallback(async () => {
     if (!sessionToken) {
       setTrolleys([]);
+      setArrivalReservations([]);
       setWorkflowLoading(false);
       return;
     }
@@ -346,6 +349,7 @@ export default function WashView() {
     try {
       const data = await getLaundryWorkflow(sessionToken);
       setTrolleys(data?.trolleys || []);
+      setArrivalReservations(data?.arrival_reservations || []);
       const nextCount = Math.max(1, Math.min(99, Number(data?.trolley_count) || DEFAULT_TROLLEY_COUNT));
       setTrolleyCount(nextCount);
     } catch (err) {
@@ -359,6 +363,7 @@ export default function WashView() {
     fetchWorkflow();
     const channel = supabase.channel('laundry-workflow')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'laundry_trolley_cycles' }, fetchWorkflow)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, fetchWorkflow)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -494,11 +499,7 @@ export default function WashView() {
 
   // Tylko realne fizyczne wózki 1–40 (wykluczamy 'brak' pakowany bez wózka)
   const activeTrolleys = useMemo(
-    () => trolleys.filter(cycle => 
-      isRealTrolley(cycle) && 
-      !cycle.returned_at && 
-      !['returned', 'canceled'].includes(cycle.status)
-    ),
+    () => activePhysicalTrolleyCycles(trolleys),
     [trolleys]
   );
 
@@ -523,16 +524,18 @@ export default function WashView() {
   );
 
   const activeTrolleyByNo = useMemo(() => {
-    const map = new Map();
-    activeTrolleys.forEach(cycle => {
-      if (isRealTrolley(cycle)) {
-        map.set(String(cycle.trolley_no || '').trim().toLowerCase(), cycle);
-      }
-    });
-    return map;
-  }, [activeTrolleys]);
+    return buildTrolleyOccupancy(activeTrolleys, arrivalReservations);
+  }, [activeTrolleys, arrivalReservations]);
 
-  const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleys.length);
+  const occupiedTrolleys = useMemo(
+    () => [...activeTrolleyByNo.values()].sort((a, b) => (
+      Number(a.trolley_no) - Number(b.trolley_no)
+      || String(a.trolley_no).localeCompare(String(b.trolley_no), 'pl')
+    )),
+    [activeTrolleyByNo],
+  );
+
+  const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleyByNo.size);
 
   const metrics = useMemo(() => {
     const pendingKg = laundryGroups
@@ -548,9 +551,9 @@ export default function WashView() {
       pendingKg: Number(pendingKg.toFixed(1)),
       washedKg: Number(washedKg.toFixed(1)),
       readyKg: Number(readyKg.toFixed(1)),
-      activeTrolleys: activeTrolleys.length,
+      activeTrolleys: activeTrolleyByNo.size,
     };
-  }, [activeTrolleys.length, entryById, laundryGroups]);
+  }, [activeTrolleyByNo.size, entryById, laundryGroups]);
 
   const filterCounts = useMemo(() => (
     WORK_FILTERS.reduce((acc, filter) => {
@@ -981,6 +984,28 @@ export default function WashView() {
     );
   };
 
+  const renderArrivalReservationCard = (reservation) => (
+    <article key={`arrival:${reservation.trolley_no}`} className="laundry-trolley-card tone-partial">
+      <div className="laundry-trolley-top">
+        <div>
+          <span>Wózek</span>
+          <strong>{reservation.trolley_no}</strong>
+        </div>
+        <span className="laundry-trolley-status tone-partial">W PRALNI · BRUDNE</span>
+      </div>
+      <div className="laundry-trolley-client">{reservation.client_name}</div>
+      <div className="laundry-trolley-grid">
+        <span>lokalizacja</span><strong>Pralnia</strong>
+        <span>stan</span><strong>Czeka na oznaczenie „wyprane”</strong>
+      </div>
+      {reservation.occupancy_conflict && (
+        <div className="laundry-warning" style={{ marginTop: '10px' }}>
+          Konflikt danych: ten numer ma również aktywny cykl transportowy.
+        </div>
+      )}
+    </article>
+  );
+
   const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
 
   if (loading) return <div className="loader">Ładowanie pralni…</div>;
@@ -1212,7 +1237,7 @@ export default function WashView() {
         <div className="laundry-section-head">
           <div>
             <h2>Obieg i harmonogram wózków</h2>
-            <span>{freeTrolleyCount} wolnych w pralni · {activeTrolleys.length} w obiegu · flota {trolleyCount}</span>
+            <span>{freeTrolleyCount} wolnych · {activeTrolleyByNo.size} zajętych · flota {trolleyCount}</span>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {trolleyTab === 'packages' && packageCycles.length > 0 && isAdmin && (
@@ -1269,7 +1294,7 @@ export default function WashView() {
             className={`seg-btn ${trolleyTab === 'active' ? 'active' : ''}`}
             onClick={() => setTrolleyTab('active')}
           >
-            W obiegu ({activeTrolleys.length})
+            Zajęte ({activeTrolleyByNo.size})
           </button>
           <button
             type="button"
@@ -1295,7 +1320,7 @@ export default function WashView() {
         </div>
 
         {trolleyTab === 'active' && (
-          activeTrolleys.length === 0 ? (
+          occupiedTrolleys.length === 0 ? (
             <div className="laundry-empty-state apple-glass" style={{
               padding: '36px 20px',
               textAlign: 'center',
@@ -1312,7 +1337,7 @@ export default function WashView() {
                 Wszystkie wózki są wolne w pralni
               </h3>
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
-                Żaden z {trolleyCount} fizycznych wózków nie jest obecnie zajęty na trasie ani u klienta.
+                Żaden z {trolleyCount} fizycznych wózków nie jest zajęty w pralni, na trasie ani u klienta.
               </p>
               <button
                 type="button"
@@ -1335,7 +1360,11 @@ export default function WashView() {
             </div>
           ) : (
             <div className="laundry-trolley-board">
-              {activeTrolleys.map(renderTrolleyCardItem)}
+              {occupiedTrolleys.map(occupied => (
+                occupied.occupancy_source === 'arrival'
+                  ? renderArrivalReservationCard(occupied)
+                  : renderTrolleyCardItem(occupied)
+              ))}
             </div>
           )
         )}
@@ -1351,14 +1380,15 @@ export default function WashView() {
               const active = activeTrolleyByNo.get(tNo);
               const isFree = !active;
               const atClient = active?.status === 'at_client';
+              const dirtyInLaundry = active?.occupancy_source === 'arrival';
               return (
                 <div
                   key={tNo}
                   style={{
                     padding: '12px',
                     borderRadius: '12px',
-                    background: isFree ? 'var(--bg-card)' : atClient ? 'rgba(255, 149, 0, 0.08)' : 'rgba(0, 122, 255, 0.08)',
-                    border: isFree ? '1px solid var(--border)' : atClient ? '1px solid rgba(255, 149, 0, 0.25)' : '1px solid rgba(0, 122, 255, 0.25)',
+                    background: isFree ? 'var(--bg-card)' : atClient ? 'rgba(255, 149, 0, 0.08)' : dirtyInLaundry ? 'rgba(175, 82, 222, 0.08)' : 'rgba(0, 122, 255, 0.08)',
+                    border: isFree ? '1px solid var(--border)' : atClient ? '1px solid rgba(255, 149, 0, 0.25)' : dirtyInLaundry ? '1px solid rgba(175, 82, 222, 0.25)' : '1px solid rgba(0, 122, 255, 0.25)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '4px'
@@ -1370,7 +1400,7 @@ export default function WashView() {
                       width: '8px',
                       height: '8px',
                       borderRadius: '50%',
-                      background: isFree ? 'var(--accent-green, #34C759)' : atClient ? 'var(--accent-orange, #FF9500)' : 'var(--accent, #007AFF)'
+                      background: isFree ? 'var(--accent-green, #34C759)' : atClient ? 'var(--accent-orange, #FF9500)' : dirtyInLaundry ? '#AF52DE' : 'var(--accent, #007AFF)'
                     }} />
                   </div>
                   <span style={{
@@ -1385,7 +1415,7 @@ export default function WashView() {
                   </span>
                   {!isFree && (
                     <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase' }}>
-                      {atClient ? 'U klienta' : `${Number(active.total_kg || 0).toFixed(0)} kg`}
+                      {atClient ? 'U klienta' : dirtyInLaundry ? 'W pralni · brudne' : `${Number(active.total_kg || 0).toFixed(0)} kg`}
                     </span>
                   )}
                 </div>

@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { captureError } from '../../../lib/sentry';
 import { getLaundryWorkflow } from '../../../lib/laundryRpc';
 import { daysAtClientLabel, daysSinceDate, describeTrolleyActions } from '../../../lib/tripUiHelpers';
+import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';
 
@@ -10,44 +11,37 @@ const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize
 
 export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
-  const [prompt, setPrompt] = useState(() => {
-    const cycleMap = new Map();
-    pendingDelivery.forEach(task => {
-      if (task.laundry_trolley_cycle_id && task.laundry_trolley_no && task.laundry_trolley_no !== 'brak') {
-        cycleMap.set(task.laundry_trolley_cycle_id, task.laundry_trolley_no);
-      }
-    });
-    return {
-      trolleys: Array.from(cycleMap, ([cycleId, trolleyNo]) => ({ cycleId, trolleyNo, choice: 'return' })),
-      oldTrolleys: [],
-    };
-  });
+  const [loadingTrolleys, setLoadingTrolleys] = useState(true);
+  const [prompt, setPrompt] = useState(() => ({
+    trolleys: deliveryTrolleyChoices(pendingDelivery),
+    oldTrolleys: [],
+  }));
 
   useEffect(() => {
     let cancelled = false;
-    const cycleMap = new Map();
-    pendingDelivery.forEach(task => {
-      if (task.laundry_trolley_cycle_id && task.laundry_trolley_no && task.laundry_trolley_no !== 'brak') {
-        cycleMap.set(task.laundry_trolley_cycle_id, task.laundry_trolley_no);
-      }
-    });
-    if (cycleMap.size === 0) return undefined;
+    setLoadingTrolleys(true);
 
     (async () => {
       try {
         const wf = await getLaundryWorkflow(sessionToken);
         if (cancelled) return;
-        const oldTrolleys = (wf?.trolleys || [])
-          .filter(c => c.client_name === stop.client_name && c.status === 'at_client' && !cycleMap.has(c.id))
-          .map(c => ({
-            cycleId: c.id,
-            trolleyNo: c.trolley_no,
-            days: daysSinceDate(c.delivered_at || c.packed_at),
-            take: false,
-          }));
-        setPrompt(prev => ({ ...prev, oldTrolleys }));
+        setPrompt(prev => {
+          const trolleys = deliveryTrolleyChoices(pendingDelivery, wf?.trolleys || [], prev.trolleys);
+          const currentCycleIds = new Set(trolleys.map(trolley => trolley.cycleId));
+          const oldTrolleys = (wf?.trolleys || [])
+            .filter(c => c.client_name === stop.client_name && c.status === 'at_client' && !currentCycleIds.has(c.id))
+            .map(c => ({
+              cycleId: c.id,
+              trolleyNo: c.trolley_no,
+              days: daysSinceDate(c.delivered_at || c.packed_at),
+              take: prev.oldTrolleys.some(old => old.cycleId === c.id && old.take),
+            }));
+          return { trolleys, oldTrolleys };
+        });
       } catch (error) {
         captureError(error, { feature: 'DeliverPromptSheet.loadOldTrolleys' });
+      } finally {
+        if (!cancelled) setLoadingTrolleys(false);
       }
     })();
 
@@ -69,6 +63,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   };
 
   const confirm = async () => {
+    if (loadingTrolleys) return;
     const ids = [...new Set(pendingDelivery.map(task => task.entry_id).filter(Boolean))];
     const actions = [
       ...prompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: t.choice })),
@@ -120,7 +115,9 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       )}
       <div className="ap-btn-group">
         <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
-        <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy}>{busy ? 'Zapisywanie…' : 'Potwierdź dostawę'}</button>
+        <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>
+          {loadingTrolleys ? 'Sprawdzanie wózków…' : busy ? 'Zapisywanie…' : 'Potwierdź dostawę'}
+        </button>
       </div>
     </CourseSheet>
   );
