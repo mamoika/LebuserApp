@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import {
+  automaticTurnaroundDays,
   mondayKey,
   normalizeServiceRules,
   SERVICE_SCHEDULE_MODES,
@@ -8,17 +9,22 @@ import {
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
-function departureDayFor(rule) {
-  return ((rule.weekday - 1 + Number(rule.turnaround_days || 0)) % 7) + 1;
+function departureDayFor(rule, rules, includeAutomatic = false) {
+  const turnaroundDays = Number(rule.turnaround_days)
+    || (includeAutomatic ? automaticTurnaroundDays(rules, rule.weekday) : null);
+  return turnaroundDays
+    ? ((rule.weekday - 1 + turnaroundDays) % 7) + 1
+    : null;
 }
 
-export function serviceScheduleSummary(rules, t) {
+export function serviceScheduleSummary(rules, t, includeAutomatic = false) {
   const normalized = normalizeServiceRules(rules);
   if (!normalized.length) return t('clients.servicePlan.none');
   return normalized.map(rule => {
     const day = t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`);
-    const departure = rule.turnaround_days
-      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDayFor(rule) - 1] || 'sun'}`)}`
+    const departureDay = departureDayFor(rule, normalized, includeAutomatic);
+    const departure = departureDay
+      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDay - 1] || 'sun'}`)}`
       : '';
     const label = `${day}${departure}`;
     return rule.interval_weeks === 1
@@ -35,8 +41,9 @@ export function compactServiceScheduleSummary(rules, t) {
   normalized.forEach(rule => {
     const days = daysByInterval.get(rule.interval_weeks) || [];
     const arrival = t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`);
-    const departure = rule.turnaround_days
-      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDayFor(rule) - 1] || 'sun'}`)}`
+    const departureDay = departureDayFor(rule, normalized);
+    const departure = departureDay
+      ? `→${t(`clients.servicePlan.days.${DAY_KEYS[departureDay - 1] || 'sun'}`)}`
       : '';
     days.push(`${arrival}${departure}`);
     daysByInterval.set(rule.interval_weeks, days);
@@ -74,7 +81,6 @@ export default function ServiceScheduleBuilder({
           weekday,
           interval_weeks: 1,
           anchor_week: mondayKey(),
-          ...(showTurnaround ? { turnaround_days: 2 } : {}),
         },
       ]);
     }
@@ -106,7 +112,7 @@ export default function ServiceScheduleBuilder({
       {showMode && mode === 'inherit' && (
         <div className="service-schedule-inherited">
           <strong>{t('clients.servicePlan.inheritedTitle')}</strong>
-          <span>{serviceScheduleSummary(inheritedRules, t)}</span>
+          <span>{serviceScheduleSummary(inheritedRules, t, showTurnaround)}</span>
         </div>
       )}
 
@@ -150,7 +156,13 @@ export default function ServiceScheduleBuilder({
                           turnaround_days: Number(event.target.value),
                         })}
                       >
-                        <option value="">{t('clients.servicePlan.automaticDeparture')}</option>
+                        <option value="">
+                          {t('clients.servicePlan.automaticDeparture', {
+                            day: departureDayFor(rule, normalized, true)
+                              ? t(`clients.servicePlan.dayNames.${DAY_KEYS[departureDayFor(rule, normalized, true) - 1] || 'sun'}`)
+                              : t('clients.servicePlan.nextTerm'),
+                          })}
+                        </option>
                         {Array.from({ length: 7 }, (_, index) => index + 1)
                           .filter(days => ((rule.weekday - 1 + days) % 7) + 1 <= 6)
                           .map(days => {
@@ -204,7 +216,7 @@ export default function ServiceScheduleBuilder({
 
           <div className="service-schedule-preview">
             <span>{t('clients.servicePlan.summary')}</span>
-            <strong>{serviceScheduleSummary(normalized, t)}</strong>
+            <strong>{serviceScheduleSummary(normalized, t, showTurnaround)}</strong>
           </div>
         </>
       )}

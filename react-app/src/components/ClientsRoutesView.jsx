@@ -1125,11 +1125,11 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                               className="client-service-badge"
                               title={client.service_schedule_mode === 'disabled'
                                 ? t('clients.servicePlan.mode.disabled')
-                                : serviceScheduleSummary(clientRules, t)}
+                                : serviceScheduleSummary(clientRules, t, true)}
                             >
                               {client.service_schedule_mode === 'disabled'
                                 ? t('clients.servicePlan.offShort')
-                                : serviceScheduleSummary(clientRules, t)}
+                                : serviceScheduleSummary(clientRules, t, true)}
                             </span>
                           )}
                         </span>

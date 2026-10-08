@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  automaticTurnaroundDays,
   effectiveServiceRules,
   isClientScheduledOnDate,
   isEveryWorkdayService,
@@ -115,4 +116,12 @@ test('client turnaround JSON is merged into service rules returned by app data',
     service_turnaround_days: { 4: 2, 6: 2 },
   });
   assert.deepEqual(merged.map(item => item.turnaround_days), [2, 2]);
+});
+
+test('weekly client days form an automatic arrival-to-departure cycle', () => {
+  const globalLiving = [rule(2), rule(6)];
+  assert.equal(automaticTurnaroundDays(globalLiving, 2), 4);
+  assert.equal(automaticTurnaroundDays(globalLiving, 6), 3);
+  assert.equal(automaticTurnaroundDays([rule(2)], 2), 7);
+  assert.equal(automaticTurnaroundDays([rule(2, 2)], 2), null);
 });

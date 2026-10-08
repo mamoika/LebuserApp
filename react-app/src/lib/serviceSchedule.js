@@ -71,6 +71,19 @@ export function rulesWithClientTurnarounds(client) {
   });
 }
 
+export function automaticTurnaroundDays(rules, arrivalDay) {
+  const normalized = normalizeServiceRules(rules);
+  const weekday = Number(arrivalDay);
+  if (!SERVICE_WEEKDAYS.includes(weekday)
+    || !normalized.some(rule => rule.weekday === weekday)
+    || normalized.some(rule => rule.interval_weeks !== 1)) return null;
+
+  return Math.min(...normalized.map(rule => {
+    const days = rule.weekday - weekday;
+    return days > 0 ? days : days + 7;
+  }));
+}
+
 export function legacyScheduleRules(schedule = 'other', anchorWeek = '2026-01-05') {
   return (LEGACY_DAYS[schedule] || []).map(weekday => ({
     weekday,
