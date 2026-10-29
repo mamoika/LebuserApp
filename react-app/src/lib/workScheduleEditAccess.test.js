@@ -6,6 +6,10 @@ const migration = await readFile(
   new URL('../../db/migrations/zzzzzzzzzzzzzzz_thomas_muller_work_schedule_access.sql', import.meta.url),
   'utf8',
 );
+const correctiveMigration = await readFile(
+  new URL('../../db/migrations/zzzzzzzzzzzzzzzzz_work_schedule_module_access_fix.sql', import.meta.url),
+  'utf8',
+);
 const permissions = await readFile(new URL('./modulePermissions.js', import.meta.url), 'utf8');
 const grafikView = await readFile(new URL('../components/GrafikView.jsx', import.meta.url), 'utf8');
 const timelineView = await readFile(new URL('../components/TimelineView.jsx', import.meta.url), 'utf8');
@@ -33,6 +37,13 @@ test('schedule write RPCs enforce module edit access and derive the actor from t
   assert.equal((migration.match(/private\.user_module_access\(v_user\.id, 'work_schedule'\) < 2/gi) || []).length, 2);
   assert.equal((migration.match(/v_user\.name/gi) || []).length >= 2, true);
   assert.match(migration, /errcode = '42501'/i);
+});
+
+test('corrective migration keeps legacy schedule RPCs on the module permission matrix', () => {
+  assert.equal((correctiveMigration.match(/create or replace function public\.(?:get_work_schedule_access|admin_save_schedule_entry|admin_save_timeline_entry)/gi) || []).length, 3);
+  assert.equal((correctiveMigration.match(/private\.user_module_access\(v_user\.id, 'work_schedule'\)/gi) || []).length, 3);
+  assert.equal((correctiveMigration.match(/set search_path = ''/gi) || []).length, 3);
+  assert.doesNotMatch(correctiveMigration, /(?:users|u)\.can_edit_work_schedule/i);
 });
 
 test('database audit triggers cover every monthly and hourly schedule change', () => {
