@@ -1545,7 +1545,7 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               <th className="sticky-head" style={{ ...newThStyle, color: '#4A148C', background: opaqueTint('#4A148C', 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.heatingShort')}</span></th>
               {meterTh(<Droplet size={13}/>, t('costs.water'))}
               <th className="sticky-head" style={{ ...newThStyle, color: CAT.water, background: opaqueTint(CAT.water, 0.13) }}><span>{t('costs.cost')}</span><br/><span>{t('costs.water')}</span></th>
-              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}><span>Pracownicy</span><br/><span>{t('costs.cost')}</span></th>
+              <th className="sticky-head" style={{ ...newThStyle, color: CAT.workers, background: opaqueTint(CAT.workers, 0.13) }}><span>{t('costs.employees')}</span><br/><span>{t('costs.cost')}</span></th>
               <th className="sticky-head" style={newThStyle}>{t('costs.other')}</th>
               <th className="sticky-head" style={{ ...newThStyle, color: IOS_THEME.accent, fontWeight: 800 }}><span>{t('costs.total')}</span><br/><span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{t('costs.currencyPerKg')}</span></th>
             </tr>

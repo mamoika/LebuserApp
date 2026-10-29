@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 export function getEaster(year) {
   const f = Math.floor,
         G = year % 19,
@@ -21,19 +23,19 @@ export function getHolidays(year) {
   corpusChristi.setDate(easter.getDate() + 60);
 
   const holidays = [
-    { name: 'Nowy Rok', date: new Date(year, 0, 1) },
-    { name: 'Święto Trzech Króli', date: new Date(year, 0, 6) },
-    { name: 'Wielkanoc', date: easter },
-    { name: 'Poniedziałek Wielkanocny', date: easterMonday },
-    { name: 'Święto Pracy', date: new Date(year, 4, 1) },
-    { name: 'Święto Konstytucji 3 Maja', date: new Date(year, 4, 3) },
-    { name: 'Zesłanie Ducha Świętego', date: new Date(easter.getTime() + 49 * 24 * 60 * 60 * 1000) },
-    { name: 'Boże Ciało', date: corpusChristi },
-    { name: 'Wniebowzięcie NMP', date: new Date(year, 7, 15) },
-    { name: 'Wszystkich Świętych', date: new Date(year, 10, 1) },
-    { name: 'Święto Niepodległości', date: new Date(year, 10, 11) },
-    { name: 'Boże Narodzenie (1. dzień)', date: new Date(year, 11, 25) },
-    { name: 'Boże Narodzenie (2. dzień)', date: new Date(year, 11, 26) }
+    { name: i18n.t('dates.holidays.newYear'), date: new Date(year, 0, 1) },
+    { name: i18n.t('dates.holidays.epiphany'), date: new Date(year, 0, 6) },
+    { name: i18n.t('dates.holidays.easter'), date: easter },
+    { name: i18n.t('dates.holidays.easterMonday'), date: easterMonday },
+    { name: i18n.t('dates.holidays.labourDay'), date: new Date(year, 4, 1) },
+    { name: i18n.t('dates.holidays.constitutionDay'), date: new Date(year, 4, 3) },
+    { name: i18n.t('dates.holidays.pentecost'), date: new Date(easter.getTime() + 49 * 24 * 60 * 60 * 1000) },
+    { name: i18n.t('dates.holidays.corpusChristi'), date: corpusChristi },
+    { name: i18n.t('dates.holidays.assumption'), date: new Date(year, 7, 15) },
+    { name: i18n.t('dates.holidays.allSaints'), date: new Date(year, 10, 1) },
+    { name: i18n.t('dates.holidays.independenceDay'), date: new Date(year, 10, 11) },
+    { name: i18n.t('dates.holidays.christmasFirst'), date: new Date(year, 11, 25) },
+    { name: i18n.t('dates.holidays.christmasSecond'), date: new Date(year, 11, 26) }
   ];
 
   return holidays;
@@ -42,9 +44,9 @@ export function getHolidays(year) {
 export function isHoliday(dateObj) {
   const year = dateObj.getFullYear();
   const holidays = getHolidays(year);
-  
-  return holidays.find(h => 
-    h.date.getDate() === dateObj.getDate() && 
+
+  return holidays.find(h =>
+    h.date.getDate() === dateObj.getDate() &&
     h.date.getMonth() === dateObj.getMonth()
   );
 }

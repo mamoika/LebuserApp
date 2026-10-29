@@ -276,7 +276,7 @@ export default function ArrivalTrolleyPicker({
                 <div className="live-trolley-picker-subtitle">
                   <span>{clientName || t('entry.client')}</span>
                   {draftSelected.length > 0 && (
-                    <span className="live-trolley-badge">{draftSelected.length} {t('entry.trolleySelectedCount', 'wybrano')}</span>
+                    <span className="live-trolley-badge">{t('entry.trolleySelectedCount', { count: draftSelected.length })}</span>
                   )}
                 </div>
               </div>
@@ -292,7 +292,7 @@ export default function ArrivalTrolleyPicker({
                 <input
                   type="text"
                   className="live-trolley-search-input"
-                  placeholder="Filtruj nr wózka lub skanuj TRL-N..."
+                  placeholder={t('entry.trolleySearchPlaceholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                 />
@@ -317,7 +317,7 @@ export default function ArrivalTrolleyPicker({
                     onClick={() => setFilterTab('returning')}
                     style={filterTab === 'returning' ? {} : { color: '#248A3D', borderColor: 'rgba(52,199,89,0.3)' }}
                   >
-                    U klienta ({returningTrolleys.length})
+                    {t('entry.trolleyAtClientCount', { count: returningTrolleys.length })}
                   </button>
                 )}
                 <button
@@ -342,7 +342,7 @@ export default function ArrivalTrolleyPicker({
                   onClick={() => setFilterTab('selected')}
                   style={filterTab === 'selected' ? {} : { color: '#007AFF', borderColor: 'rgba(0,122,255,0.2)' }}
                 >
-                  Wybrane ({draftSelected.length})
+                  {t('entry.trolleySelectedCount', { count: draftSelected.length })}
                 </button>
               </div>
             </div>
@@ -368,10 +368,10 @@ export default function ArrivalTrolleyPicker({
                             className="live-arrival-trolley-select-all"
                             onClick={selectAllReturning}
                           >
-                            Zaznacz wszystkie ({returningTrolleys.length})
+                            {t('entry.trolleySelectAll', { count: returningTrolleys.length })}
                           </button>
                         ) : (
-                          <span style={{ fontSize: '11px', color: '#248A3D', fontWeight: 600 }}>Wszystkie zaznaczone ✓</span>
+                          <span style={{ fontSize: '11px', color: '#248A3D', fontWeight: 600 }}>{t('entry.trolleyAllSelected')} ✓</span>
                         )}
                       </div>
                       <div className="live-arrival-trolley-returning-row">
@@ -421,7 +421,7 @@ export default function ArrivalTrolleyPicker({
                   ) : (
                     <div className="live-arrival-trolley-none">
                       {searchQuery || filterTab !== 'all'
-                        ? 'Brak wózków spełniających kryteria wyszukiwania.'
+                        ? t('entry.trolleyNoSearchResults')
                         : t('entry.trolleyNoneAvailable')}
                     </div>
                   )}
@@ -461,9 +461,9 @@ export default function ArrivalTrolleyPicker({
                   type="button"
                   className="live-trolley-picker-clear-btn"
                   onClick={clearSelection}
-                  title="Wyczyść zaznaczenie"
+                  title={t('entry.trolleyClearSelection')}
                 >
-                  Wyczyść
+                  {t('common.clear')}
                 </button>
               )}
               <button

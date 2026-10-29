@@ -29,7 +29,7 @@ export default function BarcodeGenerator() {
     window.print();
   };
 
-  if (loading) return <div>{t('common.loading') || 'Ładowanie...'}</div>;
+  if (loading) return <div>{t('common.loading')}</div>;
 
   const codes = Array.from({ length: trolleyCount }, (_, i) => `TRL-${i + 1}`);
 
@@ -37,15 +37,15 @@ export default function BarcodeGenerator() {
     <div>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <div style={{ fontSize: '17px', fontWeight: 700 }}>Kody kreskowe wózków</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Wydrukuj etykiety dla skanera</div>
+          <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('barcode.title')}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('barcode.subtitle')}</div>
         </div>
         <button
           onClick={handlePrint}
           style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <Printer size={16} />
-          Drukuj Kody
+          {t('barcode.print')}
         </button>
       </div>
 

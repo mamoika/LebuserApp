@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { routeNamesForTrip } from '../../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { VEHICLES } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
+import { currentLocale } from '../../../lib/dateUtils';
 
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, routes = [], drivers = [], onClose, onAssigned }) {
+  const { t } = useTranslation();
   const [driverId, setDriverId] = useState('');
   const [car, setCar] = useState(VEHICLES[0].key);
   const [routeId, setRouteId] = useState(String(trip?.routes || '').split(',').find(Boolean) || '');
@@ -33,7 +36,7 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
 
   const assign = async () => {
     if (!driverId || !routeId) {
-      toastError(!routeId ? 'Wybierz trasę' : 'Wybierz kierowcę');
+      toastError(!routeId ? t('course.sheets.assign.chooseRoute') : t('course.sheets.assign.chooseDriver'));
       return;
     }
     try {
@@ -47,34 +50,34 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
         p_extra_clients: null,
         p_planned_start: plannedStartIso,
       });
-      toastSuccess(`Przypisano kurs na ${fmtDate(trip.trip_date)}`);
+      toastSuccess(t('course.sheets.assign.assigned', { date: fmtDate(trip.trip_date) }));
       await onAssigned?.(result?.trip || null);
       onClose();
     } catch (error) {
-      toastError(`Błąd przypisania: ${error.message}`);
+      toastError(t('course.sheets.assign.error', { message: error.message }));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <CourseSheet titleId="assign-trip-title" title={isNewCourse ? 'Nowy kurs' : 'Przypisz kurs'} onClose={onClose} busy={busy}>
-      <p className="live-sheet-copy">{routeId ? routeNamesForTrip({ routes: routeId }, routeMap) : 'Wybierz trasę'} · <strong>{fmtDate(trip.trip_date)}</strong></p>
-      <label style={pfLabel} htmlFor="assign-route">Trasa</label>
+    <CourseSheet titleId="assign-trip-title" title={t(isNewCourse ? 'course.sheets.assign.newTitle' : 'course.sheets.assign.title')} onClose={onClose} busy={busy}>
+      <p className="live-sheet-copy">{routeId ? routeNamesForTrip({ routes: routeId }, routeMap) : t('course.sheets.assign.chooseRoute')} · <strong>{fmtDate(trip.trip_date)}</strong></p>
+      <label style={pfLabel} htmlFor="assign-route">{t('course.sheets.assign.route')}</label>
       <select id="assign-route" className="ap-input" value={routeId} onChange={event => setRouteId(event.target.value)}>
-        <option value="">— wybierz trasę —</option>
+        <option value="">{t('course.sheets.assign.routePlaceholder')}</option>
         {sortedRoutes.map(route => (
           <option key={route.id} value={route.id}>T{routeMap[route.id]?.num || route.id} · {route.name}</option>
         ))}
       </select>
-      <label style={pfLabel} htmlFor="assign-driver">Kierowca</label>
+      <label style={pfLabel} htmlFor="assign-driver">{t('course.sheets.assign.driver')}</label>
       <select id="assign-driver" className="ap-input" value={driverId} onChange={event => setDriverId(event.target.value)}>
-        <option value="">— wybierz kierowcę —</option>
+        <option value="">{t('course.sheets.assign.driverPlaceholder')}</option>
         {drivers.filter(driver => !driver.is_archived).map(driver => (
           <option key={driver.id} value={driver.id}>{driver.name}{driver.role === 'admin' ? ' (admin)' : ''}</option>
         ))}
       </select>
-      <label style={pfLabel}>Auto</label>
+      <label style={pfLabel}>{t('course.sheets.assign.vehicle')}</label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
         {VEHICLES.map(vehicle => (
           <button
@@ -92,12 +95,12 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
           </button>
         ))}
       </div>
-      <label style={pfLabel} htmlFor="assign-start">Planowany start</label>
+      <label style={pfLabel} htmlFor="assign-start">{t('course.sheets.assign.plannedStart')}</label>
       <input id="assign-start" type="datetime-local" className="ap-input" value={plannedStart} onChange={event => setPlannedStart(event.target.value)} />
-      <small style={{ display: 'block', marginBottom: '14px', color: 'var(--text-tertiary)' }}>Zostaw puste, jeśli kierowca ma startować ręcznie.</small>
+      <small style={{ display: 'block', marginBottom: '14px', color: 'var(--text-tertiary)' }}>{t('course.sheets.assign.plannedStartHint')}</small>
       <div className="ap-btn-group">
-        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
-        <button className="ap-btn ap-btn-primary" onClick={assign} disabled={busy || !driverId || !routeId}>{busy ? 'Zapisywanie…' : isNewCourse ? 'Utwórz i planuj' : 'Przypisz i planuj'}</button>
+        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+        <button className="ap-btn ap-btn-primary" onClick={assign} disabled={busy || !driverId || !routeId}>{busy ? t('common.saving') : t(isNewCourse ? 'course.sheets.assign.createAndPlan' : 'course.sheets.assign.assignAndPlan')}</button>
       </div>
     </CourseSheet>
   );

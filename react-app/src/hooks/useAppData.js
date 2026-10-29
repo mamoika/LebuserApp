@@ -4,6 +4,7 @@ import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { getAppData } from '../lib/appDataRpc';
 import { captureError } from '../lib/sentry';
+import i18n from '../i18n';
 
 // Ile czekamy na odpowiedź bazy, zanim uznamy zapytanie za zawieszone.
 const FETCH_TIMEOUT_MS = 15000;
@@ -27,7 +28,7 @@ function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Przekroczono czas oczekiwania (${label})`)), ms)
+      setTimeout(() => reject(new Error(i18n.t('common.requestTimedOut', { operation: label }))), ms)
     ),
   ]);
 }
@@ -67,7 +68,7 @@ async function loadAppData(sessionToken, { force = false } = {}) {
   sharedFetch = withTimeout(
     getAppData(token, lastWeekStr),
     FETCH_TIMEOUT_MS,
-    'pobieranie danych'
+    i18n.t('common.fetchingData')
   ).then((result) => {
     const next = normalizeAppData(result);
     sharedCache = next;
@@ -97,7 +98,7 @@ export function useAppData() {
 
   const runFetch = useCallback(async ({ force = false } = {}) => {
     if (!sessionToken) {
-      if (mountedRef.current) setError('Brak aktywnej sesji');
+      if (mountedRef.current) setError(i18n.t('common.noActiveSession'));
       if (mountedRef.current) setLoading(false);
       return;
     }

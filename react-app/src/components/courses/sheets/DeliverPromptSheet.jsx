@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../lib/supabaseClient';
 import { captureError } from '../../../lib/sentry';
 import { getLaundryWorkflow } from '../../../lib/laundryRpc';
@@ -10,6 +11,7 @@ import CourseSheet from '../CourseSheet';
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 
 export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken, onClose, onDone }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [loadingTrolleys, setLoadingTrolleys] = useState(true);
   const [prompt, setPrompt] = useState(() => ({
@@ -78,45 +80,45 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if ((data?.affected ?? 0) !== ids.length) throw new Error('Nie można dostarczyć prania odebranego przez innego kierowcę.');
+      if ((data?.affected ?? 0) !== ids.length) throw new Error(t('course.sheets.delivery.otherDriverError'));
       const details = describeTrolleyActions(prompt);
-      toastSuccess(details ? `Dostawa zapisana · ${details}` : 'Dostawa zapisana');
+      toastSuccess(details ? t('course.sheets.delivery.savedDetails', { details }) : t('course.sheets.delivery.saved'));
       await onDone?.();
       onClose();
     } catch (err) {
-      toastError(`Błąd: ${err.message}`);
+      toastError(t('course.sheets.delivery.error', { message: err.message }));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <CourseSheet titleId="deliver-prompt-title" title="Co z wózkiem?" onClose={onClose} busy={busy}>
+    <CourseSheet titleId="deliver-prompt-title" title={t('course.sheets.delivery.title')} onClose={onClose} busy={busy}>
       <p className="live-sheet-copy">{stop.client_name}</p>
-      {prompt.trolleys.map(t => (
-        <div key={t.cycleId} style={{ marginBottom: '14px' }}>
-          <label style={pfLabel}>Wózek {t.trolleyNo}</label>
+      {prompt.trolleys.map(trolley => (
+        <div key={trolley.cycleId} style={{ marginBottom: '14px' }}>
+          <label style={pfLabel}>{t('course.sheets.delivery.trolley', { number: trolley.trolleyNo })}</label>
           <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(t.cycleId, 'return')} style={{ flex: 1, border: t.choice === 'return' ? '2px solid var(--accent)' : undefined, background: t.choice === 'return' ? 'var(--accent)' : undefined, color: t.choice === 'return' ? '#fff' : undefined }}>Zabieram z powrotem</button>
-            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(t.cycleId, 'leave')} style={{ flex: 1, border: t.choice === 'leave' ? '2px solid var(--accent-orange)' : undefined, background: t.choice === 'leave' ? 'var(--accent-orange)' : undefined, color: t.choice === 'leave' ? '#fff' : undefined }}>Zostaje u klienta</button>
+            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(trolley.cycleId, 'return')} style={{ flex: 1, border: trolley.choice === 'return' ? '2px solid var(--accent)' : undefined, background: trolley.choice === 'return' ? 'var(--accent)' : undefined, color: trolley.choice === 'return' ? '#fff' : undefined }}>{t('course.sheets.delivery.takeBack')}</button>
+            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(trolley.cycleId, 'leave')} style={{ flex: 1, border: trolley.choice === 'leave' ? '2px solid var(--accent-orange)' : undefined, background: trolley.choice === 'leave' ? 'var(--accent-orange)' : undefined, color: trolley.choice === 'leave' ? '#fff' : undefined }}>{t('course.sheets.delivery.leaveAtClient')}</button>
           </div>
         </div>
       ))}
       {prompt.oldTrolleys.length > 0 && (
         <div style={{ marginTop: '4px', marginBottom: '10px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
-          <label style={pfLabel}>Wózki zostawione wcześniej u tego klienta</label>
-          {prompt.oldTrolleys.map(t => (
-            <label key={t.cycleId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', fontSize: '13px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={t.take} onChange={() => toggleOldTake(t.cycleId)} style={{ width: '18px', height: '18px' }} />
-              <span>Zabieram wózek {t.trolleyNo} <span style={{ color: 'var(--text-tertiary)' }}>({daysAtClientLabel(t.days)})</span></span>
+          <label style={pfLabel}>{t('course.sheets.delivery.oldTrolleys')}</label>
+          {prompt.oldTrolleys.map(trolley => (
+            <label key={trolley.cycleId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', fontSize: '13px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={trolley.take} onChange={() => toggleOldTake(trolley.cycleId)} style={{ width: '18px', height: '18px' }} />
+              <span>{t('course.sheets.delivery.takeTrolley', { number: trolley.trolleyNo })} <span style={{ color: 'var(--text-tertiary)' }}>({daysAtClientLabel(trolley.days)})</span></span>
             </label>
           ))}
         </div>
       )}
       <div className="ap-btn-group">
-        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
+        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
         <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>
-          {loadingTrolleys ? 'Sprawdzanie wózków…' : busy ? 'Zapisywanie…' : 'Potwierdź dostawę'}
+          {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : busy ? t('common.saving') : t('course.sheets.delivery.confirm')}
         </button>
       </div>
     </CourseSheet>

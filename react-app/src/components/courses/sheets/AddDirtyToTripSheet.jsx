@@ -1,4 +1,5 @@
 import { callExistingTripRpc } from '../../../lib/courseRpc';
+import { useTranslation } from 'react-i18next';
 import { parseExtraClients, tripDateInfo } from '../../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { AddEntryModal } from '../../modals/EntryModals';
@@ -11,6 +12,7 @@ export default function AddDirtyToTripSheet({
   onClose,
   onAdded,
 }) {
+  const { t } = useTranslation();
   const info = tripDateInfo(trip.trip_date);
 
   const attachClient = async clientName => {
@@ -22,7 +24,7 @@ export default function AddDirtyToTripSheet({
         p_trip_id: trip.id,
         p_extra_clients: next,
       });
-      toastSuccess(`Dodano odbiór brudnego: ${clientName}`);
+      toastSuccess(t('course.sheets.dirtyAdded', { client: clientName }));
       await onAdded?.();
       onClose();
     } catch (error) {

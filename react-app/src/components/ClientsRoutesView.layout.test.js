@@ -106,7 +106,7 @@ test('route printout uses one four-route row per landscape A4 page', () => {
   );
   assert.match(stylesSource, /\.route-grid-page\.is-print-empty\s*\{[\s\S]*?display:\s*none/);
   assert.match(componentSource, /className="route-print-header"[\s\S]*?LEBUSER App[\s\S]*?window\.location\.href/);
-  assert.match(componentSource, /Data:[\s\S]*?Wydrukował:/);
+  assert.match(componentSource, /clients\.printDate[\s\S]*?clients\.printedBy/);
   assert.match(
     stylesSource,
     /\.clients-routes-view \.route-print-header\s*\{[\s\S]*?width:\s*100%[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\) auto/,

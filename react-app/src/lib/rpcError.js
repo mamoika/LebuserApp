@@ -2,6 +2,8 @@
 // zerwane połączenie, timeout) — treść zależy od silnika: "Load failed" (Safari),
 // "Failed to fetch" (Chrome), "NetworkError..." (Firefox). To nie jest błąd
 // naszego kodu ani backendu, więc nie pokazujemy tego surowego tekstu userowi.
+import i18n from '../i18n';
+
 const NETWORK_ERROR_PATTERN = /load failed|failed to fetch|networkerror|network request failed|internet connection appears to be offline/i;
 
 export function isNetworkError(error) {
@@ -10,7 +12,7 @@ export function isNetworkError(error) {
 
 export function toRpcError(error, fallbackMessage = 'Supabase RPC failed') {
   if (isNetworkError(error)) {
-    const next = new Error('Brak połączenia z serwerem — sprawdź internet i spróbuj ponownie.', { cause: error });
+    const next = new Error(i18n.t('common.networkError'), { cause: error });
     next.isNetworkError = true;
     return next;
   }

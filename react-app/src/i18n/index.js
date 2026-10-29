@@ -8,6 +8,16 @@ export const SUPPORTED_LANGUAGES = ['pl', 'de'];
 export const LANGUAGE_STORAGE_KEY = 'lebuser_lang';
 export const DEFAULT_LANGUAGE = 'pl';
 
+const syncDocumentLanguage = (language) => {
+  if (typeof document === 'undefined') return;
+  const normalizedLanguage = language?.split('-')[0];
+  document.documentElement.lang = SUPPORTED_LANGUAGES.includes(normalizedLanguage)
+    ? normalizedLanguage
+    : DEFAULT_LANGUAGE;
+};
+
+i18n.on('languageChanged', syncDocumentLanguage);
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -29,5 +39,7 @@ i18n
     },
     returnNull: false,
   });
+
+syncDocumentLanguage(i18n.resolvedLanguage || i18n.language);
 
 export default i18n;

@@ -141,13 +141,13 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
                 {selectableDrivers.map(driver => (
                   <option value={driver.id} key={driver.id}>
                     {driver.name}
-                    {driver.id === currentDriverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned') || 'aktualnie przypisany'})` : ''}
+                    {driver.id === currentDriverId && !availableDriverIds.has(driver.id) ? ` (${t('weeklyPlan.currentlyAssigned')})` : ''}
                   </option>
                 ))}
               </select>
               {selectableDrivers.length === 0 && (
                 <span style={{ fontSize: '11px', color: '#CC6600', marginTop: '4px', display: 'block' }}>
-                  {t('weeklyPlan.noAvailableDrivers') || 'Brak dostępnych kierowców w grafiku na ten dzień.'}
+                  {t('weeklyPlan.noAvailableDrivers')}
                 </span>
               )}
             </label>

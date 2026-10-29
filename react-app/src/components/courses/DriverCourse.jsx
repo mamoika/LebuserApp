@@ -108,11 +108,11 @@ export default function DriverCourse() {
         workTimeReport: next.work_time_report || null,
       });
     } catch (error) {
-      toastError(`Błąd pobierania kursu: ${error.message}`);
+      toastError(t('course.driver.loadCourseError', { message: error.message }));
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, user?.id, user?.name]);
+  }, [sessionToken, t, user?.id, user?.name]);
 
   useEffect(() => { loadCourse(); }, [loadCourse]);
 
@@ -235,7 +235,7 @@ export default function DriverCourse() {
     }
     if (option.key === 'car') {
       if (pickedNotDeliveredNames.length > 0) {
-        toastError(`Najpierw dostarcz albo cofnij odbiór: ${pickedNotDeliveredNames.join(', ')}`);
+        toastError(t('course.driver.deliverOrUndoFirst', { names: pickedNotDeliveredNames.join(', ') }));
         return;
       }
       setNextCar(VEHICLES.find(vehicle => vehicle.key !== trip.car)?.key || '');
@@ -256,7 +256,7 @@ export default function DriverCourse() {
     }
     try {
       await reportCourseProblem(sessionToken, trip.id, viewStop?.id || null, option.key, option.label);
-      toastSuccess('Zdarzenie zapisane w dzienniku kursu');
+      toastSuccess(t('course.driver.eventLogged'));
       await loadCourse();
     } catch (error) {
       toastError(error.message);
@@ -265,19 +265,19 @@ export default function DriverCourse() {
 
   const changeVehicle = async () => {
     if (pickedNotDeliveredNames.length > 0) {
-      toastError(`Najpierw rozładuj auto: ${pickedNotDeliveredNames.join(', ')}`);
+      toastError(t('course.driver.unloadVehicleFirst', { names: pickedNotDeliveredNames.join(', ') }));
       return;
     }
     const value = segmentKm.trim() ? Number(String(segmentKm).replace(',', '.')) : null;
     if (segmentKm.trim() && !Number.isFinite(value)) {
-      toastError('Podaj poprawny licznik');
+      toastError(t('course.board.invalidKm'));
       return;
     }
     try {
       setBusy(true);
       await changeCourseVehicle(sessionToken, trip.id, nextCar, value);
       setChangeCarOpen(false);
-      toastSuccess('Zmieniono auto — kurs pozostał ten sam');
+      toastSuccess(t('course.driver.carChanged'));
       await loadCourse();
     } catch (error) {
       toastError(error.message);
@@ -291,7 +291,7 @@ export default function DriverCourse() {
       setBusy(true);
       await callExistingTripRpc('transfer_loaded_trip', sessionToken, { p_trip_id: trip.id, p_target_driver_id: targetDriver });
       setHandoffOpen(false);
-      toastSuccess('Kurs przekazany — rozpoczęto nowy odcinek');
+      toastSuccess(t('course.driver.handoffDone'));
       await loadCourse();
     } catch (error) {
       toastError(error.message);
@@ -305,7 +305,7 @@ export default function DriverCourse() {
       setBusy(true);
       await callExistingTripRpc('park_loaded_trip', sessionToken, { p_trip_id: trip.id });
       setHandoffOpen(false);
-      toastSuccess('Kurs zostawiony do przejęcia');
+      toastSuccess(t('course.driver.parkedDone'));
       await loadCourse();
     } catch (error) {
       toastError(error.message);
@@ -315,11 +315,11 @@ export default function DriverCourse() {
   };
 
   const cancelTrip = async () => {
-    if (!window.confirm('Anulować kurs? Nic nie zostało jeszcze zrobione.')) return;
+    if (!window.confirm(t('course.driver.cancelConfirm'))) return;
     try {
       setBusy(true);
       await callExistingTripRpc('driver_cancel_trip', sessionToken, { p_trip_id: trip.id });
-      toastSuccess('Kurs anulowany');
+      toastSuccess(t('course.driver.cancelled'));
       await loadCourse();
     } catch (error) {
       toastError(error.message);

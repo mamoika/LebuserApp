@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../lib/supabaseClient';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { parseExtraClients, parseRouteIds, tripDateInfo, workDateOptions, ymd } from '../../../lib/tripUiHelpers';
-import { formatWeekKey, operationalYmd } from '../../../lib/dateUtils';
+import { currentLocale, formatWeekKey, operationalYmd } from '../../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import { effectiveServiceRules, nextServiceSlot } from '../../../lib/serviceSchedule';
 import {
@@ -49,7 +49,7 @@ function defaultPickForSchedule(arrDay, schedule = 'other') {
 }
 
 function fmtDate(dateStr) {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export default function PlanPickupSheet({
@@ -127,16 +127,16 @@ export default function PlanPickupSheet({
   const submit = async () => {
     const routeId = Number(draft.routeId);
     if (!draft.dirtyDate || !draft.clientName || !routeId) {
-      toastError('Wybierz datę, klienta i trasę');
+      toastError(t('course.sheets.planPickup.validation'));
       return;
     }
     const client = clients.find(item => item.name === draft.clientName);
     if (!laundryCategoriesForClient(client, routes).includes(draft.type)) {
-      toastError('Ten klient nie ma włączonego rodzaju prania');
+      toastError(t('course.sheets.planPickup.laundryDisabled'));
       return;
     }
     if (draft.trolleyMode === 'trolley' && draft.selectedTrolleys.length === 0) {
-      toastError('Wybierz numery wózków');
+      toastError(t('course.sheets.planPickup.chooseTrolleys'));
       return;
     }
     const trolleyData = arrivalTrolleyPayload(draft.trolleyMode, draft.selectedTrolleys);
@@ -180,11 +180,11 @@ export default function PlanPickupSheet({
         });
       }
 
-      toastSuccess(`Zlecono odbiór: ${draft.clientName} · ${fmtDate(draft.dirtyDate)}`);
+      toastSuccess(t('course.sheets.planPickup.success', { client: draft.clientName, date: fmtDate(draft.dirtyDate) }));
       await onPlanned?.();
       onClose();
     } catch (error) {
-      toastError(`Błąd zlecania odbioru: ${error.message}`);
+      toastError(t('course.sheets.planPickup.error', { message: error.message }));
     } finally {
       setBusy(false);
     }
@@ -197,13 +197,13 @@ export default function PlanPickupSheet({
   });
 
   return (
-    <CourseSheet titleId="plan-pickup-title" title="Zleć nowy odbiór" onClose={onClose} busy={busy}>
-      <p className="live-sheet-copy">Planowanie odbioru brudnego i kursu w oknie 14 dni</p>
-      <label style={pfLabel} htmlFor="plan-dirty-date">Data odbioru brudnego</label>
+    <CourseSheet titleId="plan-pickup-title" title={t('course.sheets.planPickup.title')} onClose={onClose} busy={busy}>
+      <p className="live-sheet-copy">{t('course.sheets.planPickup.subtitle')}</p>
+      <label style={pfLabel} htmlFor="plan-dirty-date">{t('course.sheets.planPickup.dirtyDate')}</label>
       <select id="plan-dirty-date" className="ap-input" value={draft.dirtyDate} onChange={event => setField('dirtyDate', event.target.value)}>
         {dates.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
       </select>
-      <label style={pfLabel} htmlFor="plan-client">Klient</label>
+      <label style={pfLabel} htmlFor="plan-client">{t('course.sheets.planPickup.client')}</label>
       <select id="plan-client" className="ap-input" value={draft.clientName} onChange={event => setField('clientName', event.target.value)}>
         {sortedRoutes.map(route => (
           <optgroup key={route.id} label={`T${routeMap[route.id]?.num || route.id} · ${route.name}`}>
@@ -213,13 +213,13 @@ export default function PlanPickupSheet({
           </optgroup>
         ))}
       </select>
-      <label style={pfLabel} htmlFor="plan-route">Trasa</label>
+      <label style={pfLabel} htmlFor="plan-route">{t('course.sheets.planPickup.route')}</label>
       <select id="plan-route" className="ap-input" value={draft.routeId} onChange={event => setField('routeId', event.target.value)}>
         {sortedRoutes.map(route => <option key={route.id} value={route.id}>T{routeMap[route.id]?.num || route.id} · {route.name}</option>)}
       </select>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         <div>
-          <label style={pfLabel} htmlFor="plan-type">Rodzaj</label>
+          <label style={pfLabel} htmlFor="plan-type">{t('course.sheets.planPickup.type')}</label>
           <select id="plan-type" className="ap-input" value={draft.type} onChange={event => setField('type', event.target.value)}>
             {LAUNDRY_CATEGORIES
               .filter(category => laundryCategoriesForClient(
@@ -249,9 +249,9 @@ export default function PlanPickupSheet({
         onSelectedChange={value => setField('selectedTrolleys', value)}
         disabled={busy}
       />
-      <label style={pfLabel} htmlFor="plan-weight">Waga (kg)</label>
-      <input id="plan-weight" className="ap-input" type="text" inputMode="decimal" value={draft.weight} onChange={event => setField('weight', event.target.value)} placeholder="np. 150.5" />
-      <label style={pfLabel} htmlFor="plan-clean-date">Odbiór czystego z pralni</label>
+      <label style={pfLabel} htmlFor="plan-weight">{t('course.sheets.planPickup.weight')}</label>
+      <input id="plan-weight" className="ap-input" type="text" inputMode="decimal" value={draft.weight} onChange={event => setField('weight', event.target.value)} placeholder={t('entry.weightPlaceholder')} />
+      <label style={pfLabel} htmlFor="plan-clean-date">{t('course.sheets.planPickup.cleanDate')}</label>
       <select id="plan-clean-date" className="ap-input" value={draft.cleanDate} onChange={event => setField('cleanDate', event.target.value)}>
         {workDateOptions(21).filter(opt => !draft.dirtyDate || opt.value >= draft.dirtyDate).map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -259,32 +259,32 @@ export default function PlanPickupSheet({
       </select>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         <div>
-          <label style={pfLabel} htmlFor="plan-driver">Kierowca</label>
+          <label style={pfLabel} htmlFor="plan-driver">{t('course.sheets.planPickup.driver')}</label>
           <select id="plan-driver" className="ap-input" value={draft.driverId} onChange={event => setField('driverId', event.target.value)}>
-            <option value="">Brak przypisania</option>
+            <option value="">{t('course.sheets.planPickup.unassigned')}</option>
             {drivers.map(driver => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={pfLabel} htmlFor="plan-car">Auto</label>
+          <label style={pfLabel} htmlFor="plan-car">{t('course.sheets.planPickup.vehicle')}</label>
           <select id="plan-car" className="ap-input" value={draft.car} onChange={event => setField('car', event.target.value)}>
-            <option value="">Brak przypisania</option>
+            <option value="">{t('course.sheets.planPickup.unassigned')}</option>
             {VEHICLES.map(vehicle => <option key={vehicle.key} value={vehicle.key}>{vehicle.label}</option>)}
           </select>
         </div>
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 650, margin: '12px 0', cursor: 'pointer' }}>
         <input type="checkbox" checked={!!draft.urgent} onChange={event => setField('urgent', event.target.checked)} />
-        <span style={{ color: 'var(--accent-red)' }}>Pilne</span>
+        <span style={{ color: 'var(--accent-red)' }}>{t('course.sheets.planPickup.urgent')}</span>
       </label>
       <div className="live-sheet-copy" style={{ marginBottom: '12px' }}>
         {existingTrip
-          ? `Zostanie dopięte do istniejącego kursu: ${existingTrip.driver_name || 'bez kierowcy'}`
-          : 'Powstanie nowy kurs planowany na wybrany dzień.'}
+          ? t('course.sheets.planPickup.existingTrip', { driver: existingTrip.driver_name || t('course.sheets.planPickup.noDriver') })
+          : t('course.sheets.planPickup.newTrip')}
       </div>
       <div className="ap-btn-group">
-        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
-        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !draft.clientName || !draft.type}>{busy ? 'Zapisywanie…' : 'Zleć odbiór'}</button>
+        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !draft.clientName || !draft.type}>{busy ? t('common.saving') : t('course.sheets.planPickup.submit')}</button>
       </div>
     </CourseSheet>
   );

@@ -1125,8 +1125,8 @@ export default function TimelineView() {
                     {t('timeline.sum')}
                   </div>
                   <div style={{ display: 'flex', alignSelf: 'stretch', width: '88px', background: 'var(--bg-tertiary)', borderLeft: '1px solid var(--border)' }}>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, borderRight: '1px solid var(--border)' }}>OS.</div>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700 }}>GODZ.</div>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700, borderRight: '1px solid var(--border)' }}>{t('timeline.personsShort')}</div>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700 }}>{t('timeline.hoursShortPunct')}</div>
                   </div>
                 </div>
               </th>
@@ -1139,7 +1139,7 @@ export default function TimelineView() {
                       {/* TOP ROW: GROUP NAMES */}
                       <div style={{ display: 'flex', flex: 1, borderBottom: '1px solid var(--border)' }}>
                         <div style={{ flex: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: '11px', fontWeight: 800, borderRight: '1px solid var(--border)' }}>
-                          RAZEM
+                          {t('timeline.total')}
                         </div>
                         {groupNames.map((gn, idx) => {
                           const gc = groups.find(g => g.g === gn)?.color || '#555';
@@ -1154,20 +1154,20 @@ export default function TimelineView() {
                       {/* BOTTOM ROW: Os. Godz. */}
                       <div style={{ display: 'flex', flex: 1, background: 'transparent' }}>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700 }}>
-                          OS.
+                          {t('timeline.personsShort')}
                         </div>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid var(--border-strong)', color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 700 }}>
-                          GODZ.
+                          {t('timeline.hoursShortPunct')}
                         </div>
                         {groupNames.flatMap((gn, idx) => {
                           const gc = groups.find(g => g.g === gn)?.color || '#555';
                           const isLast = idx === groupNames.length - 1;
                           return [
                             <div key={`${gn}-o`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid var(--border)', color: gc, fontSize: '10px', fontWeight: 700 }}>
-                              OS.
+                              {t('timeline.personsShort')}
                             </div>,
                             <div key={`${gn}-g`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRight: isLast ? 'none' : '1px solid var(--border)', color: gc, fontSize: '10px', fontWeight: 700 }}>
-                              GODZ.
+                              {t('timeline.hoursShortPunct')}
                             </div>
                           ];
                         })}

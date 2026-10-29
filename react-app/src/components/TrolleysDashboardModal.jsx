@@ -1,10 +1,12 @@
 import { X, Archive, Truck, CheckCircle2, CalendarClock, WashingMachine } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function TrolleysDashboardModal({
   onClose,
   trolleyCount,
   activeTrolleyByNo,
 }) {
+  const { t } = useTranslation();
   const trolleyNumbers = Array.from({ length: trolleyCount }, (_, i) => String(i + 1));
 
   const getDaysAtClient = (active) => {
@@ -65,13 +67,13 @@ export default function TrolleysDashboardModal({
 
         <div className="ap-modal-header" style={{ padding: '24px 32px', borderBottom: '1px solid rgba(229, 231, 235, 0.7)', background: 'rgba(249, 250, 251, 0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="ap-modal-title" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)', textAlign: 'left' }}>Stan floty wózków</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px', textAlign: 'left', fontWeight: 500 }}>Monitorowanie i status logistyczny {trolleyCount} sztuk</div>
+            <div className="ap-modal-title" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)', textAlign: 'left' }}>{t('wash.fleet.title')}</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px', textAlign: 'left', fontWeight: 500 }}>{t('wash.fleet.subtitle', { count: trolleyCount })}</div>
           </div>
           <button 
             className="ap-modal-close" 
             onClick={onClose} 
-            aria-label="Zamknij"
+            aria-label={t('common.close')}
             style={{ 
               background: '#FFFFFF', 
               border: '1px solid rgba(229, 231, 235, 0.8)', 
@@ -111,19 +113,19 @@ export default function TrolleysDashboardModal({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text-quaternary)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Wolne: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{freeCount}</strong></span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.freeCount', { count: freeCount })}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>W użyciu: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{inUseCount}</strong></span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.inUseCount', { count: inUseCount })}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#AF52DE' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Brudne: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{dirtyLaundryCount}</strong></span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.dirtyCount', { count: dirtyLaundryCount })}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-orange)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Zostawione: <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{atClientCount}</strong></span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.leftCount', { count: atClientCount })}</span>
             </div>
           </div>
 
@@ -133,7 +135,7 @@ export default function TrolleysDashboardModal({
               const active = activeTrolleyByNo.get(tNo);
               const isFree = !active;
               
-              let statusLabel = 'Wolny w pralni';
+              let statusLabel = t('wash.fleet.free');
               let Icon = CheckCircle2;
               let client = null;
               let daysAtClient = null;
@@ -147,14 +149,14 @@ export default function TrolleysDashboardModal({
               if (active) {
                 client = active.client_name;
                 if (active.occupancy_source === 'arrival') {
-                  statusLabel = 'W pralni · brudne';
+                  statusLabel = t('wash.fleet.dirtyAtLaundry');
                   Icon = WashingMachine;
                   bgColor = 'rgba(175, 82, 222, 0.04)';
                   borderColor = 'rgba(175, 82, 222, 0.18)';
                   accentColor = '#AF52DE';
                   textColor = '#7E22CE';
                 } else if (active.status === 'at_client') {
-                  statusLabel = 'Zostawiony';
+                  statusLabel = t('wash.fleet.left');
                   Icon = Archive;
                   daysAtClient = getDaysAtClient(active);
                   bgColor = 'rgba(255, 149, 0, 0.04)';
@@ -162,7 +164,7 @@ export default function TrolleysDashboardModal({
                   accentColor = 'var(--accent-orange)';
                   textColor = 'var(--accent-orange-text)';
                 } else if (active.entry_ids?.length > 0) {
-                  statusLabel = 'W użyciu';
+                  statusLabel = t('wash.fleet.inUse');
                   Icon = Truck;
                   bgColor = 'rgba(0, 122, 255, 0.03)';
                   borderColor = 'rgba(0, 122, 255, 0.16)';
@@ -239,9 +241,9 @@ export default function TrolleysDashboardModal({
                       color: daysAtClient > 5 ? 'var(--accent-red)' : 'var(--text-tertiary)'
                     }}>
                       <CalendarClock size={11} color={daysAtClient > 5 ? 'var(--accent-red)' : 'var(--text-quaternary)'} />
-                      {daysAtClient === 0 ? 'Zostawiony dzisiaj' : 
-                       daysAtClient === 1 ? 'Od wczoraj w hotelu' : 
-                       `${daysAtClient} dni u klienta`}
+                      {daysAtClient === 0 ? t('wash.fleet.leftToday') :
+                       daysAtClient === 1 ? t('wash.fleet.sinceYesterday') :
+                       t('wash.fleet.daysAtClient', { count: daysAtClient })}
                     </div>
                   )}
                 </div>

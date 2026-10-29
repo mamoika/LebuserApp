@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,7 +7,6 @@ import i18n from '../i18n';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getRouteColorByIndex } from '../lib/visualSystem';
-import { operationalWeekday } from '../lib/dateUtils';
 import { buildGoogleMapsRouteSegments } from '../lib/googleMapsRoute';
 
 const BASE_LAT = 52.7229319;
@@ -93,6 +92,7 @@ export default function MapView() {
   const [hiddenRoutes, setHiddenRoutes] = useState(new Set());
   const [initialized, setInitialized] = useState(false);
   const [userPos, setUserPos] = useState(null);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     if (routes.length > 0 && !initialized) {
@@ -249,6 +249,7 @@ export default function MapView() {
       {/* Mapa */}
       <div style={{ flex: 1, position: 'relative' }}>
         <MapContainer
+          ref={mapRef}
           center={[BASE_LAT, BASE_LNG]}
           zoom={10}
           style={{ height: '100%', width: '100%' }}
@@ -285,7 +286,7 @@ export default function MapView() {
             ];
 
             return (
-              <span key={route.id}>
+              <Fragment key={route.id}>
                 <Polyline
                   positions={polyPoints}
                   pathOptions={{ color, weight: 3.5, opacity: 0.75, dashArray: null }}
@@ -309,13 +310,13 @@ export default function MapView() {
                           rel="noopener noreferrer" 
                           style={{ display: 'inline-block', background: '#34C759', color: '#fff', padding: '6px 12px', borderRadius: '8px', textDecoration: 'none', fontSize: '12px', fontWeight: 600, boxShadow: '0 2px 8px rgba(52,199,89,0.3)' }}
                         >
-                          📍 Nawiguj
+                          📍 {t('course.navigate')}
                         </a>
                       </div>
                     </Popup>
                   </Marker>
                 ))}
-              </span>
+              </Fragment>
             );
           })}
 
@@ -326,8 +327,9 @@ export default function MapView() {
             </Marker>
           )}
 
-          <UserLocationButton onLocate={setUserPos} />
         </MapContainer>
+
+        <UserLocationButton mapRef={mapRef} onLocate={setUserPos} />
       </div>
 
       {/* Info o brakujących GPS */}
@@ -348,10 +350,9 @@ export default function MapView() {
   );
 }
 
-// Przycisk geolokalizacji jako osobny komponent (musi być wewnątrz MapContainer)
-function UserLocationButton({ onLocate }) {
+// Przycisk pozostaje poza DOM-em zarządzanym przez Leaflet; mapę obsługuje przez ref.
+function UserLocationButton({ mapRef, onLocate }) {
   const { t } = useTranslation();
-  const map = useMap();
   return (
     <div
       style={{
@@ -360,6 +361,8 @@ function UserLocationButton({ onLocate }) {
     >
       <button
         onClick={() => {
+          const map = mapRef.current;
+          if (!map) return;
           map.locate({ maxZoom: 14 });
           map.once('locationfound', e => {
             onLocate(e.latlng);

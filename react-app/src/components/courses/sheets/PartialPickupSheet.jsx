@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../lib/supabaseClient';
 import { formatKg, nextWorkDateAfter, workDateOptions } from '../../../lib/tripUiHelpers';
 import { operationalYmd } from '../../../lib/dateUtils';
@@ -8,6 +9,7 @@ import CourseSheet from '../CourseSheet';
 const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 
 export default function PartialPickupSheet({ stop, sessionToken, contextDate, onClose, onDone }) {
+  const { t } = useTranslation();
   const totalKg = Number((stop?.tasks || [])
     .filter(task => task.task_type === 'pickup_clean' && task.status === 'pending')
     .reduce((sum, task) => sum + (Number(task.quantity) || 0), 0)
@@ -21,18 +23,18 @@ export default function PartialPickupSheet({ stop, sessionToken, contextDate, on
 
   const submit = async () => {
     if (!Number.isFinite(pickupKg) || pickupKg <= 0) {
-      toastError('Podaj wagę większą od 0 kg');
+      toastError(t('course.sheets.partial.invalidWeight'));
       return;
     }
     if (pickupKg > totalKg) {
-      toastError(`Ten punkt ma tylko ${formatKg(totalKg)} kg`);
+      toastError(t('course.sheets.partial.onlyAvailable', { weight: formatKg(totalKg) }));
       return;
     }
     const ids = [...new Set((stop?.tasks || [])
       .filter(task => task.task_type === 'pickup_clean' && task.entry_id)
       .map(task => task.entry_id))];
     if (!ids.length) {
-      toastError('Brak wpisów do częściowego odbioru');
+      toastError(t('course.sheets.partial.noEntries'));
       return;
     }
     try {
@@ -46,26 +48,26 @@ export default function PartialPickupSheet({ stop, sessionToken, contextDate, on
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toastSuccess(pickupKg < totalKg ? `Odebrano ${formatKg(pickupKg)} kg · reszta zaplanowana` : `Odebrano ${formatKg(pickupKg)} kg`);
+      toastSuccess(t(pickupKg < totalKg ? 'course.sheets.partial.successRemaining' : 'course.sheets.partial.success', { weight: formatKg(pickupKg) }));
       await onDone?.();
       onClose();
     } catch (err) {
-      toastError(`Błąd: ${err.message}`);
+      toastError(t('course.sheets.partial.error', { message: err.message }));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <CourseSheet titleId="partial-pickup-title" title="Odbierz część kg" onClose={onClose} busy={busy}>
-      <p className="live-sheet-copy">{stop.client_name} · dostępne {formatKg(totalKg)} kg</p>
-      <label style={pfLabel} htmlFor="partial-kg">Ile kg kierowca zabiera teraz?</label>
-      <input id="partial-kg" className="ap-input" type="text" inputMode="decimal" autoFocus value={value} onChange={event => setValue(event.target.value)} placeholder="np. 100" />
-      <label style={pfLabel} htmlFor="partial-baskets">Wózki</label>
+    <CourseSheet titleId="partial-pickup-title" title={t('course.sheets.partial.title')} onClose={onClose} busy={busy}>
+      <p className="live-sheet-copy">{t('course.sheets.partial.available', { client: stop.client_name, weight: formatKg(totalKg) })}</p>
+      <label style={pfLabel} htmlFor="partial-kg">{t('course.sheets.partial.amount')}</label>
+      <input id="partial-kg" className="ap-input" type="text" inputMode="decimal" autoFocus value={value} onChange={event => setValue(event.target.value)} placeholder={t('entry.weightPlaceholder')} />
+      <label style={pfLabel} htmlFor="partial-baskets">{t('course.sheets.partial.trolleys')}</label>
       <input id="partial-baskets" className="ap-input" type="number" min="0" inputMode="numeric" value={baskets} onChange={event => setBaskets(event.target.value)} />
       {Number.isFinite(pickupKg) && pickupKg < totalKg && (
         <>
-          <label style={pfLabel} htmlFor="partial-remaining">Reszta kg do odbioru dnia</label>
+          <label style={pfLabel} htmlFor="partial-remaining">{t('course.sheets.partial.remainingDate')}</label>
           <select id="partial-remaining" className="ap-input" value={remainingDate} onChange={event => setRemainingDate(event.target.value)}>
             {workDateOptions(21).filter(opt => opt.value > (contextDate || operationalYmd())).map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -74,8 +76,8 @@ export default function PartialPickupSheet({ stop, sessionToken, contextDate, on
         </>
       )}
       <div className="ap-btn-group">
-        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>Anuluj</button>
-        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy}>{busy ? 'Zapisywanie…' : 'Odbierz tyle'}</button>
+        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+        <button className="ap-btn ap-btn-primary" onClick={submit} disabled={busy}>{busy ? t('common.saving') : t('course.sheets.partial.submit')}</button>
       </div>
     </CourseSheet>
   );

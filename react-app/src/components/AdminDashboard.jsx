@@ -1138,7 +1138,7 @@ function EmployeesSection() {
     try {
       const data = await withRetry(
         () => getAdminEmployeesData(sessionToken, cur.year, cur.month),
-        { label: 'pracownicy' }
+        { label: t('admin.employees') }
       );
       setAllEmployees(data?.employees || []);
       setGroups(data?.groups || []);
@@ -1149,7 +1149,7 @@ function EmployeesSection() {
     } finally {
       setLoading(false);
     }
-  }, [cur.year, cur.month, sessionToken]);
+  }, [cur.year, cur.month, sessionToken, t]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -1998,7 +1998,7 @@ export default function AdminDashboard() {
     }
     setLoading(true);
     try {
-      const data = await withRetry(() => getAdminUsersData(sessionToken), { label: 'użytkownicy' });
+      const data = await withRetry(() => getAdminUsersData(sessionToken), { label: t('admin.users') });
       setUsers(data?.users || []);
       setEmployees(data?.employees || []);
       setDriverCars(data?.driver_cars || {});
@@ -2008,7 +2008,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, sessionToken]);
+  }, [isAdmin, sessionToken, t]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -2095,7 +2095,7 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'permissions' ? 'active' : ''}`} onClick={() => setTab('permissions')}>{t('permissions.tab')}</button>
         <button type="button" className={`seg-btn ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>{t('admin.logs')}</button>
         <button type="button" className={`seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>{t('admin.sessions')}</button>
-        <button type="button" className={`seg-btn ${tab === 'barcodes' ? 'active' : ''}`} onClick={() => setTab('barcodes')}>Etykiety</button>
+        <button type="button" className={`seg-btn ${tab === 'barcodes' ? 'active' : ''}`} onClick={() => setTab('barcodes')}>{t('admin.barcodes')}</button>
         <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 

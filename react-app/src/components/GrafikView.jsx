@@ -599,14 +599,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     transition: 'all 0.15s ease'
   };
 
-  const thBase  = { 
-    padding: '7px 2px', 
-    fontSize: '10px', 
-    fontWeight: 600, 
-    textAlign: 'center', 
-    whiteSpace: 'nowrap', 
-    borderBottom: '1px solid rgba(0,0,0,0.08)', 
-    background: '#f8f9fb', 
+  const thBase  = {
+    padding: '7px 2px',
+    fontSize: '10px',
+    fontWeight: 600,
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid rgba(0,0,0,0.08)',
+    background: '#f8f9fb',
     letterSpacing: '0.01em',
     position: 'sticky',
     top: 0,
@@ -723,7 +723,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             }}
           >
             <BookOpen size={14} style={{ color: 'var(--accent)' }} />
-            <span>Zasady rozliczeń UoP vs UZ</span>
+            <span>{t('grafik.contractRules.title')}</span>
             {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
@@ -744,27 +744,27 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             <div style={{ borderLeft: '3px solid #15803d', paddingLeft: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: 'rgba(52, 199, 89, 0.15)', color: '#15803d', border: '1px solid rgba(52, 199, 89, 0.3)' }}>UoP</span>
-                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Umowa o Pracę (etat — Kodeks Pracy)</strong>
+                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{t('grafik.contractRules.employmentTitle')}</strong>
               </div>
               <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li><strong>UW (Urlop wypoczynkowy)</strong>: płatny urlop pracownika — obniża wymiar pracy o <strong>8h na każdy dzień roboczy</strong>.</li>
-                <li><strong>L4 (Chorobowe)</strong>: obniża wymiar pracy o <strong>8h na każdy dzień roboczy</strong>.</li>
-                <li><strong>NU (Nieob. usprawiedliwiona)</strong>: np. uzgodniona nieobecność bezpłatna — obniża normę o 8h (nie generuje długu godzin).</li>
-                <li><strong>NN (Nieob. nieusprawiedliwiona)</strong>: nieobecność bez zgody — nie obniża normy (powstaje -8h niedogodzin w bilansie).</li>
-                <li><strong>Norma & Różnica</strong>: norma pracownika jest korygowana o dni UW/L4/NU. Godziny powyżej skorygowanej normy to <strong>płatne nadgodziny (+)</strong>.</li>
+                <li>{t('grafik.contractRules.employmentLeave')}</li>
+                <li>{t('grafik.contractRules.employmentSick')}</li>
+                <li>{t('grafik.contractRules.employmentExcused')}</li>
+                <li>{t('grafik.contractRules.employmentUnexcused')}</li>
+                <li>{t('grafik.contractRules.employmentBalance')}</li>
               </ul>
             </div>
 
             <div style={{ borderLeft: '3px solid #1d4ed8', paddingLeft: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: 'rgba(0, 122, 255, 0.15)', color: '#1d4ed8', border: '1px solid rgba(0, 122, 255, 0.3)' }}>UZ</span>
-                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Umowa Zlecenie (godzinowa — Kodeks Cywilny)</strong>
+                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{t('grafik.contractRules.contractTitle')}</strong>
               </div>
               <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li><strong>Rozliczenie za godziny</strong>: wypłata zleceniobiorcy to zawsze czysta suma: <strong>Σ h × stawka</strong>.</li>
-                <li><strong>Stosuj NU zamiast UW</strong>: zleceniobiorcy <u>nie przysługuje</u> urlop wypoczynkowy (UW). W dni niedyspozycyjności/wyjazdu wpisujemy <strong>NU</strong> lub <strong>W</strong> (dzień niepłatny).</li>
-                <li><strong>L4 na zleceniu</strong>: w przypadku choroby również wpisujemy <strong>L4</strong> lub <strong>NU</strong> (brak godzin do wypłaty).</li>
-                <li><strong>Norma & Różnica</strong>: mają dla zlecenia charakter wyłącznie <strong>orientacyjny</strong> (pokazują porównanie do pełnego etatu).</li>
+                <li>{t('grafik.contractRules.contractHourly')}</li>
+                <li>{t('grafik.contractRules.contractAbsence')}</li>
+                <li>{t('grafik.contractRules.contractSick')}</li>
+                <li>{t('grafik.contractRules.contractBalance')}</li>
               </ul>
             </div>
           </div>
@@ -934,7 +934,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                               background: emp.contract_type === 'UoP' ? 'rgba(52, 199, 89, 0.14)' : 'rgba(0, 122, 255, 0.14)',
                               color: emp.contract_type === 'UoP' ? '#248A3D' : '#0055CC',
                             }}
-                            title={emp.contract_type === 'UoP' ? 'Umowa o Pracę' : 'Umowa Zlecenie'}
+                            title={emp.contract_type === 'UoP'
+                              ? t('grafik.contractRules.employmentTitle')
+                              : t('grafik.contractRules.contractTitle')}
                           >
                             {emp.contract_type || 'UoP'}
                           </span>

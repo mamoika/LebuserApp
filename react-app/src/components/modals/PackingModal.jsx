@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PackageCheck, X, ScanBarcode, ShoppingCart, Package } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
@@ -10,6 +11,7 @@ export default function PackingModal({
   trolleyNumbers,
   activeTrolleyByNo,
 }) {
+  const { t } = useTranslation();
   const [scannedTrolleys, setScannedTrolleys] = useState([]);
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
@@ -28,25 +30,25 @@ export default function PackingModal({
     onScan: (scannedCode) => {
       const match = scannedCode.match(/^TRL-(\d+)$/i);
       if (!match) {
-        setError(`Nieznany kod: ${scannedCode}. Zeskanuj wózek (np. TRL-5).`);
+        setError(t('wash.packing.unknownCode', { code: scannedCode }));
         return;
       }
       
       const trolleyNo = match[1];
       
       if (!trolleyNumbers.includes(trolleyNo)) {
-        setError(`Wózek ${trolleyNo} nie istnieje.`);
+        setError(t('wash.packing.missingTrolley', { trolley: trolleyNo }));
         return;
       }
       
       const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
       if (activeCycle) {
-        setError(`Wózek ${trolleyNo} jest zajęty przez: ${activeCycle.client_name}`);
+        setError(t('wash.packing.occupied', { trolley: trolleyNo, client: activeCycle.client_name }));
         return;
       }
 
       if (scannedTrolleys.includes(trolleyNo)) {
-        setError(`Wózek ${trolleyNo} został już dodany do listy.`);
+        setError(t('wash.packing.duplicate', { trolley: trolleyNo }));
         return;
       }
       
@@ -57,12 +59,12 @@ export default function PackingModal({
 
   const handleManualAdd = () => {
     if (!manualTrolley) {
-      setError('Wybierz wózek z listy.');
+      setError(t('wash.packing.chooseTrolley'));
       return;
     }
     
     if (scannedTrolleys.includes(manualTrolley)) {
-      setError(`Wózek ${manualTrolley} został już dodany do listy.`);
+      setError(t('wash.packing.duplicate', { trolley: manualTrolley }));
       return;
     }
 
@@ -75,7 +77,7 @@ export default function PackingModal({
     setError('');
     const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
     if (packMode === 'trolley' && trolleysToSend.length === 0) {
-      setError('Zeskanuj lub dodaj przynajmniej jeden wózek.');
+      setError(t('wash.packing.chooseAtLeastOne'));
       return;
     }
     // Waga jest opcjonalna, gdy nie była znana przy przyjeździe — czasem dowiadujemy się
@@ -93,7 +95,7 @@ export default function PackingModal({
       }
       // onClose is not needed here as WashView handles closing on finish
     } catch (err) {
-      setError(err.message || 'Błąd podczas pakowania');
+      setError(err.message || t('wash.packing.error'));
       setIsPacking(false);
     }
   };
@@ -114,14 +116,14 @@ export default function PackingModal({
         <div className="ap-handle" />
         <div className="ap-content">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>Pakowanie Wózków</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('wash.packing.title')}</div>
             <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}><X size={20} /></button>
           </div>
 
           <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
             {needsManualKg
-              ? <><strong>{group.clientName}</strong> · waga nieznana — wpisz kg jeśli już wiadomo, albo spakuj i uzupełnij później</>
-              : <><strong>{group.clientName}</strong> · Do spakowania zostało: <strong>{group.remainingKg} kg</strong></>}
+              ? t('wash.packing.unknownWeightHint', { client: group.clientName })
+              : t('wash.packing.remaining', { client: group.clientName, weight: group.remainingKg })}
           </p>
 
           {error && (
@@ -145,7 +147,7 @@ export default function PackingModal({
                 transition: 'all 0.15s ease'
               }}
             >
-              <ShoppingCart size={15} /> Do wózków
+              <ShoppingCart size={15} /> {t('wash.packing.toTrolleys')}
             </button>
             <button
               type="button"
@@ -160,7 +162,7 @@ export default function PackingModal({
                 transition: 'all 0.15s ease'
               }}
             >
-              <Package size={15} /> Bez wózka (luzem)
+              <Package size={15} /> {t('wash.packing.loose')}
             </button>
           </div>
 
@@ -179,14 +181,14 @@ export default function PackingModal({
                   gap: '10px'
                 }}>
                   <ScanBarcode size={48} color="var(--text-tertiary)" />
-                  <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '17px' }}>Zeskanuj kody wózków</h3>
+                  <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '17px' }}>{t('wash.packing.scanTitle')}</h3>
                   <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    Zeskanuj wszystkie wózki dla tego prania.
+                    {t('wash.packing.scanHint')}
                   </p>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '5px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>Dodaj wózek ręcznie (opcja):</span>
+                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>{t('wash.packing.manual')}</span>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <select
                       className="ap-input"
@@ -195,13 +197,15 @@ export default function PackingModal({
                       onChange={(e) => setManualTrolley(e.target.value)}
                       disabled={isPacking}
                     >
-                      <option value="">Wybierz wózek...</option>
+                      <option value="">{t('wash.packing.choosePlaceholder')}</option>
                       {trolleyNumbers.map(no => {
                         const activeCycle = activeTrolleyByNo.get(no.toLowerCase());
                         const disabled = Boolean(activeCycle) || scannedTrolleys.includes(no);
                         return (
                           <option key={no} value={no} disabled={disabled}>
-                            {no}{activeCycle ? ` · zajęty: ${activeCycle.client_name}` : ' · wolny'}
+                            {activeCycle
+                              ? t('wash.packing.occupiedOption', { trolley: no, client: activeCycle.client_name })
+                              : t('wash.packing.free', { trolley: no })}
                           </option>
                         );
                       })}
@@ -212,7 +216,7 @@ export default function PackingModal({
                       onClick={handleManualAdd}
                       disabled={isPacking || !manualTrolley}
                     >
-                      Dodaj
+                      {t('common.add')}
                     </button>
                   </div>
                 </div>
@@ -220,7 +224,7 @@ export default function PackingModal({
                 {scannedTrolleys.length > 0 && (
                   <div style={{ padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                      Dodane wózki ({scannedTrolleys.length}){needsManualKg ? ' — kg opcjonalnie' : ''}:
+                      {t('wash.packing.added', { count: scannedTrolleys.length })}{needsManualKg ? t('wash.packing.kgOptional') : ''}:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {scannedTrolleys.map(no => (
@@ -262,15 +266,15 @@ export default function PackingModal({
                 gap: '12px'
               }}>
                 <PackageCheck size={40} color="var(--accent)" />
-                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px' }}>Pakowanie bez wózka</h3>
+                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px' }}>{t('wash.packing.looseTitle')}</h3>
                 <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.4 }}>
-                  Wybierz tę opcję, jeśli pakujesz pranie luzem (np. w worek lub luzem na auto). Wózki w systemie nie zostaną zajęte.
+                  {t('wash.packing.looseHint')}
                 </p>
                 {needsManualKg && (
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="kg (opcjonalnie)"
+                    placeholder={t('wash.packing.optionalKg')}
                     value={manualKg.brak ?? ''}
                     onChange={e => setManualKg(prev => ({ ...prev, brak: e.target.value }))}
                     className="ap-input"
@@ -287,7 +291,11 @@ export default function PackingModal({
               onClick={handleConfirmPack}
               disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0)}
             >
-              {isPacking ? 'Pakowanie...' : packMode === 'trolley' ? `Zatwierdź i Spakuj do ${scannedTrolleys.length} wózków` : 'Zatwierdź i Spakuj (bez wózka)'}
+              {isPacking
+                ? t('wash.packing.packing')
+                : packMode === 'trolley'
+                  ? t('wash.packing.confirmTrolleys', { count: scannedTrolleys.length })
+                  : t('wash.packing.confirmLoose')}
             </button>
           </div>
         </div>

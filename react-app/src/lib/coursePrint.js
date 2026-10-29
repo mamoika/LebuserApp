@@ -5,6 +5,9 @@ import {
 import { routeNamesForTrip } from './tripUiHelpers';
 import { toastError } from './toast';
 import { VEHICLE_LABELS, vehicleEndColumn } from './vehicles';
+import i18n from '../i18n';
+
+const tr = (key, options) => i18n.t(`course.print.${key}`, options);
 
 function escHtml(value) {
   return String(value ?? '').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]));
@@ -92,7 +95,7 @@ function stopRowHtml(data, index) {
 function openPrintWindow(html) {
   const win = window.open('', '_blank');
   if (!win) {
-    toastError('Wyłącz blokadę wyskakujących okienek, aby wydrukować');
+    toastError(tr('popupBlocked'));
     return false;
   }
   win.document.write(html);
@@ -130,40 +133,40 @@ export async function printTripWorkCard({
   dailyCosts = [],
 }) {
   if (!trip || trip.status !== 'finished') {
-    toastError('Karta jest dostępna po zakończeniu kursu');
+    toastError(tr('tripUnavailable'));
     return;
   }
   const stops = await loadTripStops(sessionToken, trip);
   const stopRows = stops.map((stop, index) => stopRowHtml(stopPrintData(stop, entries, trip.trip_date), index)).join('');
   const startRow = `<tr class="route-marker">
-    <td>1</td><td class="l"><b>Pralnia</b></td>
-    <td>${escHtml(fmtTime(trip.started_at) || '—')}</td><td>Start kursu</td>
-    <td></td><td></td><td></td><td></td><td class="l">Wyjazd z pralni</td>
+    <td>1</td><td class="l"><b>${escHtml(tr('laundry'))}</b></td>
+    <td>${escHtml(fmtTime(trip.started_at) || '—')}</td><td>${escHtml(tr('courseStart'))}</td>
+    <td></td><td></td><td></td><td></td><td class="l">${escHtml(tr('leaveLaundry'))}</td>
   </tr>`;
   const endRow = `<tr class="route-marker">
-    <td>${stops.length + 2}</td><td class="l"><b>Pralnia</b></td>
+    <td>${stops.length + 2}</td><td class="l"><b>${escHtml(tr('laundry'))}</b></td>
     <td></td><td>${escHtml(fmtTime(trip.ended_at) || '—')}</td>
-    <td></td><td></td><td></td><td></td><td class="l">Koniec kursu / powrót do pralni</td>
+    <td></td><td></td><td></td><td></td><td class="l">${escHtml(tr('courseEnd'))}</td>
   </tr>`;
   const distance = distanceForTrip(trip, dailyCosts);
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Karta pracy kierowcy</title><style>${PRINT_STYLES}</style></head><body>
-    <h1>KARTA PRACY KIEROWCY</h1>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(tr('tripCardTitle'))}</title><style>${PRINT_STYLES}</style></head><body>
+    <h1>${escHtml(tr('tripCardHeading'))}</h1>
     <div class="head">
-      <div><b>Kierowca:</b> ${escHtml(trip.driver_name || driverName)}</div>
-      <div><b>Data:</b> ${escHtml(trip.trip_date)}</div>
-      <div><b>Trasy:</b> ${escHtml(routeNamesForTrip(trip, routeMap))}</div>
-      <div><b>Samochód:</b> ${escHtml(VEHICLE_LABELS[trip.car] || trip.car || '')}</div>
-      <div><b>Start:</b> ${escHtml(fmtTime(trip.started_at) || '')}</div>
-      <div><b>Koniec:</b> ${escHtml(fmtTime(trip.ended_at) || '')}</div>
-      <div><b>Czas kursu:</b> ${escHtml(fmtDuration(trip.started_at, trip.ended_at))}</div>
-      <div><b>KM zgłoszony:</b> ${trip.end_km ?? ''}</div>
-      <div><b>Przejazd:</b> ${distance !== null ? `${distance} km` : '—'}</div>
+      <div><b>${escHtml(tr('driver'))}:</b> ${escHtml(trip.driver_name || driverName)}</div>
+      <div><b>${escHtml(tr('date'))}:</b> ${escHtml(trip.trip_date)}</div>
+      <div><b>${escHtml(tr('routes'))}:</b> ${escHtml(routeNamesForTrip(trip, routeMap))}</div>
+      <div><b>${escHtml(tr('vehicle'))}:</b> ${escHtml(VEHICLE_LABELS[trip.car] || trip.car || '')}</div>
+      <div><b>${escHtml(tr('start'))}:</b> ${escHtml(fmtTime(trip.started_at) || '')}</div>
+      <div><b>${escHtml(tr('end'))}:</b> ${escHtml(fmtTime(trip.ended_at) || '')}</div>
+      <div><b>${escHtml(tr('duration'))}:</b> ${escHtml(fmtDuration(trip.started_at, trip.ended_at))}</div>
+      <div><b>${escHtml(tr('reportedKm'))}:</b> ${trip.end_km ?? ''}</div>
+      <div><b>${escHtml(tr('distance'))}:</b> ${distance !== null ? `${distance} km` : '—'}</div>
     </div>
     <table>
-      <thead><tr><th>Lp.</th><th class="l">Hotel/Klient</th><th>Z pralni godz.</th><th>Dostarczono godz.</th><th>Kg</th><th>Wózki z pralni</th><th>Brudne wózki</th><th>Brudne godz.</th><th class="l">Uwagi</th></tr></thead>
+      <thead><tr><th>${escHtml(tr('position'))}</th><th class="l">${escHtml(tr('hotelClient'))}</th><th>${escHtml(tr('fromLaundryTime'))}</th><th>${escHtml(tr('deliveredTime'))}</th><th>kg</th><th>${escHtml(tr('cleanTrolleys'))}</th><th>${escHtml(tr('dirtyTrolleys'))}</th><th>${escHtml(tr('dirtyTime'))}</th><th class="l">${escHtml(tr('notes'))}</th></tr></thead>
       <tbody>${startRow}${stopRows}${endRow}</tbody>
     </table>
-    <p style="margin-top:40px;font-size:13px">Podpis kierowcy: ______________________</p>
+    <p style="margin-top:40px;font-size:13px">${escHtml(tr('driverSignature'))}: ______________________</p>
   </body></html>`;
   openPrintWindow(html);
 }
@@ -178,7 +181,7 @@ export async function printDayWorkCard({
   dailyCosts = [],
 }) {
   if (!trip?.trip_date || trip.status !== 'finished') {
-    toastError('Karta dnia jest dostępna po zakończeniu kursu');
+    toastError(tr('dayUnavailable'));
     return;
   }
   const sameDriver = row => (trip.driver_id
@@ -188,7 +191,7 @@ export async function printDayWorkCard({
     .filter(row => row.status === 'finished' && row.trip_date === trip.trip_date && sameDriver(row))
     .sort((a, b) => new Date(a.started_at || `${a.trip_date}T00:00:00`) - new Date(b.started_at || `${b.trip_date}T00:00:00`));
   if (!dayTrips.length) {
-    toastError('Brak zakończonych kursów dla tego dnia');
+    toastError(tr('noFinishedTrips'));
     return;
   }
 
@@ -237,44 +240,44 @@ export async function printDayWorkCard({
 
   const stopRows = dayStops.map((row, index) => stopRowHtml(row, index)).join('');
   const startRow = `<tr class="route-marker">
-    <td>1</td><td class="l"><b>Pralnia</b></td>
-    <td>${escHtml(fmtTime(firstTrip.started_at) || '—')}</td><td>Start dnia</td>
-    <td></td><td></td><td></td><td></td><td class="l">Pierwszy wyjazd z pralni</td>
+    <td>1</td><td class="l"><b>${escHtml(tr('laundry'))}</b></td>
+    <td>${escHtml(fmtTime(firstTrip.started_at) || '—')}</td><td>${escHtml(tr('dayStarted'))}</td>
+    <td></td><td></td><td></td><td></td><td class="l">${escHtml(tr('firstDeparture'))}</td>
   </tr>`;
   const endRow = `<tr class="route-marker">
-    <td>${dayStops.length + 2}</td><td class="l"><b>Pralnia</b></td>
+    <td>${dayStops.length + 2}</td><td class="l"><b>${escHtml(tr('laundry'))}</b></td>
     <td></td><td>${escHtml(fmtTime(lastTrip.ended_at) || '—')}</td>
-    <td></td><td></td><td></td><td></td><td class="l">Koniec dnia / ostatni powrót</td>
+    <td></td><td></td><td></td><td></td><td class="l">${escHtml(tr('dayFinished'))}</td>
   </tr>`;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Karta dnia kierowcy</title><style>${PRINT_STYLES}</style></head><body>
-    <h1>KARTA DNIA KIEROWCY</h1>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(tr('dayCardTitle'))}</title><style>${PRINT_STYLES}</style></head><body>
+    <h1>${escHtml(tr('dayCardHeading'))}</h1>
     <div class="head">
-      <div><b>Kierowca:</b> ${escHtml(trip.driver_name || driverName)}</div>
-      <div><b>Data:</b> ${escHtml(trip.trip_date)}</div>
-      <div><b>Start dnia:</b> ${escHtml(fmtTime(firstTrip.started_at) || '')}</div>
-      <div><b>Koniec dnia:</b> ${escHtml(fmtTime(lastTrip.ended_at) || '')}</div>
-      <div><b>Kursów/aut:</b> ${dayTrips.length}</div>
+      <div><b>${escHtml(tr('driver'))}:</b> ${escHtml(trip.driver_name || driverName)}</div>
+      <div><b>${escHtml(tr('date'))}:</b> ${escHtml(trip.trip_date)}</div>
+      <div><b>${escHtml(tr('dayStart'))}:</b> ${escHtml(fmtTime(firstTrip.started_at) || '')}</div>
+      <div><b>${escHtml(tr('dayEnd'))}:</b> ${escHtml(fmtTime(lastTrip.ended_at) || '')}</div>
+      <div><b>${escHtml(tr('tripsVehicles'))}:</b> ${dayTrips.length}</div>
     </div>
     <div class="summary">
-      <div><b>Punkty razem:</b> ${dayStops.length}</div>
-      <div><b>Z czystym:</b> ${cleanStops.length}</div>
-      <div><b>Z brudnym:</b> ${dirtyStops.length}</div>
-      <div><b>Kg:</b> ${totalKg}</div>
-      <div><b>Wózki z pralni:</b> ${cleanTrolleys}</div>
-      <div><b>Brudne wózki:</b> ${dirtyTrolleys}</div>
+      <div><b>${escHtml(tr('pointsTotal'))}:</b> ${dayStops.length}</div>
+      <div><b>${escHtml(tr('withClean'))}:</b> ${cleanStops.length}</div>
+      <div><b>${escHtml(tr('withDirty'))}:</b> ${dirtyStops.length}</div>
+      <div><b>kg:</b> ${totalKg}</div>
+      <div><b>${escHtml(tr('cleanTrolleys'))}:</b> ${cleanTrolleys}</div>
+      <div><b>${escHtml(tr('dirtyTrolleys'))}:</b> ${dirtyTrolleys}</div>
     </div>
-    <h2>Odcinki / auta</h2>
+    <h2>${escHtml(tr('segmentsVehicles'))}</h2>
     <table>
-      <thead><tr><th>Odc.</th><th>Samochód</th><th>Trasy</th><th>Start</th><th>Koniec</th><th>Czas</th><th>KM zgłoszony</th><th>Przejazd km</th></tr></thead>
+      <thead><tr><th>${escHtml(tr('segmentShort'))}</th><th>${escHtml(tr('vehicle'))}</th><th>${escHtml(tr('routes'))}</th><th>${escHtml(tr('start'))}</th><th>${escHtml(tr('end'))}</th><th>${escHtml(tr('time'))}</th><th>${escHtml(tr('reportedKm'))}</th><th>${escHtml(tr('distanceKm'))}</th></tr></thead>
       <tbody>${tripRows}</tbody>
     </table>
-    <h2>Punkty dnia</h2>
+    <h2>${escHtml(tr('dayPoints'))}</h2>
     <table>
-      <thead><tr><th>Lp.</th><th class="l">Hotel/Klient</th><th>Z pralni godz.</th><th>Dostarczono godz.</th><th>Kg</th><th>Wózki z pralni</th><th>Brudne wózki</th><th>Brudne godz.</th><th class="l">Uwagi</th></tr></thead>
+      <thead><tr><th>${escHtml(tr('position'))}</th><th class="l">${escHtml(tr('hotelClient'))}</th><th>${escHtml(tr('fromLaundryTime'))}</th><th>${escHtml(tr('deliveredTime'))}</th><th>kg</th><th>${escHtml(tr('cleanTrolleys'))}</th><th>${escHtml(tr('dirtyTrolleys'))}</th><th>${escHtml(tr('dirtyTime'))}</th><th class="l">${escHtml(tr('notes'))}</th></tr></thead>
       <tbody>${startRow}${stopRows}${endRow}</tbody>
     </table>
-    <p style="margin-top:40px;font-size:13px">Podpis kierowcy: ______________________</p>
+    <p style="margin-top:40px;font-size:13px">${escHtml(tr('driverSignature'))}: ______________________</p>
   </body></html>`;
   openPrintWindow(html);
 }

@@ -184,9 +184,9 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
   };
 
   const resubmitWorkTime = async report => {
-    const start = window.prompt('Godzina rozpoczęcia pracy (HH:MM)', timeForInput(report.reported_start));
+    const start = window.prompt(t('course.history.startPrompt'), timeForInput(report.reported_start));
     if (start === null) return;
-    const end = window.prompt('Godzina zakończenia pracy (HH:MM)', timeForInput(report.reported_end));
+    const end = window.prompt(t('course.history.endPrompt'), timeForInput(report.reported_end));
     if (end === null) return;
     const normalizedStart = timeForInput(start);
     const normalizedEnd = timeForInput(end);
@@ -203,7 +203,7 @@ export default function DriverCourseHistory({ routeMap, onBack }) {
       toastSuccess(t('course.history.resubmitted'));
       await load();
     } catch (error) {
-      toastError(`Błąd: ${error.message}`);
+      toastError(t('course.history.saveError', { message: error.message }));
     }
   };
 

@@ -1,7 +1,9 @@
 import { routeBadgeStyle } from '../../lib/visualSystem';
+import { useTranslation } from 'react-i18next';
 
 export function UrgentChip() {
-  return <span className="driver-urgent-badge">Pilne</span>;
+  const { t } = useTranslation();
+  return <span className="driver-urgent-badge">{t('course.stops.urgent')}</span>;
 }
 
 export function RouteChip({ routeId, routeMap }) {
@@ -29,12 +31,13 @@ export function LaundryTypeChip({ hasP, hasO, hasF, hasR }) {
 }
 
 export function TripProgressBar({ stats }) {
+  const { t } = useTranslation();
   const total = stats?.stops || 0;
   if (!total) return null;
   const pctPicked = Math.round(((stats.picked || 0) / total) * 100);
   const pctDelivered = Math.round(((stats.delivered || 0) / total) * 100);
   return (
-    <div className="trip-progress live-trip-progress" title={`${stats.delivered}/${total} dostarczone · ${stats.picked}/${total} odebrane`}>
+    <div className="trip-progress live-trip-progress" title={t('course.stops.metrics.progressTitle', { delivered: stats.delivered, picked: stats.picked, total })}>
       <div className="trip-progress-picked" style={{ width: `${pctPicked}%` }} />
       <div className="trip-progress-delivered" style={{ width: `${pctDelivered}%` }} />
     </div>
@@ -51,30 +54,31 @@ function Metric({ value, label, tone }) {
 }
 
 export function TripMetricsPanel({ stats }) {
+  const { t } = useTranslation();
   if (!stats) return null;
   return (
     <div className="trip-metric-groups live-trip-metrics">
       <div className="trip-metric-group trip-metric-group-total">
         <div className="trip-card-metrics">
-          <Metric value={stats.totalStops || 0} label="punkty" tone="total" />
-          <Metric value={stats.stops || 0} label="z czystym" />
-          <Metric value={stats.dirtyStops || 0} label="z brudnym" tone="dirty" />
+          <Metric value={stats.totalStops || 0} label={t('course.stops.metrics.points')} tone="total" />
+          <Metric value={stats.stops || 0} label={t('course.stops.metrics.withClean')} />
+          <Metric value={stats.dirtyStops || 0} label={t('course.stops.metrics.withDirty')} tone="dirty" />
         </div>
       </div>
       <div className="trip-metric-group">
-        <div className="trip-metric-grouplabel">Dostawa czystego</div>
+        <div className="trip-metric-grouplabel">{t('course.stops.metrics.cleanDelivery')}</div>
         <div className="trip-card-metrics">
-          <Metric value={`${stats.delivered}/${stats.stops || 0}`} label="dostarczone" tone="delivered" />
-          <Metric value={`${stats.picked}/${stats.stops || 0}`} label="z pralni" tone="picked" />
+          <Metric value={`${stats.delivered}/${stats.stops || 0}`} label={t('course.stops.metrics.delivered')} tone="delivered" />
+          <Metric value={`${stats.picked}/${stats.stops || 0}`} label={t('course.stops.metrics.fromLaundry')} tone="picked" />
           <Metric value={stats.kg || 0} label="kg" />
         </div>
       </div>
       {(stats.dirtyStops > 0 || stats.dirtyTrolleys > 0) && (
         <div className="trip-metric-group">
-          <div className="trip-metric-grouplabel">Odbiór brudnego</div>
+          <div className="trip-metric-grouplabel">{t('course.stops.metrics.dirtyPickup')}</div>
           <div className="trip-card-metrics">
-            <Metric value={stats.dirtyStops} label="punkty" tone="dirty" />
-            <Metric value={stats.dirtyTrolleys} label="wózki" tone="dirty" />
+            <Metric value={stats.dirtyStops} label={t('course.stops.metrics.points')} tone="dirty" />
+            <Metric value={stats.dirtyTrolleys} label={t('course.stops.metrics.trolleys')} tone="dirty" />
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
-import { formatWeekKey, operationalDate, operationalYmd } from './dateUtils';
+import i18n from '../i18n';
+import { currentLocale, formatWeekKey, operationalDate, operationalYmd } from './dateUtils';
 import { parseRouteIds } from './routeIds';
 
 export { parseRouteIds };
@@ -52,7 +53,7 @@ export function workDateOptions(days = 14) {
     if (wd > 6) continue;
     opts.push({
       value: ymd(d),
-      label: d.toLocaleDateString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit' }),
+      label: d.toLocaleDateString(currentLocale(), { weekday: 'short', day: '2-digit', month: '2-digit' }),
     });
   }
   return opts;
@@ -72,15 +73,13 @@ export function nextWorkDateAfter(dateStr) {
 export function formatKg(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';
-  return Number(n.toFixed(1)).toLocaleString('pl-PL');
+  return Number(n.toFixed(1)).toLocaleString(currentLocale());
 }
 
 export function trolleyLabel(count) {
   const n = Number(count);
-  if (!Number.isFinite(n)) return '0 wózków';
-  if (n === 1) return '1 wózek';
-  if (n >= 2 && n <= 4) return `${n} wózki`;
-  return `${n} wózków`;
+  if (!Number.isFinite(n)) return i18n.t('common.helpers.trolley', { count: 0 });
+  return i18n.t('common.helpers.trolley', { count: n });
 }
 
 export function daysSinceDate(dateStr) {
@@ -92,9 +91,9 @@ export function daysSinceDate(dateStr) {
 }
 
 export function daysAtClientLabel(days) {
-  if (days === 0) return 'zostawiony dzisiaj';
-  if (days === 1) return 'zostawiony wczoraj';
-  return `zostawiony ${days} dni temu`;
+  if (days === 0) return i18n.t('common.helpers.leftToday');
+  if (days === 1) return i18n.t('common.helpers.leftYesterday');
+  return i18n.t('common.helpers.leftDaysAgo', { count: days });
 }
 
 export function describeTrolleyActions(deliverPrompt) {
@@ -103,9 +102,9 @@ export function describeTrolleyActions(deliverPrompt) {
   const returning = deliverPrompt.trolleys.filter(t => t.choice === 'return').map(t => t.trolleyNo);
   const pickedUpOld = deliverPrompt.oldTrolleys.filter(t => t.take).map(t => t.trolleyNo);
   const parts = [];
-  if (returning.length) parts.push(`wózek ${returning.join(', ')} wraca z kierowcą`);
-  if (leaving.length) parts.push(`wózek ${leaving.join(', ')} zostaje u klienta`);
-  if (pickedUpOld.length) parts.push(`zabrano też wcześniej zostawiony wózek ${pickedUpOld.join(', ')}`);
+  if (returning.length) parts.push(i18n.t('common.helpers.trolleyReturns', { list: returning.join(', ') }));
+  if (leaving.length) parts.push(i18n.t('common.helpers.trolleyStays', { list: leaving.join(', ') }));
+  if (pickedUpOld.length) parts.push(i18n.t('common.helpers.oldTrolleyTaken', { list: pickedUpOld.join(', ') }));
   return parts.join('; ');
 }
 
@@ -139,7 +138,7 @@ export function tripDateInfo(dateStr) {
 
 export function routeNamesForTrip(sourceTrip, routeMap = {}) {
   const ids = [...parseRouteIds(sourceTrip?.routes)];
-  if (ids.length === 0) return 'Wszystkie trasy';
+  if (ids.length === 0) return i18n.t('common.helpers.allRoutes');
   return ids.map(id => {
     const info = routeMap[id];
     return info ? `T${info.num}` : `T${id}`;

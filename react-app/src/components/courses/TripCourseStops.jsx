@@ -82,12 +82,12 @@ export default function TripCourseStops({
         setPlannedStart('');
       }
     } catch (error) {
-      toastError(`Błąd pobierania przystanków: ${error.message}`);
+      toastError(t('course.stops.loadError', { message: error.message }));
       setStops([]);
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, trip]);
+  }, [sessionToken, t, trip]);
 
   useEffect(() => { loadStops(); }, [loadStops]);
 
@@ -138,7 +138,7 @@ export default function TripCourseStops({
       p_ids: ids,
       p_driver_name: trip.driver_name || null,
       p_baskets: 1,
-    }, 'Odebrano z pralni (admin)', {
+    }, t('course.stops.pickupAdminSuccess'), {
       action: 'done',
       clientName: stop.client_name,
       entryId: ids[0],
@@ -153,7 +153,7 @@ export default function TripCourseStops({
     adminRpc('admin_deliver_entries', {
       p_ids: ids,
       p_driver_name: trip.driver_name || null,
-    }, 'Dostawa zapisana (admin)', {
+    }, t('course.stops.deliverAdminSuccess'), {
       action: 'delivered',
       clientName: stop.client_name,
       entryId: ids[0],
@@ -164,11 +164,11 @@ export default function TripCourseStops({
   const adminUndoPickup = stop => {
     const clean = splitCleanTasks(stop.tasks || []);
     if (clean.delivery.some(task => task.delivered)) {
-      toastError('Najpierw cofnij dostawę');
+      toastError(t('course.currentStop.undoDeliverFirst'));
       return;
     }
     const ids = entryIdsForTasks(clean.pickup);
-    adminRpc('admin_undo_pickup', { p_ids: ids }, 'Cofnięto odbiór (admin)', {
+    adminRpc('admin_undo_pickup', { p_ids: ids }, t('course.stops.undoPickupAdminSuccess'), {
       action: 'undone',
       clientName: stop.client_name,
       entryId: ids[0],
@@ -179,7 +179,7 @@ export default function TripCourseStops({
   const adminUndoDeliver = stop => {
     const clean = splitCleanTasks(stop.tasks || []);
     const ids = entryIdsForTasks(clean.delivery);
-    adminRpc('admin_undo_deliver', { p_ids: ids }, 'Cofnięto dostawę (admin)', {
+    adminRpc('admin_undo_deliver', { p_ids: ids }, t('course.stops.undoDeliverAdminSuccess'), {
       action: 'undone',
       clientName: stop.client_name,
       entryId: ids[0],
@@ -196,7 +196,7 @@ export default function TripCourseStops({
         p_trip_id: trip.id,
         p_extra_clients: next,
       });
-      toastSuccess(`Dorzucono: ${clientName}`);
+      toastSuccess(t('course.stops.extraAdded', { client: clientName }));
       await loadStops();
       await onReload?.();
     } catch (error) {
@@ -217,7 +217,7 @@ export default function TripCourseStops({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toastSuccess(iso ? 'Zapisano planowany start' : 'Usunięto planowany start');
+      toastSuccess(t(iso ? 'course.stops.plannedStartSaved' : 'course.stops.plannedStartRemoved'));
       await onReload?.();
     } catch (error) {
       toastError(error.message);
@@ -227,11 +227,11 @@ export default function TripCourseStops({
   };
 
   const deleteTrip = async () => {
-    if (!window.confirm(`Usunąć kurs ${trip.driver_name || ''} · ${trip.trip_date}?`)) return;
+    if (!window.confirm(t('course.stops.deleteConfirm', { driver: trip.driver_name || '', date: trip.trip_date }))) return;
     try {
       setBusy(true);
       await callExistingTripRpc('admin_delete_driver_trip', sessionToken, { p_trip_id: trip.id });
-      toastSuccess('Kurs usunięty');
+      toastSuccess(t('course.stops.deleteSuccess'));
       onDeleted?.();
     } catch (error) {
       toastError(error.message);
@@ -248,7 +248,7 @@ export default function TripCourseStops({
         p_target_driver_id: handoffTarget,
       });
       setHandoffOpen(false);
-      toastSuccess('Kurs przekazany');
+      toastSuccess(t('course.stops.handoffSuccess'));
       await onReload?.();
     } catch (error) {
       toastError(error.message);
@@ -262,7 +262,7 @@ export default function TripCourseStops({
       setBusy(true);
       await callExistingTripRpc('park_loaded_trip', sessionToken, { p_trip_id: trip.id });
       setHandoffOpen(false);
-      toastSuccess('Kurs zostawiony do przejęcia');
+      toastSuccess(t('course.driver.parkedDone'));
       await onReload?.();
     } catch (error) {
       toastError(error.message);
@@ -291,11 +291,11 @@ export default function TripCourseStops({
   };
 
   if (trip.isVirtual) {
-    return <div className="driver-empty-row">Wirtualna trasa — przypisz kierowcę, aby zobaczyć przystanki.</div>;
+    return <div className="driver-empty-row">{t('course.stops.virtualHint')}</div>;
   }
 
   if (loading) {
-    return <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> Ładowanie przystanków…</div>;
+    return <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> {t('course.stops.loadingStops')}</div>;
   }
 
   return (
@@ -304,22 +304,22 @@ export default function TripCourseStops({
         <div className="live-trip-admin-bar">
           {canHandoff && (
             <button className="driver-tool-btn" onClick={() => { setHandoffTarget(''); setHandoffOpen(true); }} disabled={busy}>
-              <UserCheck size={14} /> Przekaż
+              <UserCheck size={14} /> {t('course.stops.handoffBtn')}
             </button>
           )}
           {canPrint && (
             <>
               <button className="driver-tool-btn" onClick={() => printCard('trip')} disabled={busy || printing}>
-                <Printer size={14} /> Karta
+                <Printer size={14} /> {t('course.stops.printTrip')}
               </button>
               <button className="driver-tool-btn" onClick={() => printCard('day')} disabled={busy || printing}>
-                Dzień
+                {t('course.stops.printDay')}
               </button>
             </>
           )}
           {canDelete && (
             <button className="driver-tool-btn live-delete-btn" onClick={deleteTrip} disabled={busy}>
-              <Trash2 size={14} /> Usuń kurs
+              <Trash2 size={14} /> {t('course.stops.deleteTrip')}
             </button>
           )}
         </div>
@@ -330,40 +330,40 @@ export default function TripCourseStops({
 
       {isAdmin && trip.status === 'planned' && (
         <div className="live-planned-start-row">
-          <label className="live-field-label" htmlFor="planned-start">Planowany start</label>
+          <label className="live-field-label" htmlFor="planned-start">{t('course.stops.plannedStart')}</label>
           <input id="planned-start" className="ap-input" type="datetime-local" value={plannedStart} onChange={event => setPlannedStart(event.target.value)} disabled={busy} />
-          <button className="driver-tool-btn" onClick={savePlannedStart} disabled={busy}>Zapisz start</button>
+          <button className="driver-tool-btn" onClick={savePlannedStart} disabled={busy}>{t('course.stops.saveStart')}</button>
         </div>
       )}
 
       {canAddStop && (
         <div className="live-add-stop-block">
           <button className="live-task-action is-secondary" onClick={() => setAddOpen(open => !open)} disabled={busy}>
-            {addOpen ? 'Ukryj kandydatów' : 'Dorzuć przystanek (czyste)'}
+            {t(addOpen ? 'course.stops.hideCandidates' : 'course.stops.addCleanStop')}
           </button>
           {addOpen && (
             <div className="live-add-stop-list">
-              {extraCandidates.length === 0 && <div className="driver-empty-row">Brak klientów do dorzucenia</div>}
+              {extraCandidates.length === 0 && <div className="driver-empty-row">{t('course.stops.noExtraClients')}</div>}
               {extraCandidates.map(candidate => (
                 <div className="live-extra-row" key={candidate.client_name}>
                   <span>
                     {candidate.client_name}
                     {candidate.kg ? ` · ${candidate.kg} kg` : ''}
-                    {candidate.isUrgent ? ' · pilne' : ''}
+                    {candidate.isUrgent ? ` · ${t('course.driver.urgentShort')}` : ''}
                   </span>
-                  <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>Dodaj</button>
+                  <button className="driver-tool-btn" onClick={() => addExtraClient(candidate.client_name)} disabled={busy}>{t('common.add')}</button>
                 </div>
               ))}
             </div>
           )}
           <button className="live-task-action is-secondary" onClick={() => setDirtyOpen(true)} disabled={busy}>
-            Dodaj odbiór brudnego do tego kursu
+            {t('course.stops.addDirtyStop')}
           </button>
         </div>
       )}
 
-      <div className="live-journal-section-title">Przystanki ({stops.length})</div>
-      {stops.length === 0 && <div className="driver-empty-row">Brak przystanków</div>}
+      <div className="live-journal-section-title">{t('course.stops.stopsCount', { count: stops.length })}</div>
+      {stops.length === 0 && <div className="driver-empty-row">{t('course.stops.noStops')}</div>}
 
       {stops.map((stop, index) => {
         const clean = splitCleanTasks(stop.tasks || []);
@@ -382,7 +382,7 @@ export default function TripCourseStops({
               {meta.isUrgent && <UrgentChip />}
               {meta.kg > 0 && <span className="kg-badge">{meta.kg} kg</span>}
               <LaundryTypeChip hasP={meta.hasP} hasO={meta.hasO} hasF={meta.hasF} hasR={meta.hasR} />
-              <a className="driver-nav-btn live-stop-nav" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer" aria-label="Nawiguj">
+              <a className="driver-nav-btn live-stop-nav" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer" aria-label={t('course.navigate')}>
                 <Navigation2 size={14} />
               </a>
               <StopStatusBadge status={stop.status} t={t} />
@@ -392,18 +392,18 @@ export default function TripCourseStops({
               <div className="live-stop-action">
                 <Package size={14} />
                 <div className="live-stop-action-body">
-                  <span>Odbiór z pralni</span>
+                  <span>{t('course.stops.pickupLaundry')}</span>
                   <div className={`live-pack-badge ${packInfo.isReady ? 'is-ready' : 'is-waiting'}`}>{formatPackInfoLabel(packInfo, t, i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL')}</div>
                   {pickupDone ? (
                     <span className="live-task-action-meta">✓ {fmtTime(clean.pickup.find(task => task.completed_at)?.completed_at || clean.pickup[0]?.picked_at)}</span>
                   ) : (
-                    <span className="live-stop-waiting">oczekuje</span>
+                    <span className="live-stop-waiting">{t('course.stops.waiting')}</span>
                   )}
                 </div>
                 {canAdminAct && (
                   pickupDone && !deliveryDone
-                    ? <AdminActionBtn label="Cofnij" tone="undo" onClick={() => adminUndoPickup(stop)} disabled={busy} />
-                    : !pickupDone && <AdminActionBtn label="Odbierz" onClick={() => adminPickup(stop)} disabled={busy} />
+                    ? <AdminActionBtn label={t('course.undo')} tone="undo" onClick={() => adminUndoPickup(stop)} disabled={busy} />
+                    : !pickupDone && <AdminActionBtn label={t('course.stops.pickupAdmin')} onClick={() => adminPickup(stop)} disabled={busy} />
                 )}
               </div>
             )}
@@ -412,17 +412,17 @@ export default function TripCourseStops({
               <div className="live-stop-action">
                 <Truck size={14} />
                 <div className="live-stop-action-body">
-                  <span>Dostarczono</span>
+                  <span>{t('course.stops.delivered')}</span>
                   {deliveryDone ? (
                     <span className="live-task-action-meta">✓ {fmtTime(clean.delivery.find(task => task.completed_at)?.completed_at || clean.delivery[0]?.delivered_at)}</span>
                   ) : (
-                    <span className="live-stop-waiting">{pickupDone ? 'oczekuje dostawy' : 'po odbiorze z pralni'}</span>
+                    <span className="live-stop-waiting">{t(pickupDone ? 'course.stops.waitingDelivery' : 'course.stops.afterPickup')}</span>
                   )}
                 </div>
                 {canAdminAct && (
                   deliveryDone
-                    ? <AdminActionBtn label="Cofnij" tone="undo" onClick={() => adminUndoDeliver(stop)} disabled={busy} />
-                    : pickupDone && <AdminActionBtn label="Dostarcz" onClick={() => adminDeliver(stop)} disabled={busy} />
+                    ? <AdminActionBtn label={t('course.undo')} tone="undo" onClick={() => adminUndoDeliver(stop)} disabled={busy} />
+                    : pickupDone && <AdminActionBtn label={t('course.stops.deliverAdmin')} onClick={() => adminDeliver(stop)} disabled={busy} />
                 )}
               </div>
             )}
@@ -455,18 +455,18 @@ export default function TripCourseStops({
       })}
 
       {handoffOpen && (
-        <CourseSheet titleId="admin-handoff-title" title="Przekaż kurs" onClose={() => !busy && setHandoffOpen(false)} busy={busy}>
-          <p className="live-sheet-copy">Auto z praniem trafi do wskazanego kierowcy albo do puli przejęć.</p>
-          <label className="live-field-label" htmlFor="admin-handoff-driver">Kierowca</label>
+        <CourseSheet titleId="admin-handoff-title" title={t('course.stops.handoffTitle')} onClose={() => !busy && setHandoffOpen(false)} busy={busy}>
+          <p className="live-sheet-copy">{t('course.stops.handoffHint')}</p>
+          <label className="live-field-label" htmlFor="admin-handoff-driver">{t('course.sheets.assign.driver')}</label>
           <select id="admin-handoff-driver" className="ap-input" value={handoffTarget} onChange={event => setHandoffTarget(event.target.value)}>
-            <option value="">Wybierz kierowcę</option>
+            <option value="">{t('course.driver.selectDriver')}</option>
             {drivers.filter(driver => !driver.is_archived && String(driver.id) !== String(trip.driver_id)).map(driver => (
               <option key={driver.id} value={driver.id}>{driver.name}</option>
             ))}
           </select>
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handoff} disabled={busy || !handoffTarget}><UserCheck size={15} /> Przekaż</button>
-            <button className="ap-btn ap-btn-secondary" onClick={parkTrip} disabled={busy}>Zostaw do przejęcia</button>
+            <button className="ap-btn ap-btn-primary" onClick={handoff} disabled={busy || !handoffTarget}><UserCheck size={15} /> {t('course.stops.handoffBtn')}</button>
+            <button className="ap-btn ap-btn-secondary" onClick={parkTrip} disabled={busy}>{t('course.driver.leaveForClaim')}</button>
           </div>
         </CourseSheet>
       )}

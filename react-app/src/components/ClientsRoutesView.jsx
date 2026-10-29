@@ -499,7 +499,7 @@ function routeCardId(routeId) {
 }
 
 function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const appData = useAppData();
   const rawData = dataOverride || appData;
   const { canEditModule, user, sessionToken } = useAuth();
@@ -1296,14 +1296,14 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                   </div>
                   <div className="route-print-meta">
                     <span>
-                      <strong>Data:</strong>{' '}
-                      {printGeneratedAt.toLocaleString('pl-PL', {
+                      <strong>{t('clients.printDate')}:</strong>{' '}
+                      {printGeneratedAt.toLocaleString(i18n.resolvedLanguage === 'de' ? 'de-DE' : 'pl-PL', {
                         dateStyle: 'short',
                         timeStyle: 'short',
                       })}
                     </span>
                     <span>
-                      <strong>Wydrukował:</strong>{' '}
+                      <strong>{t('clients.printedBy')}:</strong>{' '}
                       {user?.name || user?.username || '—'}
                     </span>
                   </div>

@@ -26,6 +26,12 @@ export function getWorkScheduleMonth(sessionToken, year, month) {
   });
 }
 
+export function getWorkScheduleAccess(sessionToken) {
+  return callReadRpc('get_work_schedule_access', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getTimelineWeek(sessionToken, dateFrom, dateTo, year, month) {
   return callReadRpc('get_timeline_week', {
     p_session_token: sessionToken,

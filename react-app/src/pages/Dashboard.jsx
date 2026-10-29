@@ -128,7 +128,7 @@ export default function Dashboard() {
 
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">Przejdź do głównej treści</a>
+      <a className="skip-link" href="#main-content">{t('common.skipToContent')}</a>
 
       {/* Baner impersonacji */}
       {isImpersonating && (

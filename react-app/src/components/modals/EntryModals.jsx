@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { Package } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '../../lib/dateUtils';
+import { currentLocale, dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
@@ -216,7 +217,7 @@ function shortSignatory(name) {
 function formatStamp(value) {
   const d = value ? new Date(value) : new Date();
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+  return d.toLocaleString(currentLocale(), { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function escapeHtml(value) {
@@ -349,8 +350,8 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
   const printSign = shortSignatory(printedBy);
   const printStamp = formatStamp();
   const typeSummary = [
-    sheetsKg > 0 ? `Pościel ${Number(sheetsKg.toFixed(1))} kg` : '',
-    tableclothKg > 0 ? `Obrusy ${Number(tableclothKg.toFixed(1))} kg` : '',
+    sheetsKg > 0 ? `${i18n.t('entry.receipt.sheets')} ${Number(sheetsKg.toFixed(1))} kg` : '',
+    tableclothKg > 0 ? `${i18n.t('entry.receipt.tablecloths')} ${Number(tableclothKg.toFixed(1))} kg` : '',
   ].filter(Boolean).join(' · ');
   const rows = (draft.rows || RECEIPT_SERVICE_ROWS.map(name => ({ name }))).map((row, index) => {
     const acc = String(row.accepted ?? '').trim();
@@ -359,24 +360,24 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
     return `
     <tr class="${diff ? 'diff' : ''}">
       <td class="lp">${index + 1}</td>
-      <td class="kind">${escapeHtml(row.name)}</td>
+      <td class="kind">${escapeHtml(i18n.t(`entry.receipt.services.${row.name}`, { defaultValue: row.name }))}</td>
       <td class="qty">${escapeHtml(acc)}</td>
       <td class="qty issued">${escapeHtml(iss)}</td>
       <td class="notes">${escapeHtml(row.notes || '')}</td>
     </tr>`;
   }).join('');
-  const generatedAt = new Date().toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+  const generatedAt = new Date().toLocaleString(currentLocale(), { dateStyle: 'short', timeStyle: 'short' });
 
   const w = window.open('', '_blank', 'width=900,height=1200');
   if (!w) {
-    toastError('Przeglądarka zablokowała okno wydruku');
+    toastError(i18n.t('entry.receipt.printBlocked'));
     return;
   }
   w.document.write(`<!doctype html>
-<html lang="pl">
+<html lang="${escapeHtml(i18n.resolvedLanguage || 'pl')}">
 <head>
   <meta charset="utf-8" />
-  <title>Kartka prania ${escapeHtml(clientName)} · NR ${escapeHtml(docNo)}</title>
+  <title>${escapeHtml(i18n.t('entry.receipt.printTitle', { client: clientName, number: docNo }))}</title>
   <style>
     * { box-sizing: border-box; }
     @page { size: A4; margin: 12mm; }
@@ -459,7 +460,7 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
   </style>
 </head>
 <body>
-  <div class="toolbar"><button class="print-btn" onclick="window.print()">🖨 Drukuj kartkę</button></div>
+  <div class="toolbar"><button class="print-btn" onclick="window.print()">${escapeHtml(i18n.t('entry.receipt.printButton'))}</button></div>
   <div class="page">
     <div class="frame">
       <div class="top">
@@ -474,56 +475,56 @@ function printLaundryReceipt({ entry, entries, client, mode, receipt, printedBy 
           </div>
         </div>
         <div class="cell title">
-          <div class="doc">DOWÓD</div>
-          <div class="nr"><small>NR</small> ${escapeHtml(docNo)}</div>
-          <div class="what">PRZYJĘCIA I WYDANIA<br>BIELIZNY DO PRANIA</div>
+          <div class="doc">${escapeHtml(i18n.t('entry.receipt.proof'))}</div>
+          <div class="nr"><small>${escapeHtml(i18n.t('entry.receipt.number'))}</small> ${escapeHtml(docNo)}</div>
+          <div class="what">${i18n.t('entry.receipt.documentType')}</div>
         </div>
         <div class="cell meta">
-          <div class="r"><span class="k">Data przyjęcia</span><span class="v">${escapeHtml(arrival)}</span></div>
-          <div class="r"><span class="k">Termin wykonania</span><span class="v">${escapeHtml(pickup)}</span></div>
+          <div class="r"><span class="k">${escapeHtml(i18n.t('entry.receipt.arrivalDate'))}</span><span class="v">${escapeHtml(arrival)}</span></div>
+          <div class="r"><span class="k">${escapeHtml(i18n.t('entry.receipt.dueDate'))}</span><span class="v">${escapeHtml(pickup)}</span></div>
         </div>
       </div>
       <div class="company">
-        <div class="field firm"><span class="label">Firma / hotel</span><span class="value">${escapeHtml(clientName)}</span></div>
-        <div class="field addr"><span class="label">Adres</span><span class="value">${escapeHtml(address)}</span></div>
+        <div class="field firm"><span class="label">${escapeHtml(i18n.t('entry.receipt.company'))}</span><span class="value">${escapeHtml(clientName)}</span></div>
+        <div class="field addr"><span class="label">${escapeHtml(i18n.t('entry.receipt.address'))}</span><span class="value">${escapeHtml(address)}</span></div>
       </div>
       <table>
         <thead>
           <tr>
-            <th class="lp">Lp.</th>
-            <th class="kind">Rodzaj usługi</th>
-            <th class="qty">Ilość przyjęta</th>
-            <th class="qty">Ilość wydana</th>
-            <th class="notes">Uwagi</th>
+            <th class="lp">${escapeHtml(i18n.t('entry.receipt.position'))}</th>
+            <th class="kind">${escapeHtml(i18n.t('entry.receipt.service'))}</th>
+            <th class="qty">${escapeHtml(i18n.t('entry.receipt.accepted'))}</th>
+            <th class="qty">${escapeHtml(i18n.t('entry.receipt.issued'))}</th>
+            <th class="notes">${escapeHtml(i18n.t('entry.receipt.notes'))}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
       <div class="summary">
-        <div class="box"><div class="lbl">Pościel</div><div class="val">${escapeHtml(draft.sheetsKg || '—')} <small>kg</small></div></div>
-        <div class="box"><div class="lbl">Obrusy</div><div class="val">${escapeHtml(draft.tableclothKg || '—')} <small>kg</small></div></div>
-        <div class="box total"><div class="lbl">Razem</div><div class="val">${escapeHtml(draft.totalKg || '—')} <small>kg</small></div></div>
+        <div class="box"><div class="lbl">${escapeHtml(i18n.t('entry.receipt.sheets'))}</div><div class="val">${escapeHtml(draft.sheetsKg || '—')} <small>kg</small></div></div>
+        <div class="box"><div class="lbl">${escapeHtml(i18n.t('entry.receipt.tablecloths'))}</div><div class="val">${escapeHtml(draft.tableclothKg || '—')} <small>kg</small></div></div>
+        <div class="box total"><div class="lbl">${escapeHtml(i18n.t('entry.receipt.total'))}</div><div class="val">${escapeHtml(draft.totalKg || '—')} <small>kg</small></div></div>
       </div>
       <div class="sign-head">
-        <div>Zamawiający</div>
-        <div>Wykonujący</div>
+        <div>${escapeHtml(i18n.t('entry.receipt.customer'))}</div>
+        <div>${escapeHtml(i18n.t('entry.receipt.contractor'))}</div>
       </div>
       <div class="sign-grid">
-        <div class="box"><div class="cap">podpis przekazującego</div></div>
+        <div class="box"><div class="cap">${escapeHtml(i18n.t('entry.receipt.giverSignature'))}</div></div>
         <div class="box">
           ${addedSign ? `<div class="filled"><div class="who">${escapeHtml(addedSign)}</div>${addedStamp ? `<div class="when">${escapeHtml(addedStamp)}</div>` : ''}</div>` : ''}
-          <div class="cap">podpis przyjmującego</div>
+          <div class="cap">${escapeHtml(i18n.t('entry.receipt.receiverSignature'))}</div>
         </div>
         <div class="box">
           ${printSign ? `<div class="filled"><div class="who">${escapeHtml(printSign)}</div><div class="when">${escapeHtml(printStamp)}</div></div>` : ''}
-          <div class="cap">podpis przekazującego</div>
+          <div class="cap">${escapeHtml(i18n.t('entry.receipt.giverSignature'))}</div>
         </div>
-        <div class="box"><div class="cap">podpis przyjmującego</div></div>
+        <div class="box"><div class="cap">${escapeHtml(i18n.t('entry.receipt.receiverSignature'))}</div></div>
       </div>
     </div>
     <div class="foot">
-      <span>${escapeHtml(typeSummary || 'Kartka wygenerowana z systemu harmonogramu')}</span>
-      <span>Wygenerowano: ${escapeHtml(generatedAt)}</span>
+      <span>${escapeHtml(typeSummary || i18n.t('entry.receipt.generatedFallback'))}</span>
+      <span>${escapeHtml(i18n.t('entry.receipt.generatedAt', { date: generatedAt }))}</span>
     </div>
   </div>
 </body>
@@ -835,11 +836,11 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
                 <option value={0}>{t('entry.sameWeek')}</option>
                 <option value={1}>{t('entry.nextWeek')}</option>
                 {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                  <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1))})</option>
+                  <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1)) })}</option>
                 ))}
               </select>
               {isAdmin && !isDriverStopFlow && (
-                <button type="button" className="live-entry-week-plus" title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+                <button type="button" className="live-entry-week-plus" title={t('entry.postponeWeek')} onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
               )}
             </div>
           </div>
@@ -1022,7 +1023,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         entryId: targetEntry.id,
         details: `Kartka prania NR ${saved?.doc_no ?? receiptDraft.docNo}`,
       });
-      toastSuccess(`Kartka zapisana (NR ${saved?.doc_no ?? receiptDraft.docNo})`);
+      toastSuccess(t('entry.receipt.saved', { number: saved?.doc_no ?? receiptDraft.docNo }));
       // Nie wołamy onUpdated() — zamknęłoby okno. Lista kartek odświeży się przez realtime.
     } catch (err) {
       toastError(t('entry.errGeneric') + ' ' + err.message);
@@ -1271,7 +1272,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'linear-gradient(145deg,#007AFF,#0055CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '19px', flexShrink: 0 }}>🧾</div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px' }}>Kartka prania</div>
+                <div className="ap-title" style={{ textAlign: 'left', fontSize: '18px' }}>{t('entry.receipt.title')}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receiptDraft.clientName || '—'}</div>
               </div>
             </div>
@@ -1284,37 +1285,37 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   <div className="kp-sub">ul. Owcza 10, 66-400 Gorzów Wielkopolski<br/>NIP: 9271945131 · REGON: 365910038<br/>tel. 502 552 123 · kontakt@lebuser.pl</div>
                 </div>
                 <div className="kp-cell kp-title">
-                  <div className="kp-doclbl">DOWÓD</div>
+                  <div className="kp-doclbl">{t('entry.receipt.proof')}</div>
                   <div className="kp-nr">
-                    NR <input className="kp-in" value={receiptDraft.docNo} onChange={e => setReceiptField('docNo', e.target.value)} placeholder="wpisz nr" title="Numer dowodu — wpisywany ręcznie" />
+                    {t('entry.receipt.number')} <input className="kp-in" value={receiptDraft.docNo} onChange={e => setReceiptField('docNo', e.target.value)} placeholder={t('entry.receipt.numberPlaceholder')} title={t('entry.receipt.numberHint')} />
                   </div>
-                  <div className="kp-what">PRZYJĘCIA I WYDANIA<br/>BIELIZNY DO PRANIA</div>
+                  <div className="kp-what" dangerouslySetInnerHTML={{ __html: t('entry.receipt.documentType') }} />
                 </div>
                 <div className="kp-cell kp-meta">
-                  <div className="kp-mrow"><span className="kp-mk">Data przyjęcia</span><input className="kp-in" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} /></div>
-                  <div className="kp-mrow"><span className="kp-mk">Termin wykonania</span><input className="kp-in" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} /></div>
+                  <div className="kp-mrow"><span className="kp-mk">{t('entry.receipt.arrivalDate')}</span><input className="kp-in" value={receiptDraft.arrival} onChange={e => setReceiptField('arrival', e.target.value)} /></div>
+                  <div className="kp-mrow"><span className="kp-mk">{t('entry.receipt.dueDate')}</span><input className="kp-in" value={receiptDraft.pickup} onChange={e => setReceiptField('pickup', e.target.value)} /></div>
                   {receiptDraft.id && (
                     <div className="kp-badges">
-                      <span className={`kp-badge ${receiptDraft.status === 'closed' ? 'closed' : 'open'}`}>{receiptDraft.status === 'closed' ? 'Zamknięta' : 'Otwarta'}</span>
+                      <span className={`kp-badge ${receiptDraft.status === 'closed' ? 'closed' : 'open'}`}>{t(receiptDraft.status === 'closed' ? 'entry.receipt.closed' : 'entry.receipt.open')}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="kp-company">
-                <div className="kp-field firm"><span className="kp-lbl">Firma / hotel</span><input className="kp-in" value={receiptDraft.clientName} onChange={e => setReceiptField('clientName', e.target.value)} /></div>
-                <div className="kp-field"><span className="kp-lbl">Adres</span><input className="kp-in" value={receiptDraft.address} onChange={e => setReceiptField('address', e.target.value)} /></div>
+                <div className="kp-field firm"><span className="kp-lbl">{t('entry.receipt.company')}</span><input className="kp-in" value={receiptDraft.clientName} onChange={e => setReceiptField('clientName', e.target.value)} /></div>
+                <div className="kp-field"><span className="kp-lbl">{t('entry.receipt.address')}</span><input className="kp-in" value={receiptDraft.address} onChange={e => setReceiptField('address', e.target.value)} /></div>
               </div>
 
               <div style={{ overflowX: 'auto' }}>
                 <table className="kp-table">
                   <thead>
                     <tr>
-                      <th className="kp-lp">Lp.</th>
-                      <th className="kp-kind">Rodzaj usługi</th>
-                      <th className="kp-qty">Ilość przyjęta</th>
-                      <th className="kp-qty">Ilość wydana</th>
-                      <th>Uwagi</th>
+                      <th className="kp-lp">{t('entry.receipt.position')}</th>
+                      <th className="kp-kind">{t('entry.receipt.service')}</th>
+                      <th className="kp-qty">{t('entry.receipt.accepted')}</th>
+                      <th className="kp-qty">{t('entry.receipt.issued')}</th>
+                      <th>{t('entry.receipt.notes')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1328,11 +1329,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                         <td className="kp-kind">
                           {row.custom ? (
                             <div className="kp-namewrap">
-                              <input className="kp-cellin" value={row.name} placeholder="Nazwa pozycji" onChange={e => setReceiptRow(index, 'name', e.target.value)} />
-                              <button type="button" className="kp-rm" onClick={() => removeReceiptRow(index)} title="Usuń pozycję">×</button>
+                              <input className="kp-cellin" value={row.name} placeholder={t('entry.receipt.itemName')} onChange={e => setReceiptRow(index, 'name', e.target.value)} />
+                              <button type="button" className="kp-rm" onClick={() => removeReceiptRow(index)} title={t('entry.receipt.removeItem')}>×</button>
                             </div>
                           ) : (
-                            <span className="kp-kindname">{row.name}</span>
+                            <span className="kp-kindname">{t(`entry.receipt.services.${row.name}`, { defaultValue: row.name })}</span>
                           )}
                         </td>
                         <td className="kp-qty"><input className="kp-cellin" value={row.accepted} inputMode="numeric" onChange={e => setReceiptRow(index, 'accepted', e.target.value)} /></td>
@@ -1345,19 +1346,19 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                 </table>
               </div>
 
-              <button type="button" className="kp-add" onClick={addReceiptRow}>+ Dodaj pozycję</button>
+              <button type="button" className="kp-add" onClick={addReceiptRow}>{t('entry.receipt.addItem')}</button>
 
               <div className="kp-summary">
                 <div className="kp-box">
-                  <div className="kp-boxlbl">Pościel</div>
+                  <div className="kp-boxlbl">{t('entry.receipt.sheets')}</div>
                   <div className="kp-boxval"><input className="kp-in" value={receiptDraft.sheetsKg} inputMode="decimal" onChange={e => setReceiptField('sheetsKg', e.target.value)} /><span className="kp-unit">kg</span></div>
                 </div>
                 <div className="kp-box">
-                  <div className="kp-boxlbl">Obrusy</div>
+                  <div className="kp-boxlbl">{t('entry.receipt.tablecloths')}</div>
                   <div className="kp-boxval"><input className="kp-in" value={receiptDraft.tableclothKg} inputMode="decimal" onChange={e => setReceiptField('tableclothKg', e.target.value)} /><span className="kp-unit">kg</span></div>
                 </div>
                 <div className="kp-box total">
-                  <div className="kp-boxlbl">Razem</div>
+                  <div className="kp-boxlbl">{t('entry.receipt.total')}</div>
                   <div className="kp-boxval"><input className="kp-in" value={receiptDraft.totalKg} inputMode="decimal" onChange={e => setReceiptField('totalKg', e.target.value)} /><span className="kp-unit">kg</span></div>
                 </div>
               </div>
@@ -1365,19 +1366,19 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
             {kpMismatches > 0 && (
               <div style={{ fontSize: '12px', color: '#d70015', fontWeight: 600, margin: '10px 0 0' }}>
-                ⚠ Różnica przyjęte/wydane w {kpMismatches} {kpMismatches === 1 ? 'pozycji' : 'pozycjach'}
+                {t('entry.receipt.mismatch', { count: kpMismatches })}
               </div>
             )}
 
             <div className="ap-btn-group" style={{ marginTop: '14px' }}>
               {canSaveLaundryReceipt && (
                 <button className="ap-btn ap-btn-primary" onClick={saveReceipt} disabled={savingReceipt}>
-                  {savingReceipt ? 'Zapisywanie…' : (receiptDraft.id ? 'Zapisz zmiany' : 'Zapisz')}
+                  {savingReceipt ? t('common.saving') : (receiptDraft.id ? t('entry.receipt.saveChanges') : t('common.save'))}
                 </button>
               )}
-              <button className="ap-btn ap-btn-secondary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft, printedBy: user.name })}>Drukuj</button>
-              <button className="ap-btn ap-btn-secondary" onClick={() => setReceiptDraft(null)}>Wróć</button>
-              <button className="ap-btn ap-btn-secondary" onClick={onClose}>Zamknij</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => printLaundryReceipt({ entry: targetEntry, entries: receiptEntries, client: selectedClientDetails, mode: contextMode, receipt: receiptDraft, printedBy: user.name })}>{t('history.printReceipt')}</button>
+              <button className="ap-btn ap-btn-secondary" onClick={() => setReceiptDraft(null)}>{t('common.back')}</button>
+              <button className="ap-btn ap-btn-secondary" onClick={onClose}>{t('common.close')}</button>
             </div>
           </div>
         </div>
@@ -1407,7 +1408,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             {canChangeClient && (
               <>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
-                  {contextMode === 'arr' ? 'Hotel / klient do korekty' : t('entry.client')}
+                  {contextMode === 'arr' ? t('entry.correctionClient') : t('entry.client')}
                 </div>
                 <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
                   {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
@@ -1469,11 +1470,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     <option value={0}>{t('entry.sameWeek')}</option>
                     <option value={1}>{t('entry.nextWeek')}</option>
                     {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                      <option key={n} value={n}>+{n} tyg. ({shortDate(dateForDay(addWeeks(targetEntry.week_key, n), 1))})</option>
+                      <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(targetEntry.week_key, n), 1)) })}</option>
                     ))}
                   </select>
                   {isAdmin && (
-                    <button type="button" className="ap-input" style={{ width: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }} title="Przesuń odbiór o tydzień dalej" onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
+                    <button type="button" className="ap-input" style={{ width: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }} title={t('entry.postponeWeek')} onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
                   )}
                 </div>
               </div>
@@ -1607,7 +1608,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                     onClick={openReceiptEditor}
                     disabled={loading}
                   >
-                    Kartka
+                    {t('entry.receipt.openEditor')}
                   </button>
                 )}
                 {canUndone && (

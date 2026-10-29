@@ -49,6 +49,7 @@ const EVENT_ICONS = {
 };
 
 function DispatchPlanningView({ trip, sessionToken, readOnly, onReload, onCancelled }) {
+  const { t } = useTranslation();
   const [course, setCourse] = useState({ trip, stops: [] });
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +72,7 @@ function DispatchPlanningView({ trip, sessionToken, readOnly, onReload, onCancel
     await onReload?.();
   };
 
-  if (loading) return <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> Ładowanie planu…</div>;
+  if (loading) return <div className="live-loading-row"><LoaderCircle size={16} className="is-spinning" /> {t('course.board.loadingPlan')}</div>;
 
   return (
     <DriverCoursePlanning
@@ -813,7 +814,7 @@ export default function DispatchBoard() {
                 ...createdTrip,
                 board_status: 'ready',
                 route_display: routeMap[routeId]?.num || routeId,
-                route_name: routeMap[routeId]?.name || `Trasa ${routeId}`,
+                route_name: routeMap[routeId]?.name || t('course.board.routeFallback', { route: routeId }),
               });
             }
           }}
