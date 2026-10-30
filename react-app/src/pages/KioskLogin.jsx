@@ -37,6 +37,10 @@ export default function KioskLogin() {
     const result = await getKioskDrivers();
     setLoading(false);
     if (result?.error) {
+      if (result.device_revoked) {
+        window.location.reload();
+        return;
+      }
       setError(result.error);
       return;
     }

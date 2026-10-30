@@ -250,7 +250,13 @@ export const AuthProvider = ({ children }) => {
       p_device_token: device.token,
     });
     if (error) return { error: error.message };
-    if (data?.error) return { error: data.error };
+    if (data?.error) {
+      if (data.code === 'device_inactive') {
+        localStorage.removeItem(KIOSK_DEVICE_KEY);
+        return { error: data.error, device_revoked: true };
+      }
+      return { error: data.error };
+    }
     return data;
   };
 

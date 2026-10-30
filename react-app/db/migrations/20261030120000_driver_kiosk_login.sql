@@ -79,7 +79,7 @@ begin
   limit 1;
 
   if v_device.id is null then
-    return json_build_object('error', 'Stanowisko nie jest aktywne');
+    return json_build_object('error', 'Stanowisko nie jest aktywne', 'code', 'device_inactive');
   end if;
 
   update public.kiosk_devices
