@@ -49,6 +49,23 @@ export function revokeUserSession(sessionToken, sessionId) {
   });
 }
 
+export function getAdminKioskDevices(sessionToken) {
+  return callAdminRpc(sessionToken, 'admin_get_kiosk_devices');
+}
+
+export function renameAdminKioskDevice(sessionToken, deviceId, name) {
+  return callAdminRpc(sessionToken, 'admin_rename_kiosk_device', {
+    p_device_id: deviceId,
+    p_name: name,
+  });
+}
+
+export function revokeAdminKioskDevice(sessionToken, deviceId) {
+  return callAdminRpc(sessionToken, 'admin_revoke_kiosk_device', {
+    p_device_id: deviceId,
+  });
+}
+
 export function linkUserEmployee(sessionToken, userId, employeeId) {
   return callAdminRpc(sessionToken, 'admin_link_user_employee', {
     p_user_id: userId,

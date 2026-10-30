@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, KeyRound, RefreshCw, Route, ShieldCheck, Trash2, Users, WashingMachine } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, vehicleEndColumn } from '../lib/vehicles';
-import { archiveAdminUser, getAdminUserModulePermissions, pruneUserSessions, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
+import { archiveAdminUser, getAdminKioskDevices, getAdminUserModulePermissions, pruneUserSessions, renameAdminKioskDevice, revokeAdminKioskDevice, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
@@ -1741,18 +1741,26 @@ function SettingsSection() {
   const [trolleyCount, setTrolleyCount] = useState(25);
   const [draftCount, setDraftCount] = useState('25');
   const [activeTrolleyCount, setActiveTrolleyCount] = useState(0);
+  const [kioskDevices, setKioskDevices] = useState([]);
+  const [editingDeviceId, setEditingDeviceId] = useState(null);
+  const [deviceNameDraft, setDeviceNameDraft] = useState('');
+  const [busyDeviceId, setBusyDeviceId] = useState(null);
   const [error, setError] = useState('');
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getLaundryWorkflow(sessionToken);
+      const [data, kioskData] = await Promise.all([
+        getLaundryWorkflow(sessionToken),
+        getAdminKioskDevices(sessionToken),
+      ]);
       const count = Math.max(1, Math.min(99, Number(data?.trolley_count) || 25));
       const active = (data?.trolleys || []).filter(cycle => !cycle.returned_at && cycle.status !== 'returned').length;
       setTrolleyCount(count);
       setDraftCount(String(count));
       setActiveTrolleyCount(active);
+      setKioskDevices(Array.isArray(kioskData?.devices) ? kioskData.devices : []);
     } catch (err) {
       setError(err.message || t('admin.errLoadSettings'));
     } finally {
@@ -1786,6 +1794,48 @@ function SettingsSection() {
       toastError(err.message || t('admin.errSaveSettings'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const formatDeviceDate = value => value
+    ? new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    : t('admin.kioskNeverSeen');
+
+  const startDeviceRename = device => {
+    setEditingDeviceId(device.id);
+    setDeviceNameDraft(device.name);
+  };
+
+  const handleRenameDevice = async device => {
+    const nextName = deviceNameDraft.trim();
+    if (!nextName) {
+      toastError(t('admin.kioskNameRequired'));
+      return;
+    }
+    setBusyDeviceId(device.id);
+    try {
+      await renameAdminKioskDevice(sessionToken, device.id, nextName);
+      setEditingDeviceId(null);
+      toastSuccess(t('admin.kioskRenamed'));
+      await loadSettings();
+    } catch (err) {
+      toastError(err.message || t('admin.kioskRenameError'));
+    } finally {
+      setBusyDeviceId(null);
+    }
+  };
+
+  const handleRevokeDevice = async device => {
+    if (!window.confirm(t('admin.kioskRevokeConfirm', { name: device.name }))) return;
+    setBusyDeviceId(device.id);
+    try {
+      await revokeAdminKioskDevice(sessionToken, device.id);
+      toastSuccess(t('admin.kioskRevoked', { name: device.name }));
+      await loadSettings();
+    } catch (err) {
+      toastError(err.message || t('admin.kioskRevokeError'));
+    } finally {
+      setBusyDeviceId(null);
     }
   };
 
@@ -1842,6 +1892,90 @@ function SettingsSection() {
           </button>
         </div>
       </div>
+
+      <section className="kiosk-admin-panel" aria-labelledby="kiosk-admin-title">
+        <div className="kiosk-admin-heading">
+          <div className="kiosk-admin-heading-icon"><Monitor size={19} aria-hidden="true" /></div>
+          <div>
+            <h2 id="kiosk-admin-title">{t('admin.kioskDevicesTitle')}</h2>
+            <p>{t('admin.kioskDevicesHint')}</p>
+          </div>
+          <button type="button" className="kiosk-admin-refresh" onClick={loadSettings} aria-label={t('common.refresh')}>
+            <RefreshCw size={17} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="kiosk-admin-activation-note">
+          <ShieldCheck size={18} aria-hidden="true" />
+          <span>{t('admin.kioskActivationNote')}</span>
+          <Link to="/kiosk">{t('admin.kioskOpenActivation')}</Link>
+        </div>
+
+        {kioskDevices.length === 0 ? (
+          <div className="kiosk-admin-empty">
+            <Monitor size={24} aria-hidden="true" />
+            <strong>{t('admin.kioskNoDevices')}</strong>
+            <span>{t('admin.kioskNoDevicesHint')}</span>
+          </div>
+        ) : (
+          <div className="kiosk-admin-list">
+            {kioskDevices.map(device => {
+              const editing = editingDeviceId === device.id;
+              const busy = busyDeviceId === device.id;
+              return (
+                <article key={device.id} className={`kiosk-admin-device ${device.is_active ? '' : 'is-revoked'}`}>
+                  <div className="kiosk-admin-device-main">
+                    <span className={`kiosk-admin-device-state ${device.is_active ? 'is-active' : 'is-inactive'}`} aria-hidden="true" />
+                    <div className="kiosk-admin-device-copy">
+                      {editing ? (
+                        <div className="kiosk-admin-rename">
+                          <label>
+                            <span className="sr-only">{t('admin.kioskDeviceName')}</span>
+                            <input
+                              autoFocus
+                              maxLength="120"
+                              value={deviceNameDraft}
+                              onChange={event => setDeviceNameDraft(event.target.value)}
+                              onKeyDown={event => {
+                                if (event.key === 'Enter') handleRenameDevice(device);
+                                if (event.key === 'Escape') setEditingDeviceId(null);
+                              }}
+                            />
+                          </label>
+                          <button type="button" onClick={() => handleRenameDevice(device)} disabled={busy}>{t('common.save')}</button>
+                          <button type="button" className="is-ghost" onClick={() => setEditingDeviceId(null)} aria-label={t('common.cancel')}><X size={16} /></button>
+                        </div>
+                      ) : (
+                        <div className="kiosk-admin-device-title-row">
+                          <h3>{device.name}</h3>
+                          <span className={`kiosk-admin-badge ${device.is_active ? 'is-active' : 'is-inactive'}`}>
+                            {device.is_active ? t('admin.kioskActive') : t('admin.kioskRevokedStatus')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="kiosk-admin-device-meta">
+                        <span><Clock3 size={14} /> {t('admin.kioskLastSeen')}: <strong>{formatDeviceDate(device.last_seen_at)}</strong></span>
+                        <span><UserRound size={14} /> {t('admin.kioskCurrentDriver')}: <strong>{device.active_driver_name || t('admin.kioskNoDriver')}</strong></span>
+                        <span><ShieldCheck size={14} /> {t('admin.kioskActivatedBy')}: <strong>{device.created_by_name || t('admin.unknownDevice')}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="kiosk-admin-device-actions">
+                    <button type="button" onClick={() => startDeviceRename(device)} disabled={busy || editing}>
+                      <Pencil size={16} /> {t('admin.kioskRename')}
+                    </button>
+                    {device.is_active && (
+                      <button type="button" className="is-danger" onClick={() => handleRevokeDevice(device)} disabled={busy}>
+                        <ShieldOff size={16} /> {busy ? t('common.loading') : t('admin.kioskRevoke')}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

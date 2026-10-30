@@ -6886,6 +6886,183 @@ button.laundry-metric:focus-visible {
   opacity: .55;
   cursor: not-allowed;
 }
+.kiosk-admin-panel {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.kiosk-admin-heading {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 44px;
+  align-items: start;
+  gap: 12px;
+}
+.kiosk-admin-heading-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(0, 122, 255, .09);
+  color: var(--accent);
+}
+.kiosk-admin-heading h2,
+.kiosk-admin-device h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+.kiosk-admin-heading h2 {
+  font-size: 17px;
+  font-weight: 800;
+}
+.kiosk-admin-heading p {
+  margin: 3px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.kiosk-admin-refresh {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg-card-solid);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+.kiosk-admin-refresh:hover {
+  border-color: rgba(0, 122, 255, .28);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.kiosk-admin-refresh:focus-visible,
+.kiosk-admin-device-actions button:focus-visible,
+.kiosk-admin-rename button:focus-visible,
+.kiosk-admin-rename input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.kiosk-admin-activation-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 122, 255, .07);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.kiosk-admin-activation-note svg { color: var(--accent); flex-shrink: 0; }
+.kiosk-admin-activation-note a {
+  margin-inline-start: auto;
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.kiosk-admin-empty {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.kiosk-admin-empty strong { color: var(--text-primary); font-size: 14px; }
+.kiosk-admin-empty span { max-width: 420px; font-size: 12px; }
+.kiosk-admin-list { display: flex; flex-direction: column; gap: 8px; }
+.kiosk-admin-device {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card-solid);
+}
+.kiosk-admin-device.is-revoked { background: rgba(118, 118, 128, .045); }
+.kiosk-admin-device-main { display: flex; min-width: 0; align-items: flex-start; gap: 11px; }
+.kiosk-admin-device-state {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  flex: 0 0 auto;
+  border: 2px solid var(--bg-card-solid);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.kiosk-admin-device-state.is-active { background: #22a447; box-shadow: 0 0 0 1px rgba(34, 164, 71, .28); }
+.kiosk-admin-device-state.is-inactive { background: #8e8e93; }
+.kiosk-admin-device-copy { min-width: 0; flex: 1; }
+.kiosk-admin-device-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kiosk-admin-device h3 { overflow-wrap: anywhere; font-size: 14px; font-weight: 800; }
+.kiosk-admin-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+}
+.kiosk-admin-badge.is-active { background: rgba(34, 164, 71, .1); color: #1b7d38; }
+.kiosk-admin-badge.is-inactive { background: rgba(118, 118, 128, .11); color: var(--text-tertiary); }
+.kiosk-admin-device-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 7px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.kiosk-admin-device-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.kiosk-admin-device-meta strong { color: var(--text-secondary); font-weight: 750; }
+.kiosk-admin-device-actions { display: flex; align-items: center; gap: 7px; }
+.kiosk-admin-device-actions button,
+.kiosk-admin-rename button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font: 750 12px/1 var(--font);
+  cursor: pointer;
+}
+.kiosk-admin-device-actions button:hover { border-color: rgba(0, 122, 255, .24); color: var(--accent); }
+.kiosk-admin-device-actions button.is-danger { border-color: rgba(255, 59, 48, .16); color: #c9342c; }
+.kiosk-admin-device-actions button.is-danger:hover { background: rgba(255, 59, 48, .07); }
+.kiosk-admin-device-actions button:disabled,
+.kiosk-admin-rename button:disabled { cursor: wait; opacity: .55; }
+.kiosk-admin-rename { display: flex; align-items: center; gap: 6px; }
+.kiosk-admin-rename label { min-width: 0; flex: 1; }
+.kiosk-admin-rename input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: 750 13px/1 var(--font);
+}
+.kiosk-admin-rename button:not(.is-ghost) { border-color: rgba(0, 122, 255, .2); background: var(--accent); color: #fff; }
+.kiosk-admin-rename button.is-ghost { width: 40px; padding: 0; }
 .laundry-work-list {
   display: flex;
   flex-direction: column;
@@ -7314,6 +7491,8 @@ button.laundry-metric:focus-visible {
   .laundry-trolley-count-control {
     align-self: flex-start;
   }
+  .kiosk-admin-device { grid-template-columns: 1fr; }
+  .kiosk-admin-device-actions { padding-inline-start: 21px; }
   .laundry-work-actions {
     flex-direction: column;
     align-items: stretch;
@@ -7331,6 +7510,16 @@ button.laundry-metric:focus-visible {
     width: 100%;
     margin-top: 6px;
   }
+}
+
+@media(max-width:600px), (max-device-width:600px) {
+  .kiosk-admin-activation-note { align-items: flex-start; flex-wrap: wrap; }
+  .kiosk-admin-activation-note a { width: 100%; margin-inline-start: 26px; }
+  .kiosk-admin-device-actions { align-items: stretch; flex-direction: column; padding-inline-start: 21px; }
+  .kiosk-admin-device-actions button { width: 100%; }
+  .kiosk-admin-rename { align-items: stretch; flex-wrap: wrap; }
+  .kiosk-admin-rename label { flex-basis: 100%; }
+  .kiosk-admin-rename button:not(.is-ghost) { flex: 1; }
 }
 
 @media(max-width:600px), (max-device-width:600px) {
