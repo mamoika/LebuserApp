@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import KioskLogin from './pages/KioskLogin';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -14,8 +15,9 @@ const ProtectedRoute = ({ children }) => {
 
 const PublicRoute = ({ children }) => {
   const { user } = useAuth();
+  const location = useLocation();
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={location.state?.from || '/'} replace />;
   }
   return children;
 };
@@ -97,6 +99,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/kiosk" element={<KioskLogin />} />
           <Route path="/login" element={
             <PublicRoute>
               <LoginPage />

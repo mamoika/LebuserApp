@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { AlertTriangle, Eye, LogOut, ShieldCheck, Undo2 } from 'lucide-react';
-import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { AlertTriangle, Eye, LogOut, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import logoImg from '../assets/logo-icon.png';
 import RodoNotice from './RodoNotice';
 
@@ -109,10 +109,11 @@ function PrivacyNoticeModal() {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user, adminBackup, signOut, stopImpersonating, isDriver, canViewModule } = useAuth();
+  const { user, adminBackup, signOut, switchKioskUser, stopImpersonating, isDriver, canViewModule } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
+  const navigate = useNavigate();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
   const firstAllowedPath = [
     ...(isDriver ? [['route', '/route']] : []),
@@ -124,6 +125,11 @@ export default function Dashboard() {
   const handleStopImpersonating = async () => {
     const result = await stopImpersonating();
     window.location.href = result?.needsLogin ? '/login' : '/admin';
+  };
+
+  const handleSwitchKioskUser = () => {
+    switchKioskUser();
+    navigate('/kiosk', { replace: true });
   };
 
   return (
@@ -160,6 +166,20 @@ export default function Dashboard() {
         </div>
       )}
 
+      {user?.kiosk_mode && (
+        <div className="kiosk-session-bar" role="status">
+          <span className="kiosk-session-station"><Scale size={17} /> {user.kiosk_device_name || t('kiosk.station')}</span>
+          <span className="kiosk-session-user">
+            <UserRound size={17} />
+            <span>{t('kiosk.loggedInAs')}</span>
+            <strong>{user.name}</strong>
+          </span>
+          <button type="button" onClick={handleSwitchKioskUser}>
+            {t('kiosk.changeDriver')}
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="app-header">
         <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
@@ -180,8 +200,8 @@ export default function Dashboard() {
             <ShieldCheck size={14} /> {t('header.rodo')}
           </Link>
           <LanguageSwitcher size="sm" />
-          <button onClick={signOut} className="driver-btn">
-            <LogOut size={14} /> {t('header.signOut')}
+          <button onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut} className="driver-btn">
+            <LogOut size={14} /> {user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
           </button>
         </div>
       </header>

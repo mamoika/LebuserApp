@@ -16,6 +16,7 @@ export const useAuth = () => useContext(AuthContext);
 
 const STORAGE_KEY = 'lebuser_user';
 const BACKUP_KEY  = 'lebuser_admin_backup'; // kopia sesji admina podczas impersonacji
+const KIOSK_DEVICE_KEY = 'lebuser_kiosk_device';
 const MAX_SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 export const PRIVACY_NOTICE_VERSION = 'privacy_notice_v1';
 
@@ -153,10 +154,10 @@ export const AuthProvider = ({ children }) => {
   }, [refreshUserProfile]);
 
   useEffect(() => {
-    if (user?.session_token) {
+    if (user?.session_token && !user?.kiosk_mode) {
       attachDeviceInfo(user.session_token);
     }
-  }, [attachDeviceInfo, user?.session_token]);
+  }, [attachDeviceInfo, user?.kiosk_mode, user?.session_token]);
 
   useEffect(() => {
     if (!user?.session_expires_at) return undefined;
@@ -216,6 +217,82 @@ export const AuthProvider = ({ children }) => {
     applyLanguage(data.language);
     return { ok: true };
   };
+
+  const readKioskDevice = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem(KIOSK_DEVICE_KEY) || 'null');
+    } catch {
+      localStorage.removeItem(KIOSK_DEVICE_KEY);
+      return null;
+    }
+  }, []);
+
+  const activateKioskDevice = async (name) => {
+    const { data, error } = await supabase.rpc('admin_activate_kiosk_device', {
+      p_session_token: user?.session_token || null,
+      p_name: name,
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    const device = {
+      id: data.device_id,
+      name: data.device_name,
+      token: data.device_token,
+    };
+    localStorage.setItem(KIOSK_DEVICE_KEY, JSON.stringify(device));
+    return { ok: true, device };
+  };
+
+  const getKioskDrivers = async () => {
+    const device = readKioskDevice();
+    if (!device?.token) return { error: i18n.t('kiosk.notActive') };
+    const { data, error } = await supabase.rpc('get_kiosk_drivers', {
+      p_device_token: device.token,
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    return data;
+  };
+
+  const kioskLogin = async (userId) => {
+    const device = readKioskDevice();
+    if (!device?.token) return { error: i18n.t('kiosk.notActive') };
+    const { data, error } = await supabase.rpc('kiosk_login_driver', {
+      p_device_token: device.token,
+      p_user_id: userId,
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+
+    const userData = {
+      id: data.id,
+      username: data.username,
+      name: data.name,
+      role: data.role,
+      routes: data.routes,
+      language: data.language,
+      privacy_notice_ack_at: data.privacy_notice_ack_at,
+      privacy_notice_ack_version: data.privacy_notice_ack_version,
+      session_token: data.session_token,
+      session_expires_at: data.session_expires_at,
+      kiosk_mode: true,
+      kiosk_device_id: data.kiosk_device_id,
+      kiosk_device_name: data.kiosk_device_name,
+    };
+    userData.module_access = await loadModuleAccess(data.session_token, data.role, data.username);
+    storeUser(userData);
+    applyLanguage(data.language);
+    return { ok: true };
+  };
+
+  const switchKioskUser = useCallback(() => {
+    const token = user?.session_token;
+    if (token) supabase.rpc('logout_user', { p_session_token: token });
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(BACKUP_KEY);
+    setUser(null);
+    setAdminBackup(null);
+  }, [user?.session_token]);
 
   const impersonate = async (targetUserId) => {
     const { data, error } = await supabase.rpc('admin_impersonate_user', {
@@ -346,6 +423,11 @@ export const AuthProvider = ({ children }) => {
       sessionToken: user?.session_token ?? null,
       adminBackup,       // nie null = jesteśmy w trybie impersonacji
       login,
+      activateKioskDevice,
+      getKioskDrivers,
+      kioskLogin,
+      switchKioskUser,
+      kioskDevice: readKioskDevice(),
       checkUsername,
       setFirstPassword,
       impersonate,
