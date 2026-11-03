@@ -10,6 +10,10 @@ const stylesSource = await readFile(
   new URL('../index.css', import.meta.url),
   'utf8',
 );
+const builderSource = await readFile(
+  new URL('./ServiceScheduleBuilder.jsx', import.meta.url),
+  'utf8',
+);
 const printLayoutSource = await readFile(
   new URL('../lib/routePrintLayout.js', import.meta.url),
   'utf8',
@@ -37,6 +41,19 @@ test('inherited route schedule is not repeated on every client row', () => {
   assert.match(
     componentSource,
     /\(client\.service_schedule_mode \|\| 'inherit'\) !== 'inherit' && \(/,
+  );
+});
+
+test('client row shows only active visit days while the editor summary keeps turnaround pairs', () => {
+  const clientBadgeStart = componentSource.indexOf('className="client-service-badge"');
+  const clientBadgeEnd = componentSource.indexOf('</span>', clientBadgeStart);
+  const clientBadgeSource = componentSource.slice(clientBadgeStart, clientBadgeEnd);
+
+  assert.match(clientBadgeSource, /serviceScheduleSummary\(clientRules, t\)/);
+  assert.doesNotMatch(clientBadgeSource, /serviceScheduleSummary\(clientRules, t, true\)/);
+  assert.match(
+    builderSource,
+    /className="service-schedule-preview"[\s\S]*?serviceScheduleSummary\(normalized, t, showTurnaround\)/,
   );
 });
 
