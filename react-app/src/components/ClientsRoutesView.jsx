@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import ServiceScheduleBuilder, {
   compactServiceScheduleSummary,
+  serviceScheduleDaysSummary,
   serviceScheduleSummary,
 } from './ServiceScheduleBuilder';
 import {
@@ -1125,11 +1126,11 @@ function ClientsRoutesBoard({ dataOverride = null, highlightedRouteId = null }) 
                               className="client-service-badge"
                               title={client.service_schedule_mode === 'disabled'
                                 ? t('clients.servicePlan.mode.disabled')
-                                : serviceScheduleSummary(clientRules, t)}
+                                : serviceScheduleDaysSummary(clientRules, t)}
                             >
                               {client.service_schedule_mode === 'disabled'
                                 ? t('clients.servicePlan.offShort')
-                                : serviceScheduleSummary(clientRules, t)}
+                                : serviceScheduleDaysSummary(clientRules, t)}
                             </span>
                           )}
                         </span>

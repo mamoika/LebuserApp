@@ -33,6 +33,18 @@ export function serviceScheduleSummary(rules, t, includeAutomatic = false) {
   }).join(' · ');
 }
 
+export function serviceScheduleDaysSummary(rules, t) {
+  const normalized = normalizeServiceRules(rules);
+  if (!normalized.length) return t('clients.servicePlan.none');
+
+  return normalized.map(rule => {
+    const day = t(`clients.servicePlan.days.${DAY_KEYS[rule.weekday - 1]}`);
+    return rule.interval_weeks === 1
+      ? day
+      : `${day} · ${t('clients.servicePlan.everyNWeeks', { count: rule.interval_weeks })}`;
+  }).join(' · ');
+}
+
 export function compactServiceScheduleSummary(rules, t) {
   const normalized = normalizeServiceRules(rules);
   if (!normalized.length) return t('clients.servicePlan.none');

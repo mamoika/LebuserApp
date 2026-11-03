@@ -48,9 +48,13 @@ test('client row shows only active visit days while the editor summary keeps tur
   const clientBadgeStart = componentSource.indexOf('className="client-service-badge"');
   const clientBadgeEnd = componentSource.indexOf('</span>', clientBadgeStart);
   const clientBadgeSource = componentSource.slice(clientBadgeStart, clientBadgeEnd);
+  const daysSummaryStart = builderSource.indexOf('export function serviceScheduleDaysSummary');
+  const daysSummaryEnd = builderSource.indexOf('export function compactServiceScheduleSummary');
+  const daysSummarySource = builderSource.slice(daysSummaryStart, daysSummaryEnd);
 
-  assert.match(clientBadgeSource, /serviceScheduleSummary\(clientRules, t\)/);
-  assert.doesNotMatch(clientBadgeSource, /serviceScheduleSummary\(clientRules, t, true\)/);
+  assert.match(clientBadgeSource, /serviceScheduleDaysSummary\(clientRules, t\)/);
+  assert.doesNotMatch(clientBadgeSource, /serviceScheduleSummary\(/);
+  assert.doesNotMatch(daysSummarySource, /departureDayFor|→/);
   assert.match(
     builderSource,
     /className="service-schedule-preview"[\s\S]*?serviceScheduleSummary\(normalized, t, showTurnaround\)/,
