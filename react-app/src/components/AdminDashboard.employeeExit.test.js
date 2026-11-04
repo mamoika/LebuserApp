@@ -33,3 +33,14 @@ test('employee profile captures an exact employment period', () => {
   assert.equal(pl.admin.employedSince, 'Zatrudniony od');
   assert.equal(pl.admin.lastWorkingDay, 'Ostatni dzień pracy');
 });
+
+test('existing employee names open settings while add and rehire stay explicit actions', () => {
+  assert.match(dashboard, /__profileOnly: true/);
+  assert.match(dashboard, /else if \(isProfileOnly\) await onSaveProfile/);
+  assert.match(dashboard, /admin_update_employee_profile/);
+  assert.match(dashboard, /disabled=\{isRehire \|\| profileIsFormerEmployee\}/);
+  assert.match(dashboard, /onClick=\{\(\) => handleAddExisting\(employee\)\}/);
+  assert.match(dashboard, /onClick=\{\(\) => setModal\(\{ \.\.\.employee, __rehire: true \}\)\}/);
+  assert.ok(pl.admin.openEmployeeSettings);
+  assert.ok(de.admin.openEmployeeSettings);
+});

@@ -1031,10 +1031,12 @@ function RolesSection() {
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 const isDriversGroup = (groupName) => String(groupName || '').trim().toLocaleUpperCase('pl-PL') === 'KIEROWCY';
 
-function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSave, onRemoveFromMonth, onEndEmployment, onRehire }) {
+function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSave, onSaveProfile, onRemoveFromMonth, onEndEmployment, onRehire }) {
   const { t } = useTranslation();
   const isNew = !employee;
   const isRehire = Boolean(employee?.__rehire);
+  const isProfileOnly = Boolean(employee?.__profileOnly);
+  const profileIsFormerEmployee = isProfileOnly && Boolean(employee?.employment_last_working_on);
   const [name, setName] = useState(employee?.name || '');
   const [groupName, setGroupName] = useState(employee?.group_name || (groups[0]?.name || ''));
   const [contractType, setContractType] = useState(employee?.contract_type || 'UoP');
@@ -1076,6 +1078,7 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
       driver_card_last_downloaded_on: driverCardLastDownloadedOn,
     };
     if (isRehire) await onRehire(payload);
+    else if (isProfileOnly) await onSaveProfile(payload);
     else await onSave(payload);
     setSaving(false);
   };
@@ -1099,12 +1102,14 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${grpColor}, ${grpColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
             <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newEmployee') : isRehire ? t('admin.restoreEmployee') : t('admin.editEmployee')}</div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>{t('admin.employeeMonthHint', { month: monthLabel })}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>
+            {isProfileOnly ? t('admin.employeeProfileHint') : t('admin.employeeMonthHint', { month: monthLabel })}
+          </div>
 
           <div style={LABEL_STYLE}>{t('admin.employeeName')}</div>
           <input className="ap-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('admin.employeeNamePlaceholder')} style={{ marginBottom: '12px' }} autoFocus />
 
-          <div style={LABEL_STYLE}>{t('admin.groupThisMonth')}</div>
+          <div style={LABEL_STYLE}>{isProfileOnly ? t('admin.defaultGroup') : t('admin.groupThisMonth')}</div>
           <select className="ap-input" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '12px' }}>
             {groups.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
           </select>
@@ -1117,11 +1122,11 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
               </select>
             </div>
             <div>
-              <div style={LABEL_STYLE}>{t('admin.startThisMonth')}</div>
+              <div style={LABEL_STYLE}>{isProfileOnly ? t('admin.defaultStart') : t('admin.startThisMonth')}</div>
               <input className="ap-input" value={defaultStart} onChange={e => setDefaultStart(e.target.value)} placeholder="7" />
             </div>
             <div>
-              <div style={LABEL_STYLE}>{t('admin.endThisMonth')}</div>
+              <div style={LABEL_STYLE}>{isProfileOnly ? t('admin.defaultEnd') : t('admin.endThisMonth')}</div>
               <input className="ap-input" value={defaultEnd} onChange={e => setDefaultEnd(e.target.value)} placeholder="15" />
             </div>
           </div>
@@ -1142,18 +1147,18 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
                 </label>
               )}
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', marginTop: '8px', fontSize: '13px', fontWeight: 650, cursor: isRehire ? 'default' : 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', marginTop: '8px', fontSize: '13px', fontWeight: 650, cursor: isRehire || profileIsFormerEmployee ? 'default' : 'pointer' }}>
               <input
                 type="checkbox"
                 checked={currentlyEmployed}
-                disabled={isRehire}
+                disabled={isRehire || profileIsFormerEmployee}
                 onChange={event => setCurrentlyEmployed(event.target.checked)}
                 style={{ width: '18px', height: '18px' }}
               />
               <span>
                 <span style={{ display: 'block', color: currentlyEmployed ? '#248A3D' : 'var(--text-primary)' }}>{t('admin.currentlyEmployed')}</span>
                 <span style={{ display: 'block', marginTop: '2px', fontSize: '11px', fontWeight: 400, lineHeight: 1.35, color: 'var(--text-tertiary)' }}>
-                  {currentlyEmployed ? t('admin.currentlyEmployedHint') : t('admin.endedEmploymentHint')}
+                  {profileIsFormerEmployee ? t('admin.restoreUsingActionHint') : currentlyEmployed ? t('admin.currentlyEmployedHint') : t('admin.endedEmploymentHint')}
                 </span>
               </span>
             </label>
@@ -1167,12 +1172,12 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
               <CheckCircle2 size={18} style={{ color: '#248A3D', flexShrink: 0, marginTop: '1px' }} aria-hidden="true" />
               <span style={{ fontSize: '12px', lineHeight: 1.4, color: 'var(--text-secondary)' }}>{t('admin.restoreEmployeeHint', { month: monthLabel })}</span>
             </div>
-          ) : (
+          ) : !isProfileOnly ? (
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
               <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
               {t('admin.activeThisMonth')}
             </label>
-          )}
+          ) : null}
 
           {driverGroupSelected && <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
             <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
@@ -1221,7 +1226,7 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
             )}
           </fieldset>}
 
-          {!isNew && !isRehire && (
+          {!isNew && !isRehire && !isProfileOnly && (
             <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
               <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
                 {t('admin.employmentActions')}
@@ -1387,6 +1392,43 @@ function EmployeesSection() {
     fetchAll();
   };
 
+  const handleSaveProfile = async ({ id, name, group_name, contract_type, default_start, default_end, employment_started_on, currently_employed, employment_last_working_on, driver_card_required, driver_card_last_downloaded_on }) => {
+    const { data, error } = await supabase.rpc('admin_update_employee_profile', {
+      p_session_token: sessionToken,
+      p_employee_id: id,
+      p_name: name,
+      p_group_name: group_name,
+      p_contract_type: contract_type,
+      p_default_start: default_start,
+      p_default_end: default_end,
+    });
+    if (error || data?.error) {
+      toastError(t('admin.errSaveEmployee') + ' ' + (error?.message || data.error));
+      return;
+    }
+    try {
+      await saveEmploymentProfile(
+        id,
+        employment_started_on,
+        currently_employed,
+        employment_last_working_on
+      );
+      await saveDriverCardSettings(
+        sessionToken,
+        id,
+        driver_card_required,
+        driver_card_last_downloaded_on,
+        cur.year,
+        cur.month
+      );
+    } catch (profileError) {
+      toastError(t('admin.errSaveEmployee') + ' ' + profileError.message);
+      return;
+    }
+    setModal(null);
+    fetchAll();
+  };
+
   // Usuń pracownika TYLKO z tego miesiąca (historia innych miesięcy zostaje)
   const handleRemoveFromMonth = async (id) => {
     const { data, error } = await supabase.rpc('admin_remove_employee_from_month', {
@@ -1519,27 +1561,48 @@ function EmployeesSection() {
       {showAdd && (
         <div style={{ marginBottom: '14px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)' }}>{t('admin.addToMonth', { month: monthLabel })}</div>
-          {notInMonth.map((e, i) => (
-            <div key={e.id} onClick={() => handleAddExisting(e)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer' }}>
-              <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{e.name}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{e.group_name}</span>
-              <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700 }}>{t('admin.addSmall')}</span>
+          {notInMonth.map((employee, index) => (
+            <div key={employee.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px 5px 12px', background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+              <button
+                type="button"
+                onClick={() => setModal({ ...employee, __profileOnly: true })}
+                style={{ flex: 1, minWidth: 0, minHeight: '44px', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, border: 0, background: 'transparent', color: 'var(--text-primary)', textAlign: 'left', cursor: 'pointer' }}
+                aria-label={t('admin.openEmployeeSettings', { name: employee.name })}
+              >
+                <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{employee.name}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{employee.group_name}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddExisting(employee)}
+                style={{ minHeight: '36px', padding: '6px 10px', border: '1px solid rgba(10,132,255,0.22)', borderRadius: '8px', background: 'rgba(10,132,255,0.08)', color: 'var(--accent)', fontSize: '12px', fontWeight: 750, cursor: 'pointer' }}
+              >
+                {t('admin.addSmall')}
+              </button>
             </div>
           ))}
           {endedBeforeMonth.length > 0 && (
             <>
               <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 750, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)', borderTop: notInMonth.length > 0 ? '1px solid var(--border)' : 0 }}>{t('admin.formerEmployees')}</div>
               {endedBeforeMonth.map((employee, index) => (
-                <button
-                  key={employee.id}
-                  type="button"
-                  onClick={() => setModal({ ...employee, __rehire: true })}
-                  style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', border: 0, borderTop: index > 0 ? '1px solid var(--border)' : 0, background: 'var(--bg-card)', color: 'var(--text-primary)', textAlign: 'left', cursor: 'pointer' }}
-                >
-                  <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{employee.name}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('admin.endedFrom', { date: employee.employment_ended_on })}</span>
-                  <span style={{ fontSize: '12px', color: '#248A3D', fontWeight: 750 }}>{t('admin.restoreSmall')}</span>
-                </button>
+                <div key={employee.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px 5px 12px', borderTop: index > 0 ? '1px solid var(--border)' : 0, background: 'var(--bg-card)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setModal({ ...employee, __profileOnly: true })}
+                    style={{ flex: 1, minWidth: 0, minHeight: '44px', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, border: 0, background: 'transparent', color: 'var(--text-primary)', textAlign: 'left', cursor: 'pointer' }}
+                    aria-label={t('admin.openEmployeeSettings', { name: employee.name })}
+                  >
+                    <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{employee.name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('admin.endedFrom', { date: employee.employment_ended_on })}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModal({ ...employee, __rehire: true })}
+                    style={{ minHeight: '36px', padding: '6px 10px', border: '1px solid rgba(52,199,89,0.28)', borderRadius: '8px', background: 'rgba(52,199,89,0.08)', color: '#248A3D', fontSize: '12px', fontWeight: 750, cursor: 'pointer' }}
+                  >
+                    {t('admin.restoreSmall')}
+                  </button>
+                </div>
               ))}
             </>
           )}
@@ -1579,6 +1642,7 @@ function EmployeesSection() {
           monthStart={selectedMonthStart}
           onClose={() => setModal(null)}
           onSave={handleSave}
+          onSaveProfile={handleSaveProfile}
           onRemoveFromMonth={handleRemoveFromMonth}
           onEndEmployment={handleEndEmployment}
           onRehire={handleRehire}
