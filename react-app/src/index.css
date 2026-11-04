@@ -7959,6 +7959,7 @@ button.laundry-metric:focus-visible {
 }
 .work-schedule-settings {
   width:min(100%, 1440px);
+  margin-inline:auto;
 }
 .work-schedule-settings-tabs {
   display:flex;
