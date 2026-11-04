@@ -1030,6 +1030,10 @@ function RolesSection() {
 
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 const isDriversGroup = (groupName) => String(groupName || '').trim().toLocaleUpperCase('pl-PL') === 'KIEROWCY';
+const formatEmployeeDate = (value) => {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
+};
 
 function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSave, onSaveProfile, onRehire }) {
   const { t } = useTranslation();
@@ -1050,6 +1054,7 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
   const [driverCardLastDownloadedOn, setDriverCardLastDownloadedOn] = useState(employee?.driver_card_last_downloaded_on || '');
   const [saving, setSaving] = useState(false);
   const driverGroupSelected = isDriversGroup(groupName);
+  const employmentEnded = !currentlyEmployed && Boolean(employmentLastWorkingOn);
   const employmentDatesValid = Boolean(
     employmentStartedOn
     && (currentlyEmployed || (
@@ -1126,6 +1131,13 @@ function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSa
             <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
               {t('admin.employmentPeriod')}
             </legend>
+            <div
+              role="status"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '28px', marginBottom: '10px', padding: '4px 9px', borderRadius: '999px', background: employmentEnded ? 'rgba(255,59,48,0.09)' : 'rgba(52,199,89,0.1)', color: employmentEnded ? '#A52F27' : '#248A3D', fontSize: '11px', fontWeight: 750 }}
+            >
+              <span aria-hidden="true" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor' }} />
+              {employmentEnded ? t('admin.employmentStatusEnded') : t('admin.employmentStatusCurrent')}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: currentlyEmployed ? '1fr' : '1fr 1fr', gap: '10px' }}>
               <label style={{ display: 'block' }}>
                 <span style={LABEL_STYLE}>{t('admin.employedSince')}</span>
@@ -1439,14 +1451,17 @@ function EmployeesSection() {
 
   const rosterIds = new Set(roster.map(r => r.id));
   const selectedMonthStart = `${cur.year}-${String(cur.month).padStart(2, '0')}-01`;
+  const nextMonthYear = cur.month === 12 ? cur.year + 1 : cur.year;
+  const nextMonth = cur.month === 12 ? 1 : cur.month + 1;
+  const selectedMonthEndExclusive = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}-01`;
   const notInMonth = allEmployees.filter(e => (
     !rosterIds.has(e.id)
-    && (!e.employment_ended_on || e.employment_ended_on > selectedMonthStart)
+    && (!e.employment_ended_on || e.employment_ended_on >= selectedMonthEndExclusive)
   ));
-  const endedBeforeMonth = allEmployees.filter(e => (
+  const formerByMonthEnd = allEmployees.filter(e => (
     !rosterIds.has(e.id)
     && e.employment_ended_on
-    && e.employment_ended_on <= selectedMonthStart
+    && e.employment_ended_on < selectedMonthEndExclusive
   ));
 
   const groupedEmps = groups.map(g => ({ g: g.name, color: g.color, members: roster.filter(e => e.group_name === g.name) }))
@@ -1466,7 +1481,7 @@ function EmployeesSection() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.employeesInMonth', { count: roster.filter(e => e.active).length })}</div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {(notInMonth.length > 0 || endedBeforeMonth.length > 0) && (
+          {(notInMonth.length > 0 || formerByMonthEnd.length > 0) && (
             <button onClick={() => setShowAdd(s => !s)} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addExisting')}</button>
           )}
           <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addNew')}</button>
@@ -1497,10 +1512,10 @@ function EmployeesSection() {
               </button>
             </div>
           ))}
-          {endedBeforeMonth.length > 0 && (
+          {formerByMonthEnd.length > 0 && (
             <>
               <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 750, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)', borderTop: notInMonth.length > 0 ? '1px solid var(--border)' : 0 }}>{t('admin.formerEmployees')}</div>
-              {endedBeforeMonth.map((employee, index) => (
+              {formerByMonthEnd.map((employee, index) => (
                 <div key={employee.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px 5px 12px', borderTop: index > 0 ? '1px solid var(--border)' : 0, background: 'var(--bg-card)' }}>
                   <button
                     type="button"
@@ -1509,7 +1524,7 @@ function EmployeesSection() {
                     aria-label={t('admin.openEmployeeSettings', { name: employee.name })}
                   >
                     <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{employee.name}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('admin.endedFrom', { date: employee.employment_ended_on })}</span>
+                    <span style={{ fontSize: '11px', color: '#A52F27', fontWeight: 650 }}>{t('admin.lastWorkedOn', { date: formatEmployeeDate(employee.employment_last_working_on) })}</span>
                   </button>
                   <button
                     type="button"

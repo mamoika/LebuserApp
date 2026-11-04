@@ -31,6 +31,8 @@ test('employee profile captures an exact employment period', () => {
   assert.match(dashboard, /admin_save_employee_employment_profile/);
   assert.equal(pl.admin.employedSince, 'Zatrudniony od');
   assert.equal(pl.admin.lastWorkingDay, 'Ostatni dzień pracy');
+  assert.match(dashboard, /employmentStatusEnded/);
+  assert.equal(pl.admin.employmentStatusEnded, 'Zatrudnienie zakończone');
 });
 
 test('existing employee names open settings while add and rehire stay explicit actions', () => {
@@ -42,4 +44,12 @@ test('existing employee names open settings while add and rehire stay explicit a
   assert.match(dashboard, /onClick=\{\(\) => setModal\(\{ \.\.\.employee, __rehire: true \}\)\}/);
   assert.ok(pl.admin.openEmployeeSettings);
   assert.ok(de.admin.openEmployeeSettings);
+});
+
+test('employee ending during the selected month is shown as a former employee', () => {
+  assert.match(dashboard, /selectedMonthEndExclusive/);
+  assert.match(dashboard, /e\.employment_ended_on < selectedMonthEndExclusive/);
+  assert.match(dashboard, /employee\.employment_last_working_on/);
+  assert.equal(pl.admin.lastWorkedOn, 'ostatni dzień pracy: {{date}}');
+  assert.ok(de.admin.lastWorkedOn);
 });
