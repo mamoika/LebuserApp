@@ -1065,7 +1065,17 @@
       "markToday": "Heute gelesen",
       "marked": "Kartendownload gespeichert: {{name}}",
       "markError": "Kartendownload konnte nicht gespeichert werden.",
-      "dayTitle": "Fahrerkarte herunterladen: {{names}}"
+      "dayTitle": "Fahrerkarte herunterladen: {{names}}",
+      "noUrgent": "Keine dringenden Termine",
+      "history": "Verlauf",
+      "historyTitle": "Verlauf der Karten-Downloads",
+      "historyCount": "Gespeicherte Downloads: {{count}}",
+      "noHistory": "Noch keine Downloads gespeichert.",
+      "recordedBy": "Gespeichert von: {{name}}",
+      "readQuestion": "Karte ausgelesen?",
+      "futureDisabled": "Der Download kann erst an diesem Tag bestätigt werden",
+      "dueOnCell": "Kartendownload fällig: {{name}}",
+      "readOnCell": "Karte ausgelesen: {{date}}"
     },
     "legend": {
       "W": "Frei",

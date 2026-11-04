@@ -4,7 +4,8 @@ import {
   DRIVER_CARD_DOWNLOAD_INTERVAL_DAYS,
   getDriverCardDueDate,
   getDriverCardReminder,
-  groupDriverCardsByDueDay,
+  groupDriverCardHistoryByEmployeeDay,
+  groupDriverCardsByEmployeeDueDay,
 } from './driverCardReminder.js';
 
 test('driver card due date is 28 calendar days after the confirmed download', () => {
@@ -25,13 +26,21 @@ test('driver card reminder distinguishes missing, upcoming and overdue dates', (
   assert.equal(getDriverCardReminder({ last_downloaded_on: '2026-10-20' }, today).state, 'ok');
 });
 
-test('driver cards are placed above their exact due day in the selected month', () => {
-  const cards = [
+test('driver card reminders are placed in the exact employee day cell', () => {
+  const grouped = groupDriverCardsByEmployeeDueDay([
     { employee_id: 'a', name: 'Anna', last_downloaded_on: '2026-10-10' },
-    { employee_id: 'b', name: 'Jan', last_downloaded_on: '2026-10-10' },
-    { employee_id: 'c', name: 'Ola', last_downloaded_on: '2026-09-10' },
-  ];
-  const grouped = groupDriverCardsByDueDay(cards, 2026, 11);
-  assert.equal(grouped.get(7).length, 2);
-  assert.equal(grouped.has(8), false);
+    { employee_id: 'b', name: 'Jan', last_downloaded_on: '2026-10-11' },
+  ], 2026, 11);
+  assert.equal(grouped.get('a_7').name, 'Anna');
+  assert.equal(grouped.get('b_8').name, 'Jan');
+  assert.equal(grouped.has('a_8'), false);
+});
+
+test('driver card history is placed in the employee cell where it was recorded', () => {
+  const grouped = groupDriverCardHistoryByEmployeeDay([
+    { id: 'event-1', employee_id: 'a', downloaded_on: '2026-11-04' },
+    { id: 'event-2', employee_id: 'a', downloaded_on: '2026-10-07' },
+  ], 2026, 11);
+  assert.equal(grouped.get('a_4').id, 'event-1');
+  assert.equal(grouped.has('a_7'), false);
 });

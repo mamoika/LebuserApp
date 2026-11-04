@@ -1065,7 +1065,17 @@
       "markToday": "Odczytano dziś",
       "marked": "Zapisano odczyt karty: {{name}}",
       "markError": "Nie udało się zapisać odczytu karty.",
-      "dayTitle": "Odczyt karty kierowcy: {{names}}"
+      "dayTitle": "Odczyt karty kierowcy: {{names}}",
+      "noUrgent": "Brak pilnych terminów",
+      "history": "Historia",
+      "historyTitle": "Historia odczytów kart",
+      "historyCount": "Zapisane odczyty: {{count}}",
+      "noHistory": "Nie zapisano jeszcze żadnego odczytu.",
+      "recordedBy": "Zapisane przez: {{name}}",
+      "readQuestion": "Karta odczytana?",
+      "futureDisabled": "Odczyt można potwierdzić dopiero w tym dniu",
+      "dueOnCell": "Termin odczytu karty: {{name}}",
+      "readOnCell": "Karta odczytana: {{date}}"
     },
     "legend": {
       "W": "Wolne",

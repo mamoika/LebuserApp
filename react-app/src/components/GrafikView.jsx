@@ -12,7 +12,12 @@ import { approveWorkTime, markDriverCardDownloaded, rejectWorkTime } from '../li
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
 import { isAbsent } from '../lib/scheduleStatus';
-import { getDriverCardReminder, groupDriverCardsByDueDay, toLocalYmd } from '../lib/driverCardReminder';
+import {
+  getDriverCardReminder,
+  groupDriverCardHistoryByEmployeeDay,
+  groupDriverCardsByEmployeeDueDay,
+  toLocalYmd,
+} from '../lib/driverCardReminder';
 
 const VALUE_STYLE = {
   'W':   { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
@@ -108,8 +113,8 @@ function isPresent(value) {
   return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NU' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
 }
 
-function DriverCardReminderPanel({ reminders, canMark, markingId, onMark, t, locale }) {
-  if (!reminders.length) return null;
+function DriverCardReminderPanel({ reminders, hasCards, historyCount, onOpenHistory, t, locale }) {
+  if (!hasCards) return null;
   const hasOverdue = reminders.some(reminder => reminder.state === 'overdue' || reminder.state === 'missing');
   const statusText = reminder => {
     if (reminder.state === 'missing') return t('grafik.driverCard.missingDate');
@@ -142,6 +147,11 @@ function DriverCardReminderPanel({ reminders, canMark, markingId, onMark, t, loc
         </div>
       </div>
       <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap', gap: '7px' }}>
+        {reminders.length === 0 && (
+          <div style={{ alignSelf: 'center', fontSize: '11px', fontWeight: 700, color: '#15803D' }}>
+            {t('grafik.driverCard.noUrgent')}
+          </div>
+        )}
         {reminders.map(reminder => {
           const danger = reminder.state === 'overdue' || reminder.state === 'missing';
           return (
@@ -152,28 +162,80 @@ function DriverCardReminderPanel({ reminders, canMark, markingId, onMark, t, loc
                   {statusText(reminder)}{dateText(reminder) ? ` · ${dateText(reminder)}` : ''}
                 </div>
               </div>
-              {canMark && (
-                <button
-                  type="button"
-                  onClick={() => onMark(reminder)}
-                  disabled={markingId === reminder.employee_id}
-                  style={{ minHeight: '30px', padding: '5px 9px', borderRadius: '7px', border: '1px solid rgba(0,0,0,0.08)', background: '#F5F5F4', color: '#44403C', fontSize: '10px', fontWeight: 750, cursor: markingId === reminder.employee_id ? 'wait' : 'pointer', opacity: markingId === reminder.employee_id ? 0.6 : 1, whiteSpace: 'nowrap' }}
-                >
-                  {markingId === reminder.employee_id ? t('common.saving') : t('grafik.driverCard.markToday')}
-                </button>
-              )}
             </div>
           );
         })}
       </div>
+      <button
+        type="button"
+        onClick={onOpenHistory}
+        style={{ minHeight: '34px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '9px', border: '1px solid rgba(0,0,0,0.09)', background: '#fff', color: '#44403C', fontSize: '10px', fontWeight: 750, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      >
+        <History size={14} aria-hidden="true" />
+        {t('grafik.driverCard.history')} ({historyCount})
+      </button>
     </section>
   );
 }
 
+function DriverCardHistoryDialog({ history, open, onClose, t, locale }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = event => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open, onClose]);
 
-function ValuePicker({ selectedValue, onSelect, onCancel }) {
+  if (!open) return null;
+
+  return (
+    <div className="work-time-history-backdrop print-hide" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="work-time-history-dialog" role="dialog" aria-modal="true" aria-labelledby="driver-card-history-title">
+        <header className="work-time-history-header">
+          <div className="work-time-history-icon" style={{ color: '#15803D', background: 'rgba(34,197,94,.12)' }}>
+            <CreditCard size={19} aria-hidden="true" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div id="driver-card-history-title" style={{ fontSize: '16px', fontWeight: 800 }}>{t('grafik.driverCard.historyTitle')}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('grafik.driverCard.historyCount', { count: history.length })}</div>
+          </div>
+          <button type="button" className="work-time-history-close" onClick={onClose} aria-label={t('common.close')} autoFocus><X size={18} /></button>
+        </header>
+        <div className="work-time-history-list">
+          {history.length === 0 && <div className="work-time-history-empty">{t('grafik.driverCard.noHistory')}</div>}
+          {history.map(event => (
+            <div className="work-time-history-item" key={event.id || `${event.employee_id}-${event.downloaded_on}`}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                  <span style={{ display: 'inline-grid', placeItems: 'center', width: '22px', height: '22px', borderRadius: '7px', color: '#15803D', background: 'rgba(34,197,94,.12)' }}><CheckCircle2 size={14} aria-hidden="true" /></span>
+                  <strong style={{ fontSize: '12px' }}>{event.name}</strong>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{new Date(`${event.downloaded_on}T00:00:00`).toLocaleDateString(locale)}</span>
+                </div>
+                <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                  {t('grafik.driverCard.recordedBy', { name: event.recorded_by_name || '—' })}
+                </div>
+              </div>
+              <div style={{ alignSelf: 'center', fontSize: '10px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap' }}>
+                {event.recorded_at ? new Date(event.recorded_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+function ValuePicker({ selectedValue, onSelect, onCancel, showDriverCardQuestion = false, canConfirmDriverCard = false }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
+  const [driverCardRead, setDriverCardRead] = useState(false);
   const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   const inputRef = useRef(null);
 
@@ -198,6 +260,26 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
       boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
       display: 'flex', alignItems: 'center', gap: '5px',
     }}>
+      {showDriverCardQuestion && (
+        <div className="grafik-driver-card-question" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '5px', paddingRight: '10px', borderRight: '1px solid rgba(0,0,0,.1)' }}>
+          <CreditCard size={15} color={driverCardRead ? '#15803D' : '#B45309'} aria-hidden="true" />
+          <span style={{ fontSize: '11px', fontWeight: 750, color: '#44403C', whiteSpace: 'nowrap' }}>{t('grafik.driverCard.readQuestion')}</span>
+          <button
+            type="button"
+            className={`grafik-card-answer${!driverCardRead ? ' active' : ''}`}
+            aria-pressed={!driverCardRead}
+            onClick={() => setDriverCardRead(false)}
+          >{t('common.no')}</button>
+          <button
+            type="button"
+            className={`grafik-card-answer yes${driverCardRead ? ' active' : ''}`}
+            aria-pressed={driverCardRead}
+            disabled={!canConfirmDriverCard}
+            title={!canConfirmDriverCard ? t('grafik.driverCard.futureDisabled') : undefined}
+            onClick={() => setDriverCardRead(true)}
+          >{t('common.yes')}</button>
+        </div>
+      )}
       {PRESETS.map((b, idx) => {
         const st = getCellStyle(b, false);
         const isActive = selectedValue === b;
@@ -205,7 +287,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
           ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
           : (st.bg || '#f5f5f5');
         return [
-          <button className="grafik-value-option" key={b} onClick={() => onSelect(b)} style={{
+          <button className="grafik-value-option" key={b} onClick={() => onSelect(b, driverCardRead)} style={{
             background: btnBg, color: st.color,
             border: '1px solid rgba(0,0,0,0.08)',
             borderRadius: '8px', padding: '4px 9px',
@@ -220,12 +302,12 @@ function ValuePicker({ selectedValue, onSelect, onCancel }) {
               onFocus={e => { e.target.select(); try { e.target.setSelectionRange(0, 9999); } catch { /* setSelectionRange nieobsługiwane dla tego typu inputa */ } }}
               placeholder={t('grafik.otherValue')}
               onKeyDown={e => { 
-                if (e.key === 'Enter') { onSelect(customValue.trim()); setCustomValue(''); }
+                if (e.key === 'Enter') { onSelect(customValue.trim(), driverCardRead); setCustomValue(''); }
                 else if (e.key === 'Escape' && onCancel) { onCancel(); }
               }}
               style={{ width: '64px', padding: '4px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', outline: 'none', background: '#fff' }}
             />,
-            <button className="grafik-value-ok" key="ok" onClick={() => { onSelect(customValue.trim()); setCustomValue(''); }} style={{
+            <button className="grafik-value-ok" key="ok" onClick={() => { onSelect(customValue.trim(), driverCardRead); setCustomValue(''); }} style={{
               background: 'transparent', color: 'var(--accent)', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', padding: '4px 4px'
             }}>OK</button>,
             <div className="grafik-value-separator" key="sep" style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />,
@@ -413,7 +495,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const [workTimeReports, setWorkTimeReports] = useState([]);
   const [workTimeEvents, setWorkTimeEvents] = useState([]);
   const [driverCards, setDriverCards] = useState([]);
-  const [markingDriverCardId, setMarkingDriverCardId] = useState(null);
+  const [driverCardHistory, setDriverCardHistory] = useState([]);
+  const [driverCardHistoryOpen, setDriverCardHistoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -452,6 +535,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       setWorkTimeReports(data?.work_time_reports || []);
       setWorkTimeEvents(data?.work_time_events || []);
       setDriverCards(driverCardData?.cards || []);
+      setDriverCardHistory(driverCardData?.history || []);
       const map = {};
       (data?.schedule_entries || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
       setEntries(map);
@@ -533,9 +617,19 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       return (a.daysRemaining ?? -9999) - (b.daysRemaining ?? -9999);
     }), [driverCards, today]);
 
-  const driverCardsByDueDay = useMemo(
-    () => groupDriverCardsByDueDay(driverCards, year, month),
+  const driverCardsByEmployeeDueDay = useMemo(
+    () => groupDriverCardsByEmployeeDueDay(driverCards, year, month),
     [driverCards, year, month]
+  );
+
+  const driverCardHistoryByEmployeeDay = useMemo(
+    () => groupDriverCardHistoryByEmployeeDay(driverCardHistory, year, month),
+    [driverCardHistory, year, month]
+  );
+
+  const driverCardEmployeeIds = useMemo(
+    () => new Set(driverCards.map(card => card.employee_id)),
+    [driverCards]
   );
 
   const getDefaultValue = useCallback((emp, day) => {
@@ -572,21 +666,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         return next;
       });
       toastError(t('grafik.saveError'));
+      return false;
     }
-  };
-
-  const handleDriverCardDownloaded = async (reminder) => {
-    if (!canEditWorkSchedule || markingDriverCardId) return;
-    setMarkingDriverCardId(reminder.employee_id);
-    try {
-      await markDriverCardDownloaded(sessionToken, reminder.employee_id, toLocalYmd(new Date()));
-      toastSuccess(t('grafik.driverCard.marked', { name: reminder.name }));
-      await fetchData();
-    } catch (error) {
-      toastError(t('grafik.driverCard.markError') + ` ${error.message}`);
-    } finally {
-      setMarkingDriverCardId(null);
-    }
+    return true;
   };
 
   const handleContainerKeyDown = (e) => {
@@ -608,11 +690,22 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     else if (e.key === 'Escape') setSelectedCell(null);
   };
 
-    const handlePickerSelect = (val) => {
+  const handlePickerSelect = async (val, driverCardRead = false) => {
     if (!selectedCell || !canEditWorkSchedule) return;
     const { empIdx, day } = selectedCell;
     const emp = allEmps[empIdx];
-    if (emp) saveCell(emp.id, day, val);
+    if (!emp) return;
+    const saved = await saveCell(emp.id, day, val);
+    if (saved && driverCardRead && isPresent(val) && driverCardEmployeeIds.has(emp.id)) {
+      const downloadedOn = toLocalYmd(new Date(year, month - 1, day));
+      try {
+        await markDriverCardDownloaded(sessionToken, emp.id, downloadedOn);
+        toastSuccess(t('grafik.driverCard.marked', { name: emp.name }));
+        await fetchData();
+      } catch (error) {
+        toastError(t('grafik.driverCard.markError') + ` ${error.message}`);
+      }
+    }
     setSelectedCell({ empIdx: Math.min(empIdx + 1, allEmps.length - 1), day });
   };
 
@@ -723,6 +816,18 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   });
 
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
+  const selectedEmployee = selectedCell ? allEmps[selectedCell.empIdx] : null;
+  const selectedDate = selectedCell ? new Date(year, month - 1, selectedCell.day) : null;
+  const selectedDateYmd = selectedDate ? toLocalYmd(selectedDate) : null;
+  const selectedDriverCard = selectedEmployee
+    ? driverCards.find(card => card.employee_id === selectedEmployee.id)
+    : null;
+  const selectedDriverCardReminder = selectedDriverCard ? getDriverCardReminder(selectedDriverCard, today) : null;
+  const shouldAskSelectedDriverCard = Boolean(
+    selectedDriverCard
+    && (!selectedDriverCardReminder?.dueOn || selectedDateYmd >= selectedDriverCardReminder.dueOn)
+  );
+  const canConfirmSelectedDriverCard = Boolean(selectedDate && selectedDate <= today);
 
   return (
     <div className="grafik-container grafik-modern-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -732,11 +837,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
           onSelect={handlePickerSelect}
           onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
+          showDriverCardQuestion={shouldAskSelectedDriverCard}
+          canConfirmDriverCard={canConfirmSelectedDriverCard}
         />
       )}
 
       <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
       <WorkTimeDecisionHistory events={workTimeEvents} open={historyOpen} onClose={onHistoryClose} />
+      <DriverCardHistoryDialog history={driverCardHistory} open={driverCardHistoryOpen} onClose={() => setDriverCardHistoryOpen(false)} t={t} locale={i18n.language} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide grafik-month-toolbar" style={{
@@ -775,9 +883,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
       <DriverCardReminderPanel
         reminders={driverCardReminders}
-        canMark={canEditWorkSchedule}
-        markingId={markingDriverCardId}
-        onMark={handleDriverCardDownloaded}
+        hasCards={driverCards.length > 0}
+        historyCount={driverCardHistory.length}
+        onOpenHistory={() => setDriverCardHistoryOpen(true)}
         t={t}
         locale={i18n.language}
       />
@@ -924,13 +1032,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 const isWe = dw === 0 || dw === 6;
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
-                const dueCards = driverCardsByDueDay.get(d) || [];
-                const dueOn = dueCards[0]?.dueOn;
-                const isPastDue = dueOn && dueOn < toLocalYmd(today);
-                const cardTitle = dueCards.length
-                  ? t('grafik.driverCard.dayTitle', { names: dueCards.map(card => card.name).join(', ') })
-                  : '';
-
                 // Sticky headers must be fully opaque; translucent fills allow
                 // scrolled row values to show through and visually overlap text.
                 const bg = isToday ? '#007AFF' : isWe ? '#f1f3f6' : hol ? '#fff1f0' : '#f8f9fb';
@@ -940,7 +1041,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     className="grafik-day-th"
                     key={d}
                     ref={isToday ? todayRef : null}
-                    title={[hol?.name, cardTitle].filter(Boolean).join('\n')}
+                    title={hol?.name}
                     style={{
                       ...thBase,
                       width: `${DAY_COLUMN_WIDTH}px`,
@@ -959,18 +1060,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       justifyContent: 'center',
                       gap: '2px',
                     }}>
-                      <div
-                        role={dueCards.length ? 'img' : undefined}
-                        aria-label={dueCards.length ? cardTitle : undefined}
-                        style={{ height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {dueCards.length > 0 && (
-                          <span style={{ minWidth: '18px', height: '12px', padding: dueCards.length > 1 ? '0 3px' : 0, borderRadius: '5px', background: isPastDue ? '#DC2626' : '#D97706', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}>
-                            <CreditCard size={9} strokeWidth={2.4} aria-hidden="true" />
-                            {dueCards.length > 1 && <span style={{ fontSize: '7px', fontWeight: 800, lineHeight: 1 }}>{dueCards.length}</span>}
-                          </span>
-                        )}
-                      </div>
                       <div style={{
                         width: '20px',
                         height: '20px',
@@ -1079,6 +1168,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         const val = getValue(emp, d);
                         const cs = getCellStyle(val, isWeOrHol);
                         const isSelected = selectedCell?.empIdx === empIdx && selectedCell?.day === d;
+                        const driverCardDue = driverCardsByEmployeeDueDay.get(`${emp.id}_${d}`);
+                        const driverCardRead = driverCardHistoryByEmployeeDay.get(`${emp.id}_${d}`);
+                        const isDriverCardPastDue = Boolean(driverCardDue?.dueOn && driverCardDue.dueOn < toLocalYmd(today));
+                        const driverCardCellTitle = driverCardRead
+                          ? t('grafik.driverCard.readOnCell', { date: new Date(`${driverCardRead.downloaded_on}T00:00:00`).toLocaleDateString(i18n.language) })
+                          : driverCardDue
+                            ? t('grafik.driverCard.dueOnCell', { name: emp.name })
+                            : undefined;
 
                         const hasVal = val && String(val).trim();
                         const isPattern = hasVal && cs.pattern;
@@ -1093,6 +1190,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                           <td key={d}
                             className={`grafik-day-cell${hasVal ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule ? ' grafik-editable-cell' : ''}`}
                             data-cell={`${empIdx}-${d}`}
+                            title={driverCardCellTitle}
                             onClick={canEditWorkSchedule ? () => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); } : undefined}
                             onDoubleClick={() => {}}
                             style={{
@@ -1115,6 +1213,15 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                                 {renderCellValue(val)}
                               </div>
                             ) : null}
+                            {(driverCardRead || driverCardDue) && (
+                              <span
+                                className={`grafik-driver-card-cell-marker${driverCardRead ? ' read' : isDriverCardPastDue ? ' overdue' : ' due'}`}
+                                role="img"
+                                aria-label={driverCardCellTitle}
+                              >
+                                {driverCardRead ? <CheckCircle2 size={8} strokeWidth={3} aria-hidden="true" /> : <CreditCard size={8} strokeWidth={2.6} aria-hidden="true" />}
+                              </span>
+                            )}
                           </td>
                         );
                       })}

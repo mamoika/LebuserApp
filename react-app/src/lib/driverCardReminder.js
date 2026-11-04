@@ -40,13 +40,21 @@ export function getDriverCardReminder(card, today = new Date()) {
   return { ...card, state, dueOn, daysRemaining };
 }
 
-export function groupDriverCardsByDueDay(cards, year, month) {
+export function groupDriverCardsByEmployeeDueDay(cards, year, month) {
   return cards.reduce((result, card) => {
     const dueOn = getDriverCardDueDate(card?.last_downloaded_on);
     const match = dueOn?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!match || Number(match[1]) !== year || Number(match[2]) !== month) return result;
-    const day = Number(match[3]);
-    result.set(day, [...(result.get(day) || []), { ...card, dueOn }]);
+    result.set(`${card.employee_id}_${Number(match[3])}`, { ...card, dueOn });
+    return result;
+  }, new Map());
+}
+
+export function groupDriverCardHistoryByEmployeeDay(history, year, month) {
+  return history.reduce((result, event) => {
+    const match = String(event?.downloaded_on || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match || Number(match[1]) !== year || Number(match[2]) !== month) return result;
+    result.set(`${event.employee_id}_${Number(match[3])}`, event);
     return result;
   }, new Map());
 }
