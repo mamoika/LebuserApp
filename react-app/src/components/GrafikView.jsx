@@ -13,6 +13,8 @@ import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/w
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
 import { isAbsent } from '../lib/scheduleStatus';
 import {
+  addDriverCardHistoryEvent,
+  applyDriverCardDownload,
   getDriverCardReminder,
   groupDriverCardHistoryByEmployeeDay,
   groupDriverCardsByEmployeeDueDay,
@@ -225,10 +227,10 @@ function DriverCardDialog({ schedule, history, open, onClose, t, locale }) {
 }
 
 
-function ValuePicker({ selectedValue, onSelect, onCancel, showDriverCardQuestion = false, canConfirmDriverCard = false }) {
+function ValuePicker({ selectedValue, onSelect, onCancel, showDriverCardQuestion = false, canConfirmDriverCard = false, driverCardAlreadyRead = false }) {
   const { t } = useTranslation();
   const [customValue, setCustomValue] = useState('');
-  const [driverCardRead, setDriverCardRead] = useState(false);
+  const [driverCardRead, setDriverCardRead] = useState(driverCardAlreadyRead);
   const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   const inputRef = useRef(null);
 
@@ -261,6 +263,8 @@ function ValuePicker({ selectedValue, onSelect, onCancel, showDriverCardQuestion
             type="button"
             className={`grafik-card-answer${!driverCardRead ? ' active' : ''}`}
             aria-pressed={!driverCardRead}
+            disabled={driverCardAlreadyRead}
+            title={driverCardAlreadyRead ? t('grafik.driverCard.readAlreadySaved') : undefined}
             onClick={() => setDriverCardRead(false)}
           >{t('common.no')}</button>
           <button
@@ -697,12 +701,23 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     const emp = allEmps[empIdx];
     if (!emp) return;
     const saved = await saveCell(emp.id, day, val);
-    if (saved && driverCardRead && isPresent(val) && driverCardEmployeeIds.has(emp.id)) {
+    const historyKey = `${emp.id}_${day}`;
+    const alreadyRead = driverCardHistoryByEmployeeDay.has(historyKey);
+    if (saved && driverCardRead && !alreadyRead && isPresent(val) && driverCardEmployeeIds.has(emp.id)) {
       const downloadedOn = toLocalYmd(new Date(year, month - 1, day));
       try {
         await markDriverCardDownloaded(sessionToken, emp.id, downloadedOn);
+        const recordedAt = new Date().toISOString();
+        setDriverCardHistory(previous => addDriverCardHistoryEvent(previous, {
+          id: `local-${emp.id}-${downloadedOn}`,
+          employee_id: emp.id,
+          name: emp.name,
+          downloaded_on: downloadedOn,
+          recorded_by_name: user?.name || null,
+          recorded_at: recordedAt,
+        }));
+        setDriverCards(previous => applyDriverCardDownload(previous, emp.id, downloadedOn));
         toastSuccess(t('grafik.driverCard.marked', { name: emp.name }));
-        await fetchData();
       } catch (error) {
         toastError(t('grafik.driverCard.markError') + ` ${error.message}`);
       }
@@ -822,6 +837,10 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const selectedDriverCard = selectedEmployee
     ? driverCards.find(card => card.employee_id === selectedEmployee.id)
     : null;
+  const selectedDriverCardAlreadyRead = Boolean(
+    selectedEmployee && selectedCell
+    && driverCardHistoryByEmployeeDay.has(`${selectedEmployee.id}_${selectedCell.day}`)
+  );
   const canConfirmSelectedDriverCard = Boolean(selectedDate && selectedDate <= today);
 
   return (
@@ -834,6 +853,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
           showDriverCardQuestion={Boolean(selectedDriverCard)}
           canConfirmDriverCard={canConfirmSelectedDriverCard}
+          driverCardAlreadyRead={selectedDriverCardAlreadyRead}
         />
       )}
 

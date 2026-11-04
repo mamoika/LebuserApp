@@ -58,3 +58,26 @@ export function groupDriverCardHistoryByEmployeeDay(history, year, month) {
     return result;
   }, new Map());
 }
+
+export function addDriverCardHistoryEvent(history, event) {
+  return [
+    event,
+    ...history.filter(item => !(
+      item.employee_id === event.employee_id
+      && item.downloaded_on === event.downloaded_on
+    )),
+  ];
+}
+
+export function applyDriverCardDownload(cards, employeeId, downloadedOn) {
+  return cards.map(card => (
+    card.employee_id === employeeId
+      ? {
+          ...card,
+          last_downloaded_on: !card.last_downloaded_on || downloadedOn > card.last_downloaded_on
+            ? downloadedOn
+            : card.last_downloaded_on,
+        }
+      : card
+  ));
+}

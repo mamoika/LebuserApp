@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  addDriverCardHistoryEvent,
+  applyDriverCardDownload,
   DRIVER_CARD_DOWNLOAD_INTERVAL_DAYS,
   getDriverCardDueDate,
   getDriverCardReminder,
@@ -43,4 +45,22 @@ test('driver card history is placed in the employee cell where it was recorded',
   ], 2026, 11);
   assert.equal(grouped.get('a_4').id, 'event-1');
   assert.equal(grouped.has('a_7'), false);
+});
+
+test('driver card download updates live state without moving the last date backwards', () => {
+  const event = { id: 'new', employee_id: 'a', downloaded_on: '2026-11-04' };
+  const history = addDriverCardHistoryEvent([
+    { id: 'old-same-day', employee_id: 'a', downloaded_on: '2026-11-04' },
+    { id: 'older', employee_id: 'a', downloaded_on: '2026-10-07' },
+  ], event);
+  assert.deepEqual(history.map(item => item.id), ['new', 'older']);
+
+  assert.equal(
+    applyDriverCardDownload([{ employee_id: 'a', last_downloaded_on: '2026-10-07' }], 'a', '2026-11-04')[0].last_downloaded_on,
+    '2026-11-04',
+  );
+  assert.equal(
+    applyDriverCardDownload([{ employee_id: 'a', last_downloaded_on: '2026-11-04' }], 'a', '2026-10-07')[0].last_downloaded_on,
+    '2026-11-04',
+  );
 });

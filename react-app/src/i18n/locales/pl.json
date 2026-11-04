@@ -1073,6 +1073,7 @@
       "noHistory": "Nie zapisano jeszcze żadnego odczytu.",
       "recordedBy": "Zapisane przez: {{name}}",
       "readQuestion": "Karta odczytana?",
+      "readAlreadySaved": "Odczyt jest już zapisany w historii",
       "futureDisabled": "Odczyt można potwierdzić dopiero w tym dniu",
       "dueOnCell": "Termin odczytu karty: {{name}}",
       "readOnCell": "Karta odczytana: {{date}}",

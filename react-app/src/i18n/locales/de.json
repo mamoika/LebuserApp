@@ -1073,6 +1073,7 @@
       "noHistory": "Noch keine Downloads gespeichert.",
       "recordedBy": "Gespeichert von: {{name}}",
       "readQuestion": "Karte ausgelesen?",
+      "readAlreadySaved": "Der Download ist bereits im Verlauf gespeichert",
       "futureDisabled": "Der Download kann erst an diesem Tag bestätigt werden",
       "dueOnCell": "Kartendownload fällig: {{name}}",
       "readOnCell": "Karte ausgelesen: {{date}}",
