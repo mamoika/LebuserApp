@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { isHoliday } from '../utils/holidays';
-import { getWorkScheduleMonth } from '../lib/readRpc';
+import { getDriverCardReminders, getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
-import { approveWorkTime, rejectWorkTime } from '../lib/adminRpc';
+import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, CreditCard, Download, History, Info, Printer, X, XCircle } from 'lucide-react';
+import { approveWorkTime, markDriverCardDownloaded, rejectWorkTime } from '../lib/adminRpc';
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
+import { isAbsent } from '../lib/scheduleStatus';
+import { getDriverCardReminder, groupDriverCardsByDueDay, toLocalYmd } from '../lib/driverCardReminder';
 
 const VALUE_STYLE = {
   'W':   { bg: '#f1f5f9', color: '#94a3b8', pattern: false },
@@ -104,6 +106,68 @@ function countSymbolForEmployee(emp, days, getValue, sym) {
 function isPresent(value) {
   const v = String(value || '').trim().toUpperCase();
   return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NU' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
+}
+
+function DriverCardReminderPanel({ reminders, canMark, markingId, onMark, t, locale }) {
+  if (!reminders.length) return null;
+  const hasOverdue = reminders.some(reminder => reminder.state === 'overdue' || reminder.state === 'missing');
+  const statusText = reminder => {
+    if (reminder.state === 'missing') return t('grafik.driverCard.missingDate');
+    if (reminder.daysRemaining < 0) return t('grafik.driverCard.overdueBy', { count: Math.abs(reminder.daysRemaining) });
+    if (reminder.daysRemaining === 0) return t('grafik.driverCard.dueToday');
+    return t('grafik.driverCard.dueIn', { count: reminder.daysRemaining });
+  };
+  const dateText = reminder => reminder.dueOn
+    ? new Date(`${reminder.dueOn}T00:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+    : null;
+
+  return (
+    <section
+      className="print-hide"
+      aria-labelledby="driver-card-reminders-title"
+      style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 14px',
+        padding: '10px 12px', borderRadius: '12px',
+        border: `1px solid ${hasOverdue ? 'rgba(220,38,38,0.22)' : 'rgba(217,119,6,0.24)'}`,
+        background: hasOverdue ? '#FFF7F7' : '#FFFBEB',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '190px' }}>
+        <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: hasOverdue ? 'rgba(220,38,38,0.1)' : 'rgba(245,158,11,0.14)', color: hasOverdue ? '#B42318' : '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <CreditCard size={17} aria-hidden="true" />
+        </div>
+        <div>
+          <div id="driver-card-reminders-title" style={{ fontSize: '12px', fontWeight: 800, color: '#292524' }}>{t('grafik.driverCard.title')}</div>
+          <div style={{ fontSize: '10px', color: '#78716C', marginTop: '2px' }}>{t('grafik.driverCard.subtitle')}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap', gap: '7px' }}>
+        {reminders.map(reminder => {
+          const danger = reminder.state === 'overdue' || reminder.state === 'missing';
+          return (
+            <div key={reminder.employee_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minHeight: '36px', padding: '4px 5px 4px 10px', borderRadius: '9px', background: '#fff', border: `1px solid ${danger ? 'rgba(220,38,38,0.16)' : 'rgba(217,119,6,0.18)'}` }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '11px', fontWeight: 750, color: '#292524', whiteSpace: 'nowrap' }}>{reminder.name}</div>
+                <div style={{ fontSize: '10px', fontWeight: 650, color: danger ? '#B42318' : '#B45309', whiteSpace: 'nowrap' }}>
+                  {statusText(reminder)}{dateText(reminder) ? ` · ${dateText(reminder)}` : ''}
+                </div>
+              </div>
+              {canMark && (
+                <button
+                  type="button"
+                  onClick={() => onMark(reminder)}
+                  disabled={markingId === reminder.employee_id}
+                  style={{ minHeight: '30px', padding: '5px 9px', borderRadius: '7px', border: '1px solid rgba(0,0,0,0.08)', background: '#F5F5F4', color: '#44403C', fontSize: '10px', fontWeight: 750, cursor: markingId === reminder.employee_id ? 'wait' : 'pointer', opacity: markingId === reminder.employee_id ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                >
+                  {markingId === reminder.employee_id ? t('common.saving') : t('grafik.driverCard.markToday')}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 
@@ -335,12 +399,12 @@ function WorkTimeDecisionHistory({ events, open, onClose }) {
 }
 
 export default function GrafikView({ historyOpen = false, onHistoryClose = () => {} }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAdmin, canViewAdminData, canEditModule, sessionToken } = useAuth();
   const canEditWorkSchedule = canEditModule('work_schedule');
   const MONTH_NAMES = monthNames();
   const DAY_NAMES = dayNamesSunSat();
-  const today = new Date();
+  const [today] = useState(() => new Date());
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [employees, setEmployees] = useState([]);
@@ -348,6 +412,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const [entries, setEntries] = useState({});
   const [workTimeReports, setWorkTimeReports] = useState([]);
   const [workTimeEvents, setWorkTimeEvents] = useState([]);
+  const [driverCards, setDriverCards] = useState([]);
+  const [markingDriverCardId, setMarkingDriverCardId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -377,11 +443,15 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     }
     setLoading(true);
     try {
-      const data = await getWorkScheduleMonth(sessionToken, year, month);
+      const [data, driverCardData] = await Promise.all([
+        getWorkScheduleMonth(sessionToken, year, month),
+        getDriverCardReminders(sessionToken),
+      ]);
       setEmployees(data?.roster || []);
       setGroupData(data?.groups || []);
       setWorkTimeReports(data?.work_time_reports || []);
       setWorkTimeEvents(data?.work_time_events || []);
+      setDriverCards(driverCardData?.cards || []);
       const map = {};
       (data?.schedule_entries || []).forEach(e => { map[`${e.employee_id}_${e.day}`] = e.value; });
       setEntries(map);
@@ -454,6 +524,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
   const allEmps = useMemo(() => groups.flatMap(({ members }) => members), [groups]);
 
+  const driverCardReminders = useMemo(() => driverCards
+    .map(card => getDriverCardReminder(card, today))
+    .filter(reminder => reminder.state !== 'ok')
+    .sort((a, b) => {
+      if (a.state === 'missing' && b.state !== 'missing') return -1;
+      if (b.state === 'missing' && a.state !== 'missing') return 1;
+      return (a.daysRemaining ?? -9999) - (b.daysRemaining ?? -9999);
+    }), [driverCards, today]);
+
+  const driverCardsByDueDay = useMemo(
+    () => groupDriverCardsByDueDay(driverCards, year, month),
+    [driverCards, year, month]
+  );
+
   const getDefaultValue = useCallback((emp, day) => {
     const dateObj = new Date(year, month - 1, day);
     const dw = dateObj.getDay();
@@ -488,6 +572,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         return next;
       });
       toastError(t('grafik.saveError'));
+    }
+  };
+
+  const handleDriverCardDownloaded = async (reminder) => {
+    if (!canEditWorkSchedule || markingDriverCardId) return;
+    setMarkingDriverCardId(reminder.employee_id);
+    try {
+      await markDriverCardDownloaded(sessionToken, reminder.employee_id, toLocalYmd(new Date()));
+      toastSuccess(t('grafik.driverCard.marked', { name: reminder.name }));
+      await fetchData();
+    } catch (error) {
+      toastError(t('grafik.driverCard.markError') + ` ${error.message}`);
+    } finally {
+      setMarkingDriverCardId(null);
     }
   };
 
@@ -558,12 +656,14 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     wsData.push([]);
     wsData.push([t('grafik.excelSummary')]);
     const obecniRow = [t('grafik.present'), ...days.map(d => employees.filter(e => isPresent(getValue(e, d))).length)];
+    const nieobecniRow = [t('grafik.absent'), ...days.map(d => employees.filter(e => isAbsent(getValue(e, d))).length)];
     const l4Row = ['L4', ...days.map(d => countSymbol(employees, getValue, d, 'L4'))];
     const uwRow = [t('grafik.excelVacations'), ...days.map(d => countSymbol(employees, getValue, d, 'UW'))];
     const nuRow = [t('grafik.excelExcusedAbsences'), ...days.map(d => countSymbol(employees, getValue, d, 'NU'))];
     const nnRow = [t('grafik.excelAbsences'), ...days.map(d => countSymbol(employees, getValue, d, 'NN'))];
     
     wsData.push(obecniRow);
+    wsData.push(nieobecniRow);
     wsData.push(l4Row);
     wsData.push(uwRow);
     wsData.push(nuRow);
@@ -672,6 +772,15 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           </button>
         </div>
       </div>
+
+      <DriverCardReminderPanel
+        reminders={driverCardReminders}
+        canMark={canEditWorkSchedule}
+        markingId={markingDriverCardId}
+        onMark={handleDriverCardDownloaded}
+        t={t}
+        locale={i18n.language}
+      />
 
       {/* Legenda i Przewodnik UoP / UZ */}
       <div className="print-hide" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -815,6 +924,12 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                 const isWe = dw === 0 || dw === 6;
                 const hol = isHoliday(dateObj);
                 const isToday = d === todayDay;
+                const dueCards = driverCardsByDueDay.get(d) || [];
+                const dueOn = dueCards[0]?.dueOn;
+                const isPastDue = dueOn && dueOn < toLocalYmd(today);
+                const cardTitle = dueCards.length
+                  ? t('grafik.driverCard.dayTitle', { names: dueCards.map(card => card.name).join(', ') })
+                  : '';
 
                 // Sticky headers must be fully opaque; translucent fills allow
                 // scrolled row values to show through and visually overlap text.
@@ -825,7 +940,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                     className="grafik-day-th"
                     key={d}
                     ref={isToday ? todayRef : null}
-                    title={hol ? hol.name : ''}
+                    title={[hol?.name, cardTitle].filter(Boolean).join('\n')}
                     style={{
                       ...thBase,
                       width: `${DAY_COLUMN_WIDTH}px`,
@@ -844,6 +959,18 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                       justifyContent: 'center',
                       gap: '2px',
                     }}>
+                      <div
+                        role={dueCards.length ? 'img' : undefined}
+                        aria-label={dueCards.length ? cardTitle : undefined}
+                        style={{ height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {dueCards.length > 0 && (
+                          <span style={{ minWidth: '18px', height: '12px', padding: dueCards.length > 1 ? '0 3px' : 0, borderRadius: '5px', background: isPastDue ? '#DC2626' : '#D97706', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}>
+                            <CreditCard size={9} strokeWidth={2.4} aria-hidden="true" />
+                            {dueCards.length > 1 && <span style={{ fontSize: '7px', fontWeight: 800, lineHeight: 1 }}>{dueCards.length}</span>}
+                          </span>
+                        )}
+                      </div>
                       <div style={{
                         width: '20px',
                         height: '20px',
@@ -1048,6 +1175,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             {/* Wiersze podsumowania */}
             {[
               { label: t('grafik.present'), labelColor: '#fff', nameBg: '#1c1c1e', cellBgBase: '#1c1c1e', cellBgWe: '#2c2c2e', cellBgToday: '#007AFF', color: '#fff' },
+              { label: t('grafik.absent'), labelColor: '#B42318', nameBg: '#FFF1F0', cellBgBase: '#FFF7F6', cellBgWe: '#F7ECEB', cellBgToday: '#FFE4E1', color: '#D92D20',
+                fn: (d) => employees.filter(e => isAbsent(getValue(e, d))).length
+              },
               { label: t('grafik.totalHours'), labelColor: '#248A3D', nameBg: '#f2f2f7', cellBgBase: '#f2f2f7', cellBgWe: '#e8e8ed', cellBgToday: '#e7f8ec', color: '#248A3D',
                 fn: (d) => { const t = employees.reduce((s, e) => s + parseHours(getValue(e, d)), 0); return formatTotalHours(t); }
               }

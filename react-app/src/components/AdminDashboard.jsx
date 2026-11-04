@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, CreditCard, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
 import { toastError, toastSuccess } from '../lib/toast';
 import { useAuth } from '../context/AuthContext';
 import { VEHICLES, vehicleEndColumn } from '../lib/vehicles';
-import { archiveAdminUser, getAdminKioskDevices, getAdminUserModulePermissions, pruneUserSessions, renameAdminKioskDevice, revokeAdminKioskDevice, revokeUserSession, saveAdminUserModulePermissions, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
+import { archiveAdminUser, getAdminKioskDevices, getAdminUserModulePermissions, pruneUserSessions, renameAdminKioskDevice, revokeAdminKioskDevice, revokeUserSession, saveAdminUserModulePermissions, saveDriverCardSettings, updateAdminUserProfile, upsertAppSetting } from '../lib/adminRpc';
 import { getLogsPage } from '../lib/logsRpc';
 import {
   getAdminEmployeesData,
@@ -1039,13 +1039,25 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
   const [defaultStart, setDefaultStart] = useState(employee?.default_start || '7');
   const [defaultEnd, setDefaultEnd] = useState(employee?.default_end || '15');
   const [active, setActive] = useState(employee?.active !== false);
+  const [driverCardRequired, setDriverCardRequired] = useState(Boolean(employee?.driver_card_required));
+  const [driverCardLastDownloadedOn, setDriverCardLastDownloadedOn] = useState(employee?.driver_card_last_downloaded_on || '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ id: employee?.id, name: name.trim(), group_name: groupName, contract_type: contractType, default_start: defaultStart, default_end: defaultEnd, active });
+    await onSave({
+      id: employee?.id,
+      name: name.trim(),
+      group_name: groupName,
+      contract_type: contractType,
+      default_start: defaultStart,
+      default_end: defaultEnd,
+      active,
+      driver_card_required: driverCardRequired,
+      driver_card_last_downloaded_on: driverCardLastDownloadedOn,
+    });
     setSaving(false);
   };
 
@@ -1099,6 +1111,53 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
             {t('admin.activeThisMonth')}
           </label>
 
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
+            <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
+              {t('admin.driverCard.title')}
+            </legend>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: driverCardRequired ? '12px' : 0 }}>
+              <CreditCard size={18} style={{ color: driverCardRequired ? '#B45309' : 'var(--text-tertiary)', flexShrink: 0 }} aria-hidden="true" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 650, color: 'var(--text-primary)' }}>{t('admin.driverCard.usesCard')}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', lineHeight: 1.35 }}>{t('admin.driverCard.hint')}</div>
+              </div>
+              <div role="radiogroup" aria-label={t('admin.driverCard.usesCard')} style={{ display: 'inline-flex', padding: '2px', borderRadius: '9px', background: 'rgba(0,0,0,0.06)' }}>
+                {[false, true].map(value => (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    role="radio"
+                    aria-checked={driverCardRequired === value}
+                    onClick={() => setDriverCardRequired(value)}
+                    style={{
+                      minWidth: '44px', minHeight: '34px', padding: '6px 10px', border: 0, borderRadius: '7px', cursor: 'pointer',
+                      background: driverCardRequired === value ? 'var(--bg-card-solid)' : 'transparent',
+                      color: driverCardRequired === value ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                      boxShadow: driverCardRequired === value ? 'var(--shadow-sm)' : 'none', fontSize: '12px', fontWeight: 700,
+                    }}
+                  >
+                    {value ? t('common.yes') : t('common.no')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {driverCardRequired && (
+              <label style={{ display: 'block' }}>
+                <span style={LABEL_STYLE}>{t('admin.driverCard.lastDownload')}</span>
+                <input
+                  className="ap-input"
+                  type="date"
+                  max={todayKey()}
+                  value={driverCardLastDownloadedOn}
+                  onChange={event => setDriverCardLastDownloadedOn(event.target.value)}
+                />
+                <span style={{ display: 'block', marginTop: '6px', fontSize: '11px', lineHeight: 1.35, color: driverCardLastDownloadedOn ? 'var(--text-tertiary)' : '#B45309' }}>
+                  {driverCardLastDownloadedOn ? t('admin.driverCard.reminderHint') : t('admin.driverCard.missingDate')}
+                </span>
+              </label>
+            )}
+          </fieldset>
+
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : t('common.save')}</button>
             {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? t('admin.confirmRemoveFromMonth') : t('admin.removeFromMonth')}</button>}
@@ -1140,9 +1199,11 @@ function EmployeesSection() {
         () => getAdminEmployeesData(sessionToken, cur.year, cur.month),
         { label: t('admin.employees') }
       );
-      setAllEmployees(data?.employees || []);
+      const employees = data?.employees || [];
+      const employeeById = new Map(employees.map(employee => [employee.id, employee]));
+      setAllEmployees(employees);
       setGroups(data?.groups || []);
-      setRoster(data?.roster || []);
+      setRoster((data?.roster || []).map(employee => ({ ...employeeById.get(employee.id), ...employee })));
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -1153,7 +1214,7 @@ function EmployeesSection() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active }) => {
+  const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active, driver_card_required, driver_card_last_downloaded_on }) => {
     const maxOrder = allEmployees.length > 0 ? Math.max(...allEmployees.map(e => e.sort_order || 0)) : 0;
     const sort = id ? (roster.find(r => r.id === id)?.sort_order ?? 0) : maxOrder + 1;
     const { data, error } = await supabase.rpc('admin_save_employee', {
@@ -1171,6 +1232,19 @@ function EmployeesSection() {
     });
     if (error || data?.error) {
       toastError(t('admin.errSaveEmployee') + ' ' + (error?.message || data.error));
+      return;
+    }
+    try {
+      await saveDriverCardSettings(
+        sessionToken,
+        data?.id || id,
+        driver_card_required,
+        driver_card_last_downloaded_on
+      );
+    } catch (driverCardError) {
+      toastError(t('admin.errSaveEmployee') + ' ' + driverCardError.message);
+      setModal(null);
+      fetchAll();
       return;
     }
     setModal(null);
@@ -1268,6 +1342,11 @@ function EmployeesSection() {
                     {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>{t('admin.inactive')}</span>}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: emp.contract_type === 'UoP' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.12)', color: emp.contract_type === 'UoP' ? '#007AFF' : '#CC6600' }}>{emp.contract_type}</span>
+                  {emp.driver_card_required && (
+                    <span title={t('admin.driverCard.enabled')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, padding: '3px 7px', borderRadius: '6px', background: 'rgba(245,158,11,0.12)', color: '#B45309' }}>
+                      <CreditCard size={12} aria-hidden="true" /> {t('admin.driverCard.short')}
+                    </span>
+                  )}
                   <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{emp.default_start}–{emp.default_end}</span>
                 </div>
               ))}

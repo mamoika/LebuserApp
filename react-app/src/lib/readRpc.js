@@ -32,6 +32,12 @@ export function getWorkScheduleAccess(sessionToken) {
   });
 }
 
+export function getDriverCardReminders(sessionToken) {
+  return callReadRpc('get_driver_card_reminders', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getTimelineWeek(sessionToken, dateFrom, dateTo, year, month) {
   return callReadRpc('get_timeline_week', {
     p_session_token: sessionToken,

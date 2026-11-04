@@ -110,6 +110,21 @@ export function rejectWorkTime(sessionToken, reportId, note) {
   });
 }
 
+export function saveDriverCardSettings(sessionToken, employeeId, required, lastDownloadedOn) {
+  return callAdminRpc(sessionToken, 'admin_save_driver_card_settings', {
+    p_employee_id: employeeId,
+    p_required: Boolean(required),
+    p_last_downloaded_on: lastDownloadedOn || null,
+  });
+}
+
+export function markDriverCardDownloaded(sessionToken, employeeId, downloadedOn) {
+  return callAdminRpc(sessionToken, 'mark_driver_card_downloaded', {
+    p_employee_id: employeeId,
+    p_downloaded_on: downloadedOn || null,
+  });
+}
+
 export function archiveAdminUser(sessionToken, userId, archive = true) {
   return callAdminRpc(sessionToken, 'admin_archive_user', {
     p_user_id: userId,
