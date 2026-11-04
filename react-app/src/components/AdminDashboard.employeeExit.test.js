@@ -6,14 +6,13 @@ const dashboard = await readFile(new URL('./AdminDashboard.jsx', import.meta.url
 const pl = JSON.parse(await readFile(new URL('../i18n/locales/pl.json', import.meta.url), 'utf8'));
 const de = JSON.parse(await readFile(new URL('../i18n/locales/de.json', import.meta.url), 'utf8'));
 
-test('employee editor exposes separate monthly removal and employment ending actions', () => {
-  assert.match(dashboard, /onRemoveFromMonth/);
-  assert.match(dashboard, /onEndEmployment/);
-  assert.match(dashboard, /admin_end_employee_from_month/);
-  assert.equal(pl.admin.removeFromMonth, 'Nie pracuje w tym miesiącu');
-  assert.equal(pl.admin.endEmploymentFromMonth, 'Zakończył pracę od tego miesiąca');
-  assert.ok(de.admin.removeFromMonth);
-  assert.ok(de.admin.endEmploymentFromMonth);
+test('employee editor uses one monthly checkbox and exact employment dates without duplicate action cards', () => {
+  assert.match(dashboard, /t\('admin\.monthSchedule'/);
+  assert.match(dashboard, /checked=\{active\}/);
+  assert.match(dashboard, /t\('admin\.employmentPeriod'\)/);
+  assert.doesNotMatch(dashboard, /onRemoveFromMonth|onEndEmployment|employmentAction/);
+  assert.equal(pl.admin.inactiveThisMonthHint, 'Ukrywa tylko w tym miesiącu. Nie kończy zatrudnienia.');
+  assert.ok(de.admin.inactiveThisMonthHint);
 });
 
 test('driver card settings are limited to the drivers group and former employees can return', () => {
