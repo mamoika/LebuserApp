@@ -7958,7 +7958,7 @@ button.laundry-metric:focus-visible {
   justify-content:center;
 }
 .work-schedule-settings {
-  width:min(100%, 980px);
+  width:min(100%, 1440px);
 }
 .work-schedule-settings-tabs {
   display:flex;
@@ -7997,6 +7997,116 @@ button.laundry-metric:focus-visible {
 }
 .work-schedule-settings-content {
   min-width:0;
+}
+.employee-groups-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:16px;
+  align-items:start;
+}
+.employee-groups-layout.has-zd2 {
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+}
+.employee-groups-column {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.employee-group-card {
+  min-width:0;
+  overflow:hidden;
+  border-radius:11px;
+  box-shadow:var(--shadow-sm);
+}
+.employee-group-header {
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 12px;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.employee-group-count {
+  min-width:24px;
+  min-height:20px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 7px;
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:999px;
+  background:rgba(255,255,255,.16);
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+}
+.employee-group-list {
+  overflow:hidden;
+  border:1px solid;
+  border-top:0;
+  border-radius:0 0 11px 11px;
+  background:var(--bg-card);
+}
+.employee-group-row {
+  width:100%;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 12px;
+  border:0;
+  border-top:1px solid var(--border);
+  background:var(--bg-card);
+  color:var(--text-primary);
+  font-family:var(--font);
+  text-align:left;
+  cursor:pointer;
+  transition:background .15s ease, opacity .15s ease;
+}
+.employee-group-row:first-child { border-top:0; }
+.employee-group-row:hover { background:var(--accent-light); }
+.employee-group-row:focus-visible {
+  position:relative;
+  z-index:1;
+  outline:3px solid rgba(0,122,255,.28);
+  outline-offset:-3px;
+}
+.employee-group-row.is-inactive { opacity:.48; }
+.employee-group-person { min-width:0; flex:1; display:flex; align-items:baseline; gap:6px; }
+.employee-group-name { overflow:hidden; font-size:13px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.employee-group-inactive { flex-shrink:0; color:var(--text-tertiary); font-size:10px; }
+.employee-contract-badge {
+  flex-shrink:0;
+  padding:2px 7px;
+  border-radius:6px;
+  font-size:11px;
+  font-weight:700;
+}
+.employee-contract-badge.is-uop { background:rgba(0,122,255,.1); color:#007AFF; }
+.employee-contract-badge.is-other { background:rgba(255,149,0,.12); color:#B85E00; }
+.employee-driver-card-badge {
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 7px;
+  border-radius:6px;
+  background:rgba(245,158,11,.12);
+  color:#B45309;
+  font-size:10px;
+  font-weight:750;
+}
+.employee-group-hours {
+  min-width:64px;
+  flex-shrink:0;
+  color:var(--text-tertiary);
+  font-size:11px;
+  font-variant-numeric:tabular-nums;
+  text-align:right;
 }
 
 /* ── Magazyn: strefy, kartony, asortyment i historia ruchów ── */
@@ -9268,4 +9378,7 @@ button.laundry-metric:focus-visible {
     grid-template-columns:repeat(3,minmax(0,1fr));
   }
   .work-schedule-settings-tabs button { min-height:42px; padding:8px 6px; font-size:11px; }
+}
+@media(max-width:980px) {
+  .employee-groups-layout.has-zd2 { grid-template-columns:minmax(0,1fr); }
 }

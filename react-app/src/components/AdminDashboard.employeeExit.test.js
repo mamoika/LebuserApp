@@ -53,3 +53,12 @@ test('employee ending during the selected month is shown as a former employee', 
   assert.equal(pl.admin.lastWorkedOn, 'ostatni dzień pracy: {{date}}');
   assert.ok(de.admin.lastWorkedOn);
 });
+
+test('employee groups use a responsive two-column layout with ZD 2 on the right', () => {
+  assert.match(dashboard, /const isZd2Group/);
+  assert.match(dashboard, /employee-groups-layout/);
+  assert.match(dashboard, /employee-groups-zd2/);
+  assert.match(dashboard, /otherEmployeeGroups\.map\(renderEmployeeGroup\)/);
+  assert.equal(pl.admin.groupEmployeeCount, '{{count}} osób w grupie');
+  assert.ok(de.admin.groupEmployeeCount);
+});

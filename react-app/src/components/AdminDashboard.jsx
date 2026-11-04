@@ -1030,6 +1030,7 @@ function RolesSection() {
 
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 const isDriversGroup = (groupName) => String(groupName || '').trim().toLocaleUpperCase('pl-PL') === 'KIEROWCY';
+const isZd2Group = (groupName) => /^ZD\s*2$/i.test(String(groupName || '').trim());
 const formatEmployeeDate = (value) => {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
@@ -1468,6 +1469,39 @@ function EmployeesSection() {
     .filter(({ members }) => members.length > 0);
   const extraGroups = [...new Set(roster.map(e => e.group_name))].filter(name => !groups.find(g => g.name === name));
   extraGroups.forEach(name => groupedEmps.push({ g: name, color: '#455a64', members: roster.filter(e => e.group_name === name) }));
+  const zd2Group = groupedEmps.find(({ g }) => isZd2Group(g));
+  const otherEmployeeGroups = groupedEmps.filter(({ g }) => !isZd2Group(g));
+
+  const renderEmployeeGroup = ({ g, color, members }) => (
+    <section key={g} className="employee-group-card" aria-labelledby={`employee-group-${g.replace(/\s+/g, '-').toLowerCase()}`}>
+      <div className="employee-group-header" style={{ background: color }}>
+        <span id={`employee-group-${g.replace(/\s+/g, '-').toLowerCase()}`}>{g}</span>
+        <span className="employee-group-count" aria-label={t('admin.groupEmployeeCount', { count: members.length })}>{members.length}</span>
+      </div>
+      <div className="employee-group-list" style={{ borderColor: `${color}40` }}>
+        {members.map((employee) => (
+          <button
+            key={employee.id}
+            type="button"
+            className={`employee-group-row ${employee.active ? '' : 'is-inactive'}`}
+            onClick={() => setModal(employee)}
+          >
+            <span className="employee-group-person">
+              <span className="employee-group-name">{employee.name}</span>
+              {!employee.active && <span className="employee-group-inactive">{t('admin.inactive')}</span>}
+            </span>
+            <span className={`employee-contract-badge ${employee.contract_type === 'UoP' ? 'is-uop' : 'is-other'}`}>{employee.contract_type}</span>
+            {employee.driver_card_required && isDriversGroup(employee.group_name) && (
+              <span title={t('admin.driverCard.enabled')} className="employee-driver-card-badge">
+                <CreditCard size={12} aria-hidden="true" /> {t('admin.driverCard.short')}
+              </span>
+            )}
+            <span className="employee-group-hours">{employee.default_start}–{employee.default_end}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 
   return (
     <div>
@@ -1540,30 +1574,16 @@ function EmployeesSection() {
         </div>
       )}
 
-      {groupedEmps.map(({ g, color, members }) => {
-        return (
-          <div key={g} style={{ marginBottom: '12px' }}>
-            <div style={{ background: color, color: '#fff', fontWeight: 700, fontSize: '12px', padding: '6px 12px', borderRadius: '8px 8px 0 0' }}>{g}</div>
-            <div style={{ border: `1px solid ${color}40`, borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-              {members.map((emp, i) => (
-                <div key={emp.id} onClick={() => setModal(emp)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor: 'pointer', opacity: emp.active ? 1 : 0.45 }}>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: '14px' }}>{emp.name}</span>
-                    {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>{t('admin.inactive')}</span>}
-                  </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: emp.contract_type === 'UoP' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.12)', color: emp.contract_type === 'UoP' ? '#007AFF' : '#CC6600' }}>{emp.contract_type}</span>
-                  {emp.driver_card_required && isDriversGroup(emp.group_name) && (
-                    <span title={t('admin.driverCard.enabled')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, padding: '3px 7px', borderRadius: '6px', background: 'rgba(245,158,11,0.12)', color: '#B45309' }}>
-                      <CreditCard size={12} aria-hidden="true" /> {t('admin.driverCard.short')}
-                    </span>
-                  )}
-                  <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{emp.default_start}–{emp.default_end}</span>
-                </div>
-              ))}
-            </div>
+      <div className={`employee-groups-layout ${zd2Group && otherEmployeeGroups.length > 0 ? 'has-zd2' : ''}`}>
+        <div className="employee-groups-column employee-groups-secondary">
+          {otherEmployeeGroups.map(renderEmployeeGroup)}
+        </div>
+        {zd2Group && (
+          <div className="employee-groups-column employee-groups-zd2">
+            {renderEmployeeGroup(zd2Group)}
           </div>
-        );
-      })}
+        )}
+      </div>
 
       {(modal === 'new' || (modal && typeof modal === 'object')) && (
         <EmployeeModal

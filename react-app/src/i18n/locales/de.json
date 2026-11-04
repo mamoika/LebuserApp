@@ -2073,6 +2073,7 @@
     "errRestoreEmployment": "Fehler bei der Wiedereinstellung:",
     "errAddToMonth": "Fehler beim Hinzufügen zum Monat:",
     "employeesInMonth": "Mitarbeiter — {{count}} im Monat",
+    "groupEmployeeCount": "{{count}} Personen in der Gruppe",
     "addExisting": "+ Vorhanden",
     "addNew": "+ Neu",
     "addToMonth": "Zu {{month}} hinzufügen (außerhalb der Besetzung):",
