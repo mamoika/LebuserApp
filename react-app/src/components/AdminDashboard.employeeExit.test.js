@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const dashboard = await readFile(new URL('./AdminDashboard.jsx', import.meta.url), 'utf8');
+const pl = JSON.parse(await readFile(new URL('../i18n/locales/pl.json', import.meta.url), 'utf8'));
+const de = JSON.parse(await readFile(new URL('../i18n/locales/de.json', import.meta.url), 'utf8'));
+
+test('employee editor exposes separate monthly removal and employment ending actions', () => {
+  assert.match(dashboard, /onRemoveFromMonth/);
+  assert.match(dashboard, /onEndEmployment/);
+  assert.match(dashboard, /admin_end_employee_from_month/);
+  assert.equal(pl.admin.removeFromMonth, 'Nie pracuje w tym miesiącu');
+  assert.equal(pl.admin.endEmploymentFromMonth, 'Zakończył pracę od tego miesiąca');
+  assert.ok(de.admin.removeFromMonth);
+  assert.ok(de.admin.endEmploymentFromMonth);
+});

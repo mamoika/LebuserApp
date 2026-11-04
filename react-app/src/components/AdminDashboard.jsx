@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, CreditCard, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, ArrowRight, CalendarMinus2, CheckCircle2, Clock3, CreditCard, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, UserX, WashingMachine, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
@@ -1030,7 +1030,7 @@ function RolesSection() {
 
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 
-function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth }) {
+function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth, onEndEmployment }) {
   const { t } = useTranslation();
   const isNew = !employee;
   const [name, setName] = useState(employee?.name || '');
@@ -1042,7 +1042,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
   const [driverCardRequired, setDriverCardRequired] = useState(Boolean(employee?.driver_card_required));
   const [driverCardLastDownloadedOn, setDriverCardLastDownloadedOn] = useState(employee?.driver_card_last_downloaded_on || '');
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [employmentAction, setEmploymentAction] = useState(null);
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -1061,10 +1061,11 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
     setSaving(false);
   };
 
-  const handleDelete = async () => {
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+  const handleEmploymentAction = async () => {
+    if (!employmentAction) return;
     setSaving(true);
-    await onRemoveFromMonth(employee.id);
+    if (employmentAction === 'month') await onRemoveFromMonth(employee.id);
+    else await onEndEmployment(employee.id);
     setSaving(false);
   };
 
@@ -1158,9 +1159,62 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
             )}
           </fieldset>
 
+          {!isNew && (
+            <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
+              <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
+                {t('admin.employmentActions')}
+              </legend>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEmploymentAction(current => current === 'month' ? null : 'month')}
+                  aria-expanded={employmentAction === 'month'}
+                  style={{ minHeight: '58px', width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', textAlign: 'left', border: employmentAction === 'month' ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: '10px', background: employmentAction === 'month' ? 'rgba(10,132,255,0.08)' : 'var(--bg-card-solid)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  <span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '9px', background: 'rgba(10,132,255,0.1)', color: 'var(--accent)' }}>
+                    <CalendarMinus2 size={17} aria-hidden="true" />
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: '13px', fontWeight: 750 }}>{t('admin.removeFromMonth')}</span>
+                    <span style={{ display: 'block', marginTop: '3px', fontSize: '11px', lineHeight: 1.35, color: 'var(--text-tertiary)' }}>{t('admin.removeFromMonthHint', { month: monthLabel })}</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEmploymentAction(current => current === 'end' ? null : 'end')}
+                  aria-expanded={employmentAction === 'end'}
+                  style={{ minHeight: '58px', width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', textAlign: 'left', border: employmentAction === 'end' ? '1px solid rgba(194,65,53,0.6)' : '1px solid var(--border)', borderRadius: '10px', background: employmentAction === 'end' ? 'rgba(255,59,48,0.08)' : 'var(--bg-card-solid)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  <span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '9px', background: 'rgba(255,59,48,0.11)', color: '#C24135' }}>
+                    <UserX size={17} aria-hidden="true" />
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: '13px', fontWeight: 750, color: '#A52F27' }}>{t('admin.endEmploymentFromMonth')}</span>
+                    <span style={{ display: 'block', marginTop: '3px', fontSize: '11px', lineHeight: 1.35, color: 'var(--text-tertiary)' }}>{t('admin.endEmploymentHint', { month: monthLabel })}</span>
+                  </span>
+                </button>
+              </div>
+
+              {employmentAction && (
+                <div role="alert" style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: employmentAction === 'end' ? 'rgba(255,59,48,0.08)' : 'rgba(10,132,255,0.08)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1.4, color: employmentAction === 'end' ? '#A52F27' : 'var(--text-primary)' }}>
+                    {employmentAction === 'end' ? t('admin.confirmEndEmployment', { month: monthLabel }) : t('admin.confirmRemoveFromMonth', { month: monthLabel })}
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '11px', lineHeight: 1.35, color: 'var(--text-tertiary)' }}>{t('admin.employmentHistoryKept')}</div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    <button type="button" className={`ap-btn ${employmentAction === 'end' ? 'ap-btn-danger' : 'ap-btn-primary'}`} onClick={handleEmploymentAction} disabled={saving} style={{ flex: 1 }}>
+                      {saving ? t('common.saving') : t('common.confirm')}
+                    </button>
+                    <button type="button" className="ap-btn ap-btn-secondary" onClick={() => setEmploymentAction(null)} disabled={saving} style={{ flex: 1 }}>{t('common.cancel')}</button>
+                  </div>
+                </div>
+              )}
+            </fieldset>
+          )}
+
           <div className="ap-btn-group">
             <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : t('common.save')}</button>
-            {!isNew && <button className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={saving}>{confirmDelete ? t('admin.confirmRemoveFromMonth') : t('admin.removeFromMonth')}</button>}
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
@@ -1286,11 +1340,30 @@ function EmployeesSection() {
     fetchAll();
   };
 
+  const handleEndEmployment = async (id) => {
+    const { data, error } = await supabase.rpc('admin_end_employee_from_month', {
+      p_session_token: sessionToken,
+      p_employee_id: id,
+      p_year: cur.year,
+      p_month: cur.month,
+    });
+    if (error || data?.error) {
+      toastError(t('admin.errEndEmployment') + ' ' + (error?.message || data.error));
+      return;
+    }
+    setModal(null);
+    fetchAll();
+  };
+
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('common.loading')}</div>;
   if (error) return <DataError onRetry={fetchAll} error={error} />;
 
   const rosterIds = new Set(roster.map(r => r.id));
-  const notInMonth = allEmployees.filter(e => !rosterIds.has(e.id));
+  const selectedMonthStart = `${cur.year}-${String(cur.month).padStart(2, '0')}-01`;
+  const notInMonth = allEmployees.filter(e => (
+    !rosterIds.has(e.id)
+    && (!e.employment_ended_on || e.employment_ended_on > selectedMonthStart)
+  ));
 
   const groupedEmps = groups.map(g => ({ g: g.name, color: g.color, members: roster.filter(e => e.group_name === g.name) }))
     .filter(({ members }) => members.length > 0);
@@ -1363,6 +1436,7 @@ function EmployeesSection() {
           onClose={() => setModal(null)}
           onSave={handleSave}
           onRemoveFromMonth={handleRemoveFromMonth}
+          onEndEmployment={handleEndEmployment}
         />
       )}
     </div>
