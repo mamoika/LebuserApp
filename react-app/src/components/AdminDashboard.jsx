@@ -1029,10 +1029,12 @@ function RolesSection() {
 }
 
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
+const isDriversGroup = (groupName) => String(groupName || '').trim().toLocaleUpperCase('pl-PL') === 'KIEROWCY';
 
-function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth, onEndEmployment }) {
+function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth, onEndEmployment, onRehire }) {
   const { t } = useTranslation();
   const isNew = !employee;
+  const isRehire = Boolean(employee?.__rehire);
   const [name, setName] = useState(employee?.name || '');
   const [groupName, setGroupName] = useState(employee?.group_name || (groups[0]?.name || ''));
   const [contractType, setContractType] = useState(employee?.contract_type || 'UoP');
@@ -1043,11 +1045,12 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
   const [driverCardLastDownloadedOn, setDriverCardLastDownloadedOn] = useState(employee?.driver_card_last_downloaded_on || '');
   const [saving, setSaving] = useState(false);
   const [employmentAction, setEmploymentAction] = useState(null);
+  const driverGroupSelected = isDriversGroup(groupName);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({
+    const payload = {
       id: employee?.id,
       name: name.trim(),
       group_name: groupName,
@@ -1055,9 +1058,11 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
       default_start: defaultStart,
       default_end: defaultEnd,
       active,
-      driver_card_required: driverCardRequired,
+      driver_card_required: driverGroupSelected && driverCardRequired,
       driver_card_last_downloaded_on: driverCardLastDownloadedOn,
-    });
+    };
+    if (isRehire) await onRehire(payload);
+    else await onSave(payload);
     setSaving(false);
   };
 
@@ -1078,7 +1083,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `linear-gradient(145deg, ${grpColor}, ${grpColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newEmployee') : t('admin.editEmployee')}</div>
+            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{isNew ? t('admin.newEmployee') : isRehire ? t('admin.restoreEmployee') : t('admin.editEmployee')}</div>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '18px' }}>{t('admin.employeeMonthHint', { month: monthLabel })}</div>
 
@@ -1107,12 +1112,19 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
             </div>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
-            {t('admin.activeThisMonth')}
-          </label>
+          {isRehire ? (
+            <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '18px', padding: '10px 12px', border: '1px solid rgba(52,199,89,0.28)', borderRadius: '10px', background: 'rgba(52,199,89,0.08)' }}>
+              <CheckCircle2 size={18} style={{ color: '#248A3D', flexShrink: 0, marginTop: '1px' }} aria-hidden="true" />
+              <span style={{ fontSize: '12px', lineHeight: 1.4, color: 'var(--text-secondary)' }}>{t('admin.restoreEmployeeHint', { month: monthLabel })}</span>
+            </div>
+          ) : (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, marginBottom: '18px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+              {t('admin.activeThisMonth')}
+            </label>
+          )}
 
-          <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
+          {driverGroupSelected && <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
             <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
               {t('admin.driverCard.title')}
             </legend>
@@ -1157,9 +1169,9 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
                 </span>
               </label>
             )}
-          </fieldset>
+          </fieldset>}
 
-          {!isNew && (
+          {!isNew && !isRehire && (
             <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
               <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
                 {t('admin.employmentActions')}
@@ -1214,7 +1226,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
           )}
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : t('common.save')}</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : isRehire ? t('admin.restoreFromMonth') : t('common.save')}</button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
@@ -1293,7 +1305,9 @@ function EmployeesSection() {
         sessionToken,
         data?.id || id,
         driver_card_required,
-        driver_card_last_downloaded_on
+        driver_card_last_downloaded_on,
+        cur.year,
+        cur.month
       );
     } catch (driverCardError) {
       toastError(t('admin.errSaveEmployee') + ' ' + driverCardError.message);
@@ -1355,6 +1369,39 @@ function EmployeesSection() {
     fetchAll();
   };
 
+  const handleRehire = async ({ id, group_name, default_start, default_end, driver_card_required, driver_card_last_downloaded_on }) => {
+    const maxOrder = roster.length > 0 ? Math.max(...roster.map(employee => employee.sort_order || 0)) : 0;
+    const { data, error } = await supabase.rpc('admin_rehire_employee_from_month', {
+      p_session_token: sessionToken,
+      p_employee_id: id,
+      p_year: cur.year,
+      p_month: cur.month,
+      p_group_name: group_name,
+      p_default_start: default_start,
+      p_default_end: default_end,
+      p_sort_order: maxOrder + 1,
+    });
+    if (error || data?.error) {
+      toastError(t('admin.errRestoreEmployment') + ' ' + (error?.message || data.error));
+      return;
+    }
+    try {
+      await saveDriverCardSettings(
+        sessionToken,
+        id,
+        driver_card_required,
+        driver_card_last_downloaded_on,
+        cur.year,
+        cur.month
+      );
+    } catch (driverCardError) {
+      toastError(t('admin.errSaveEmployee') + ' ' + driverCardError.message);
+    }
+    setModal(null);
+    setShowAdd(false);
+    fetchAll();
+  };
+
   if (loading) return <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '12px 0' }}>{t('common.loading')}</div>;
   if (error) return <DataError onRetry={fetchAll} error={error} />;
 
@@ -1363,6 +1410,11 @@ function EmployeesSection() {
   const notInMonth = allEmployees.filter(e => (
     !rosterIds.has(e.id)
     && (!e.employment_ended_on || e.employment_ended_on > selectedMonthStart)
+  ));
+  const endedBeforeMonth = allEmployees.filter(e => (
+    !rosterIds.has(e.id)
+    && e.employment_ended_on
+    && e.employment_ended_on <= selectedMonthStart
   ));
 
   const groupedEmps = groups.map(g => ({ g: g.name, color: g.color, members: roster.filter(e => e.group_name === g.name) }))
@@ -1382,7 +1434,7 @@ function EmployeesSection() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.employeesInMonth', { count: roster.filter(e => e.active).length })}</div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {notInMonth.length > 0 && (
+          {(notInMonth.length > 0 || endedBeforeMonth.length > 0) && (
             <button onClick={() => setShowAdd(s => !s)} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addExisting')}</button>
           )}
           <button onClick={() => setModal('new')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t('admin.addNew')}</button>
@@ -1400,6 +1452,23 @@ function EmployeesSection() {
               <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700 }}>{t('admin.addSmall')}</span>
             </div>
           ))}
+          {endedBeforeMonth.length > 0 && (
+            <>
+              <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 750, color: 'var(--text-tertiary)', background: 'var(--bg-secondary)', borderTop: notInMonth.length > 0 ? '1px solid var(--border)' : 0 }}>{t('admin.formerEmployees')}</div>
+              {endedBeforeMonth.map((employee, index) => (
+                <button
+                  key={employee.id}
+                  type="button"
+                  onClick={() => setModal({ ...employee, __rehire: true })}
+                  style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', border: 0, borderTop: index > 0 ? '1px solid var(--border)' : 0, background: 'var(--bg-card)', color: 'var(--text-primary)', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{employee.name}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('admin.endedFrom', { date: employee.employment_ended_on })}</span>
+                  <span style={{ fontSize: '12px', color: '#248A3D', fontWeight: 750 }}>{t('admin.restoreSmall')}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -1415,7 +1484,7 @@ function EmployeesSection() {
                     {!emp.active && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '6px' }}>{t('admin.inactive')}</span>}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: emp.contract_type === 'UoP' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.12)', color: emp.contract_type === 'UoP' ? '#007AFF' : '#CC6600' }}>{emp.contract_type}</span>
-                  {emp.driver_card_required && (
+                  {emp.driver_card_required && isDriversGroup(emp.group_name) && (
                     <span title={t('admin.driverCard.enabled')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, padding: '3px 7px', borderRadius: '6px', background: 'rgba(245,158,11,0.12)', color: '#B45309' }}>
                       <CreditCard size={12} aria-hidden="true" /> {t('admin.driverCard.short')}
                     </span>
@@ -1437,6 +1506,7 @@ function EmployeesSection() {
           onSave={handleSave}
           onRemoveFromMonth={handleRemoveFromMonth}
           onEndEmployment={handleEndEmployment}
+          onRehire={handleRehire}
         />
       )}
     </div>

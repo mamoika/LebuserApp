@@ -110,11 +110,13 @@ export function rejectWorkTime(sessionToken, reportId, note) {
   });
 }
 
-export function saveDriverCardSettings(sessionToken, employeeId, required, lastDownloadedOn) {
-  return callAdminRpc(sessionToken, 'admin_save_driver_card_settings', {
+export function saveDriverCardSettings(sessionToken, employeeId, required, lastDownloadedOn, year, month) {
+  return callAdminRpc(sessionToken, 'admin_save_driver_card_settings_for_month', {
     p_employee_id: employeeId,
     p_required: Boolean(required),
     p_last_downloaded_on: lastDownloadedOn || null,
+    p_year: year,
+    p_month: month,
   });
 }
 

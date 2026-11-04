@@ -15,3 +15,12 @@ test('employee editor exposes separate monthly removal and employment ending act
   assert.ok(de.admin.removeFromMonth);
   assert.ok(de.admin.endEmploymentFromMonth);
 });
+
+test('driver card settings are limited to the drivers group and former employees can return', () => {
+  assert.match(dashboard, /const isDriversGroup/);
+  assert.match(dashboard, /driverGroupSelected && <fieldset/);
+  assert.match(dashboard, /admin_rehire_employee_from_month/);
+  assert.match(dashboard, /employee_employment_events|restoreEmployeeHint/);
+  assert.equal(pl.admin.restoreFromMonth, 'Przywróć od tego miesiąca');
+  assert.ok(de.admin.restoreFromMonth);
+});
