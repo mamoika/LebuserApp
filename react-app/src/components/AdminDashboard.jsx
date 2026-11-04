@@ -1031,7 +1031,7 @@ function RolesSection() {
 const CONTRACT_TYPES = ['UoP', 'UZ', 'UoD', 'B2B'];
 const isDriversGroup = (groupName) => String(groupName || '').trim().toLocaleUpperCase('pl-PL') === 'KIEROWCY';
 
-function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemoveFromMonth, onEndEmployment, onRehire }) {
+function EmployeeModal({ employee, groups, monthLabel, monthStart, onClose, onSave, onRemoveFromMonth, onEndEmployment, onRehire }) {
   const { t } = useTranslation();
   const isNew = !employee;
   const isRehire = Boolean(employee?.__rehire);
@@ -1041,14 +1041,25 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
   const [defaultStart, setDefaultStart] = useState(employee?.default_start || '7');
   const [defaultEnd, setDefaultEnd] = useState(employee?.default_end || '15');
   const [active, setActive] = useState(employee?.active !== false);
+  const [employmentStartedOn, setEmploymentStartedOn] = useState(isRehire ? monthStart : (employee?.employment_started_on || todayKey()));
+  const [currentlyEmployed, setCurrentlyEmployed] = useState(isRehire || !employee?.employment_last_working_on);
+  const [employmentLastWorkingOn, setEmploymentLastWorkingOn] = useState(isRehire ? '' : (employee?.employment_last_working_on || ''));
   const [driverCardRequired, setDriverCardRequired] = useState(Boolean(employee?.driver_card_required));
   const [driverCardLastDownloadedOn, setDriverCardLastDownloadedOn] = useState(employee?.driver_card_last_downloaded_on || '');
   const [saving, setSaving] = useState(false);
   const [employmentAction, setEmploymentAction] = useState(null);
   const driverGroupSelected = isDriversGroup(groupName);
+  const employmentDatesValid = Boolean(
+    employmentStartedOn
+    && (currentlyEmployed || (
+      employmentLastWorkingOn
+      && employmentLastWorkingOn >= employmentStartedOn
+      && employmentLastWorkingOn <= todayKey()
+    ))
+  );
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !employmentDatesValid) return;
     setSaving(true);
     const payload = {
       id: employee?.id,
@@ -1058,6 +1069,9 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
       default_start: defaultStart,
       default_end: defaultEnd,
       active,
+      employment_started_on: employmentStartedOn,
+      currently_employed: currentlyEmployed,
+      employment_last_working_on: currentlyEmployed ? null : employmentLastWorkingOn,
       driver_card_required: driverGroupSelected && driverCardRequired,
       driver_card_last_downloaded_on: driverCardLastDownloadedOn,
     };
@@ -1111,6 +1125,42 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
               <input className="ap-input" value={defaultEnd} onChange={e => setDefaultEnd(e.target.value)} placeholder="15" />
             </div>
           </div>
+
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', margin: '0 0 18px', background: 'var(--bg-secondary)' }}>
+            <legend style={{ padding: '0 6px', fontSize: '12px', fontWeight: 750, color: 'var(--text-primary)' }}>
+              {t('admin.employmentPeriod')}
+            </legend>
+            <div style={{ display: 'grid', gridTemplateColumns: currentlyEmployed ? '1fr' : '1fr 1fr', gap: '10px' }}>
+              <label style={{ display: 'block' }}>
+                <span style={LABEL_STYLE}>{t('admin.employedSince')}</span>
+                <input className="ap-input" type="date" value={employmentStartedOn} onChange={event => setEmploymentStartedOn(event.target.value)} />
+              </label>
+              {!currentlyEmployed && (
+                <label style={{ display: 'block' }}>
+                  <span style={LABEL_STYLE}>{t('admin.lastWorkingDay')}</span>
+                  <input className="ap-input" type="date" min={employmentStartedOn || undefined} max={todayKey()} value={employmentLastWorkingOn} onChange={event => setEmploymentLastWorkingOn(event.target.value)} />
+                </label>
+              )}
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', marginTop: '8px', fontSize: '13px', fontWeight: 650, cursor: isRehire ? 'default' : 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={currentlyEmployed}
+                disabled={isRehire}
+                onChange={event => setCurrentlyEmployed(event.target.checked)}
+                style={{ width: '18px', height: '18px' }}
+              />
+              <span>
+                <span style={{ display: 'block', color: currentlyEmployed ? '#248A3D' : 'var(--text-primary)' }}>{t('admin.currentlyEmployed')}</span>
+                <span style={{ display: 'block', marginTop: '2px', fontSize: '11px', fontWeight: 400, lineHeight: 1.35, color: 'var(--text-tertiary)' }}>
+                  {currentlyEmployed ? t('admin.currentlyEmployedHint') : t('admin.endedEmploymentHint')}
+                </span>
+              </span>
+            </label>
+            {!employmentDatesValid && (
+              <div role="alert" style={{ marginTop: '6px', fontSize: '11px', lineHeight: 1.35, color: '#A52F27' }}>{t('admin.invalidEmploymentDates')}</div>
+            )}
+          </fieldset>
 
           {isRehire ? (
             <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '18px', padding: '10px 12px', border: '1px solid rgba(52,199,89,0.28)', borderRadius: '10px', background: 'rgba(52,199,89,0.08)' }}>
@@ -1226,7 +1276,7 @@ function EmployeeModal({ employee, groups, monthLabel, onClose, onSave, onRemove
           )}
 
           <div className="ap-btn-group">
-            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>{saving ? t('common.saving') : isRehire ? t('admin.restoreFromMonth') : t('common.save')}</button>
+            <button className="ap-btn ap-btn-primary" onClick={handleSave} disabled={saving || !name.trim() || !employmentDatesValid}>{saving ? t('common.saving') : isRehire ? t('admin.restoreFromMonth') : t('common.save')}</button>
             <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
           </div>
         </div>
@@ -1280,7 +1330,18 @@ function EmployeesSection() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active, driver_card_required, driver_card_last_downloaded_on }) => {
+  const saveEmploymentProfile = async (employeeId, employmentStartedOn, currentlyEmployed, employmentLastWorkingOn) => {
+    const { data, error } = await supabase.rpc('admin_save_employee_employment_profile', {
+      p_session_token: sessionToken,
+      p_employee_id: employeeId,
+      p_started_on: employmentStartedOn,
+      p_currently_employed: currentlyEmployed,
+      p_last_working_on: employmentLastWorkingOn || null,
+    });
+    if (error || data?.error) throw new Error(error?.message || data.error);
+  };
+
+  const handleSave = async ({ id, name, group_name, contract_type, default_start, default_end, active, employment_started_on, currently_employed, employment_last_working_on, driver_card_required, driver_card_last_downloaded_on }) => {
     const maxOrder = allEmployees.length > 0 ? Math.max(...allEmployees.map(e => e.sort_order || 0)) : 0;
     const sort = id ? (roster.find(r => r.id === id)?.sort_order ?? 0) : maxOrder + 1;
     const { data, error } = await supabase.rpc('admin_save_employee', {
@@ -1300,10 +1361,17 @@ function EmployeesSection() {
       toastError(t('admin.errSaveEmployee') + ' ' + (error?.message || data.error));
       return;
     }
+    const savedEmployeeId = data?.id || id;
     try {
+      await saveEmploymentProfile(
+        savedEmployeeId,
+        employment_started_on,
+        currently_employed,
+        employment_last_working_on
+      );
       await saveDriverCardSettings(
         sessionToken,
-        data?.id || id,
+        savedEmployeeId,
         driver_card_required,
         driver_card_last_downloaded_on,
         cur.year,
@@ -1369,7 +1437,7 @@ function EmployeesSection() {
     fetchAll();
   };
 
-  const handleRehire = async ({ id, group_name, default_start, default_end, driver_card_required, driver_card_last_downloaded_on }) => {
+  const handleRehire = async ({ id, group_name, default_start, default_end, employment_started_on, currently_employed, employment_last_working_on, driver_card_required, driver_card_last_downloaded_on }) => {
     const maxOrder = roster.length > 0 ? Math.max(...roster.map(employee => employee.sort_order || 0)) : 0;
     const { data, error } = await supabase.rpc('admin_rehire_employee_from_month', {
       p_session_token: sessionToken,
@@ -1386,6 +1454,12 @@ function EmployeesSection() {
       return;
     }
     try {
+      await saveEmploymentProfile(
+        id,
+        employment_started_on,
+        currently_employed,
+        employment_last_working_on
+      );
       await saveDriverCardSettings(
         sessionToken,
         id,
@@ -1502,6 +1576,7 @@ function EmployeesSection() {
           employee={modal === 'new' ? null : modal}
           groups={groups}
           monthLabel={monthLabel}
+          monthStart={selectedMonthStart}
           onClose={() => setModal(null)}
           onSave={handleSave}
           onRemoveFromMonth={handleRemoveFromMonth}

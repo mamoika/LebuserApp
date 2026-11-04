@@ -24,3 +24,12 @@ test('driver card settings are limited to the drivers group and former employees
   assert.equal(pl.admin.restoreFromMonth, 'Przywróć od tego miesiąca');
   assert.ok(de.admin.restoreFromMonth);
 });
+
+test('employee profile captures an exact employment period', () => {
+  assert.match(dashboard, /employmentStartedOn/);
+  assert.match(dashboard, /currentlyEmployed/);
+  assert.match(dashboard, /employmentLastWorkingOn/);
+  assert.match(dashboard, /admin_save_employee_employment_profile/);
+  assert.equal(pl.admin.employedSince, 'Zatrudniony od');
+  assert.equal(pl.admin.lastWorkingDay, 'Ostatni dzień pracy');
+});

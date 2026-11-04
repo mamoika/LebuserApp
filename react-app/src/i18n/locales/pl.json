@@ -1036,6 +1036,7 @@
     }
   },
   "grafik": {
+    "outsideEmploymentPeriod": "Ten dzień jest poza okresem zatrudnienia pracownika.",
     "loading": "Ładowanie grafiku…",
     "saveError": "Nie udało się zapisać grafiku",
     "prev": "Poprzedni",
@@ -2046,6 +2047,13 @@
     "start": "Start",
     "end": "Koniec",
     "activeThisMonth": "Aktywny w tym miesiącu",
+    "employmentPeriod": "Okres zatrudnienia",
+    "employedSince": "Zatrudniony od",
+    "currentlyEmployed": "Pracuje obecnie",
+    "currentlyEmployedHint": "Brak daty końca — pracownik pozostaje w kolejnych grafikach.",
+    "lastWorkingDay": "Ostatni dzień pracy",
+    "endedEmploymentHint": "Po tym dniu obecność będzie zablokowana, a w następnym miesiącu pracownik zniknie z grafiku.",
+    "invalidEmploymentDates": "Podaj poprawny okres zatrudnienia. Data końca nie może być wcześniejsza niż początek ani późniejsza niż dzisiaj.",
     "driverCard": {
       "title": "Karta kierowcy",
       "usesCard": "Czy pracownik korzysta z karty kierowcy?",

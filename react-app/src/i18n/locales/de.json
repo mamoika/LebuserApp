@@ -1036,6 +1036,7 @@
     }
   },
   "grafik": {
+    "outsideEmploymentPeriod": "Dieser Tag liegt außerhalb des Beschäftigungszeitraums.",
     "loading": "Arbeitsplan wird geladen…",
     "saveError": "Arbeitsplan konnte nicht gespeichert werden",
     "prev": "Vorheriger",
@@ -2046,6 +2047,13 @@
     "start": "Start",
     "end": "Ende",
     "activeThisMonth": "In diesem Monat aktiv",
+    "employmentPeriod": "Beschäftigungszeitraum",
+    "employedSince": "Beschäftigt seit",
+    "currentlyEmployed": "Derzeit beschäftigt",
+    "currentlyEmployedHint": "Kein Enddatum — die Person bleibt in den folgenden Dienstplänen.",
+    "lastWorkingDay": "Letzter Arbeitstag",
+    "endedEmploymentHint": "Nach diesem Tag sind Anwesenheitseinträge gesperrt; im Folgemonat verschwindet die Person aus dem Dienstplan.",
+    "invalidEmploymentDates": "Bitte einen gültigen Beschäftigungszeitraum angeben. Das Enddatum darf weder vor dem Beginn noch nach heute liegen.",
     "driverCard": {
       "title": "Fahrerkarte",
       "usesCard": "Nutzt der Mitarbeiter eine Fahrerkarte?",

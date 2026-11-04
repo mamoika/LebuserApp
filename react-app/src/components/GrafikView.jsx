@@ -493,6 +493,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const [workTimeEvents, setWorkTimeEvents] = useState([]);
   const [driverCards, setDriverCards] = useState([]);
   const [driverCardHistory, setDriverCardHistory] = useState([]);
+  const [employmentPeriods, setEmploymentPeriods] = useState([]);
   const [driverCardHistoryOpen, setDriverCardHistoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
@@ -531,6 +532,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       setGroupData(data?.groups || []);
       setWorkTimeReports(data?.work_time_reports || []);
       setWorkTimeEvents(data?.work_time_events || []);
+      setEmploymentPeriods(data?.employment_periods || []);
       setDriverCards(driverCardData?.cards || []);
       setDriverCardHistory(driverCardData?.history || []);
       const map = {};
@@ -637,20 +639,43 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     [driverCards]
   );
 
+  const employmentPeriodsByEmployee = useMemo(() => {
+    const grouped = new Map();
+    employmentPeriods.forEach(period => {
+      const list = grouped.get(period.employee_id) || [];
+      list.push(period);
+      grouped.set(period.employee_id, list);
+    });
+    return grouped;
+  }, [employmentPeriods]);
+
+  const isEmploymentDay = useCallback((employeeId, day) => {
+    const dateKey = toLocalYmd(new Date(year, month - 1, day));
+    return (employmentPeriodsByEmployee.get(employeeId) || []).some(period => (
+      period.started_on <= dateKey && (!period.ended_on || period.ended_on >= dateKey)
+    ));
+  }, [employmentPeriodsByEmployee, year, month]);
+
   const getDefaultValue = useCallback((emp, day) => {
+    if (!emp || !isEmploymentDay(emp.id, day)) return '';
     const dateObj = new Date(year, month - 1, day);
     const dw = dateObj.getDay();
     const isWe = dw === 0 || dw === 6;
     const isHol = isHoliday(dateObj);
     return (isWe || isHol) ? 'W' : 'I';
-  }, [year, month]);
+  }, [year, month, isEmploymentDay]);
 
   const getValue = useCallback((emp, day) => {
+    if (!emp || !isEmploymentDay(emp.id, day)) return '';
     const key = `${emp.id}_${day}`;
     return entries[key] !== undefined ? entries[key] : getDefaultValue(emp, day);
-  }, [entries, getDefaultValue]);
+  }, [entries, getDefaultValue, isEmploymentDay]);
 
   const saveCell = async (empId, day, raw) => {
+    if (!isEmploymentDay(empId, day)) {
+      toastError(t('grafik.outsideEmploymentPeriod'));
+      return false;
+    }
     const val = raw.trim().toUpperCase() || getDefaultValue(employees.find(e => e.id === empId), day);
     const key = `${empId}_${day}`;
     const previous = entries[key];
@@ -683,6 +708,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     const move = (dEmp, dDay) => {
       const newEmp = Math.max(0, Math.min(allEmps.length - 1, empIdx + dEmp));
       const newDay = Math.max(1, Math.min(daysInMonth, day + dDay));
+      const targetEmployee = allEmps[newEmp];
+      if (!targetEmployee || !isEmploymentDay(targetEmployee.id, newDay)) return;
       setSelectedCell({ empIdx: newEmp, day: newDay });
       e.preventDefault();
     };
@@ -842,10 +869,13 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     && driverCardHistoryByEmployeeDay.has(`${selectedEmployee.id}_${selectedCell.day}`)
   );
   const canConfirmSelectedDriverCard = Boolean(selectedDate && selectedDate <= today);
+  const selectedDateIsEmployed = Boolean(
+    selectedEmployee && selectedCell && isEmploymentDay(selectedEmployee.id, selectedCell.day)
+  );
 
   return (
     <div className="grafik-container grafik-modern-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {canEditWorkSchedule && selectedCell && (
+      {canEditWorkSchedule && selectedCell && selectedDateIsEmployed && (
         <ValuePicker
           key={`${selectedCell.empIdx}-${selectedCell.day}`}
           selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
@@ -1185,7 +1215,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                         const dw = dateObj.getDay();
                         const isWeOrHol = dw === 0 || dw === 6 || !!isHoliday(dateObj);
                         const isToday = d === todayDay;
-                        const val = getValue(emp, d);
+                        const isOutsideEmployment = !isEmploymentDay(emp.id, d);
+                        const val = isOutsideEmployment ? '' : getValue(emp, d);
                         const cs = getCellStyle(val, isWeOrHol);
                         const isSelected = selectedCell?.empIdx === empIdx && selectedCell?.day === d;
                         const driverCardDue = driverCardsByEmployeeDueDay.get(`${emp.id}_${d}`);
@@ -1199,7 +1230,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                         const hasVal = val && String(val).trim();
                         const isPattern = hasVal && cs.pattern;
-                        const cellBg = isPattern
+                        const cellBg = isOutsideEmployment
+                          ? 'repeating-linear-gradient(-45deg,rgba(148,163,184,0.08),rgba(148,163,184,0.08) 3px,rgba(248,250,252,0.75) 3px,rgba(248,250,252,0.75) 8px)'
+                          : isPattern
                           ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
                           : hasVal ? cs.bg
                           : isToday ? '#eff6ff'
@@ -1208,10 +1241,11 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
                         return (
                           <td key={d}
-                            className={`grafik-day-cell${hasVal ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule ? ' grafik-editable-cell' : ''}`}
+                            className={`grafik-day-cell${hasVal || isOutsideEmployment ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule && !isOutsideEmployment ? ' grafik-editable-cell' : ''}`}
                             data-cell={`${empIdx}-${d}`}
-                            title={driverCardCellTitle}
-                            onClick={canEditWorkSchedule ? () => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); } : undefined}
+                            title={isOutsideEmployment ? t('grafik.outsideEmploymentPeriod') : driverCardCellTitle}
+                            aria-disabled={isOutsideEmployment || undefined}
+                            onClick={canEditWorkSchedule && !isOutsideEmployment ? () => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); } : undefined}
                             onDoubleClick={() => {}}
                             style={{
                               background: cellBg,
@@ -1222,18 +1256,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                               borderBottom: '1px solid rgba(0,0,0,0.04)',
                               borderRight: '1px solid rgba(0,0,0,0.04)',
                               boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
-                              cursor: canEditWorkSchedule ? 'pointer' : 'default',
+                              cursor: isOutsideEmployment ? 'not-allowed' : canEditWorkSchedule ? 'pointer' : 'default',
                               padding: 0, width: `${DAY_COLUMN_WIDTH}px`,
                               boxSizing: 'border-box',
                               position: 'relative',
                               verticalAlign: 'middle', overflow: 'hidden'
                             }}>
-                            {val ? (
+                            {isOutsideEmployment ? (
+                              <span aria-hidden="true" style={{ color: 'rgba(100,116,139,0.28)', fontSize: '10px', fontWeight: 600 }}>—</span>
+                            ) : val ? (
                               <div style={{ fontSize: `${cellFontSize(val)}px`, lineHeight: 1.05, wordBreak: 'break-word', padding: '0 1px' }}>
                                 {renderCellValue(val)}
                               </div>
                             ) : null}
-                            {(driverCardRead || driverCardDue) && (
+                            {!isOutsideEmployment && (driverCardRead || driverCardDue) && (
                               <span
                                 className={`grafik-driver-card-cell-marker${driverCardRead ? ' read' : isDriverCardPastDue ? ' overdue' : ' due'}`}
                                 role="img"
