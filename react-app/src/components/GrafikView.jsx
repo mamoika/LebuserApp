@@ -818,15 +818,9 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
   const selectedEmployee = selectedCell ? allEmps[selectedCell.empIdx] : null;
   const selectedDate = selectedCell ? new Date(year, month - 1, selectedCell.day) : null;
-  const selectedDateYmd = selectedDate ? toLocalYmd(selectedDate) : null;
   const selectedDriverCard = selectedEmployee
     ? driverCards.find(card => card.employee_id === selectedEmployee.id)
     : null;
-  const selectedDriverCardReminder = selectedDriverCard ? getDriverCardReminder(selectedDriverCard, today) : null;
-  const shouldAskSelectedDriverCard = Boolean(
-    selectedDriverCard
-    && (!selectedDriverCardReminder?.dueOn || selectedDateYmd >= selectedDriverCardReminder.dueOn)
-  );
   const canConfirmSelectedDriverCard = Boolean(selectedDate && selectedDate <= today);
 
   return (
@@ -837,7 +831,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           selectedValue={allEmps[selectedCell.empIdx] ? getValue(allEmps[selectedCell.empIdx], selectedCell.day) : null}
           onSelect={handlePickerSelect}
           onCancel={() => { setSelectedCell(null); containerRef.current?.focus(); }}
-          showDriverCardQuestion={shouldAskSelectedDriverCard}
+          showDriverCardQuestion={Boolean(selectedDriverCard)}
           canConfirmDriverCard={canConfirmSelectedDriverCard}
         />
       )}
