@@ -113,72 +113,16 @@ function isPresent(value) {
   return v && v !== 'W' && v !== 'UW' && v !== 'L4' && v !== 'NU' && v !== 'NN' && v !== 'I' && v !== 'END' && v !== '';
 }
 
-function DriverCardReminderPanel({ reminders, hasCards, historyCount, onOpenHistory, t, locale }) {
-  if (!hasCards) return null;
-  const hasOverdue = reminders.some(reminder => reminder.state === 'overdue' || reminder.state === 'missing');
-  const statusText = reminder => {
-    if (reminder.state === 'missing') return t('grafik.driverCard.missingDate');
-    if (reminder.daysRemaining < 0) return t('grafik.driverCard.overdueBy', { count: Math.abs(reminder.daysRemaining) });
-    if (reminder.daysRemaining === 0) return t('grafik.driverCard.dueToday');
-    return t('grafik.driverCard.dueIn', { count: reminder.daysRemaining });
-  };
-  const dateText = reminder => reminder.dueOn
-    ? new Date(`${reminder.dueOn}T00:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
-    : null;
-
-  return (
-    <section
-      className="print-hide"
-      aria-labelledby="driver-card-reminders-title"
-      style={{
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 14px',
-        padding: '10px 12px', borderRadius: '12px',
-        border: `1px solid ${hasOverdue ? 'rgba(220,38,38,0.22)' : 'rgba(217,119,6,0.24)'}`,
-        background: hasOverdue ? '#FFF7F7' : '#FFFBEB',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '190px' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: hasOverdue ? 'rgba(220,38,38,0.1)' : 'rgba(245,158,11,0.14)', color: hasOverdue ? '#B42318' : '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <CreditCard size={17} aria-hidden="true" />
-        </div>
-        <div>
-          <div id="driver-card-reminders-title" style={{ fontSize: '12px', fontWeight: 800, color: '#292524' }}>{t('grafik.driverCard.title')}</div>
-          <div style={{ fontSize: '10px', color: '#78716C', marginTop: '2px' }}>{t('grafik.driverCard.subtitle')}</div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap', gap: '7px' }}>
-        {reminders.length === 0 && (
-          <div style={{ alignSelf: 'center', fontSize: '11px', fontWeight: 700, color: '#15803D' }}>
-            {t('grafik.driverCard.noUrgent')}
-          </div>
-        )}
-        {reminders.map(reminder => {
-          const danger = reminder.state === 'overdue' || reminder.state === 'missing';
-          return (
-            <div key={reminder.employee_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minHeight: '36px', padding: '4px 5px 4px 10px', borderRadius: '9px', background: '#fff', border: `1px solid ${danger ? 'rgba(220,38,38,0.16)' : 'rgba(217,119,6,0.18)'}` }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11px', fontWeight: 750, color: '#292524', whiteSpace: 'nowrap' }}>{reminder.name}</div>
-                <div style={{ fontSize: '10px', fontWeight: 650, color: danger ? '#B42318' : '#B45309', whiteSpace: 'nowrap' }}>
-                  {statusText(reminder)}{dateText(reminder) ? ` · ${dateText(reminder)}` : ''}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onOpenHistory}
-        style={{ minHeight: '34px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '9px', border: '1px solid rgba(0,0,0,0.09)', background: '#fff', color: '#44403C', fontSize: '10px', fontWeight: 750, cursor: 'pointer', whiteSpace: 'nowrap' }}
-      >
-        <History size={14} aria-hidden="true" />
-        {t('grafik.driverCard.history')} ({historyCount})
-      </button>
-    </section>
-  );
+function driverCardStatusText(reminder, t) {
+  if (reminder.state === 'missing') return t('grafik.driverCard.missingDate');
+  if (reminder.daysRemaining < 0) return t('grafik.driverCard.overdueBy', { count: Math.abs(reminder.daysRemaining) });
+  if (reminder.daysRemaining === 0) return t('grafik.driverCard.dueToday');
+  return t('grafik.driverCard.dueIn', { count: reminder.daysRemaining });
 }
 
-function DriverCardHistoryDialog({ history, open, onClose, t, locale }) {
+function DriverCardDialog({ schedule, history, open, onClose, t, locale }) {
+  const [activeTab, setActiveTab] = useState('schedule');
+
   useEffect(() => {
     if (!open) return undefined;
     const previousOverflow = document.body.style.overflow;
@@ -193,39 +137,88 @@ function DriverCardHistoryDialog({ history, open, onClose, t, locale }) {
 
   if (!open) return null;
 
+  const formatDate = value => value
+    ? new Date(`${value}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—';
+  const handleTabKeyDown = event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const nextTab = activeTab === 'schedule' ? 'history' : 'schedule';
+    setActiveTab(nextTab);
+    requestAnimationFrame(() => document.getElementById(`driver-card-${nextTab}-tab`)?.focus());
+  };
+
   return (
     <div className="work-time-history-backdrop print-hide" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="work-time-history-dialog" role="dialog" aria-modal="true" aria-labelledby="driver-card-history-title">
+      <section className="work-time-history-dialog driver-card-dialog" role="dialog" aria-modal="true" aria-labelledby="driver-card-dialog-title">
         <header className="work-time-history-header">
-          <div className="work-time-history-icon" style={{ color: '#15803D', background: 'rgba(34,197,94,.12)' }}>
+          <div className="work-time-history-icon" style={{ color: '#B45309', background: 'rgba(245,158,11,.13)' }}>
             <CreditCard size={19} aria-hidden="true" />
           </div>
           <div style={{ flex: 1 }}>
-            <div id="driver-card-history-title" style={{ fontSize: '16px', fontWeight: 800 }}>{t('grafik.driverCard.historyTitle')}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('grafik.driverCard.historyCount', { count: history.length })}</div>
+            <div id="driver-card-dialog-title" style={{ fontSize: '16px', fontWeight: 800 }}>{t('grafik.driverCard.title')}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{t('grafik.driverCard.dialogSubtitle')}</div>
           </div>
           <button type="button" className="work-time-history-close" onClick={onClose} aria-label={t('common.close')} autoFocus><X size={18} /></button>
         </header>
-        <div className="work-time-history-list">
-          {history.length === 0 && <div className="work-time-history-empty">{t('grafik.driverCard.noHistory')}</div>}
-          {history.map(event => (
-            <div className="work-time-history-item" key={event.id || `${event.employee_id}-${event.downloaded_on}`}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                  <span style={{ display: 'inline-grid', placeItems: 'center', width: '22px', height: '22px', borderRadius: '7px', color: '#15803D', background: 'rgba(34,197,94,.12)' }}><CheckCircle2 size={14} aria-hidden="true" /></span>
-                  <strong style={{ fontSize: '12px' }}>{event.name}</strong>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{new Date(`${event.downloaded_on}T00:00:00`).toLocaleDateString(locale)}</span>
-                </div>
-                <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
-                  {t('grafik.driverCard.recordedBy', { name: event.recorded_by_name || '—' })}
-                </div>
-              </div>
-              <div style={{ alignSelf: 'center', fontSize: '10px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap' }}>
-                {event.recorded_at ? new Date(event.recorded_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
-              </div>
-            </div>
-          ))}
+        <div className="driver-card-dialog-tabs" role="tablist" aria-label={t('grafik.driverCard.title')} onKeyDown={handleTabKeyDown}>
+          <button id="driver-card-schedule-tab" type="button" role="tab" aria-controls="driver-card-schedule-panel" aria-selected={activeTab === 'schedule'} tabIndex={activeTab === 'schedule' ? 0 : -1} className={activeTab === 'schedule' ? 'active' : ''} onClick={() => setActiveTab('schedule')}>
+            <CreditCard size={14} aria-hidden="true" /> {t('grafik.driverCard.schedule')} <span>{schedule.length}</span>
+          </button>
+          <button id="driver-card-history-tab" type="button" role="tab" aria-controls="driver-card-history-panel" aria-selected={activeTab === 'history'} tabIndex={activeTab === 'history' ? 0 : -1} className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}>
+            <History size={14} aria-hidden="true" /> {t('grafik.driverCard.history')} <span>{history.length}</span>
+          </button>
         </div>
+        {activeTab === 'schedule' ? (
+          <div id="driver-card-schedule-panel" className="driver-card-schedule-list" role="tabpanel" aria-labelledby="driver-card-schedule-tab">
+            {schedule.length === 0 && <div className="work-time-history-empty">{t('grafik.driverCard.noCards')}</div>}
+            {schedule.map(reminder => {
+              const danger = reminder.state === 'overdue' || reminder.state === 'missing';
+              const warning = reminder.state === 'dueSoon';
+              const statusColor = danger ? '#B42318' : warning ? '#B45309' : '#15803D';
+              return (
+                <div className="driver-card-schedule-row" key={reminder.employee_id}>
+                  <div className="driver-card-schedule-person">
+                    <span className="driver-card-schedule-icon" style={{ color: statusColor, background: `${statusColor}14` }}><CreditCard size={15} aria-hidden="true" /></span>
+                    <strong>{reminder.name}</strong>
+                  </div>
+                  <div className="driver-card-schedule-date">
+                    <span>{t('grafik.driverCard.lastDownload')}</span>
+                    <strong>{formatDate(reminder.last_downloaded_on)}</strong>
+                  </div>
+                  <div className="driver-card-schedule-date">
+                    <span>{t('grafik.driverCard.nextDownload')}</span>
+                    <strong>{formatDate(reminder.dueOn)}</strong>
+                  </div>
+                  <div className="driver-card-schedule-status" style={{ color: statusColor, background: `${statusColor}12` }}>
+                    {driverCardStatusText(reminder, t)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div id="driver-card-history-panel" className="work-time-history-list" role="tabpanel" aria-labelledby="driver-card-history-tab">
+            {history.length === 0 && <div className="work-time-history-empty">{t('grafik.driverCard.noHistory')}</div>}
+            {history.map(event => (
+              <div className="work-time-history-item" key={event.id || `${event.employee_id}-${event.downloaded_on}`}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-grid', placeItems: 'center', width: '22px', height: '22px', borderRadius: '7px', color: '#15803D', background: 'rgba(34,197,94,.12)' }}><CheckCircle2 size={14} aria-hidden="true" /></span>
+                    <strong style={{ fontSize: '12px' }}>{event.name}</strong>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{formatDate(event.downloaded_on)}</span>
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                    {t('grafik.driverCard.recordedBy', { name: event.recorded_by_name || '—' })}
+                  </div>
+                </div>
+                <div style={{ alignSelf: 'center', fontSize: '10px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap' }}>
+                  {event.recorded_at ? new Date(event.recorded_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
@@ -608,14 +601,22 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
   const allEmps = useMemo(() => groups.flatMap(({ members }) => members), [groups]);
 
-  const driverCardReminders = useMemo(() => driverCards
+  const driverCardSchedule = useMemo(() => driverCards
     .map(card => getDriverCardReminder(card, today))
-    .filter(reminder => reminder.state !== 'ok')
     .sort((a, b) => {
       if (a.state === 'missing' && b.state !== 'missing') return -1;
       if (b.state === 'missing' && a.state !== 'missing') return 1;
       return (a.daysRemaining ?? -9999) - (b.daysRemaining ?? -9999);
     }), [driverCards, today]);
+
+  const driverCardReminders = useMemo(
+    () => driverCardSchedule.filter(reminder => reminder.state !== 'ok'),
+    [driverCardSchedule]
+  );
+  const hasCriticalDriverCardReminder = useMemo(
+    () => driverCardReminders.some(reminder => reminder.state === 'overdue' || reminder.state === 'missing'),
+    [driverCardReminders]
+  );
 
   const driverCardsByEmployeeDueDay = useMemo(
     () => groupDriverCardsByEmployeeDueDay(driverCards, year, month),
@@ -838,7 +839,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
 
       <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
       <WorkTimeDecisionHistory events={workTimeEvents} open={historyOpen} onClose={onHistoryClose} />
-      <DriverCardHistoryDialog history={driverCardHistory} open={driverCardHistoryOpen} onClose={() => setDriverCardHistoryOpen(false)} t={t} locale={i18n.language} />
+      <DriverCardDialog schedule={driverCardSchedule} history={driverCardHistory} open={driverCardHistoryOpen} onClose={() => setDriverCardHistoryOpen(false)} t={t} locale={i18n.language} />
 
       {/* Pasek nawigacji i akcji (Apple UI) */}
       <div className="print-hide grafik-month-toolbar" style={{
@@ -862,6 +863,20 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         </div>
 
         <div className="action-buttons grafik-action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            type="button"
+            className={`grafik-driver-card-button${hasCriticalDriverCardReminder ? ' has-critical' : driverCardReminders.length > 0 ? ' has-alerts' : ''}`}
+            onClick={() => setDriverCardHistoryOpen(true)}
+            aria-label={t('grafik.driverCard.openButton', { count: driverCardReminders.length })}
+          >
+            <CreditCard size={16} aria-hidden="true" />
+            <span>{t('grafik.driverCard.title')}</span>
+            {driverCardReminders.length > 0 ? (
+              <strong>{driverCardReminders.length}</strong>
+            ) : (
+              <i className={driverCards.length === 0 ? 'empty' : ''} aria-hidden="true" />
+            )}
+          </button>
           <div className="grafik-month-stats" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '12px' }}>
             <Info size={14} />
             <span>{t('grafik.workdays')} <strong style={{color:'var(--text-primary)'}}>{workingDays}</strong> | {t('grafik.norm')} <strong style={{color:'var(--text-primary)'}}>{norm} h</strong></span>
@@ -874,15 +889,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
           </button>
         </div>
       </div>
-
-      <DriverCardReminderPanel
-        reminders={driverCardReminders}
-        hasCards={driverCards.length > 0}
-        historyCount={driverCardHistory.length}
-        onOpenHistory={() => setDriverCardHistoryOpen(true)}
-        t={t}
-        locale={i18n.language}
-      />
 
       {/* Legenda i Przewodnik UoP / UZ */}
       <div className="print-hide" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

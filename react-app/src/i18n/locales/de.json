@@ -1075,7 +1075,13 @@
       "readQuestion": "Karte ausgelesen?",
       "futureDisabled": "Der Download kann erst an diesem Tag bestätigt werden",
       "dueOnCell": "Kartendownload fällig: {{name}}",
-      "readOnCell": "Karte ausgelesen: {{date}}"
+      "readOnCell": "Karte ausgelesen: {{date}}",
+      "dialogSubtitle": "Nächste Download-Termine und vollständiger Verlauf",
+      "schedule": "Zeitplan",
+      "lastDownload": "Letzter Download",
+      "nextDownload": "Nächster Termin",
+      "noCards": "Noch keine Fahrerkarten eingerichtet.",
+      "openButton": "Fahrerkarten öffnen. Dringende Termine: {{count}}"
     },
     "legend": {
       "W": "Frei",

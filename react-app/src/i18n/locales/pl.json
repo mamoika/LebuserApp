@@ -1075,7 +1075,13 @@
       "readQuestion": "Karta odczytana?",
       "futureDisabled": "Odczyt można potwierdzić dopiero w tym dniu",
       "dueOnCell": "Termin odczytu karty: {{name}}",
-      "readOnCell": "Karta odczytana: {{date}}"
+      "readOnCell": "Karta odczytana: {{date}}",
+      "dialogSubtitle": "Terminy kolejnych odczytów i pełna historia",
+      "schedule": "Harmonogram",
+      "lastDownload": "Ostatni odczyt",
+      "nextDownload": "Kolejny termin",
+      "noCards": "Nie skonfigurowano jeszcze kart kierowców.",
+      "openButton": "Otwórz karty kierowców. Pilne terminy: {{count}}"
     },
     "legend": {
       "W": "Wolne",
