@@ -72,6 +72,27 @@ Decyzja administratora, która uznaje wskazany zakres godzin za obowiązujący z
 **Zdarzenie weryfikacji czasu pracy**:
 Niezmienny fakt opisujący zgłoszenie, zatwierdzenie albo odrzucenie czasu pracy wraz z osobą, czasem i wartościami użytymi w tej czynności.
 
+## Wózki
+
+**Wózek**:
+Fizyczny nośnik pralniczy o trwałym numerze `LEB-#XX`, własnej tarze i jednej bieżącej lokalizacji.
+_Unikaj_: Kosz, paczka prania
+
+**Cykl wózka**:
+Jedno wydanie wózka z pralni, jego pobyt w transporcie lub u klienta oraz późniejszy powrót albo anulowanie.
+_Unikaj_: Historia wózka
+
+**Historia wózka**:
+Chronologiczny, nieusuwalny dziennik zmian lokalizacji i stanu konkretnego wózka, obejmujący czyste pranie, odbiór brudnego, zwolnienie po praniu, pusty transfer oraz korekty.
+_Unikaj_: Bieżący status
+
+**Tara wózka**:
+Masa pustego wózka odejmowana od pomiaru brutto przy przyjęciu brudnego prania. Wartość domyślna wynosi 35 kg, lecz należy do konkretnego wózka.
+
+**Pusty transfer wózka**:
+Dostarczenie do klienta wolnego wózka bez przypisanego czystego prania.
+_Unikaj_: Pusta dostawa
+
 ## Audyt
 
 **Log aktywności**:

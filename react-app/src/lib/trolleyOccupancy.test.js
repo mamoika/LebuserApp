@@ -16,9 +16,17 @@ test('dirty arrival reservations occupy physical trolleys in the laundry fleet',
     trolley_no: '4',
     client_name: 'Długie',
     entry_ids: ['dirty-4'],
-    status: 'dirty_in_laundry',
+    status: 'returning_to_laundry',
+    dirty_received_at: null,
     occupancy_source: 'arrival',
   });
+});
+
+test('finished-course arrival is shown as dirty in the laundry', () => {
+  const occupancy = buildTrolleyOccupancy([], [{
+    trolley_no: '4', client_name: 'Długie', entry_id: 'dirty-4', dirty_received_at: '2026-11-05T12:00:00Z',
+  }]);
+  assert.equal(occupancy.get('4').status, 'dirty_in_laundry');
 });
 
 test('active clean cycle stays authoritative and exposes a collision', () => {

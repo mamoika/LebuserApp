@@ -56,6 +56,17 @@ function normalizeSearch(str) {
     .replace(/\u0142/g, 'l');
 }
 
+function arrivalWeightPreview(value, trolleyCount, tareKg = 35) {
+  const grossKg = parseFloat(String(value ?? '').replace(',', '.'));
+  if (!Number.isFinite(grossKg) || grossKg <= 0) return null;
+  const tareTotalKg = Math.max(0, Number(trolleyCount) || 0) * tareKg;
+  return {
+    grossKg,
+    tareTotalKg,
+    netKg: Math.max(0, grossKg - tareTotalKg),
+  };
+}
+
 function firstClientByRouteOrder(clients, routes) {
   const sortedRoutes = [...routes].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const firstRoute = sortedRoutes.find(r => clients.some(c => c.route_id === r.id));
@@ -651,6 +662,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
 
   if (!isOpen) return null;
 
+  const weightPreview = arrivalWeightPreview(weight, selectedTrolleys.length);
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -691,8 +704,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const trolleyLabel = trolleyData.arrival_trolley_nos || t('entry.trolleyNoneShort');
-      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${laundryTypeLabel(type, t)}${weight ? ', ' + weight + ' kg' : ''}, ${t('entry.trolleys')}: ${trolleyLabel}` });
-      await onAdded?.({ id: newEntryId, clientName, routeId, type, weight, trolleys: trolleyData.trolleys, arrival_trolley_nos: trolleyData.arrival_trolley_nos });
+      await logAction({ sessionToken, action: 'added', clientName, entryId: newEntryId, details: `${laundryTypeLabel(type, t)}${weightPreview ? `, brutto ${weightPreview.grossKg} kg, netto ${weightPreview.netKg} kg` : ''}, ${t('entry.trolleys')}: ${trolleyLabel}` });
+      await onAdded?.({ id: newEntryId, clientName, routeId, type, weight: weightPreview?.netKg ?? null, trolleys: trolleyData.trolleys, arrival_trolley_nos: trolleyData.arrival_trolley_nos });
       onClose();
     } catch (err) {
       toastError(t('entry.errAdding') + ' ' + err.message);
@@ -807,8 +820,15 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
             onChange={setType}
           />
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weightOptional')}</div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.grossWeightOptional')}</div>
           <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
+          {weightPreview && selectedTrolleys.length > 0 && (
+            <div className="live-arrival-weight-preview">
+              <span>{t('entry.grossWeight', { weight: weightPreview.grossKg })}</span>
+              <span>− {t('entry.tareWeight', { weight: weightPreview.tareTotalKg, count: selectedTrolleys.length })}</span>
+              <strong>= {t('entry.netLaundryWeight', { weight: weightPreview.netKg })}</strong>
+            </div>
+          )}
 
           <div className="live-entry-date-grid">
             <div>
@@ -898,11 +918,13 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setEditing(initiallyEditing);
       setClientName(entry.client_name || '');
       setType(entry.type || 'P');
-      setWeight(entry.weight || '');
+      const trolleyState = arrivalTrolleyModeFromEntry(entry);
+      const legacyTare = entry.arrival_tare_kg ?? (trolleyState.numbers.length * 35);
+      const legacyGross = entry.weight ? Number(entry.weight) + Number(legacyTare || 0) : '';
+      setWeight(entry.arrival_gross_kg ?? legacyGross);
       setArrDay(entry.arr_day || 1);
       setPickDay(entry.pick_day || 1);
       setPickWeek(weeksBetween(entry.week_key, entry.pick_week_key));
-      const trolleyState = arrivalTrolleyModeFromEntry(entry);
       setTrolleyMode(trolleyState.mode);
       setSelectedTrolleys(trolleyState.numbers);
       setUrgent(entry.urgent || false);
@@ -942,6 +964,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const canSaveLaundryReceipt = source === 'schedule' && canEdit;
   const receiptEntries = isPickupContext ? pickupEntries : [targetEntry];
   const canChangeClient = contextMode !== 'arr' || isAdmin;
+  const editWeightPreview = arrivalWeightPreview(weight, selectedTrolleys.length);
 
   // Znajdź już zapisaną kartkę dla tego przyjęcia — najpierw po powiązanym wpisie,
   // a w razie braku po kliencie + tygodniu (gdy P i O były na osobnych wpisach).
@@ -1159,7 +1182,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       let updates = {
         client_name: effectiveClientName,
         type: type,
-        weight: weight ? parseFloat(String(weight).replace(',', '.')) : null,
+        weight: editWeightPreview?.netKg ?? null,
         arr_day: parseInt(arrDay),
         pick_day: parseInt(pickDay),
         pick_week_key: pickWeekKey,
@@ -1435,8 +1458,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               includeCurrent
             />
 
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.weight')}</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.grossWeightLabel')}</div>
             <input type="text" className="ap-input" value={weight} onChange={e => setWeight(e.target.value)} style={{ marginBottom: '14px' }} inputMode="decimal" />
+            {editWeightPreview && selectedTrolleys.length > 0 && (
+              <div className="live-arrival-weight-preview">
+                <span>{t('entry.grossWeight', { weight: editWeightPreview.grossKg })}</span>
+                <span>− {t('entry.tareWeight', { weight: editWeightPreview.tareTotalKg, count: selectedTrolleys.length })}</span>
+                <strong>= {t('entry.netLaundryWeight', { weight: editWeightPreview.netKg })}</strong>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div>

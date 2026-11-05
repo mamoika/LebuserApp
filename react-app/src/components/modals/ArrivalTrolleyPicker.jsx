@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getArrivalTrolleyReservations, getLaundryWorkflow } from '../../lib/laundryRpc';
 import { trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
 import './ArrivalTrolleyPicker.css';
 
 const DEFAULT_TROLLEY_COUNT = 25;
@@ -201,12 +202,11 @@ export default function ArrivalTrolleyPicker({
   useBarcodeScanner({
     enabled: mode === 'trolley' && pickerOpen && !disabled,
     onScan: (scannedCode) => {
-      const match = scannedCode.match(/^TRL-(\d+)$/i);
-      if (!match) {
+      const no = parseTrolleyCode(scannedCode);
+      if (!no) {
         setError(t('entry.trolleyScanUnknown', { code: scannedCode }));
         return;
       }
-      const no = match[1];
       if (!trolleyNumbers.includes(no)) {
         setError(t('entry.trolleyInvalid', { max: trolleyCount }));
         return;
@@ -251,7 +251,7 @@ export default function ArrivalTrolleyPicker({
           <span className="live-arrival-trolley-trigger-icon"><ShoppingCart size={19} /></span>
           <span className="live-arrival-trolley-trigger-copy">
             <strong>{selected.length > 0 ? t('entry.trolleySelected', { count: selected.length }) : t('entry.trolleyChoose')}</strong>
-            <small>{selected.length > 0 ? formatTrolleyNos(selected) : t('entry.trolleyChooseHint')}</small>
+            <small>{selected.length > 0 ? selected.map(formatTrolleyCode).join(', ') : t('entry.trolleyChooseHint')}</small>
           </span>
           <ChevronRight size={19} aria-hidden="true" />
         </button>

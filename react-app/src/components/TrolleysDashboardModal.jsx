@@ -1,258 +1,148 @@
-import { X, Archive, Truck, CheckCircle2, CalendarClock, WashingMachine } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Archive, CalendarClock, CheckCircle2, History, MapPin, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getTrolleyHistory } from '../lib/laundryRpc';
+import { formatTrolleyCode } from '../lib/trolleyCodes';
 
-export default function TrolleysDashboardModal({
-  onClose,
-  trolleyCount,
-  activeTrolleyByNo,
-}) {
-  const { t } = useTranslation();
-  const trolleyNumbers = Array.from({ length: trolleyCount }, (_, i) => String(i + 1));
+function daysSince(value) {
+  if (!value) return 0;
+  const then = new Date(value);
+  const today = new Date();
+  if (Number.isNaN(then.getTime())) return 0;
+  then.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((today - then) / 86400000));
+}
 
-  const getDaysAtClient = (active) => {
-    if (!active) return 0;
-    const dateToUse = active.delivered_at || active.packed_at;
-    if (!dateToUse) return 0;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const clientDate = new Date(dateToUse);
-    clientDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = Math.abs(today - clientDate);
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+function trolleyPresentation(active, t) {
+  if (!active) return { label: t('wash.fleet.free'), Icon: CheckCircle2, accent: 'var(--text-quaternary)', background: 'transparent', border: 'rgba(156,163,175,.4)', text: 'var(--text-tertiary)' };
+  if (active.occupancy_source === 'arrival') return { label: active.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.fleet.dirtyAtLaundry'), Icon: active.status === 'returning_to_laundry' ? Truck : WashingMachine, accent: '#AF52DE', background: 'rgba(175,82,222,.04)', border: 'rgba(175,82,222,.18)', text: '#7E22CE' };
+  if (active.status === 'at_client') return { label: t('wash.fleet.left'), Icon: Archive, accent: 'var(--accent-orange)', background: 'rgba(255,149,0,.04)', border: 'rgba(255,149,0,.18)', text: 'var(--accent-orange-text)' };
+  return { label: t('wash.fleet.inUse'), Icon: Truck, accent: 'var(--accent)', background: 'rgba(0,122,255,.03)', border: 'rgba(0,122,255,.16)', text: 'var(--accent)' };
+}
+
+export default function TrolleysDashboardModal({ onClose, sessionToken, trolleyCount, activeTrolleyByNo }) {
+  const { t, i18n } = useTranslation();
+  const [selectedTrolley, setSelectedTrolley] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const trolleyNumbers = Array.from({ length: trolleyCount }, (_, index) => String(index + 1));
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedTrolley || !sessionToken) {
+      setHistory([]);
+      return undefined;
+    }
+    setHistoryLoading(true);
+    setHistoryError('');
+    getTrolleyHistory(sessionToken, selectedTrolley)
+      .then(data => { if (!cancelled) setHistory(data?.events || []); })
+      .catch(error => { if (!cancelled) setHistoryError(error.message || t('wash.fleet.historyError')); })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedTrolley, sessionToken, t]);
+
+  const counts = trolleyNumbers.reduce((result, trolleyNo) => {
+    const active = activeTrolleyByNo.get(trolleyNo);
+    if (!active) result.free += 1;
+    else if (active.occupancy_source === 'arrival') result.dirty += 1;
+    else if (active.status === 'at_client') result.atClient += 1;
+    else result.inUse += 1;
+    return result;
+  }, { free: 0, inUse: 0, dirty: 0, atClient: 0 });
+
+  const formatDate = value => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString(i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
   };
 
-  // Calculate statistics
-  let freeCount = 0;
-  let inUseCount = 0;
-  let atClientCount = 0;
-  let dirtyLaundryCount = 0;
-
-  trolleyNumbers.forEach(tNo => {
-    const active = activeTrolleyByNo.get(tNo);
-    if (!active) {
-      freeCount++;
-    } else if (active.occupancy_source === 'arrival') {
-      dirtyLaundryCount++;
-    } else if (active.status === 'at_client') {
-      atClientCount++;
-    } else {
-      inUseCount++;
-    }
-  });
+  const metric = (color, label) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', flex: 1, minWidth: '130px' }}>
+      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: color }} />
+      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>{label}</span>
+    </div>
+  );
 
   return (
-    <div className="ap-overlay" style={{ display: 'flex', backdropFilter: 'blur(16px)', background: 'rgba(15, 23, 42, 0.45)' }} onClick={onClose}>
-      <div 
-        className="ap-modal" 
-        onClick={e => e.stopPropagation()} 
-        style={{ 
-          maxWidth: '900px', 
-          width: '95vw', 
-          maxHeight: '90vh',
-          background: '#FFFFFF',
-          boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          border: 'none',
-          borderRadius: '24px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'ap-sheet-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both'
-        }}
-      >
-        {/* Apple style drag handle (for decorative purpouses to fit other sheets) */}
-        <div className="ap-handle" style={{ marginTop: '12px', marginBottom: '-8px' }}></div>
-
-        <div className="ap-modal-header" style={{ padding: '24px 32px', borderBottom: '1px solid rgba(229, 231, 235, 0.7)', background: 'rgba(249, 250, 251, 0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="ap-modal-title" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)', textAlign: 'left' }}>{t('wash.fleet.title')}</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px', textAlign: 'left', fontWeight: 500 }}>{t('wash.fleet.subtitle', { count: trolleyCount })}</div>
+    <div className="ap-overlay" style={{ display: 'flex', backdropFilter: 'blur(16px)', background: 'rgba(15,23,42,.45)' }} onClick={onClose}>
+      <div className="ap-modal" onClick={event => event.stopPropagation()} style={{ maxWidth: '980px', width: '95vw', maxHeight: '90vh', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#fff', border: 'none', boxShadow: '0 30px 60px -15px rgba(0,0,0,.3)' }}>
+        <div className="ap-handle" style={{ marginTop: '12px', marginBottom: '-8px' }} />
+        <header className="ap-modal-header" style={{ padding: '24px 32px', borderBottom: '1px solid rgba(229,231,235,.7)', background: 'rgba(249,250,251,.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="ap-modal-title" style={{ fontSize: '22px', fontWeight: 800, textAlign: 'left' }}>{t('wash.fleet.title')}</div>
+            <div style={{ marginTop: '2px', fontSize: '13px', fontWeight: 500, color: 'var(--text-tertiary)' }}>{t('wash.fleet.subtitle', { count: trolleyCount })}</div>
           </div>
-          <button 
-            className="ap-modal-close" 
-            onClick={onClose} 
-            aria-label={t('common.close')}
-            style={{ 
-              background: '#FFFFFF', 
-              border: '1px solid rgba(229, 231, 235, 0.8)', 
-              borderRadius: '50%', 
-              padding: '10px', 
-              cursor: 'pointer', 
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--bg-tertiary)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#FFFFFF';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            <X size={16} color="var(--text-secondary)" />
-          </button>
-        </div>
+          <button type="button" className="ap-modal-close" onClick={onClose} aria-label={t('common.close')}><X size={16} /></button>
+        </header>
 
         <div className="ap-modal-body" style={{ padding: '24px 32px', overflowY: 'auto', background: '#FAFAFC' }}>
-          {/* Quick Stats Bar */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px', 
-            marginBottom: '24px', 
-            background: '#FFFFFF', 
-            padding: '12px 16px', 
-            borderRadius: '16px',
-            border: '1px solid rgba(229, 231, 235, 0.6)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text-quaternary)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.freeCount', { count: freeCount })}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.inUseCount', { count: inUseCount })}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center', borderRight: '1px solid rgba(229, 231, 235, 0.6)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#AF52DE' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.dirtyCount', { count: dirtyLaundryCount })}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-orange)' }}></span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('wash.fleet.leftCount', { count: atClientCount })}</span>
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '22px', padding: '12px 16px', borderRadius: '16px', background: '#fff', border: '1px solid rgba(229,231,235,.6)' }}>
+            {metric('var(--text-quaternary)', t('wash.fleet.freeCount', { count: counts.free }))}
+            {metric('var(--accent)', t('wash.fleet.inUseCount', { count: counts.inUse }))}
+            {metric('#AF52DE', t('wash.fleet.dirtyCount', { count: counts.dirty }))}
+            {metric('var(--accent-orange)', t('wash.fleet.leftCount', { count: counts.atClient }))}
           </div>
 
-          {/* Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '14px' }}>
-            {trolleyNumbers.map(tNo => {
-              const active = activeTrolleyByNo.get(tNo);
-              const isFree = !active;
-              
-              let statusLabel = t('wash.fleet.free');
-              let Icon = CheckCircle2;
-              let client = null;
-              let daysAtClient = null;
-
-              // Color configs
-              let bgColor = '#FFFFFF';
-              let borderColor = 'rgba(229, 231, 235, 0.8)';
-              let accentColor = 'var(--text-quaternary)';
-              let textColor = 'var(--text-tertiary)';
-
-              if (active) {
-                client = active.client_name;
-                if (active.occupancy_source === 'arrival') {
-                  statusLabel = t('wash.fleet.dirtyAtLaundry');
-                  Icon = WashingMachine;
-                  bgColor = 'rgba(175, 82, 222, 0.04)';
-                  borderColor = 'rgba(175, 82, 222, 0.18)';
-                  accentColor = '#AF52DE';
-                  textColor = '#7E22CE';
-                } else if (active.status === 'at_client') {
-                  statusLabel = t('wash.fleet.left');
-                  Icon = Archive;
-                  daysAtClient = getDaysAtClient(active);
-                  bgColor = 'rgba(255, 149, 0, 0.04)';
-                  borderColor = 'rgba(255, 149, 0, 0.18)';
-                  accentColor = 'var(--accent-orange)';
-                  textColor = 'var(--accent-orange-text)';
-                } else if (active.entry_ids?.length > 0) {
-                  statusLabel = t('wash.fleet.inUse');
-                  Icon = Truck;
-                  bgColor = 'rgba(0, 122, 255, 0.03)';
-                  borderColor = 'rgba(0, 122, 255, 0.16)';
-                  accentColor = 'var(--accent)';
-                  textColor = 'var(--accent)';
-                }
-              }
-
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '12px' }}>
+            {trolleyNumbers.map(trolleyNo => {
+              const active = activeTrolleyByNo.get(trolleyNo);
+              const presentation = trolleyPresentation(active, t);
+              const Icon = presentation.Icon;
+              const atClientDays = active?.status === 'at_client' ? daysSince(active.delivered_at || active.entry_delivered_at || active.packed_at) : null;
               return (
-                <div key={tNo} style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: isFree ? `1px dashed rgba(156, 163, 175, 0.4)` : `1px solid ${borderColor}`,
-                  background: isFree ? 'transparent' : bgColor,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: isFree ? 'none' : '0 4px 12px rgba(0,0,0,0.02)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  minHeight: '110px'
-                }}>
-                  {/* Accent side bar */}
-                  {!isFree && (
-                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: accentColor }} />
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: '20px', fontWeight: 800, color: isFree ? 'var(--text-quaternary)' : 'var(--text-primary)', lineHeight: 1 }}>#{tNo}</strong>
-                    <div style={{ 
-                      background: '#FFFFFF', 
-                      padding: '6px', 
-                      borderRadius: '10px',
-                      boxShadow: isFree ? 'none' : '0 2px 6px rgba(0,0,0,0.04)',
-                      border: '1px solid rgba(229, 231, 235, 0.5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Icon size={15} color={isFree ? 'var(--text-quaternary)' : accentColor} />
-                    </div>
+                <button type="button" key={trolleyNo} onClick={() => setSelectedTrolley(trolleyNo)} style={{ minHeight: '118px', padding: '15px', textAlign: 'left', cursor: 'pointer', borderRadius: '16px', border: `1px ${active ? 'solid' : 'dashed'} ${presentation.border}`, background: presentation.background, display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: active ? '0 4px 12px rgba(0,0,0,.025)' : 'none', fontFamily: 'inherit' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <strong style={{ fontSize: '17px', fontWeight: 850, color: active ? 'var(--text-primary)' : 'var(--text-quaternary)' }}>{formatTrolleyCode(trolleyNo)}</strong>
+                    <Icon size={16} color={presentation.accent} />
                   </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: isFree ? 'var(--text-quaternary)' : textColor }}>
-                      {statusLabel}
-                    </div>
-                    {client && (
-                      <div style={{ 
-                        fontSize: '11px', 
-                        color: 'var(--text-secondary)', 
-                        fontWeight: 600, 
-                        lineHeight: 1.3,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '100%'
-                      }} title={client}>
-                        {client}
-                      </div>
-                    )}
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 750, color: presentation.text }}>{presentation.label}</div>
+                    {active?.client_name && <div title={active.client_name} style={{ marginTop: '2px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{active.client_name}</div>}
                   </div>
-
-                  {daysAtClient !== null && (
-                    <div style={{ 
-                      marginTop: 'auto',
-                      paddingTop: '8px',
-                      borderTop: `1px solid rgba(229, 231, 235, 0.6)`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      color: daysAtClient > 5 ? 'var(--accent-red)' : 'var(--text-tertiary)'
-                    }}>
-                      <CalendarClock size={11} color={daysAtClient > 5 ? 'var(--accent-red)' : 'var(--text-quaternary)'} />
-                      {daysAtClient === 0 ? t('wash.fleet.leftToday') :
-                       daysAtClient === 1 ? t('wash.fleet.sinceYesterday') :
-                       t('wash.fleet.daysAtClient', { count: daysAtClient })}
+                  {atClientDays !== null && (
+                    <div style={{ marginTop: 'auto', paddingTop: '7px', borderTop: '1px solid rgba(229,231,235,.65)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 750, color: atClientDays > 5 ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>
+                      <CalendarClock size={11} />
+                      {atClientDays === 0 ? t('wash.fleet.leftToday') : atClientDays === 1 ? t('wash.fleet.sinceYesterday') : t('wash.fleet.daysAtClient', { count: atClientDays })}
                     </div>
                   )}
-                </div>
+                  <span style={{ marginTop: 'auto', fontSize: '10px', fontWeight: 700, color: 'var(--text-quaternary)' }}>{t('wash.fleet.openHistory')}</span>
+                </button>
               );
             })}
           </div>
+
+          {selectedTrolley && (
+            <section style={{ marginTop: '24px', padding: '18px', borderRadius: '18px', background: '#fff', border: '1px solid rgba(229,231,235,.8)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '17px', fontWeight: 800 }}><History size={18} /> {t('wash.fleet.historyTitle', { trolley: formatTrolleyCode(selectedTrolley) })}</div>
+                  <div style={{ marginTop: '3px', fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('wash.fleet.historySubtitle')}</div>
+                </div>
+                <button type="button" className="ap-modal-close" onClick={() => setSelectedTrolley(null)} aria-label={t('common.close')}><X size={15} /></button>
+              </div>
+              {historyLoading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('wash.fleet.historyLoading')}</div>}
+              {historyError && <div className="ap-error">{historyError}</div>}
+              {!historyLoading && !historyError && history.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('wash.fleet.noHistory')}</div>}
+              {!historyLoading && history.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {history.map(event => (
+                    <article key={event.id} style={{ display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: '10px', padding: '11px 0', borderTop: '1px solid rgba(229,231,235,.65)' }}>
+                      <span style={{ width: '10px', height: '10px', marginTop: '5px', borderRadius: '50%', background: event.to_status === 'at_client' ? 'var(--accent-orange)' : event.to_status === 'free_at_laundry' ? 'var(--accent-green)' : 'var(--accent)' }} />
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '13px' }}>{t(`wash.fleet.events.${event.event_type}`, { defaultValue: event.event_type })}</strong>
+                        <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: 'var(--text-secondary)' }}>{formatDate(event.occurred_at)}{event.actor_name ? ` · ${event.actor_name}` : ''}</span>
+                        {(event.client_name || event.location_type) && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--text-tertiary)' }}><MapPin size={12} /> {event.client_name || t(`wash.fleet.locations.${event.location_type}`, { defaultValue: event.location_type })}</span>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
-
-
       </div>
     </div>
   );

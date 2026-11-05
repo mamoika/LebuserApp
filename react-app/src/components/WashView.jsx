@@ -517,8 +517,12 @@ export default function WashView() {
   );
 
   const activeTrolleyByNo = useMemo(() => {
-    return buildTrolleyOccupancy(activeTrolleys, arrivalReservations);
-  }, [activeTrolleys, arrivalReservations]);
+    const enrichedArrivals = arrivalReservations.map(reservation => ({
+      ...reservation,
+      dirty_received_at: entryById.get(reservation.entry_id)?.dirty_received_at || null,
+    }));
+    return buildTrolleyOccupancy(activeTrolleys, enrichedArrivals);
+  }, [activeTrolleys, arrivalReservations, entryById]);
 
   const occupiedTrolleys = useMemo(
     () => [...activeTrolleyByNo.values()].sort((a, b) => (
@@ -986,12 +990,14 @@ export default function WashView() {
           <span>{t('wash.trolley')}</span>
           <strong>{reservation.trolley_no}</strong>
         </div>
-        <span className="laundry-trolley-status tone-partial">{t('wash.fleet.dirtyAtLaundry').toUpperCase()}</span>
+        <span className="laundry-trolley-status tone-partial">
+          {(reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.fleet.dirtyAtLaundry')).toUpperCase()}
+        </span>
       </div>
       <div className="laundry-trolley-client">{reservation.client_name}</div>
       <div className="laundry-trolley-grid">
-        <span>{t('wash.location')}</span><strong>{t('wash.laundry')}</strong>
-        <span>{t('wash.state')}</span><strong>{t('wash.waitingForWashed')}</strong>
+        <span>{t('wash.location')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.locations.vehicle') : t('wash.laundry')}</strong>
+        <span>{t('wash.state')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.waitingForWashed')}</strong>
       </div>
       {reservation.occupancy_conflict && (
         <div className="laundry-warning" style={{ marginTop: '10px' }}>
@@ -1477,6 +1483,7 @@ export default function WashView() {
       {trolleysModalOpen && (
         <TrolleysDashboardModal
           onClose={() => setTrolleysModalOpen(false)}
+          sessionToken={sessionToken}
           trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
         />

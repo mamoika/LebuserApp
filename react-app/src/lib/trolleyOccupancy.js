@@ -56,7 +56,8 @@ export function buildTrolleyOccupancy(trolleys = [], arrivalReservations = []) {
       trolley_no: String(reservation.trolley_no).trim(),
       client_name: reservation.client_name,
       entry_ids: reservation.entry_id ? [reservation.entry_id] : [],
-      status: 'dirty_in_laundry',
+      status: reservation.dirty_received_at ? 'dirty_in_laundry' : 'returning_to_laundry',
+      dirty_received_at: reservation.dirty_received_at || null,
       occupancy_source: 'arrival',
     });
   });

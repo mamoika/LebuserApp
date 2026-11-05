@@ -5,6 +5,7 @@ import { captureError } from '../../../lib/sentry';
 import { getLaundryWorkflow } from '../../../lib/laundryRpc';
 import { daysAtClientLabel, daysSinceDate, describeTrolleyActions } from '../../../lib/tripUiHelpers';
 import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
+import { formatTrolleyCode } from '../../../lib/trolleyCodes';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';
 
@@ -17,7 +18,10 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   const [prompt, setPrompt] = useState(() => ({
     trolleys: deliveryTrolleyChoices(pendingDelivery),
     oldTrolleys: [],
+    emptyTrolleys: [],
   }));
+  const [availableEmptyTrolleys, setAvailableEmptyTrolleys] = useState([]);
+  const [emptyTrolleyToAdd, setEmptyTrolleyToAdd] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +31,15 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       try {
         const wf = await getLaundryWorkflow(sessionToken);
         if (cancelled) return;
+        const occupied = new Set([
+          ...(wf?.trolleys || [])
+            .filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status))
+            .map(cycle => String(cycle.trolley_no)),
+          ...(wf?.arrival_reservations || []).map(reservation => String(reservation.trolley_no)),
+        ]);
+        const free = Array.from({ length: Number(wf?.trolley_count) || 25 }, (_, index) => String(index + 1))
+          .filter(number => !occupied.has(number));
+        setAvailableEmptyTrolleys(free);
         setPrompt(prev => {
           const trolleys = deliveryTrolleyChoices(pendingDelivery, wf?.trolleys || [], prev.trolleys);
           const currentCycleIds = new Set(trolleys.map(trolley => trolley.cycleId));
@@ -38,7 +51,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
               days: daysSinceDate(c.delivered_at || c.packed_at),
               take: prev.oldTrolleys.some(old => old.cycleId === c.id && old.take),
             }));
-          return { trolleys, oldTrolleys };
+          return { trolleys, oldTrolleys, emptyTrolleys: prev.emptyTrolleys.filter(number => free.includes(number)) };
         });
       } catch (error) {
         captureError(error, { feature: 'DeliverPromptSheet.loadOldTrolleys' });
@@ -64,6 +77,15 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     }));
   };
 
+  const addEmptyTrolley = () => {
+    if (!emptyTrolleyToAdd) return;
+    setPrompt(prev => ({
+      ...prev,
+      emptyTrolleys: [...new Set([...prev.emptyTrolleys, emptyTrolleyToAdd])],
+    }));
+    setEmptyTrolleyToAdd('');
+  };
+
   const confirm = async () => {
     if (loadingTrolleys) return;
     const ids = [...new Set(pendingDelivery.map(task => task.entry_id).filter(Boolean))];
@@ -73,11 +95,16 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     ];
     try {
       setBusy(true);
-      const { data, error } = await supabase.rpc('driver_deliver_entries', {
+      const rpcName = prompt.emptyTrolleys.length > 0
+        ? 'driver_deliver_entries_with_empty_trolleys'
+        : 'driver_deliver_entries';
+      const args = {
         p_session_token: sessionToken,
         p_ids: ids,
         p_trolley_actions: actions,
-      });
+      };
+      if (prompt.emptyTrolleys.length > 0) args.p_empty_trolley_nos = prompt.emptyTrolleys;
+      const { data, error } = await supabase.rpc(rpcName, args);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if ((data?.affected ?? 0) !== ids.length) throw new Error(t('course.sheets.delivery.otherDriverError'));
@@ -115,6 +142,28 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           ))}
         </div>
       )}
+      <div style={{ marginTop: '8px', marginBottom: '14px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
+        <label style={pfLabel}>{t('course.sheets.delivery.emptyTrolleys')}</label>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '7px' }}>
+          <select className="ap-input" value={emptyTrolleyToAdd} onChange={event => setEmptyTrolleyToAdd(event.target.value)} style={{ flex: 1 }}>
+            <option value="">{t('course.sheets.delivery.chooseFreeTrolley')}</option>
+            {availableEmptyTrolleys.filter(number => !prompt.emptyTrolleys.includes(number)).map(number => (
+              <option key={number} value={number}>{formatTrolleyCode(number)}</option>
+            ))}
+          </select>
+          <button type="button" className="driver-tool-btn" onClick={addEmptyTrolley} disabled={!emptyTrolleyToAdd}>{t('common.add')}</button>
+        </div>
+        {prompt.emptyTrolleys.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '9px' }}>
+            {prompt.emptyTrolleys.map(number => (
+              <button type="button" key={number} className="driver-tool-btn" onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))}>
+                {formatTrolleyCode(number)} ×
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('course.sheets.delivery.emptyTrolleysHint')}</div>
+      </div>
       <div className="ap-btn-group">
         <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
         <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>

@@ -17,6 +17,25 @@
   }
 }
 
+.live-arrival-weight-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: -4px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 122, 255, 0.16);
+  border-radius: 11px;
+  background: rgba(0, 122, 255, 0.055);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.live-arrival-weight-preview strong {
+  color: var(--accent);
+}
+
 .hero {
   position: relative;
 

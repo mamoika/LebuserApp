@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PackageCheck, X, ScanBarcode, ShoppingCart, Package } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
 
 export default function PackingModal({
   group,
@@ -17,24 +18,14 @@ export default function PackingModal({
   const [isPacking, setIsPacking] = useState(false);
   const [manualTrolley, setManualTrolley] = useState('');
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'no_trolley'
-  // Waga nie była znana przy przyjeździe — trzeba ją wpisać teraz, przy ważeniu na pralni,
-  // zamiast automatycznie dzielić już znane kg na wózki.
-  const needsManualKg = !group?.hasKnownWeight;
-  const [manualKg, setManualKg] = useState({}); // { [trolleyNo|'brak']: '12,5' }
-
-  // Zaznacz całą zawartość pola input po otwarciu, żeby od razu móc wpisać nową wagę
-
-
   useBarcodeScanner({
     enabled: packMode === 'trolley',
     onScan: (scannedCode) => {
-      const match = scannedCode.match(/^TRL-(\d+)$/i);
-      if (!match) {
+      const trolleyNo = parseTrolleyCode(scannedCode);
+      if (!trolleyNo) {
         setError(t('wash.packing.unknownCode', { code: scannedCode }));
         return;
       }
-      
-      const trolleyNo = match[1];
       
       if (!trolleyNumbers.includes(trolleyNo)) {
         setError(t('wash.packing.missingTrolley', { trolley: trolleyNo }));
@@ -80,18 +71,13 @@ export default function PackingModal({
       setError(t('wash.packing.chooseAtLeastOne'));
       return;
     }
-    // Waga jest opcjonalna, gdy nie była znana przy przyjeździe — czasem dowiadujemy się
-    // jej dopiero po fakcie (np. od kierowcy), więc puste pole nie blokuje pakowania.
-    const kgByTrolley = needsManualKg
-      ? Object.fromEntries(trolleysToSend.map(no => [no, parseFloat(String(manualKg[no] ?? '').replace(',', '.')) || 0]))
-      : null;
     setIsPacking(true);
     try {
       if (onPackMulti) {
-        await onPackMulti(group, trolleysToSend, kgByTrolley);
+        await onPackMulti(group, trolleysToSend, null);
       } else {
         // Fallback for safety
-        await onPack(group, trolleysToSend[0], kgByTrolley ? kgByTrolley[trolleysToSend[0]] : group.remainingKg);
+        await onPack(group, trolleysToSend[0], group.remainingKg);
       }
       // onClose is not needed here as WashView handles closing on finish
     } catch (err) {
@@ -121,9 +107,9 @@ export default function PackingModal({
           </div>
 
           <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
-            {needsManualKg
-              ? t('wash.packing.unknownWeightHint', { client: group.clientName })
-              : t('wash.packing.remaining', { client: group.clientName, weight: group.remainingKg })}
+            {group.hasKnownWeight
+              ? t('wash.packing.remaining', { client: group.clientName, weight: group.remainingKg })
+              : t('wash.packing.noWeightRequired', { client: group.clientName })}
           </p>
 
           {error && (
@@ -224,22 +210,12 @@ export default function PackingModal({
                 {scannedTrolleys.length > 0 && (
                   <div style={{ padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                      {t('wash.packing.added', { count: scannedTrolleys.length })}{needsManualKg ? t('wash.packing.kgOptional') : ''}:
+                      {t('wash.packing.added', { count: scannedTrolleys.length })}:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {scannedTrolleys.map(no => (
                         <div key={no} style={{ background: 'var(--bg-card-solid)', padding: '6px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 600, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {no}
-                          {needsManualKg && (
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="kg"
-                              value={manualKg[no] ?? ''}
-                              onChange={e => setManualKg(prev => ({ ...prev, [no]: e.target.value }))}
-                              style={{ width: '52px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
-                            />
-                          )}
+                          {formatTrolleyCode(no)}
                           <button
                             type="button"
                             style={{ background: 'transparent', border: 'none', padding: 0, margin: 0, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}
@@ -270,17 +246,6 @@ export default function PackingModal({
                 <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.4 }}>
                   {t('wash.packing.looseHint')}
                 </p>
-                {needsManualKg && (
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder={t('wash.packing.optionalKg')}
-                    value={manualKg.brak ?? ''}
-                    onChange={e => setManualKg(prev => ({ ...prev, brak: e.target.value }))}
-                    className="ap-input"
-                    style={{ width: '140px', textAlign: 'center', fontWeight: 700 }}
-                  />
-                )}
               </div>
             )}
 

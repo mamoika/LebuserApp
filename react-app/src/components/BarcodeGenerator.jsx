@@ -4,6 +4,7 @@ import { Printer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
+import { formatTrolleyCode } from '../lib/trolleyCodes';
 
 export default function BarcodeGenerator() {
   const { t } = useTranslation();
@@ -31,7 +32,7 @@ export default function BarcodeGenerator() {
 
   if (loading) return <div>{t('common.loading')}</div>;
 
-  const codes = Array.from({ length: trolleyCount }, (_, i) => `TRL-${i + 1}`);
+  const codes = Array.from({ length: trolleyCount }, (_, i) => formatTrolleyCode(i + 1));
 
   return (
     <div>

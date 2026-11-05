@@ -21,6 +21,14 @@ export function getArrivalTrolleyReservations(sessionToken, arrivalDate) {
   });
 }
 
+export function getTrolleyHistory(sessionToken, trolleyNo, limit = 200) {
+  return callLaundryRpc('get_trolley_history', {
+    p_session_token: sessionToken,
+    p_trolley_no: String(trolleyNo),
+    p_limit: limit,
+  });
+}
+
 export function markLaundryWashed(sessionToken, ids, by) {
   return callLaundryRpc('admin_mark_laundry_washed', {
     p_session_token: sessionToken,
