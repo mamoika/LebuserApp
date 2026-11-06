@@ -21,7 +21,6 @@ import {
 import ServiceScheduleBuilder, {
   compactServiceScheduleSummary,
   serviceScheduleDaysSummary,
-  serviceScheduleSummary,
 } from './ServiceScheduleBuilder';
 import {
   effectiveRouteServiceRules,

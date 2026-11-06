@@ -4,6 +4,7 @@ import {
   Archive,
   CheckCircle2,
   Clock3,
+  History,
   Maximize2,
   MoreHorizontal,
   Package,
@@ -124,6 +125,19 @@ function slotToDate(slot) {
 function departureDateOf(entry) {
   if (!entry.pick_day || !entry.pick_week_key) return null;
   return slotToDate(`${entry.pick_week_key}|${entry.pick_day}`);
+}
+
+function arrivalDateOf(entry) {
+  if (!entry?.arr_day || !entry?.week_key) return null;
+  return slotToDate(`${entry.week_key}|${entry.arr_day}`);
+}
+
+function daysBetween(startDate, endDate) {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.max(0, Math.floor((end - start) / 86400000));
 }
 
 function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
@@ -320,6 +334,7 @@ export default function WashView() {
   const [busyKey, setBusyKey] = useState('');
   const [packingGroup, setPackingGroup] = useState(null);
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
+  const [historyTrolley, setHistoryTrolley] = useState(null);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
   const [workFilter, setWorkFilter] = useState('all');
@@ -517,12 +532,19 @@ export default function WashView() {
   );
 
   const activeTrolleyByNo = useMemo(() => {
-    const enrichedArrivals = arrivalReservations.map(reservation => ({
-      ...reservation,
-      dirty_received_at: entryById.get(reservation.entry_id)?.dirty_received_at || null,
-    }));
+    const enrichedArrivals = arrivalReservations.map(reservation => {
+      const entry = entryById.get(reservation.entry_id);
+      return {
+        ...reservation,
+        dirty_received_at: entry?.dirty_received_at || null,
+        picked_up_at: entry?.added_at || null,
+        laundry_origin_date: arrivalDateOf(entry),
+        wash_date: entry ? slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient)) : null,
+        departure_date: entry ? departureDateOf(entry) : null,
+      };
+    });
     return buildTrolleyOccupancy(activeTrolleys, enrichedArrivals);
-  }, [activeTrolleys, arrivalReservations, entryById]);
+  }, [activeTrolleys, arrivalReservations, dailyServiceByClient, entryById, scheduleByRoute]);
 
   const occupiedTrolleys = useMemo(
     () => [...activeTrolleyByNo.values()].sort((a, b) => (
@@ -983,7 +1005,15 @@ export default function WashView() {
     );
   };
 
-  const renderArrivalReservationCard = (reservation) => (
+  const renderArrivalReservationCard = (reservation) => {
+    const occupiedSince = reservation.dirty_received_at || reservation.picked_up_at;
+    const occupiedSinceDate = dateOnly(occupiedSince);
+    const occupiedDays = daysBetween(occupiedSinceDate, operationalYmd());
+    const overdueDays = reservation.wash_date && reservation.wash_date < operationalYmd()
+      ? daysBetween(reservation.wash_date, operationalYmd())
+      : 0;
+
+    return (
     <article key={`arrival:${reservation.trolley_no}`} className="laundry-trolley-card tone-partial">
       <div className="laundry-trolley-top">
         <div>
@@ -996,16 +1026,45 @@ export default function WashView() {
       </div>
       <div className="laundry-trolley-client">{reservation.client_name}</div>
       <div className="laundry-trolley-grid">
+        <span>{t('wash.trolleyBoard.laundryFrom')}</span><strong>{formatDate(reservation.laundry_origin_date)}</strong>
+        {reservation.dirty_received_at ? (
+          <><span>{t('wash.trolleyBoard.receivedAtLaundry')}</span><strong>{fmtDateTime(reservation.dirty_received_at)}</strong></>
+        ) : (
+          <><span>{t('wash.trolleyBoard.pickedUpAt')}</span><strong>{fmtDateTime(reservation.picked_up_at)}</strong></>
+        )}
+        {occupiedSince && (
+          <><span>{t('wash.trolleyBoard.occupiedFor')}</span><strong className="laundry-trolley-age">{occupiedDays === 0 ? t('wash.trolleyBoard.occupiedToday') : t('wash.trolleyBoard.occupiedDays', { count: occupiedDays })}</strong></>
+        )}
+        {reservation.wash_date && <><span>{t('wash.trolleyBoard.plannedWash')}</span><strong>{formatDate(reservation.wash_date)}</strong></>}
+        {reservation.departure_date && <><span>{t('wash.trolleyBoard.plannedDeparture')}</span><strong>{formatDate(reservation.departure_date)}</strong></>}
         <span>{t('wash.location')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.locations.vehicle') : t('wash.laundry')}</strong>
         <span>{t('wash.state')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.waitingForWashed')}</strong>
       </div>
+      {overdueDays > 0 && (
+        <div className="laundry-trolley-overdue" role="status">
+          <Clock3 size={15} />
+          {t('wash.trolleyBoard.overdueDays', { count: overdueDays })}
+        </div>
+      )}
       {reservation.occupancy_conflict && (
         <div className="laundry-warning" style={{ marginTop: '10px' }}>
           {t('wash.occupancyConflict')}
         </div>
       )}
+      <button
+        type="button"
+        className="laundry-history-btn"
+        onClick={() => {
+          setHistoryTrolley(String(reservation.trolley_no));
+          setTrolleysModalOpen(true);
+        }}
+      >
+        <History size={15} />
+        {t('wash.trolleyBoard.showTrolleyHistory')}
+      </button>
     </article>
-  );
+    );
+  };
 
   const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
 
@@ -1239,6 +1298,7 @@ export default function WashView() {
           <div>
             <h2>{t('wash.trolleyBoard.title')}</h2>
             <span>{t('wash.trolleyBoard.summary', { free: freeTrolleyCount, occupied: activeTrolleyByNo.size, total: trolleyCount })}</span>
+            <p className="laundry-live-context">{t('wash.trolleyBoard.liveContext')}</p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {trolleyTab === 'packages' && packageCycles.length > 0 && isAdmin && (
@@ -1268,7 +1328,10 @@ export default function WashView() {
             <button
               type="button"
               className="laundry-header-action"
-              onClick={() => setTrolleysModalOpen(true)}
+              onClick={() => {
+                setHistoryTrolley(null);
+                setTrolleysModalOpen(true);
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1482,10 +1545,14 @@ export default function WashView() {
       
       {trolleysModalOpen && (
         <TrolleysDashboardModal
-          onClose={() => setTrolleysModalOpen(false)}
+          onClose={() => {
+            setTrolleysModalOpen(false);
+            setHistoryTrolley(null);
+          }}
           sessionToken={sessionToken}
           trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
+          initialTrolley={historyTrolley}
         />
       )}
     </div>

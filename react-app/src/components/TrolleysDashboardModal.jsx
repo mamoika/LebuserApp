@@ -21,9 +21,9 @@ function trolleyPresentation(active, t) {
   return { label: t('wash.fleet.inUse'), Icon: Truck, accent: 'var(--accent)', background: 'rgba(0,122,255,.03)', border: 'rgba(0,122,255,.16)', text: 'var(--accent)' };
 }
 
-export default function TrolleysDashboardModal({ onClose, sessionToken, trolleyCount, activeTrolleyByNo }) {
+export default function TrolleysDashboardModal({ onClose, sessionToken, trolleyCount, activeTrolleyByNo, initialTrolley = null }) {
   const { t, i18n } = useTranslation();
-  const [selectedTrolley, setSelectedTrolley] = useState(null);
+  const [selectedTrolley, setSelectedTrolley] = useState(initialTrolley);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
