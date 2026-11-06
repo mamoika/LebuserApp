@@ -538,7 +538,7 @@ export default function WashView() {
         ...reservation,
         dirty_received_at: entry?.dirty_received_at || null,
         picked_up_at: entry?.added_at || null,
-        laundry_origin_date: arrivalDateOf(entry),
+        laundry_origin_date: arrivalDateOf(entry) || dateOnly(entry?.dirty_received_at) || dateOnly(entry?.added_at),
         wash_date: entry ? slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient)) : null,
         departure_date: entry ? departureDateOf(entry) : null,
       };
@@ -1012,6 +1012,7 @@ export default function WashView() {
     const overdueDays = reservation.wash_date && reservation.wash_date < operationalYmd()
       ? daysBetween(reservation.wash_date, operationalYmd())
       : 0;
+    const needsPlanReview = !reservation.wash_date && occupiedDays > 1;
 
     return (
     <article key={`arrival:${reservation.trolley_no}`} className="laundry-trolley-card tone-partial">
@@ -1035,7 +1036,7 @@ export default function WashView() {
         {occupiedSince && (
           <><span>{t('wash.trolleyBoard.occupiedFor')}</span><strong className="laundry-trolley-age">{occupiedDays === 0 ? t('wash.trolleyBoard.occupiedToday') : t('wash.trolleyBoard.occupiedDays', { count: occupiedDays })}</strong></>
         )}
-        {reservation.wash_date && <><span>{t('wash.trolleyBoard.plannedWash')}</span><strong>{formatDate(reservation.wash_date)}</strong></>}
+        <span>{t('wash.trolleyBoard.plannedWash')}</span><strong>{reservation.wash_date ? formatDate(reservation.wash_date) : t('wash.trolleyBoard.missingPlan')}</strong>
         {reservation.departure_date && <><span>{t('wash.trolleyBoard.plannedDeparture')}</span><strong>{formatDate(reservation.departure_date)}</strong></>}
         <span>{t('wash.location')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.locations.vehicle') : t('wash.laundry')}</strong>
         <span>{t('wash.state')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.waitingForWashed')}</strong>
@@ -1044,6 +1045,12 @@ export default function WashView() {
         <div className="laundry-trolley-overdue" role="status">
           <Clock3 size={15} />
           {t('wash.trolleyBoard.overdueDays', { count: overdueDays })}
+        </div>
+      )}
+      {needsPlanReview && (
+        <div className="laundry-trolley-overdue" role="status">
+          <Clock3 size={15} />
+          {t('wash.trolleyBoard.missingPlanWarning', { count: occupiedDays })}
         </div>
       )}
       {reservation.occupancy_conflict && (
