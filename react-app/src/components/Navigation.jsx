@@ -1,22 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  BarChart3,
-  CalendarDays,
-  CalendarRange,
-  ChevronLeft,
-  ChevronRight,
-  CircleDollarSign,
-  ClipboardList,
-  Folder,
-  Map,
-  MapPin,
-  Package,
-  Settings,
-  Truck,
-  WashingMachine,
-} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
@@ -28,28 +12,28 @@ export default function Navigation() {
 
   const navItems = [];
 
-  if (canViewModule('route')) navItems.push({ to: '/route', icon: Truck, label: t('nav.myRoute') });
+  if (canViewModule('route')) navItems.push({ to: '/route', icon: '🚐', label: t('nav.myRoute') });
 
-  if (canViewModule('clients')) navItems.push({ to: '/clients', icon: Folder, label: t('nav.clientsRoutes') });
+  if (canViewModule('clients')) navItems.push({ to: '/clients', icon: '🗂', label: t('nav.clientsRoutes') });
 
   if (canViewModule('route_plan')) {
-    navItems.push({ to: '/route-plan', icon: CalendarRange, label: t('nav.weeklyRoutePlan') });
+    navItems.push({ to: '/route-plan', icon: '🗓️', label: t('nav.weeklyRoutePlan') });
   }
 
-  if (canViewModule('map') || user?.role === 'driver') navItems.push({ to: '/map', icon: Map, label: t('nav.map') });
-  if (canViewModule('schedule')) navItems.push({ to: '/schedule', icon: CalendarDays, label: t('nav.schedule') });
+  if (canViewModule('map') || user?.role === 'driver') navItems.push({ to: '/map', icon: '🗺', label: t('nav.map') });
+  if (canViewModule('schedule')) navItems.push({ to: '/schedule', icon: '📅', label: t('nav.schedule') });
 
-  if (canViewModule('wash')) navItems.push({ to: '/wash', icon: WashingMachine, label: t('nav.wash') });
-  if (canViewModule('warehouse')) navItems.push({ to: '/warehouse', icon: Package, label: t('nav.warehouse') });
+  if (canViewModule('wash')) navItems.push({ to: '/wash', icon: '🧺', label: t('nav.wash') });
+  if (canViewModule('warehouse')) navItems.push({ to: '/warehouse', icon: '📦', label: t('nav.warehouse') });
 
-  if (canViewModule('history')) navItems.push({ to: '/history', icon: ClipboardList, label: t('nav.history') });
+  if (canViewModule('history')) navItems.push({ to: '/history', icon: '📋', label: t('nav.history') });
 
-  if (canViewModule('live_routes')) navItems.push({ to: '/routes', icon: MapPin, label: t('nav.liveRoutes') });
-  if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: BarChart3, label: t('nav.workSchedule') });
-  if (canViewModule('costs')) navItems.push({ to: '/costs', icon: CircleDollarSign, label: t('nav.costs') });
+  if (canViewModule('live_routes')) navItems.push({ to: '/routes', icon: '📍', label: t('nav.liveRoutes') });
+  if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: '📊', label: t('nav.workSchedule') });
+  if (canViewModule('costs')) navItems.push({ to: '/costs', icon: '💰', label: t('nav.costs') });
 
   if (canViewModule('admin')) {
-    navItems.push({ to: '/admin', icon: Settings, label: t('nav.adminPanel') });
+    navItems.push({ to: '/admin', icon: '⚙️', label: t('nav.adminPanel') });
   }
   useEffect(() => {
     const el = scrollerRef.current;
@@ -72,33 +56,87 @@ export default function Navigation() {
   }, [navItems.length]);
 
   return (
-    <div className="app-navigation">
-      <nav ref={scrollerRef} className="app-navigation__scroller">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
+    <div className="app-navigation" style={{ position: 'relative', marginBottom: '20px' }}>
+      <nav
+        ref={scrollerRef}
+        style={{
+          display: 'flex',
+          overflowX: 'auto',
+          gap: '6px',
+          padding: '6px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: '18px',
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+          boxShadow: 'var(--shadow-sm)',
+          flexShrink: 0,
+        }}
+      >
+        {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/' || item.to === '/schedule'}
-            className={({ isActive }) => `app-navigation__item${isActive ? ' is-active' : ''}`}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: isActive ? 'var(--accent)' : 'transparent',
+              color: isActive ? '#fff' : 'var(--text-secondary)',
+              fontFamily: 'var(--font)',
+              fontSize: '13px',
+              fontWeight: isActive ? 700 : 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              textDecoration: 'none',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+              boxShadow: isActive ? '0 3px 10px var(--accent-light)' : 'none',
+              letterSpacing: '-0.1px',
+            })}
           >
-            <span className="app-navigation__icon" aria-hidden="true">
-              <Icon size={18} strokeWidth={1.6} />
-            </span>
-            <span>{item.label}</span>
+            <span style={{ fontSize: '15px', lineHeight: 1 }}>{item.icon}</span>
+            {item.label}
           </NavLink>
-          );
-        })}
+        ))}
       </nav>
       {canScrollLeft && (
-        <div className="app-navigation__fade app-navigation__fade--left" aria-hidden="true">
-          <ChevronLeft size={14} strokeWidth={1.6} />
-        </div>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '28px',
+            borderRadius: '18px 0 0 18px',
+            background: 'linear-gradient(to right, var(--bg-card), transparent)',
+            pointerEvents: 'none',
+          }}
+        />
       )}
       {canScrollRight && (
-        <div className="app-navigation__fade app-navigation__fade--right" aria-hidden="true">
-          <ChevronRight size={14} strokeWidth={1.6} />
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '28px',
+            borderRadius: '0 18px 18px 0',
+            background: 'linear-gradient(to left, var(--bg-card), transparent)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <span style={{ fontSize: '13px', color: 'var(--text-tertiary, var(--text-secondary))', marginRight: '2px' }}>›</span>
         </div>
       )}
     </div>
