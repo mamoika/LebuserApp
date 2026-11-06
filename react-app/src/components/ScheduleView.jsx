@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate } from '../lib/dateUtils';
@@ -446,7 +446,11 @@ export default function ScheduleView() {
         <span className="schedule-tag-content">
           <span className="tag-name">{entry.client_name}</span>
           <span className="schedule-tag-meta" aria-hidden="true">
-            {entry.urgent && <span className="schedule-urgent-emoji">🚩</span>}
+            {entry.urgent && (
+              <span className="schedule-urgent-flag" title={t('schedule.urgent')}>
+                <Flag size={13} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+            )}
             {totalWeight ? <span className="kg-badge">{Number(totalWeight.toFixed(1))} kg</span> : null}
             <span className={`laundry-type-badge ${hasMixedTypes ? 'type-P' : typeBadgeClass}`}>{hasMixedTypes ? groupedTypes.join('/') : entry.type || 'P'}</span>
           </span>
@@ -555,7 +559,7 @@ export default function ScheduleView() {
     : `${formatDate(currentMonday)} – ${formatDate(w2End)}`;
 
   return (
-    <div id="mainView">
+    <div id="mainView" className="schedule-view">
       <div className="week-nav">
         <div className="week-nav-row">
           <button
@@ -620,7 +624,7 @@ export default function ScheduleView() {
           </div>
           {renderGrid(currentMonday, week1Key)}
 
-          <div className="section-heading" id="titleWk2" style={{ marginTop: '28px' }}>
+          <div className="section-heading section-heading--next" id="titleWk2">
             <CalendarDays size={14} aria-hidden="true" />
             {t('schedule.nextWeek')} {formatDate(nextMonday)} – {formatDate(w2End)}
           </div>
