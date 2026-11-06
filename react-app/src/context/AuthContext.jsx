@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import i18n, { SUPPORTED_LANGUAGES } from '../i18n';
+import i18n, { SUPPORTED_LANGUAGES } from '../i18n/index.js';
 import { setSentryUser, clearSentryUser } from '../lib/sentry';
 import { getSessionDeviceInfo } from '../lib/deviceInfo';
 import { MODULE_ACCESS, normalizeModuleAccess } from '../lib/modulePermissions';
@@ -65,11 +65,10 @@ export const AuthProvider = ({ children }) => {
     moduleAccessRef.current = user?.module_access || null;
   }, [user?.module_access]);
 
-  // Po odświeżeniu strony przywróć język z zapisanej sesji (źródło prawdy = baza).
+  // Synchronizuj język z zapisaną sesją (źródło prawdy = baza).
   useEffect(() => {
     applyLanguage(user?.language);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.language]);
 
   // Powiąż błędy w Sentry z zalogowanym użytkownikiem (id konta, login, rola)
   // — żeby od razu wiedzieć, czy coś pękło u kierowcy, czy u admina.

@@ -1,8 +1,8 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import pl from './locales/pl.json';
-import de from './locales/de.json';
+import pl from './locales/pl.json' with { type: 'json' };
+import de from './locales/de.json' with { type: 'json' };
 
 export const SUPPORTED_LANGUAGES = ['pl', 'de'];
 export const LANGUAGE_STORAGE_KEY = 'lebuser_lang';

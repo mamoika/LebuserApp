@@ -5,7 +5,7 @@ import {
 import { routeNamesForTrip } from './tripUiHelpers';
 import { toastError } from './toast';
 import { VEHICLE_LABELS, vehicleEndColumn } from './vehicles';
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 const tr = (key, options) => i18n.t(`course.print.${key}`, options);
 

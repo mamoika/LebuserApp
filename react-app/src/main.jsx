@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
-import i18n from './i18n'
+import i18n from './i18n/index.js'
 import { initSentry, captureError } from './lib/sentry'
 import { setupChunkReload } from './lib/chunkReload'
 

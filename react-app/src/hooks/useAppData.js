@@ -4,7 +4,7 @@ import { getCurrentMonday, formatWeekKey } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { getAppData } from '../lib/appDataRpc';
 import { captureError } from '../lib/sentry';
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 // Ile czekamy na odpowiedź bazy, zanim uznamy zapytanie za zawieszone.
 const FETCH_TIMEOUT_MS = 15000;

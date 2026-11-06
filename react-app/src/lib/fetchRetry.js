@@ -1,7 +1,7 @@
 // Wspólne zabezpieczenie zapytań do Supabase przed zawieszeniem i chwilowymi
 // awariami sieci (darmowy hosting potrafi gubić/spowalniać połączenia).
 // Używane zarówno w useAppData, jak i w Panelu Admina.
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 export const FETCH_TIMEOUT_MS = 15000;
 export const MAX_RETRIES = 2;

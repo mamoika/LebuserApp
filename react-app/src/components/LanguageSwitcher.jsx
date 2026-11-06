@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { SUPPORTED_LANGUAGES } from '../i18n';
+import { SUPPORTED_LANGUAGES } from '../i18n/index.js';
 
 // Mały segmentowany przełącznik PL / DE. Działa przed i po zalogowaniu
 // (setLanguage z AuthContext zapisuje lokalnie, a dla zalogowanego też w bazie).

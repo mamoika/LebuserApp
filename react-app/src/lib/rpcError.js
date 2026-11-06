@@ -2,7 +2,7 @@
 // zerwane połączenie, timeout) — treść zależy od silnika: "Load failed" (Safari),
 // "Failed to fetch" (Chrome), "NetworkError..." (Firefox). To nie jest błąd
 // naszego kodu ani backendu, więc nie pokazujemy tego surowego tekstu userowi.
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 const NETWORK_ERROR_PATTERN = /load failed|failed to fetch|networkerror|network request failed|internet connection appears to be offline/i;
 

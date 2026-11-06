@@ -1,4 +1,4 @@
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 export function getEaster(year) {
   const f = Math.floor,

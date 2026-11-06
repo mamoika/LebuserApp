@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 import { useAppData } from '../hooks/useAppData';
 import DataError from './DataError';
 import { getRouteColorByIndex } from '../lib/visualSystem';
@@ -124,13 +124,14 @@ export default function MapView() {
   const tileUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`;
 
   // Pozycje do FitBounds — uwzględniamy tylko klientów z aktualnie włączonych tras.
-  const visibleClients = clients.filter(c => !hiddenRoutes.has(c.route_id) && c.lat && c.lng);
-  const positionsKey = visibleClients.map(c => `${c.id}:${c.lat}:${c.lng}`).sort().join('|');
+  const visibleClients = useMemo(
+    () => clients.filter(c => !hiddenRoutes.has(c.route_id) && c.lat && c.lng),
+    [clients, hiddenRoutes],
+  );
   const allPositions = useMemo(() => [
     [BASE_LAT, BASE_LNG],
     ...visibleClients.map(c => [c.lat, c.lng]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [positionsKey]);
+  ], [visibleClients]);
 
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
   if (error) return <DataError onRetry={refetch} />;

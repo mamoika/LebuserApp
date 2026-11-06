@@ -59,7 +59,7 @@ export function formatWeekKey(mondayDate) {
   return `${y}-${m}-${d}`;
 }
 
-import i18n from '../i18n';
+import i18n from '../i18n/index.js';
 
 // Zlokalizowane nazwy dni/miesięcy — czytane z aktualnego języka i18n.
 // Funkcje (nie stałe), bo język może się zmienić w trakcie sesji.
