@@ -4,12 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertCostSettings, upsertCostsPerformanceProgi, upsertDailyCosts } from '../lib/adminRpc';
 import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getMonthRoster, getPerformanceProgi } from '../lib/readRpc';
-import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info, ChevronLeft, ChevronRight, BarChart3, TrendingUp, ShieldAlert } from 'lucide-react';
+import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info, ChevronLeft, ChevronRight, BarChart3, TrendingUp, ShieldAlert, X } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import { exportSheetsAsXlsx } from '../lib/excelExport';
 import { isFutureCalendarDate } from '../lib/calendarDate';
 import { scheduleDayHours } from '../lib/workTime';
+import { lockPageScroll } from '../lib/modalScrollLock';
 import {
   buildDailyCostPatches,
   buildTimelineStats,
@@ -303,6 +304,8 @@ export default function CostsView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [integrityReport, setIntegrityReport] = useState(null);
+  const [showIntegrityModal, setShowIntegrityModal] = useState(false);
+  const [highlightedDate, setHighlightedDate] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'entry' | 'performance'
   const [showRates, setShowRates] = useState(false);
@@ -649,6 +652,18 @@ export default function CostsView() {
     toastSuccess(t('admin.saved'));
   };
 
+  const handleNavigateToIssue = useCallback((entryDate) => {
+    if (!entryDate) return;
+    const [y, m] = entryDate.split('-');
+    const targetYear = parseInt(y, 10);
+    const targetMonth = parseInt(m, 10);
+
+    setCurrentDate(new Date(targetYear, targetMonth - 1, 1));
+    setActiveTab('entry');
+    setHighlightedDate(entryDate);
+    setShowIntegrityModal(false);
+  }, []);
+
   if (!canViewAdminData) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('admin.noAccess')}</div>;
 
   const year = currentDate.getFullYear();
@@ -765,11 +780,27 @@ export default function CostsView() {
   const plnPerKg = perfTotals.kg > 0 ? monthlyTotals.total / perfTotals.kg : 0;
   const accruedDays = countAccruedDays(days, currentDateStr);
   const avgPerDay = accruedDays > 0 ? monthlyTotals.total / accruedDays : 0;
-  const meaningfulMeterIssueCount = (integrityReport?.meter_issues || []).filter(issue => {
+  const meaningfulMeterIssues = (integrityReport?.meter_issues || []).filter(issue => {
     const raw = String(issue?.raw ?? '').trim();
     return raw !== '' && raw !== '-' && raw !== '—';
-  }).length;
-  const courseIssueCount = integrityReport?.course_issue_count || 0;
+  });
+  const meaningfulMeterIssueCount = meaningfulMeterIssues.length;
+  const courseIssues = integrityReport?.course_issues || [];
+  const courseIssueCount = integrityReport?.course_issue_count || courseIssues.length;
+
+  const outsideMonthKeys = Array.from(new Set([
+    ...courseIssues.map(ci => ci.entry_date?.slice(0, 7)),
+    ...meaningfulMeterIssues.map(mi => mi.entry_date?.slice(0, 7)),
+  ])).filter(mk => mk && mk !== monthKey);
+
+  const outsideMonthsSummary = outsideMonthKeys.length > 0
+    ? outsideMonthKeys.map(mk => {
+        const [y, m] = mk.split('-');
+        const monthIdx = parseInt(m, 10) - 1;
+        const name = monthNames[monthIdx] || mk;
+        return `${name} ${y}`;
+      }).join(', ')
+    : '';
 
   // Bieżący miesiąc jako punkt historii (z policzonych totali → spójny z KPI) + miesiące wstecz
   const currentPoint = {
@@ -952,23 +983,30 @@ export default function CostsView() {
           borderRadius: '14px', padding: '12px 18px', color: IOS_THEME.warningText, fontSize: '13px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255, 149, 0, 0.18)', color: IOS_THEME.warningText, flexShrink: 0 }}>
-              <ShieldAlert size={17} />
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 149, 0, 0.18)', color: IOS_THEME.warningText, flexShrink: 0 }}>
+              <ShieldAlert size={18} />
             </span>
-            <span style={{ fontWeight: 600, lineHeight: 1.4 }}>
-              {t('costs.integrityWarning', { meter: meaningfulMeterIssueCount, course: courseIssueCount })}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontWeight: 600, lineHeight: 1.4 }}>
+                {t('costs.integrityWarning', { meter: meaningfulMeterIssueCount, course: courseIssueCount })}
+              </span>
+              {outsideMonthsSummary && (
+                <span style={{ fontSize: '12px', opacity: 0.9, fontWeight: 500 }}>
+                  Wykryto rozbieżności poza bieżącym miesiącem: <b>{outsideMonthsSummary}</b>
+                </span>
+              )}
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => setActiveTab('entry')}
+            onClick={() => setShowIntegrityModal(true)}
             style={{
               background: 'rgba(255, 149, 0, 0.16)', border: 'none', borderRadius: '8px',
-              padding: '6px 14px', fontSize: '12px', fontWeight: 700, color: IOS_THEME.warningText,
+              padding: '7px 16px', fontSize: '12.5px', fontWeight: 700, color: IOS_THEME.warningText,
               cursor: 'pointer', transition: 'background 0.15s ease'
             }}
           >
-            Sprawdź odczyty ›
+            Pokaż szczegóły i przejdź ›
           </button>
         </div>
       )}
@@ -1002,13 +1040,35 @@ export default function CostsView() {
           )}
 
           {activeTab === 'entry' && (
-            <EntryGrid days={days} weekdays={weekdays} dailyData={dailyData} calcDay={calcDay} totals={forecastTotals} onChange={handleCostChange} readOnly={!canEditCosts} laborHours={laborHours} todayKey={currentDateStr} />
+            <EntryGrid
+              days={days}
+              weekdays={weekdays}
+              dailyData={dailyData}
+              calcDay={calcDay}
+              totals={forecastTotals}
+              onChange={handleCostChange}
+              readOnly={!canEditCosts}
+              laborHours={laborHours}
+              todayKey={currentDateStr}
+              highlightedDate={highlightedDate}
+              courseIssues={courseIssues}
+            />
           )}
 
           {activeTab === 'performance' && (
             <PerformanceGrid days={days} weekdays={weekdays} dailyData={dailyData} timelineStats={timelineStats} totals={perfTotals} onChange={handleCostChange} progi={progi} onProgiChange={updateProgi} readOnly={!canEditCosts} todayKey={currentDateStr} />
           )}
         </>
+      )}
+
+      {showIntegrityModal && (
+        <IntegrityReportModal
+          isOpen={showIntegrityModal}
+          onClose={() => setShowIntegrityModal(false)}
+          courseIssues={courseIssues}
+          meterIssues={meaningfulMeterIssues}
+          onNavigateToIssue={handleNavigateToIssue}
+        />
       )}
     </div>
   );
@@ -1987,8 +2047,33 @@ function ReconciliationMetric({ label, calculated, invoice, difference, differen
 }
 
 /* ───────────── ENTRY GRID (cumulative meter readings) ───────────── */
-function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readOnly = false, laborHours = {}, todayKey }) {
+function EntryGrid({
+  days,
+  weekdays,
+  dailyData,
+  calcDay,
+  totals,
+  onChange,
+  readOnly = false,
+  laborHours = {},
+  todayKey,
+  highlightedDate = null,
+  courseIssues = [],
+}) {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (highlightedDate) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`costs-row-${highlightedDate}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedDate, days]);
+
   // each meter = ONE daily reading stored in <base>_end; consumption derived in calcDay
   const meterTh = (icon, label, meterLabel = t('costs.meter')) => (
     <th className="sticky-head" style={newThStyle}>
@@ -2012,13 +2097,47 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
     decreased: t('costs.decreasedMeter'),
     missing_baseline: t('costs.missingMeterBaseline'),
   })[status] || '';
-  const reading = (dStr, dt, base, cons, unit, status, calculatedUnit = '') => valCell(
-    meterIssueText(status) ? { ...newTdStyle, boxShadow: `inset 0 0 0 2px ${status === 'missing_baseline' ? IOS_THEME.warning : '#EF4444'}` } : newTdStyle,
-    <input type="text" inputMode="numeric" value={dt[`${base}_end`] ?? ''} onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)} disabled={readOnly} className="costs-inp" style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}/>,
-    status === 'reset' ? t('costs.meterResetShort') : cons > 0 ? <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span>{calculatedUnit ? <> · {calculatedUnit}</> : ''}</> : '',
-    undefined,
-    { title: meterIssueText(status) },
-  );
+  const reading = (dStr, dt, base, cons, unit, status, calculatedUnit = '') => {
+    const carKey = base === 'merc' ? ['merc', 'mercedes'] : [base];
+    const carIssue = courseIssues?.find(ci => ci.entry_date === dStr && carKey.includes(ci.car));
+    const meterErr = meterIssueText(status);
+
+    const cellBorder = carIssue
+      ? 'inset 0 0 0 2px #FF9500'
+      : meterErr
+      ? `inset 0 0 0 2px ${status === 'missing_baseline' ? IOS_THEME.warning : '#EF4444'}`
+      : undefined;
+
+    const cellTitle = carIssue
+      ? `Rozbieżność kursu: zatwierdzony licznik kursu wynosi ${Number(carIssue.expected_end_km).toLocaleString('pl-PL')} km, a w kosztach brak odczytu`
+      : meterErr;
+
+    const subContent = carIssue ? (
+      <span style={{ color: '#D97706', fontWeight: 700, fontSize: '10px' }}>
+        ⚠️ Kurs: {carIssue.expected_end_km} km
+      </span>
+    ) : status === 'reset' ? (
+      t('costs.meterResetShort')
+    ) : cons > 0 ? (
+      <>{unit === 'm³' ? FMT1(cons) : FMT0(cons)} <span style={{ fontWeight: 500 }}>{unit}</span>{calculatedUnit ? <> · {calculatedUnit}</> : ''}</>
+    ) : '';
+
+    return valCell(
+      cellBorder ? { ...newTdStyle, boxShadow: cellBorder } : newTdStyle,
+      <input
+        type="text"
+        inputMode="numeric"
+        value={dt[`${base}_end`] ?? ''}
+        onChange={(e) => onChange(dStr, `${base}_end`, e.target.value)}
+        disabled={readOnly}
+        className="costs-inp"
+        style={{ ...newInpStyle, opacity: readOnly ? 0.75 : 1 }}
+      />,
+      subContent,
+      carIssue ? '#D97706' : undefined,
+      { title: cellTitle }
+    );
+  };
   const footMeter = (val, unit) => (
     <td style={{ ...footTdStyle, textAlign: 'center', color: IOS_THEME.textSecondary }}>
       {val > 0 ? <>{unit === 'm³' ? FMT1(val) : FMT0(val)} <span style={{ fontWeight: 500, fontSize: '10px' }}>{unit}</span></> : ''}
@@ -2059,13 +2178,38 @@ function EntryGrid({ days, weekdays, dailyData, calcDay, totals, onChange, readO
               const isWe = d.getDay() === 0 || d.getDay() === 6;
               const isOff = isWe || !!isHol;
               const isToday = dStr === todayKey;
+              const isHighlighted = dStr === highlightedDate;
+              const hasDateIssue = courseIssues?.some(ci => ci.entry_date === dStr);
               const c = calcDay(dStr, idx, { includeFuture: true });
               const dt = dailyData[dStr] || {};
-              const rowBg = isToday ? tint(IOS_THEME.accent, 0.12) : isOff ? '#EBEBEB' : '#FFFFFF';
-              const dateCellBg = isToday ? IOS_THEME.accent : isOff ? '#D5D5D5' : '#FFFFFF';
-              const dateCellColor = isToday ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary;
+              const rowBg = isHighlighted
+                ? 'rgba(255, 149, 0, 0.16)'
+                : hasDateIssue
+                ? 'rgba(255, 149, 0, 0.08)'
+                : isToday
+                ? tint(IOS_THEME.accent, 0.12)
+                : isOff
+                ? '#EBEBEB'
+                : '#FFFFFF';
+              const dateCellBg = isHighlighted
+                ? '#FF9500'
+                : isToday
+                ? IOS_THEME.accent
+                : isOff
+                ? '#D5D5D5'
+                : '#FFFFFF';
+              const dateCellColor = (isHighlighted || isToday) ? '#FFFFFF' : isOff ? '#888888' : IOS_THEME.textPrimary;
               return (
-                <tr key={dStr} className="costs-row" style={{ background: rowBg }}>
+                <tr
+                  key={dStr}
+                  id={`costs-row-${dStr}`}
+                  className="costs-row"
+                  style={{
+                    background: rowBg,
+                    boxShadow: isHighlighted ? 'inset 0 0 0 2px #FF9500' : undefined,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
                   {valCell(
                     { ...newTdStyle, fontWeight: 700, background: dateCellBg, color: dateCellColor, minWidth: '52px' },
                     <span style={{ fontSize: '15px', fontWeight: 700 }}>{String(d.getDate()).padStart(2, '0')}</span>,
@@ -2595,6 +2739,354 @@ const costCellStyle = (color) => ({
 const footTdStyle = {
   padding: '10px 8px', fontSize: '13px', fontWeight: 800, textAlign: 'center', color: IOS_THEME.textPrimary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', background: '#F1F5F9'
 };
+
+/* ───────────── INTEGRITY REPORT MODAL ───────────── */
+function IntegrityReportModal({
+  isOpen,
+  onClose,
+  courseIssues = [],
+  meterIssues = [],
+  onNavigateToIssue,
+}) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const unlock = lockPageScroll();
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      unlock();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const vehicleNames = {
+    fiat: 'Fiat',
+    isuzu: 'Isuzu',
+    merc: 'Mercedes',
+    mercedes: 'Mercedes',
+    iveco: 'Iveco',
+  };
+
+  const meterNames = {
+    fiat: 'Fiat (licznik)',
+    isuzu: 'Isuzu (licznik)',
+    merc: 'Mercedes (licznik)',
+    iveco: 'Iveco (licznik)',
+    elec: 'Prąd (kWh)',
+    gas_prod: 'Gaz prod. (m³)',
+    gas_heat: 'Gaz grzewczy (m³)',
+    water: 'Woda (m³)',
+  };
+
+  const formatDateLabel = (dStr) => {
+    if (!dStr) return '';
+    try {
+      const [y, m, d] = dStr.split('-');
+      const monthIdx = parseInt(m, 10) - 1;
+      const monthName = monthNames[monthIdx] || m;
+      return `${parseInt(d, 10)} ${monthName} ${y} (${dStr})`;
+    } catch {
+      return dStr;
+    }
+  };
+
+  return (
+    <div
+      role="presentation"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(0, 0, 0, 0.45)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="integrity-modal-title"
+        style={{
+          width: '100%',
+          maxWidth: '680px',
+          maxHeight: '85vh',
+          background: '#FFFFFF',
+          borderRadius: '20px',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '20px 24px',
+          borderBottom: `1px solid ${IOS_THEME.border}`,
+          background: '#FBFBFC',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(255, 149, 0, 0.15)',
+              color: '#D97706',
+              flexShrink: 0,
+            }}>
+              <ShieldAlert size={20} />
+            </span>
+            <div>
+              <h3 id="integrity-modal-title" style={{ margin: 0, fontSize: '16.5px', fontWeight: 700, color: IOS_THEME.textPrimary, letterSpacing: '-0.3px' }}>
+                Szczegóły rozbieżności i kontroli odczytów
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
+                Wykryto niezgodności w raportach z ostatnich 12 miesięcy
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Zamknij"
+            style={{
+              background: 'rgba(0, 0, 0, 0.05)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: IOS_THEME.textSecondary,
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Section: Course Issues */}
+          {courseIssues.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: IOS_THEME.textPrimary, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Rozbieżności kursów kierowców
+                </span>
+                <span style={{
+                  background: 'rgba(255, 149, 0, 0.16)',
+                  color: '#D97706',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                }}>
+                  {courseIssues.length}
+                </span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: IOS_THEME.textSecondary, lineHeight: 1.45 }}>
+                Kurs został zatwierdzony z odczytem licznika końcowego, ale w tabeli kosztów na ten dzień stan licznika pojazdu jest pusty.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {courseIssues.map((issue, idx) => {
+                  const carName = vehicleNames[issue.car] || issue.car;
+                  return (
+                    <div
+                      key={`ci-${issue.entry_date}-${issue.car}-${idx}`}
+                      style={{
+                        background: '#F9F9FB',
+                        border: '1px solid rgba(0, 0, 0, 0.07)',
+                        borderRadius: '14px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary }}>
+                            {formatDateLabel(issue.entry_date)}
+                          </span>
+                          <span style={{
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            background: 'rgba(0, 113, 227, 0.10)',
+                            color: '#0071E3',
+                          }}>
+                            {carName}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
+                          Zatwierdzony stan z kursu: <b style={{ color: IOS_THEME.textPrimary }}>{Number(issue.expected_end_km).toLocaleString('pl-PL')} km</b>
+                          {' · '}
+                          Wpis w kosztach: <span style={{ color: '#EF4444', fontWeight: 600 }}>{issue.actual_end_km || 'brak (null)'}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToIssue(issue.entry_date, issue.car)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: '#0071E3',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '8px 14px',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(0, 113, 227, 0.25)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        Przejdź do tego dnia <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Section: Meaningful Meter Issues */}
+          {meterIssues.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: IOS_THEME.textPrimary, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Problemy z odczytami liczników
+                </span>
+                <span style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  color: '#EF4444',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                }}>
+                  {meterIssues.length}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {meterIssues.map((issue, idx) => {
+                  const mName = meterNames[issue.meter] || issue.meter;
+                  return (
+                    <div
+                      key={`mi-${issue.entry_date}-${issue.meter}-${idx}`}
+                      style={{
+                        background: '#F9F9FB',
+                        border: '1px solid rgba(0, 0, 0, 0.07)',
+                        borderRadius: '14px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary }}>
+                            {formatDateLabel(issue.entry_date)}
+                          </span>
+                          <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '6px', background: 'rgba(0, 0, 0, 0.06)', color: IOS_THEME.textPrimary }}>
+                            {mName}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
+                          Wpisana wartość: <b style={{ color: '#EF4444' }}>{issue.raw}</b>
+                          {issue.previous_reading && (
+                            <> (poprzedni stan: {issue.previous_reading})</>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToIssue(issue.entry_date, issue.meter)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: '#0071E3',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '8px 14px',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(0, 113, 227, 0.25)',
+                        }}
+                      >
+                        Przejdź do tego dnia <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          padding: '16px 24px',
+          borderTop: `1px solid ${IOS_THEME.border}`,
+          background: '#FBFBFC',
+        }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: '#FFFFFF',
+              border: `1px solid ${IOS_THEME.border}`,
+              borderRadius: '10px',
+              padding: '8px 18px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: IOS_THEME.textPrimary,
+              cursor: 'pointer',
+            }}
+          >
+            {t('common.close', 'Zamknij')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const COSTS_CSS = `
 .costs-view-tabs {
