@@ -1565,11 +1565,11 @@ function DriversCard({ cur, perfTotals, settings }) {
 
       {/* Operational Insight: 4 zrównoważone kolumny wiążące koszt pracownika z wydajnością operacyjną */}
       <div style={{
-        marginTop: '16px', padding: '12px 14px', borderRadius: '12px',
+        marginTop: '16px', padding: '12px 8px', borderRadius: '12px',
         background: 'rgba(0, 0, 0, 0.025)', border: `1px solid ${IOS_THEME.border}`,
-        display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', alignItems: 'center'
+        display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0, alignItems: 'center'
       }}>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, textAlign: 'center', padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
             Wydajność
           </div>
@@ -1577,7 +1577,7 @@ function DriversCard({ cur, perfTotals, settings }) {
             {overallKgPerH > 0 ? `${FMT1(overallKgPerH)} kg/rbh` : '—'}
           </div>
         </div>
-        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+        <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
             Godziny rbh
           </div>
@@ -1585,7 +1585,7 @@ function DriversCard({ cur, perfTotals, settings }) {
             {FMT0(perfTotals?.h || 0)} rbh
           </div>
         </div>
-        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+        <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
             Stawka rbh
           </div>
@@ -1593,7 +1593,7 @@ function DriversCard({ cur, perfTotals, settings }) {
             {FMT(settings?.worker_hourly_rate || 45.82)} zł/h
           </div>
         </div>
-        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+        <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
             Koszt pracy
           </div>
