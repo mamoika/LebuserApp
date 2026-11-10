@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { toastError, toastSuccess } from '../lib/toast';
 import { upsertCostSettings, upsertCostsPerformanceProgi, upsertDailyCosts } from '../lib/adminRpc';
 import { getCostsHistory, getCostsIntegrityReport, getCostsMonth, getMonthRoster, getPerformanceProgi } from '../lib/readRpc';
-import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info } from 'lucide-react';
+import { Droplet, Zap, Flame, Truck, Users, Save, Sigma, Settings, Scale, Package, CalendarDays, Download, Info, ChevronLeft, ChevronRight, BarChart3, TrendingUp, ShieldAlert } from 'lucide-react';
 import { isHoliday } from '../utils/holidays';
 import { currentLocale, dayNamesSunSat, monthNames } from '../lib/dateUtils';
 import { exportSheetsAsXlsx } from '../lib/excelExport';
@@ -108,28 +108,41 @@ function normalizeDailyCostRow(row) {
   return normalized;
 }
 
-// iOS 18 Design Constants
+// Apple HIG Design Constants
 const IOS_THEME = {
-  bg: '#F9FAFB',
+  bg: '#F5F5F7',
   cardBg: '#FFFFFF',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  accent: '#2563EB',
-  success: '#10B981',
-  warning: '#F59E0B',
-  border: 'rgba(0, 0, 0, 0.08)',
-  radius: '20px',
-  shadow: '0 10px 30px rgba(0,0,0,0.04)'
+  textPrimary: '#1D1D1F',
+  textSecondary: '#6E6E73',
+  textTertiary: '#86868B',
+  accent: '#0071E3',
+  accentHover: '#0077ED',
+  success: '#34C759',
+  successText: '#248A3D',
+  successBg: 'rgba(52, 199, 89, 0.12)',
+  warning: '#FF9500',
+  warningText: '#B25000',
+  warningBg: 'rgba(255, 149, 0, 0.12)',
+  danger: '#FF3B30',
+  dangerText: '#D70015',
+  dangerBg: 'rgba(255, 59, 48, 0.12)',
+  border: 'rgba(0, 0, 0, 0.06)',
+  borderHover: 'rgba(0, 0, 0, 0.12)',
+  radius: '18px',
+  radiusSm: '12px',
+  radiusPill: '999px',
+  shadow: '0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04)',
+  shadowHover: '0 2px 8px rgba(0, 0, 0, 0.04), 0 14px 32px rgba(0, 0, 0, 0.07)'
 };
 
-// Category colors
+// Category colors (Apple HIG balanced palette)
 const CAT = {
-  transport: '#E65100',
-  elec: '#F57F17',
-  gas: '#6A1B9A',
-  water: '#0277BD',
-  workers: '#1B5E20',
-  other: '#8E8E93'
+  transport: '#0071E3',
+  elec: '#D97706',
+  gas: '#8E44AD',
+  water: '#0284C7',
+  workers: '#16A34A',
+  other: '#71717A'
 };
 // Light tint for a hex color
 const tint = (hex, a = 0.06) => {
@@ -840,18 +853,42 @@ export default function CostsView() {
 
       {/* HEADER */}
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px',
-        background: IOS_THEME.cardBg, padding: '16px 20px', borderRadius: IOS_THEME.radius,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px',
+        background: IOS_THEME.cardBg, padding: '14px 20px', borderRadius: IOS_THEME.radius,
         boxShadow: IOS_THEME.shadow, border: `1px solid ${IOS_THEME.border}`
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {(() => { const atMin = year === 2026 && month === 1; return (
-            <button disabled={atMin} onClick={() => { if (!atMin) setCurrentDate(new Date(year, month - 2, 1)); }} style={{ ...navBtnStyle, opacity: atMin ? 0.4 : 1, cursor: atMin ? 'not-allowed' : 'pointer' }}>‹</button>
+            <button
+              disabled={atMin}
+              onClick={() => { if (!atMin) setCurrentDate(new Date(year, month - 2, 1)); }}
+              style={{
+                width: '32px', height: '32px', borderRadius: '10px',
+                background: atMin ? 'transparent' : 'rgba(0,0,0,0.04)',
+                border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: atMin ? 'not-allowed' : 'pointer', opacity: atMin ? 0.3 : 1,
+                color: IOS_THEME.textPrimary, transition: 'all 0.15s ease'
+              }}
+              title="Poprzedni miesiąc"
+            >
+              <ChevronLeft size={18} />
+            </button>
           ); })()}
-          <div style={{ fontWeight: 700, fontSize: '17px', minWidth: '140px', textAlign: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: '16px', minWidth: '140px', textAlign: 'center', color: IOS_THEME.textPrimary, letterSpacing: '-0.01em' }}>
             {months[month - 1]} {year}
           </div>
-          <button onClick={() => setCurrentDate(new Date(year, month, 1))} style={navBtnStyle}>›</button>
+          <button
+            onClick={() => setCurrentDate(new Date(year, month, 1))}
+            style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              background: 'rgba(0,0,0,0.04)',
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: IOS_THEME.textPrimary, transition: 'all 0.15s ease'
+            }}
+            title="Następny miesiąc"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
         <div className="costs-view-tabs" role="tablist" aria-label={t('pages.costs.title')}>
@@ -869,21 +906,38 @@ export default function CostsView() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={exportToExcel} title={t('costs.exportExcel')} style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
-            <Download size={16}/> Excel
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={exportToExcel}
+            title={t('costs.exportExcel')}
+            style={{
+              ...navBtnStyle,
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}
+          >
+            <Download size={15} color={IOS_THEME.textSecondary} /> Excel
           </button>
-          <button onClick={() => setShowRates(v => !v)} title={t('costs.rates')} style={{ ...navBtnStyle, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: showRates ? IOS_THEME.accent : IOS_THEME.textSecondary }}>
-            <Settings size={16}/> {t('costs.rates')}
+          <button
+            onClick={() => setShowRates(v => !v)}
+            title={t('costs.rates')}
+            style={{
+              ...navBtnStyle,
+              display: 'flex', alignItems: 'center', gap: '6px',
+              color: showRates ? IOS_THEME.accent : IOS_THEME.textPrimary,
+              background: showRates ? 'rgba(0, 113, 227, 0.08)' : '#FFFFFF',
+              border: showRates ? '1px solid rgba(0, 113, 227, 0.25)' : `1px solid ${IOS_THEME.border}`,
+            }}
+          >
+            <Settings size={15} color={showRates ? IOS_THEME.accent : IOS_THEME.textSecondary} /> {t('costs.rates')}
           </button>
           {canEditCosts && <button onClick={saveAll} disabled={saving} className="costs-save-btn" title={t('costs.saveAllNow')} style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: autoSave === 'saved' ? '#34C759' : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
-            color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: 600, fontSize: '14px',
-            letterSpacing: '0.2px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
-            cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.2s'
+            display: 'flex', alignItems: 'center', gap: '6px',
+            background: autoSave === 'saved' ? IOS_THEME.success : autoSave === 'saving' ? IOS_THEME.warning : IOS_THEME.accent,
+            color: '#fff', border: 'none', padding: '8px 18px', borderRadius: '10px', fontWeight: 600, fontSize: '13px',
+            letterSpacing: '-0.01em', boxShadow: '0 2px 8px rgba(0, 113, 227, 0.22)',
+            cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'all 0.2s ease'
           }}>
-            <Save size={18}/> {saving ? t('costs.saving') : autoSave === 'saving' ? t('costs.autoSaving') : autoSave === 'saved' ? t('costs.savedCheck') : t('common.save')}
+            <Save size={15} /> {saving ? t('costs.saving') : autoSave === 'saving' ? t('costs.autoSaving') : autoSave === 'saved' ? t('costs.savedCheck') : t('common.save')}
           </button>}
         </div>
       </div>
@@ -892,8 +946,30 @@ export default function CostsView() {
       {showRates && <RatesPanel settings={settings} onChange={handleSettingChange} readOnly={!canEditCosts} />}
 
       {isAdmin && integrityReport && (meaningfulMeterIssueCount + courseIssueCount > 0) && (
-        <div role="alert" style={{ ...cardStyle, padding: '12px 16px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.08)', color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
-          {t('costs.integrityWarning', { meter: meaningfulMeterIssueCount, course: courseIssueCount })}
+        <div role="alert" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px',
+          background: IOS_THEME.warningBg, border: '1px solid rgba(255, 149, 0, 0.22)',
+          borderRadius: '14px', padding: '12px 18px', color: IOS_THEME.warningText, fontSize: '13px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255, 149, 0, 0.18)', color: IOS_THEME.warningText, flexShrink: 0 }}>
+              <ShieldAlert size={17} />
+            </span>
+            <span style={{ fontWeight: 600, lineHeight: 1.4 }}>
+              {t('costs.integrityWarning', { meter: meaningfulMeterIssueCount, course: courseIssueCount })}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('entry')}
+            style={{
+              background: 'rgba(255, 149, 0, 0.16)', border: 'none', borderRadius: '8px',
+              padding: '6px 14px', fontSize: '12px', fontWeight: 700, color: IOS_THEME.warningText,
+              cursor: 'pointer', transition: 'background 0.15s ease'
+            }}
+          >
+            Sprawdź odczyty ›
+          </button>
         </div>
       )}
 
@@ -904,7 +980,25 @@ export default function CostsView() {
       ) : (
         <>
           {activeTab === 'overview' && (
-            <OverviewTab totals={monthlyTotals} forecastTotal={forecastTotals.total} plannedCosts={plannedCosts} plnPerKg={plnPerKg} ton={perfTotals.kg} avgPerDay={avgPerDay} dailyTotals={dailyTotals} trendAvg={trendAvg} days={days} offFlags={offFlags} carBreakdown={carBreakdown} monthsHistory={monthsHistory} elecReconciliation={elecReconciliation} gasProdReconciliation={gasProdReconciliation} />
+            <OverviewTab
+              totals={monthlyTotals}
+              forecastTotal={forecastTotals.total}
+              plannedCosts={plannedCosts}
+              plnPerKg={plnPerKg}
+              ton={perfTotals.kg}
+              perfTotals={perfTotals}
+              avgPerDay={avgPerDay}
+              dailyTotals={dailyTotals}
+              trendAvg={trendAvg}
+              days={days}
+              offFlags={offFlags}
+              carBreakdown={carBreakdown}
+              monthsHistory={monthsHistory}
+              elecReconciliation={elecReconciliation}
+              gasProdReconciliation={gasProdReconciliation}
+              currentDateStr={currentDateStr}
+              settings={settings}
+            />
           )}
 
           {activeTab === 'entry' && (
@@ -921,43 +1015,148 @@ export default function CostsView() {
 }
 
 /* ───────────── OVERVIEW (dashboard) ───────────── */
-function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPerDay, dailyTotals, trendAvg, days, offFlags = [], carBreakdown = [], monthsHistory = [], elecReconciliation, gasProdReconciliation }) {
+function OverviewTab({
+  totals,
+  forecastTotal,
+  plannedCosts,
+  plnPerKg,
+  ton,
+  perfTotals,
+  avgPerDay,
+  dailyTotals,
+  trendAvg,
+  days,
+  offFlags = [],
+  carBreakdown = [],
+  monthsHistory = [],
+  elecReconciliation,
+  gasProdReconciliation,
+  currentDateStr,
+  settings,
+}) {
   const { t } = useTranslation();
   const cats = [
-    { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={16}/> },
-    { name: t('costs.energy'), color: CAT.elec, value: totals.elec, icon: <Zap size={16}/> },
-    { name: t('costs.gas'), color: CAT.gas, value: totals.gas, icon: <Flame size={16}/> },
-    { name: t('costs.water'), color: CAT.water, value: totals.water, icon: <Droplet size={16}/> },
-    { name: t('costs.employees'), color: CAT.workers, value: totals.workers, icon: <Users size={16}/> },
-    { name: t('costs.other'), color: CAT.other, value: totals.other, icon: <Sigma size={16}/> },
+    { name: t('costs.transport'), color: CAT.transport, value: totals.transport, icon: <Truck size={15}/> },
+    { name: t('costs.energy'), color: CAT.elec, value: totals.elec, icon: <Zap size={15}/> },
+    { name: t('costs.gas'), color: CAT.gas, value: totals.gas, icon: <Flame size={15}/> },
+    { name: t('costs.water'), color: CAT.water, value: totals.water, icon: <Droplet size={15}/> },
+    { name: t('costs.employees'), color: CAT.workers, value: totals.workers, icon: <Users size={15}/> },
+    { name: t('costs.other'), color: CAT.other, value: totals.other, icon: <Sigma size={15}/> },
   ].sort((a, b) => b.value - a.value);
   const sum = totals.total || 1;
 
-  // Porównanie miesiąc-do-miesiąca (MoM) + serie do sparkline
+  // Porównanie miesiąc-do-miesiąca (MoM) + rzetelna analityka LfL (Like-for-Like)
   const H = monthsHistory;
   const cur = H[H.length - 1] || null;
   const prev = H.length > 1 ? H[H.length - 2] : null;
+
   const dIM = (p) => p.dayCount || new Date(p.year, p.month, 0).getDate();
+  const daysInMonth = days.length;
+  const accruedDays = countAccruedDays(days, currentDateStr);
+  const now = new Date();
+  const isCurrentMonth = cur && cur.year === now.getFullYear() && cur.month === (now.getMonth() + 1);
+  const isOngoing = isCurrentMonth && accruedDays < daysInMonth;
+
   const momPct = (c, p) => (p != null && p > 0 && c > 0) ? ((c - p) / p) * 100 : null;
+
+  // Koszt całkowity
+  const prevDailyCost = prev && dIM(prev) > 0 ? prev.total / dIM(prev) : 0;
+  const curDailyCost = accruedDays > 0 ? totals.total / accruedDays : 0;
+  const dDailyCost = prevDailyCost > 0 ? ((curDailyCost - prevDailyCost) / prevDailyCost) * 100 : null;
   const dTotal = (prev && prev.total > 0) ? ((cur.total - prev.total) / prev.total) * 100 : null;
+
+  // Koszt na kg (plnPerKg)
   const dPpk = momPct(cur?.plnPerKg, prev?.plnPerKg);
-  const dKg = momPct(cur?.kg, prev?.kg);
-  const dAvg = (prev && prev.total > 0) ? ((cur.total / dIM(cur) - prev.total / dIM(prev)) / (prev.total / dIM(prev))) * 100 : null;
+
+  // Tonaż: w trakcie miesiąca porównujemy Like-for-Like średnią dzienną (zapobiega fałszywemu -73%!)
+  const prevDailyKg = prev && dIM(prev) > 0 ? prev.kg / dIM(prev) : 0;
+  const curDailyKg = accruedDays > 0 ? ton / accruedDays : 0;
+  const dKgDaily = prevDailyKg > 0 ? ((curDailyKg - prevDailyKg) / prevDailyKg) * 100 : null;
+  const dKg = isOngoing ? dKgDaily : momPct(cur?.kg, prev?.kg);
+
+  // Średnio na dzień
+  const dAvg = (prev && prev.total > 0 && prevDailyCost > 0)
+    ? ((curDailyCost - prevDailyCost) / prevDailyCost) * 100
+    : null;
+
+  // Prognoza
+  const dForecast = (prev && prev.total > 0)
+    ? ((forecastTotal - prev.total) / prev.total) * 100
+    : null;
+
   const sTotal = H.map(p => p.total);
   const sPpk = H.map(p => p.plnPerKg);
   const sKg = H.map(p => p.kg);
   const sAvg = H.map(p => p.total / dIM(p));
 
+  const pacingPercent = ((accruedDays / daysInMonth) * 100).toFixed(0);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* KPI HERO — z porównaniem MoM i sparkline */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <KpiCard label={t('costs.kpiCostsToDate')} value={FMT(totals.total)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={IOS_THEME.accent} hero delta={dTotal} goodWhenDown spark={sTotal} />
-        <KpiCard label={t('costs.kpiPlannedCosts')} value={FMT(plannedCosts)} unit={t('costs.currency')} icon={<CalendarDays size={22}/>} color={IOS_THEME.warning} />
-        <KpiCard label={t('costs.kpiMonthForecast')} value={FMT(forecastTotal)} unit={t('costs.currency')} icon={<Sigma size={22}/>} color={CAT.gas} />
-        <KpiCard label={t('costs.kpiCostPerKg')} value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'} unit={t('costs.currencyPerKg')} icon={<Scale size={22}/>} color={CAT.transport} delta={dPpk} goodWhenDown spark={sPpk} />
-        <KpiCard label={t('costs.kpiTonnage')} value={ton > 0 ? FMT0(ton) : '—'} unit="kg" icon={<Package size={22}/>} color={CAT.workers} delta={dKg} spark={sKg} />
-        <KpiCard label={t('costs.kpiAvgPerDay')} value={FMT(avgPerDay)} unit={t('costs.currency')} icon={<CalendarDays size={22}/>} color={CAT.water} delta={dAvg} goodWhenDown spark={sAvg} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+      {/* KPI GRID — 6 zbalansowanych kart w stylu Apple */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+        <KpiCard
+          label={t('costs.kpiCostsToDate')}
+          value={FMT(totals.total)}
+          unit={t('costs.currency')}
+          icon={<Sigma size={20}/>}
+          color={IOS_THEME.accent}
+          hero
+          badge={isOngoing ? `Pacing ${pacingPercent}%` : null}
+          delta={isOngoing ? dDailyCost : dTotal}
+          deltaLabel={isOngoing ? 'śr./dz.' : 'm/m'}
+          goodWhenDown
+          spark={sTotal}
+        />
+        <KpiCard
+          label={t('costs.kpiPlannedCosts')}
+          value={FMT(plannedCosts)}
+          unit={t('costs.currency')}
+          icon={<CalendarDays size={20}/>}
+          color={IOS_THEME.warning}
+          subtitle={isOngoing ? `pozostało na ${Math.max(0, daysInMonth - accruedDays)} dni` : 'koniec miesiąca'}
+        />
+        <KpiCard
+          label={t('costs.kpiMonthForecast')}
+          value={FMT(forecastTotal)}
+          unit={t('costs.currency')}
+          icon={<TrendingUp size={20}/>}
+          color={CAT.gas}
+          delta={dForecast}
+          deltaLabel="vs ub. m-c"
+          goodWhenDown
+        />
+        <KpiCard
+          label={t('costs.kpiCostPerKg')}
+          value={plnPerKg > 0 ? FMT3(plnPerKg) : '—'}
+          unit={t('costs.currencyPerKg')}
+          icon={<Scale size={20}/>}
+          color={CAT.transport}
+          delta={dPpk}
+          goodWhenDown
+          spark={sPpk}
+        />
+        <KpiCard
+          label={t('costs.kpiTonnage')}
+          value={ton > 0 ? FMT0(ton) : '—'}
+          unit="kg"
+          icon={<Package size={20}/>}
+          color={CAT.workers}
+          delta={dKg}
+          deltaLabel={isOngoing ? 'tempo dzienne' : 'm/m'}
+          goodWhenDown={false}
+          spark={sKg}
+        />
+        <KpiCard
+          label={t('costs.kpiAvgPerDay')}
+          value={FMT(avgPerDay)}
+          unit={t('costs.currency')}
+          icon={<CalendarDays size={20}/>}
+          color={CAT.water}
+          delta={dAvg}
+          goodWhenDown
+          spark={sAvg}
+        />
       </div>
 
       {(elecReconciliation?.hasInvoiceKwh || elecReconciliation?.hasInvoiceNet) && (
@@ -969,41 +1168,71 @@ function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPe
       )}
 
       {/* zł/kg ROZBITE NA DRIVERY + MOST MoM */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
-        <DriversCard cur={cur} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+        <DriversCard cur={cur} perfTotals={perfTotals} settings={settings} />
         <WaterfallCard cur={cur} prev={prev} />
       </div>
 
       {/* TREND WIELOMIESIĘCZNY zł/kg + cel */}
       <div style={cardStyle}>
-        <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.plnPerKgOverTime', { year: cur?.year || '' })}</div>
-        <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>{t('costs.multiMonthHint')}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+          <div style={cardTitleStyle}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(IOS_THEME.accent, 0.12), color: IOS_THEME.accent }}>
+              <BarChart3 size={16}/>
+            </span>
+            <span>{t('costs.plnPerKgOverTime', { year: cur?.year || '' })}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: IOS_THEME.textSecondary }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.success }} />
+              <span>Poniżej celu</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.warning }} />
+              <span>Powyżej celu</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.accent }} />
+              <span>Bieżący</span>
+            </span>
+          </div>
+        </div>
+        <div style={{ fontSize: '12px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>{t('costs.multiMonthHint')}</div>
         <MultiMonthTrend months={H} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {/* COST STRUCTURE */}
+        {/* STRUKTURA KOSZTÓW */}
         <div style={cardStyle}>
-          <div style={cardTitleStyle}>{t('costs.costStructure')}</div>
+          <div style={cardTitleStyle}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.workers, 0.12), color: CAT.workers }}>
+              <Sigma size={16}/>
+            </span>
+            <span>{t('costs.costStructure')}</span>
+          </div>
           {/* stacked bar */}
-          <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', margin: '4px 0 20px' }}>
+          <div style={{ display: 'flex', height: '10px', borderRadius: '5px', overflow: 'hidden', margin: '4px 0 18px', background: 'rgba(0,0,0,0.04)' }}>
             {cats.filter(c => c.value > 0).map(c => (
               <div key={c.name} title={`${c.name}: ${FMT(c.value)} ${t('costs.currency')}`} style={{ width: `${(c.value / sum) * 100}%`, background: c.color }} />
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {cats.map(c => {
               const pct = (c.value / sum) * 100;
               return (
                 <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', background: tint(c.color, 0.12), color: c.color, flexShrink: 0 }}>{c.icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(c.color, 0.12), color: c.color, flexShrink: 0 }}>
+                    {c.icon}
+                  </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
-                      <span style={{ fontWeight: 600 }}>{c.name}</span>
-                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{FMT(c.value)} <span style={{ color: IOS_THEME.textSecondary, fontWeight: 500 }}>{t('costs.currency')} · {pct.toFixed(1)}%</span></span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600, color: IOS_THEME.textPrimary }}>{c.name}</span>
+                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: IOS_THEME.textPrimary }}>
+                        {FMT(c.value)} <span style={{ color: IOS_THEME.textSecondary, fontWeight: 500 }}>{t('costs.currency')} · {pct.toFixed(1)}%</span>
+                      </span>
                     </div>
-                    <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(60,60,67,0.08)', overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: c.color, borderRadius: '3px', transition: 'width 0.4s' }} />
+                    <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: c.color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
                     </div>
                   </div>
                 </div>
@@ -1014,33 +1243,55 @@ function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPe
 
         {/* KOSZT AUT — km per auto → kwota */}
         <div style={cardStyle}>
-          <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}><Truck size={16}/> {t('costs.carCostKm')}</div>
+          <div style={cardTitleStyle}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.transport, 0.12), color: CAT.transport }}>
+              <Truck size={16}/>
+            </span>
+            <span>{t('costs.carCostKm')}</span>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', fontSize: '11px', fontWeight: 700, color: IOS_THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', padding: '0 4px 8px' }}>
-              <span>{t('costs.car')}</span><span style={{ textAlign: 'right' }}>{t('costs.sumKm')}</span><span style={{ textAlign: 'right', minWidth: '90px' }}>{t('costs.amount')}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', fontSize: '11px', fontWeight: 700, color: IOS_THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 4px 10px' }}>
+              <span>{t('costs.car')}</span>
+              <span style={{ textAlign: 'right' }}>{t('costs.sumKm')}</span>
+              <span style={{ textAlign: 'right', minWidth: '90px' }}>{t('costs.amount')}</span>
             </div>
             {carBreakdown.map((car, i) => (
               <div key={car.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '10px 4px', borderTop: i === 0 ? 'none' : `1px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ display: 'flex', width: '26px', height: '26px', borderRadius: '7px', background: tint(CAT.transport, 0.12), color: CAT.transport, alignItems: 'center', justifyContent: 'center' }}><Truck size={14}/></span>
+                <span style={{ fontSize: '13.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', color: IOS_THEME.textPrimary }}>
+                  <span style={{ display: 'flex', width: '26px', height: '26px', borderRadius: '7px', background: tint(CAT.transport, 0.12), color: CAT.transport, alignItems: 'center', justifyContent: 'center' }}>
+                    <Truck size={13}/>
+                  </span>
                   {car.name}
                 </span>
-                <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{car.km > 0 ? `${FMT0(car.km)} km` : '—'}</span>
-                <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '14px', fontWeight: 700, color: CAT.transport }}>{car.cost > 0 ? `${FMT(car.cost)} ${t('costs.currency')}` : '—'}</span>
+                <span style={{ textAlign: 'right', fontSize: '13.5px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
+                  {car.km > 0 ? `${FMT0(car.km)} km` : '—'}
+                </span>
+                <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary }}>
+                  {car.cost > 0 ? `${FMT(car.cost)} ${t('costs.currency')}` : '—'}
+                </span>
               </div>
             ))}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', alignItems: 'center', padding: '12px 4px 2px', borderTop: `2px solid ${IOS_THEME.border}`, fontVariantNumeric: 'tabular-nums' }}>
-              <span style={{ fontSize: '13px', fontWeight: 800 }}>{t('costs.total')}</span>
-              <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 700, color: IOS_THEME.textSecondary }}>{FMT0(carBreakdown.reduce((s, c) => s + c.km, 0))} km</span>
-              <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '15px', fontWeight: 800, color: CAT.transport }}>{FMT(carBreakdown.reduce((s, c) => s + c.cost, 0))} {t('costs.currency')}</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: IOS_THEME.textPrimary }}>{t('costs.total')}</span>
+              <span style={{ textAlign: 'right', fontSize: '14px', fontWeight: 700, color: IOS_THEME.textSecondary }}>
+                {FMT0(carBreakdown.reduce((s, c) => s + c.km, 0))} km
+              </span>
+              <span style={{ textAlign: 'right', minWidth: '90px', fontSize: '15px', fontWeight: 800, color: IOS_THEME.accent }}>
+                {FMT(carBreakdown.reduce((s, c) => s + c.cost, 0))} {t('costs.currency')}
+              </span>
             </div>
           </div>
         </div>
 
         {/* DAILY TREND */}
         <div style={cardStyle}>
-          <div style={{ ...cardTitleStyle, marginBottom: '4px' }}>{t('costs.dailyCost')}</div>
-          <div style={{ fontSize: '11px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>{t('costs.dailyCostHint')}</div>
+          <div style={cardTitleStyle}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.water, 0.12), color: CAT.water }}>
+              <CalendarDays size={16}/>
+            </span>
+            <span>{t('costs.dailyCost')}</span>
+          </div>
+          <div style={{ fontSize: '12px', color: IOS_THEME.textSecondary, marginBottom: '12px' }}>{t('costs.dailyCostHint')}</div>
           <TrendChart data={dailyTotals} days={days} avg={trendAvg} offFlags={offFlags} />
         </div>
       </div>
@@ -1048,128 +1299,249 @@ function OverviewTab({ totals, forecastTotal, plannedCosts, plnPerKg, ton, avgPe
   );
 }
 
-function KpiCard({ label, value, unit, icon, color, hero, delta, goodWhenDown, spark }) {
+function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goodWhenDown, spark, subtitle, badge }) {
   const { t } = useTranslation();
   const hasDelta = delta != null && isFinite(delta);
   const good = hasDelta && (goodWhenDown ? delta <= 0 : delta >= 0);
   const up = hasDelta && delta >= 0;
-  const deltaColor = !hasDelta ? IOS_THEME.textSecondary : good ? '#10B981' : '#EF4444';
+  const deltaColor = !hasDelta ? IOS_THEME.textSecondary : good ? IOS_THEME.successText : IOS_THEME.dangerText;
+  const deltaBg = !hasDelta ? 'rgba(0,0,0,0.04)' : good ? IOS_THEME.successBg : IOS_THEME.dangerBg;
+
   return (
     <div style={{
-      background: hero ? color : IOS_THEME.cardBg, padding: '18px', borderRadius: IOS_THEME.radius,
-      boxShadow: hero ? `0 8px 24px ${tint(color, 0.35)}` : IOS_THEME.shadow,
-      border: hero ? 'none' : `1px solid ${IOS_THEME.border}`, borderLeft: hero ? 'none' : `3px solid ${color}`,
-      display: 'flex', flexDirection: 'column', gap: '12px'
+      background: IOS_THEME.cardBg,
+      padding: '20px',
+      borderRadius: IOS_THEME.radius,
+      boxShadow: hero ? '0 2px 8px rgba(0, 113, 227, 0.06), 0 12px 28px rgba(0, 113, 227, 0.08)' : IOS_THEME.shadow,
+      border: hero ? '1px solid rgba(0, 113, 227, 0.28)' : `1px solid ${IOS_THEME.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      gap: '12px',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'transform 0.18s ease, box-shadow 0.18s ease'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: hero ? '#fff' : color }}>
-        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '9px', background: hero ? 'rgba(255,255,255,0.2)' : tint(color, 0.12) }}>{icon}</span>
-        <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: hero ? 0.95 : 1 }}>{label}</span>
+      {hero && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+          background: 'linear-gradient(90deg, #0071E3 0%, #34C759 100%)'
+        }} />
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '34px', height: '34px', borderRadius: '10px',
+            background: tint(color, 0.10), color: color, flexShrink: 0
+          }}>
+            {icon}
+          </span>
+          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textSecondary }}>
+            {label}
+          </span>
+        </div>
+        {badge && (
+          <span style={{
+            fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
+            background: 'rgba(0, 113, 227, 0.08)', color: IOS_THEME.accent, letterSpacing: '0.02em'
+          }}>
+            {badge}
+          </span>
+        )}
       </div>
-      <div style={{ fontSize: '26px', fontWeight: 800, color: hero ? '#fff' : IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-        {value} <span style={{ fontSize: '13px', fontWeight: 600, opacity: 0.7 }}>{unit}</span>
+
+      <div style={{ fontSize: '27px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+        {value} <span style={{ fontSize: '13px', fontWeight: 500, color: IOS_THEME.textTertiary, letterSpacing: 'normal' }}>{unit}</span>
       </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minHeight: '26px' }}>
         {hasDelta ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-            padding: '3px 8px', borderRadius: '7px', color: deltaColor,
-            background: hero ? 'rgba(255,255,255,0.18)' : tint(good ? '#10B981' : '#EF4444', 0.14) }}>
-            {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.8 }}>{t('costs.monthOverMonthShort')}</span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            padding: '3px 8px', borderRadius: '999px', color: deltaColor, background: deltaBg
+          }}>
+            {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.85 }}>{deltaLabel || t('costs.monthOverMonthShort')}</span>
+          </span>
+        ) : subtitle ? (
+          <span style={{ fontSize: '11.5px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
+            {subtitle}
           </span>
         ) : (
-          <span style={{ fontSize: '11px', fontWeight: 600, color: hero ? 'rgba(255,255,255,0.7)' : IOS_THEME.textSecondary }}>{t('costs.noComparison')}</span>
+          <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textTertiary }}>{t('costs.noComparison')}</span>
         )}
-        {spark && spark.some(v => v > 0) && <Sparkline data={spark} color={color} hero={hero} />}
+        {spark && spark.some(v => v > 0) && <Sparkline data={spark} color={color} />}
       </div>
     </div>
   );
 }
 
-// Mini-wykres ostatnich ~6 miesięcy
-function Sparkline({ data, color, hero }) {
+// Mini-wykres ostatnich ~6 miesięcy ze zmiękczonym gradientem Apple
+function Sparkline({ data, color }) {
   const pts = data.slice(-6);
-  const W = 84, Hh = 26;
+  const W = 84, Hh = 28;
   const max = Math.max(...pts, 1), min = Math.min(...pts, 0);
   const rng = (max - min) || 1;
   const x = (i) => pts.length <= 1 ? W : (i / (pts.length - 1)) * W;
-  const y = (v) => (Hh - 3) - ((v - min) / rng) * (Hh - 6);
-  const d = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const stroke = hero ? 'rgba(255,255,255,0.95)' : color;
+  const y = (v) => (Hh - 4) - ((v - min) / rng) * (Hh - 8);
+  const linePath = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${x(pts.length - 1).toFixed(1)} ${Hh} L${x(0).toFixed(1)} ${Hh} Z`;
+  const gradId = useId();
   const last = pts.length - 1;
+
   return (
     <svg width={W} height={Hh} style={{ flexShrink: 0, overflow: 'visible' }}>
-      <path d={d} fill="none" stroke={stroke} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-      {pts[last] > 0 && <circle cx={x(last)} cy={y(pts[last])} r="2.4" fill={stroke} />}
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {pts[last] > 0 && (
+        <>
+          <circle cx={x(last)} cy={y(pts[last])} r="4" fill={color} opacity="0.25" />
+          <circle cx={x(last)} cy={y(pts[last])} r="2.2" fill={color} />
+        </>
+      )}
     </svg>
   );
 }
 
-// zł/kg rozbite na drivery (bieżący miesiąc) — koszt na kilogram per kategoria
-function DriversCard({ cur }) {
+// zł/kg rozbite na drivery (bieżący miesiąc) + operacyjny insight o wydajności pracy
+function DriversCard({ cur, perfTotals, settings }) {
   const { t } = useTranslation();
   const kg = cur?.kg || 0;
   const totalPerKg = kg > 0 ? cur.total / kg : 0;
+  const overallKgPerH = (perfTotals?.h > 0 && perfTotals?.kg > 0) ? perfTotals.kg / perfTotals.h : 0;
   const drivers = [
-    { name: t('costs.employees'), color: CAT.workers, v: cur?.workers || 0 },
-    { name: t('costs.energy'), color: CAT.elec, v: cur?.elec || 0 },
-    { name: t('costs.gas'), color: CAT.gas, v: cur?.gas || 0 },
-    { name: t('costs.water'), color: CAT.water, v: cur?.water || 0 },
-    { name: t('costs.transport'), color: CAT.transport, v: cur?.transport || 0 },
-    { name: t('costs.other'), color: CAT.other, v: cur?.other || 0 },
+    { name: t('costs.employees'), color: CAT.workers, v: cur?.workers || 0, icon: <Users size={14}/> },
+    { name: t('costs.gas'), color: CAT.gas, v: cur?.gas || 0, icon: <Flame size={14}/> },
+    { name: t('costs.energy'), color: CAT.elec, v: cur?.elec || 0, icon: <Zap size={14}/> },
+    { name: t('costs.transport'), color: CAT.transport, v: cur?.transport || 0, icon: <Truck size={14}/> },
+    { name: t('costs.water'), color: CAT.water, v: cur?.water || 0, icon: <Droplet size={14}/> },
+    { name: t('costs.other'), color: CAT.other, v: cur?.other || 0, icon: <Sigma size={14}/> },
   ].map(d => ({ ...d, perKg: kg > 0 ? d.v / kg : 0 })).sort((a, b) => b.perKg - a.perKg);
 
   return (
-    <div style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={cardTitleStyle}>{t('costs.costPerKgDrivers')}</div>
-        <div style={{ fontSize: '20px', fontWeight: 800, color: CAT.transport, fontVariantNumeric: 'tabular-nums' }}>
-          {totalPerKg > 0 ? FMT3(totalPerKg) : '—'} <span style={{ fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
+    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={cardTitleStyle}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.workers, 0.12), color: CAT.workers }}>
+              <Scale size={16}/>
+            </span>
+            <span>{t('costs.costPerKgDrivers')}</span>
+          </div>
+          <div style={{
+            display: 'inline-flex', alignItems: 'baseline', gap: '4px',
+            background: 'rgba(0, 113, 227, 0.08)', padding: '5px 12px', borderRadius: '10px'
+          }}>
+            <span style={{ fontSize: '20px', fontWeight: 800, color: IOS_THEME.accent, fontVariantNumeric: 'tabular-nums' }}>
+              {totalPerKg > 0 ? FMT3(totalPerKg) : '—'}
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
+          </div>
+        </div>
+
+        {kg <= 0 ? (
+          <div style={{ padding: '36px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noTonnageCostPerKg')}</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', height: '10px', borderRadius: '6px', overflow: 'hidden', margin: '0 0 16px', background: 'rgba(0,0,0,0.04)' }}>
+              {drivers.filter(d => d.perKg > 0).map(d => (
+                <div key={d.name} title={`${d.name}: ${FMT3(d.perKg)} ${t('costs.currencyPerKg')}`} style={{ width: `${(d.perKg / totalPerKg) * 100}%`, background: d.color }} />
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {drivers.map(d => {
+                const pct = totalPerKg > 0 ? (d.perKg / totalPerKg) * 100 : 0;
+                return (
+                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '24px', height: '24px', borderRadius: '7px',
+                      background: tint(d.color, 0.12), color: d.color, flexShrink: 0
+                    }}>
+                      {d.icon}
+                    </span>
+                    <div style={{ width: '90px', fontSize: '13px', fontWeight: 600, color: IOS_THEME.textPrimary }}>
+                      {d.name}
+                    </div>
+                    <div style={{ flex: 1, height: '7px', borderRadius: '4px', background: 'rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                    </div>
+                    <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: IOS_THEME.textPrimary }}>
+                      {FMT3(d.perKg)} <span style={{ fontSize: '10px', fontWeight: 500, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
+                    </span>
+                    <span style={{ width: '38px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Operational Insight: Wypełnia przestrzeń i wiąże koszt pracownika z wydajnością operacyjną */}
+      <div style={{
+        marginTop: '16px', padding: '12px 14px', borderRadius: '12px',
+        background: 'rgba(0, 0, 0, 0.025)', border: `1px solid ${IOS_THEME.border}`,
+        display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', alignItems: 'center'
+      }}>
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
+            Wydajność pracy
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
+            {overallKgPerH > 0 ? `${FMT1(overallKgPerH)} kg/rbh` : '—'}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
+            Stawka bazowa
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
+            {FMT(settings?.worker_hourly_rate || 45.82)} zł/h
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
+            Godziny rbh
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
+            {FMT0(perfTotals?.h || 0)} rbh
+          </div>
         </div>
       </div>
-      {kg <= 0 ? (
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noTonnageCostPerKg')}</div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', margin: '0 0 18px' }}>
-            {drivers.filter(d => d.perKg > 0).map(d => (
-              <div key={d.name} title={`${d.name}: ${FMT3(d.perKg)} ${t('costs.currencyPerKg')}`} style={{ width: `${(d.perKg / totalPerKg) * 100}%`, background: d.color }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {drivers.map(d => {
-              const pct = totalPerKg > 0 ? (d.perKg / totalPerKg) * 100 : 0;
-              return (
-                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                  <span style={{ width: '90px', fontSize: '13px', fontWeight: 600 }}>{d.name}</span>
-                  <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(60,60,67,0.08)', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: '3px' }} />
-                  </div>
-                  <span style={{ width: '92px', textAlign: 'right', fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                    {FMT3(d.perKg)} <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textSecondary }}>{t('costs.currencyPerKg')}</span>
-                  </span>
-                  <span style={{ width: '44px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(0)}%</span>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }
 
-// Most MoM (waterfall): koszt poprzedniego miesiąca → wkłady kategorii → koszt bieżącego
+// Most MoM (waterfall): koszt poprzedniego miesiąca → wkłady kategorii → koszt bieżącego (brak uciętych liczb!)
 function WaterfallCard({ cur, prev }) {
   const { t } = useTranslation();
   const months = monthNames();
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
   if (!prev || prev.total <= 0 || !cur) {
     return (
       <div style={cardStyle}>
-        <div style={cardTitleStyle}>{t('costs.whatChangedMom')}</div>
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.needPreviousMonth')}</div>
+        <div style={cardTitleStyle}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(IOS_THEME.accent, 0.12), color: IOS_THEME.accent }}>
+            <BarChart3 size={16}/>
+          </span>
+          <span>{t('costs.whatChangedMom')}</span>
+        </div>
+        <div style={{ padding: '36px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.needPreviousMonth')}</div>
       </div>
     );
   }
+
   const catDefs = [
     { name: t('costs.transport'), d: cur.transport - prev.transport },
     { name: t('costs.energy'), d: cur.elec - prev.elec },
@@ -1178,44 +1550,95 @@ function WaterfallCard({ cur, prev }) {
     { name: t('costs.people'), d: cur.workers - prev.workers },
     { name: t('costs.other'), d: cur.other - prev.other },
   ];
-  const cols = [{ label: months[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total }];
+  const cols = [{ label: months[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total, name: `${months[prev.month - 1]} ${prev.year}` }];
   let run = prev.total;
-  catDefs.forEach(c => { cols.push({ label: c.name, type: 'delta', from: run, to: run + c.d, d: c.d }); run += c.d; });
-  cols.push({ label: months[cur.month - 1].slice(0, 3), type: 'edge', val: cur.total });
+  catDefs.forEach(c => { cols.push({ label: c.name, type: 'delta', from: run, to: run + c.d, d: c.d, name: c.name }); run += c.d; });
+  cols.push({ label: months[cur.month - 1].slice(0, 3), type: 'edge', val: cur.total, name: `${months[cur.month - 1]} ${cur.year}` });
 
-  const W = 580, Hh = 210, P = 28, axisB = 34;
-  const maxV = Math.max(prev.total, cur.total, ...cols.map(c => c.type === 'delta' ? Math.max(c.from, c.to) : c.val)) * 1.06;
+  const W = 620, Hh = 220, P = 40, axisB = 36;
+  const maxV = Math.max(prev.total, cur.total, ...cols.map(c => c.type === 'delta' ? Math.max(c.from, c.to) : c.val)) * 1.08;
   const slot = (W - 2 * P) / cols.length;
-  const bw = Math.min(slot * 0.6, 46);
+  const bw = Math.min(slot * 0.58, 44);
   const cx = (i) => P + slot * (i + 0.5);
-  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 10);
+  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 12);
   const net = cur.total - prev.total;
 
   return (
-    <div style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={cardTitleStyle}>{t('costs.whatChangedMom')}</div>
-        <div style={{ fontSize: '14px', fontWeight: 800, color: net <= 0 ? '#10B981' : '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
-          {net >= 0 ? '+' : '−'}{FMT(Math.abs(net))} {t('costs.currency')}
+    <div style={{ ...cardStyle, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={cardTitleStyle}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(IOS_THEME.accent, 0.12), color: IOS_THEME.accent }}>
+            <BarChart3 size={16}/>
+          </span>
+          <span>{t('costs.whatChangedMom')}</span>
+        </div>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '5px',
+          padding: '4px 12px', borderRadius: '999px',
+          fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+          background: net <= 0 ? IOS_THEME.successBg : IOS_THEME.dangerBg,
+          color: net <= 0 ? IOS_THEME.successText : IOS_THEME.dangerText,
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, opacity: 0.85 }}>Zmiana:</span>
+          <span>{net >= 0 ? '+' : '−'}{FMT(Math.abs(net))} {t('costs.currency')}</span>
         </div>
       </div>
+
       <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
         {cols.map((c, i) => {
           const isEdge = c.type === 'edge';
           const top = isEdge ? y(c.val) : y(Math.max(c.from, c.to));
           const h = isEdge ? (Hh - axisB) - y(c.val) : Math.abs(y(c.from) - y(c.to));
-          const fill = isEdge ? IOS_THEME.accent : (c.d <= 0 ? '#10B981' : '#EF4444');
+          const isGood = c.d <= 0;
+          const fill = isEdge ? IOS_THEME.accent : isGood ? IOS_THEME.success : IOS_THEME.danger;
           const lbl = isEdge ? FMT0(c.val) : `${c.d >= 0 ? '+' : '−'}${FMT0(Math.abs(c.d))}`;
+          const isHovered = hoveredIdx === i;
+
           return (
-            <g key={i}>
-              {!isEdge && i > 0 && <line x1={cx(i - 1)} x2={cx(i) - bw / 2} y1={y(c.from)} y2={y(c.from)} stroke="rgba(0,0,0,0.15)" strokeWidth="1" strokeDasharray="2 2" />}
-              <rect x={cx(i) - bw / 2} y={top} width={bw} height={Math.max(h, 1)} rx="3" fill={fill} opacity={isEdge ? 1 : 0.9} />
-              <text x={cx(i)} y={top - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill={isEdge ? IOS_THEME.textPrimary : fill}>{lbl}</text>
-              <text x={cx(i)} y={Hh - axisB + 14} textAnchor="middle" fontSize="10" fontWeight="600" fill={IOS_THEME.textSecondary}>{c.label}</text>
+            <g
+              key={i}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              {!isEdge && i > 0 && (
+                <line x1={cx(i - 1)} x2={cx(i) - bw / 2} y1={y(c.from)} y2={y(c.from)} stroke="rgba(0,0,0,0.12)" strokeWidth="1" strokeDasharray="3 3" />
+              )}
+              <rect
+                x={cx(i) - bw / 2}
+                y={top}
+                width={bw}
+                height={Math.max(h, 2)}
+                rx="4"
+                fill={fill}
+                opacity={isHovered ? 1 : 0.9}
+                style={{ transition: 'opacity 0.15s ease' }}
+              />
+              <text
+                x={cx(i)}
+                y={Math.max(top - 6, 12)}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="700"
+                fontVariantNumeric="tabular-nums"
+                fill={isEdge ? IOS_THEME.textPrimary : fill}
+              >
+                {lbl}
+              </text>
+              <text
+                x={cx(i)}
+                y={Hh - axisB + 16}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="600"
+                fill={IOS_THEME.textSecondary}
+              >
+                {c.label}
+              </text>
             </g>
           );
         })}
-        <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+        <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
       </svg>
     </div>
   );
@@ -1229,47 +1652,102 @@ function MultiMonthTrend({ months }) {
   const vals = pts.map(p => p.plnPerKg);
   const withData = vals.filter(v => v > 0);
   const target = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
+  const [hoveredMonth, setHoveredMonth] = useState(null);
+
   if (!withData.length) {
-    return <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noMonthsWithTonnage')}</div>;
+    return <div style={{ padding: '36px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noMonthsWithTonnage')}</div>;
   }
-  const W = 720, Hh = 200, P = 28, axisB = 40;
-  const maxV = Math.max(...vals, target) * 1.18;
+
+  const W = 740, Hh = 210, P = 36, axisB = 42;
+  const maxV = Math.max(...vals, target) * 1.15;
   const slot = (W - 2 * P) / pts.length;
-  const bw = Math.min(slot * 0.5, 48);
+  const bw = Math.min(slot * 0.52, 44);
   const cx = (i) => P + slot * (i + 0.5);
-  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 12);
+  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 14);
+  const currentIdx = pts.length - 1;
 
   return (
-    <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-      {/* linia celu */}
-      <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke={IOS_THEME.warning} strokeWidth="1.5" strokeDasharray="5 4" />
-      <text x={W - P} y={y(target) - 5} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warning}>{t('costs.target')} {FMT3(target)}</text>
-      {pts.map((p, i) => {
-        const v = p.plnPerKg;
-        const has = v > 0;
-        const top = has ? y(v) : (Hh - axisB) - 2;
-        const h = has ? (Hh - axisB) - y(v) : 2;
-        const fill = !has ? 'rgba(0,0,0,0.06)' : v <= target ? '#10B981' : CAT.transport;
-        return (
-          <g key={p.mk}>
-            <rect x={cx(i) - bw / 2} y={top} width={bw} height={Math.max(h, 2)} rx="4" fill={fill} />
-            {has && <text x={cx(i)} y={top - 6} textAnchor="middle" fontSize="10" fontWeight="800" fill={IOS_THEME.textPrimary}>{FMT3(v)}</text>}
-            <text x={cx(i)} y={Hh - axisB + 15} textAnchor="middle" fontSize="10" fontWeight="700" fill={IOS_THEME.textSecondary}>{monthList[p.month - 1].slice(0, 3)}</text>
-            <text x={cx(i)} y={Hh - axisB + 28} textAnchor="middle" fontSize="9" fontWeight="600" fill="rgba(0,0,0,0.35)">{p.kg > 0 ? `${FMT0(p.kg)} kg` : '—'}</text>
-          </g>
-        );
-      })}
-      <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {/* linia celu */}
+        <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke={IOS_THEME.warning} strokeWidth="1.5" strokeDasharray="5 4" />
+        <text x={W - P} y={y(target) - 6} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warningText}>
+          {t('costs.target')} {FMT3(target)} {t('costs.currencyPerKg')}
+        </text>
+
+        {pts.map((p, i) => {
+          const v = p.plnPerKg;
+          const has = v > 0;
+          const top = has ? y(v) : (Hh - axisB) - 2;
+          const h = has ? (Hh - axisB) - y(v) : 2;
+          const isCurrent = i === currentIdx;
+          const fill = !has ? 'rgba(0,0,0,0.05)' : isCurrent ? IOS_THEME.accent : v <= target ? IOS_THEME.success : IOS_THEME.warning;
+          const isHovered = hoveredMonth === i;
+
+          return (
+            <g
+              key={p.mk}
+              onMouseEnter={() => setHoveredMonth(i)}
+              onMouseLeave={() => setHoveredMonth(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x={cx(i) - bw / 2}
+                y={top}
+                width={bw}
+                height={Math.max(h, 2)}
+                rx="5"
+                fill={fill}
+                opacity={isHovered ? 1 : 0.9}
+                style={{ transition: 'opacity 0.15s ease' }}
+              />
+              {has && (
+                <text
+                  x={cx(i)}
+                  y={top - 6}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="700"
+                  fontVariantNumeric="tabular-nums"
+                  fill={IOS_THEME.textPrimary}
+                >
+                  {FMT3(v)}
+                </text>
+              )}
+              <text
+                x={cx(i)}
+                y={Hh - axisB + 16}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight={isCurrent ? '800' : '600'}
+                fill={isCurrent ? IOS_THEME.accent : IOS_THEME.textPrimary}
+              >
+                {monthList[p.month - 1].slice(0, 3)}
+              </text>
+              <text
+                x={cx(i)}
+                y={Hh - axisB + 30}
+                textAnchor="middle"
+                fontSize="9.5"
+                fontWeight="500"
+                fontVariantNumeric="tabular-nums"
+                fill={IOS_THEME.textTertiary}
+              >
+                {p.kg > 0 ? `${FMT0(p.kg)} kg` : '—'}
+              </text>
+            </g>
+          );
+        })}
+        <line x1={P} x2={W - P} y1={Hh - axisB} y2={Hh - axisB} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+      </svg>
+    </div>
   );
 }
 
 function TrendChart({ data, days, avg, offFlags = [] }) {
   const { t } = useTranslation();
-  const W = 600, H = 170, P = 10;
+  const W = 600, H = 175, P = 12;
   const n = data.length;
-  // Tylko dni robocze tworzą wierzchołki linii — pozycja X wg realnego dnia w miesiącu,
-  // więc weekendy/święta są płynnie mostkowane prostym odcinkiem (krzywa bez dołków do zera).
   const workIdx = data.map((_, i) => i).filter(i => !offFlags[i]);
   const max = Math.max(...workIdx.map(i => data[i]), 1);
   const x = (i) => P + (n <= 1 ? 0 : (i / (n - 1)) * (W - 2 * P));
@@ -1281,19 +1759,33 @@ function TrendChart({ data, days, avg, offFlags = [] }) {
   const avgY = y(avg);
   let maxIdx = workIdx.length ? workIdx[0] : 0;
   workIdx.forEach(i => { if (data[i] > data[maxIdx]) maxIdx = i; });
+  const gradId = useId();
 
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
-        <polygon points={areaPts} fill={tint(IOS_THEME.accent, 0.12)} />
-        <line x1={P} y1={avgY} x2={W - P} y2={avgY} stroke={IOS_THEME.textSecondary} strokeWidth="1" strokeDasharray="4 4" />
-        <polyline points={linePts} fill="none" stroke={IOS_THEME.accent} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        {n > 0 && <circle cx={x(maxIdx)} cy={y(data[maxIdx])} r="3.5" fill={IOS_THEME.accent} vectorEffect="non-scaling-stroke" />}
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={IOS_THEME.accent} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={IOS_THEME.accent} stopOpacity="0.01" />
+          </linearGradient>
+        </defs>
+        <polygon points={areaPts} fill={`url(#${gradId})`} />
+        <line x1={P} y1={avgY} x2={W - P} y2={avgY} stroke={IOS_THEME.textSecondary} strokeWidth="1" strokeDasharray="4 4" opacity="0.6" />
+        <polyline points={linePts} fill="none" stroke={IOS_THEME.accent} strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+        {n > 0 && (
+          <>
+            <circle cx={x(maxIdx)} cy={y(data[maxIdx])} r="5" fill={IOS_THEME.accent} opacity="0.25" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(maxIdx)} cy={y(data[maxIdx])} r="2.8" fill={IOS_THEME.accent} vectorEffect="non-scaling-stroke" />
+          </>
+        )}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', fontSize: '11px', color: IOS_THEME.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
         <span>{days.length ? new Date(days[0]).getDate() + '.' + String(new Date(days[0]).getMonth() + 1).padStart(2, '0') : ''}</span>
-        <span style={{ color: IOS_THEME.warning, fontWeight: 600 }}>{t('costs.peak')} {FMT(data[maxIdx] || 0)} {t('costs.currency')}</span>
-        <span>{t('costs.avgShort')} {FMT(avg)} {t('costs.currency')}</span>
+        <span style={{ color: IOS_THEME.warningText, fontWeight: 700, background: IOS_THEME.warningBg, padding: '2px 8px', borderRadius: '6px' }}>
+          {t('costs.peak')}: {FMT(data[maxIdx] || 0)} {t('costs.currency')}
+        </span>
+        <span style={{ fontWeight: 600 }}>{t('costs.avgShort')} {FMT(avg)} {t('costs.currency')}</span>
         <span>{days.length ? new Date(days[days.length - 1]).getDate() + '.' + String(new Date(days[days.length - 1]).getMonth() + 1).padStart(2, '0') : ''}</span>
       </div>
     </div>
@@ -1377,11 +1869,14 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
 function ElectricityReconciliationCard({ reconciliation }) {
   const { t } = useTranslation();
   return (
-    <div style={{ ...cardStyle, borderLeft: `4px solid ${CAT.elec}` }}>
-      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Zap size={17} color={CAT.elec}/> {t('costs.electricityReconciliation')}
+    <div style={cardStyle}>
+      <div style={cardTitleStyle}>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.elec, 0.12), color: CAT.elec }}>
+          <Zap size={16}/>
+        </span>
+        <span>{t('costs.electricityReconciliation')}</span>
       </div>
-      <div style={{ color: IOS_THEME.textSecondary, fontSize: '12px', marginBottom: '14px' }}>
+      <div style={{ color: IOS_THEME.textSecondary, fontSize: '12px', marginBottom: '14px', lineHeight: 1.45 }}>
         {t('costs.reconciliationHint')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
@@ -1413,18 +1908,21 @@ function ElectricityReconciliationCard({ reconciliation }) {
 function GasProductionReconciliationCard({ reconciliation }) {
   const { t } = useTranslation();
   return (
-    <div style={{ ...cardStyle, borderLeft: `4px solid ${CAT.gas}` }}>
-      <div style={{ ...cardTitleStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Flame size={17} color={CAT.gas}/> {t('costs.productionGasReconciliation')}
+    <div style={cardStyle}>
+      <div style={cardTitleStyle}>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(CAT.gas, 0.12), color: CAT.gas }}>
+          <Flame size={16}/>
+        </span>
+        <span>{t('costs.productionGasReconciliation')}</span>
       </div>
-      <div style={{ color: IOS_THEME.textSecondary, fontSize: '12px', marginBottom: '14px' }}>
+      <div style={{ color: IOS_THEME.textSecondary, fontSize: '12px', marginBottom: '14px', lineHeight: 1.45 }}>
         {t('costs.productionGasReconciliationHint')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
         {reconciliation.hasInvoiceKwh && (
-          <div style={{ padding: '12px', borderRadius: '12px', background: '#F9FAFB', border: `1px solid ${IOS_THEME.border}` }}>
-            <div style={{ fontWeight: 700, marginBottom: '8px' }}>{t('costs.productionGasConsumption')}</div>
-            <div style={{ display: 'grid', gap: '4px', fontSize: '13px' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(0,0,0,0.02)', border: `1px solid ${IOS_THEME.border}` }}>
+            <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px', color: IOS_THEME.textPrimary }}>{t('costs.productionGasConsumption')}</div>
+            <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
                 <span style={{ color: IOS_THEME.textSecondary }}>{t('costs.appMeter')}</span>
                 <strong>{FMT1(reconciliation.calculatedM3)} m³</strong>
@@ -1435,7 +1933,7 @@ function GasProductionReconciliationCard({ reconciliation }) {
               </div>
             </div>
             {reconciliation.impliedKwhPerM3 != null && (
-              <div style={{ color: CAT.gas, textAlign: 'right', marginTop: '7px', fontWeight: 700, fontSize: '12px', display: 'grid', gap: '3px' }}>
+              <div style={{ color: CAT.gas, textAlign: 'right', marginTop: '8px', fontWeight: 700, fontSize: '12px', display: 'grid', gap: '3px' }}>
                 <span>{t('costs.impliedGasConversion')}: {FMT3(reconciliation.impliedKwhPerM3)} kWh/m³</span>
                 {reconciliation.invoiceDerivedPriceM3 != null && (
                   <span>{t('costs.invoiceDerivedGasRate')}: {FMT3(reconciliation.invoiceDerivedPriceM3)} {t('costs.currency')}/m³</span>
@@ -1461,24 +1959,28 @@ function GasProductionReconciliationCard({ reconciliation }) {
 
 function ReconciliationMetric({ label, calculated, invoice, difference, differencePct, unit }) {
   const { t } = useTranslation();
-  const color = Math.abs(difference || 0) < 0.005 ? IOS_THEME.success : IOS_THEME.warning;
+  const isGood = Math.abs(difference || 0) < 0.005;
+  const color = isGood ? IOS_THEME.successText : IOS_THEME.warningText;
+  const bg = isGood ? IOS_THEME.successBg : IOS_THEME.warningBg;
   const sign = difference > 0 ? '+' : '';
   const pct = differencePct == null ? '' : ` (${sign}${FMT1(differencePct)}%)`;
   return (
-    <div style={{ padding: '12px', borderRadius: '12px', background: '#F9FAFB', border: `1px solid ${IOS_THEME.border}` }}>
-      <div style={{ fontWeight: 700, marginBottom: '8px' }}>{label}</div>
-      <div style={{ display: 'grid', gap: '4px', fontSize: '13px' }}>
+    <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(0,0,0,0.02)', border: `1px solid ${IOS_THEME.border}` }}>
+      <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px', color: IOS_THEME.textPrimary }}>{label}</div>
+      <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
           <span style={{ color: IOS_THEME.textSecondary }}>{t('costs.appCalculation')}</span>
-          <strong>{calculated}</strong>
+          <strong style={{ color: IOS_THEME.textPrimary }}>{calculated}</strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
           <span style={{ color: IOS_THEME.textSecondary }}>{t('costs.invoiceValue')}</span>
-          <strong>{invoice}</strong>
+          <strong style={{ color: IOS_THEME.textPrimary }}>{invoice}</strong>
         </div>
       </div>
-      <div style={{ color, textAlign: 'right', marginTop: '7px', fontWeight: 700, fontSize: '12px' }}>
-        Δ {sign}{unit === 'kWh' ? FMT1(difference) : FMT(difference)} {unit}{pct}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+        <span style={{ color, background: bg, padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
+          Δ {sign}{unit === 'kWh' ? FMT1(difference) : FMT(difference)} {unit}{pct}
+        </span>
       </div>
     </div>
   );
@@ -2040,13 +2542,35 @@ function MiniStat({ label, value, unit, color, featured = false }) {
 
 /* ───────────── STYLES ───────────── */
 const cardStyle = {
-  background: IOS_THEME.cardBg, borderRadius: IOS_THEME.radius, boxShadow: IOS_THEME.shadow,
-  border: `1px solid ${IOS_THEME.border}`, padding: '20px'
+  background: IOS_THEME.cardBg,
+  borderRadius: IOS_THEME.radius,
+  boxShadow: IOS_THEME.shadow,
+  border: `1px solid ${IOS_THEME.border}`,
+  padding: '22px',
+  transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
 };
-const cardTitleStyle = { fontSize: '15px', fontWeight: 700, marginBottom: '16px', color: IOS_THEME.textPrimary };
+const cardTitleStyle = {
+  fontSize: '15px',
+  fontWeight: 700,
+  marginBottom: '14px',
+  color: IOS_THEME.textPrimary,
+  letterSpacing: '-0.01em',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px'
+};
 
 const navBtnStyle = {
-  padding: '6px 14px', borderRadius: '10px', background: '#F2F2F7', border: 'none', fontWeight: 700, fontSize: '18px', cursor: 'pointer'
+  padding: '7px 14px',
+  borderRadius: '10px',
+  background: '#FFFFFF',
+  border: `1px solid ${IOS_THEME.border}`,
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+  fontWeight: 600,
+  fontSize: '13px',
+  color: IOS_THEME.textPrimary,
+  cursor: 'pointer',
+  transition: 'all 0.15s ease'
 };
 const newThStyle = {
   padding: '8px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.6px'
@@ -2073,6 +2597,38 @@ const footTdStyle = {
 };
 
 const COSTS_CSS = `
+.costs-view-tabs {
+  display: flex !important;
+  gap: 3px !important;
+  padding: 3px !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: 12px !important;
+  background: rgba(120, 120, 128, 0.10) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+.costs-view-tab {
+  min-height: 32px !important;
+  padding: 5px 16px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: #6E6E73 !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.costs-view-tab:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: #1D1D1F !important;
+}
+.costs-view-tab.active {
+  background: #FFFFFF !important;
+  color: #1D1D1F !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  font-weight: 700 !important;
+}
 .performance-layout {
   display: grid;
   gap: 16px;
