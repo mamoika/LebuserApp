@@ -37,6 +37,7 @@ import PackingModal from './modals/PackingModal';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
+import { calculateLaundryDayMetrics, laundryBatchKey } from '../lib/laundryDayPlan';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -432,7 +433,12 @@ export default function WashView() {
 
       const client = clientByName.get(entry.client_name);
       const routeId = client?.route_id || entry.route_id || 0;
-      const key = `${entry.client_name || '—'}|${routeId}`;
+      const key = laundryBatchKey({
+        clientName: entry.client_name,
+        routeId,
+        washDate,
+        departureDate,
+      });
       if (!groups.has(key)) {
         groups.set(key, {
           key,
@@ -440,6 +446,7 @@ export default function WashView() {
           routeId,
           entries: [],
           washDate,
+          departureDate,
         });
       }
       groups.get(key).entries.push(entry);
@@ -556,23 +563,15 @@ export default function WashView() {
 
   const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleyByNo.size);
 
-  const metrics = useMemo(() => {
-    const pendingKg = laundryGroups
-      .filter(group => ['pending', 'partial'].includes(group.stage))
-      .reduce((sum, group) => sum + group.pendingIds.reduce((s, id) => s + (parseFloat(entryById.get(id)?.weight) || 0), 0), 0);
-    const washedKg = laundryGroups
-      .filter(group => group.stage !== 'ready' && group.pendingIds.length === 0)
-      .reduce((sum, group) => sum + group.remainingKg, 0);
-    const readyKg = laundryGroups
-      .filter(group => group.stage === 'ready')
-      .reduce((sum, group) => sum + group.kg, 0);
-    return {
-      pendingKg: Number(pendingKg.toFixed(1)),
-      washedKg: Number(washedKg.toFixed(1)),
-      readyKg: Number(readyKg.toFixed(1)),
-      activeTrolleys: activeTrolleyByNo.size,
-    };
-  }, [activeTrolleyByNo.size, entryById, laundryGroups]);
+  const metrics = useMemo(() => ({
+    ...calculateLaundryDayMetrics(
+      entries,
+      selectedDate,
+      entry => slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient)),
+      departureDateOf,
+    ),
+    activeTrolleys: activeTrolleyByNo.size,
+  }), [activeTrolleyByNo.size, dailyServiceByClient, entries, scheduleByRoute, selectedDate]);
 
   const filterCounts = useMemo(() => (
     WORK_FILTERS.reduce((acc, filter) => {
@@ -1108,27 +1107,21 @@ export default function WashView() {
       <div className="laundry-metrics">
         <Metric
           icon={WashingMachine}
-          label={t('wash.metrics.toWash', { count: filterCounts.pending || 0 })}
-          value={`${metrics.pendingKg} kg`}
+          label={t('wash.metrics.planned')}
+          value={`${metrics.plannedKg} kg`}
           tone="pending"
-          active={workFilter === 'pending'}
-          onClick={() => setWorkFilter(workFilter === 'pending' ? 'all' : 'pending')}
         />
         <Metric
           icon={CheckCircle2}
-          label={t('wash.metrics.toPack', { count: filterCounts.washed || 0 })}
+          label={t('wash.metrics.washedToday')}
           value={`${metrics.washedKg} kg`}
           tone="washed"
-          active={workFilter === 'washed'}
-          onClick={() => setWorkFilter(workFilter === 'washed' ? 'all' : 'washed')}
         />
         <Metric
-          icon={PackageCheck}
-          label={t('wash.metrics.ready', { count: filterCounts.ready || 0 })}
-          value={`${metrics.readyKg} kg`}
+          icon={Truck}
+          label={t('wash.metrics.departure')}
+          value={`${metrics.departureKg} kg`}
           tone="ready"
-          active={workFilter === 'ready'}
-          onClick={() => setWorkFilter(workFilter === 'ready' ? 'all' : 'ready')}
         />
         <Metric
           icon={Archive}
@@ -1142,7 +1135,7 @@ export default function WashView() {
       <section className="laundry-section">
         <div className="laundry-section-head">
           <div>
-            <h2>{t('wash.todayLaundry')}</h2>
+            <h2>{t('wash.dayPlan', { date: formatDate(selectedDate) })}</h2>
             <span>{t('wash.watchPoints', { count: filteredLaundryGroups.length })}{workFilter !== 'all' ? ` ${t('wash.ofTotal', { count: laundryGroups.length })}` : ''}</span>
           </div>
           <div className="laundry-filter-tabs" aria-label={t('wash.filterAria')}>
@@ -1213,6 +1206,8 @@ export default function WashView() {
                   </div>
                   <div className="laundry-work-meta">
                     <span>{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</span>
+                    {group.washDate && <span className="is-wash-date">{t('wash.plannedWashDate', { date: formatDate(group.washDate) })}</span>}
+                    {group.departureDate && <span className="is-departure-date">{t('wash.plannedDepartureDate', { date: formatDate(group.departureDate) })}</span>}
                     {group.packedKg > 0 && <span>{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>}
                     {group.packedKg > 0 && group.remainingKg > 0 && <span>{t('wash.remainingAmount', { weight: group.remainingKg })}</span>}
                     {group.washedAt && <span>{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
@@ -1560,6 +1555,9 @@ export default function WashView() {
           trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
           initialTrolley={historyTrolley}
+          canForceReset={isAdmin}
+          actorName={user?.name}
+          onRefresh={refreshAll}
         />
       )}
     </div>
