@@ -1165,10 +1165,10 @@ function OverviewTab({
           icon={<Sigma size={20}/>}
           color={IOS_THEME.accent}
           hero
-          badge={isOngoing ? `Dzień ${accruedDays}/${daysInMonth}` : null}
+          badge={isOngoing ? t('costs.dayProgress', { current: accruedDays, total: daysInMonth }) : null}
           delta={isOngoing ? dDailyCost : dTotal}
-          deltaLabel={isOngoing ? '/ dzień' : 'm/m'}
-          deltaTitle={isOngoing ? `Średnia dzienna Like-for-Like vs ub. m-c: ${FMT(curDailyCost)} zł vs ${FMT(prevDailyCost)} zł` : undefined}
+          deltaLabel={isOngoing ? t('costs.perDayShort') : t('costs.monthOverMonthShort')}
+          deltaTitle={isOngoing ? t('costs.dailyLikeForLikeTooltip', { cur: FMT(curDailyCost), prev: FMT(prevDailyCost), currency: t('costs.currency') }) : undefined}
           goodWhenDown
           spark={sTotal}
         />
@@ -1178,7 +1178,7 @@ function OverviewTab({
           unit={t('costs.currency')}
           icon={<CalendarDays size={20}/>}
           color={IOS_THEME.warning}
-          subtitle={isOngoing ? `pozostało na ${Math.max(0, daysInMonth - accruedDays)} dni` : 'koniec miesiąca'}
+          subtitle={isOngoing ? t('costs.remainingDays', { count: Math.max(0, daysInMonth - accruedDays) }) : t('costs.endOfMonth')}
         />
         <KpiCard
           label={t('costs.kpiMonthForecast')}
@@ -1187,8 +1187,8 @@ function OverviewTab({
           icon={<TrendingUp size={20}/>}
           color={CAT.gas}
           delta={isOngoing ? dRunRate : dForecast}
-          deltaLabel="vs ub. m-c"
-          subtitle={isOngoing ? `Wprowadzone ${FMT0(totals.total)} zł + plan ${FMT0(plannedCosts)} zł` : undefined}
+          deltaLabel={t('costs.vsPrevMonthShort')}
+          subtitle={isOngoing ? t('costs.forecastFormula', { entered: FMT0(totals.total), planned: FMT0(plannedCosts), currency: t('costs.currency') }) : undefined}
           goodWhenDown
         />
         <KpiCard
@@ -1198,7 +1198,7 @@ function OverviewTab({
           icon={<Scale size={20}/>}
           color={CAT.transport}
           delta={dPpk}
-          deltaLabel="m/m"
+          deltaLabel={t('costs.monthOverMonthShort')}
           goodWhenDown
           spark={sPpk}
         />
@@ -1209,8 +1209,8 @@ function OverviewTab({
           icon={<Package size={20}/>}
           color={CAT.workers}
           delta={dKg}
-          deltaLabel={isOngoing ? '/ dzień' : 'm/m'}
-          deltaTitle={isOngoing ? `Średnia dzienna tonażu vs ub. m-c: ${FMT0(curDailyKg)} kg vs ${FMT0(prevDailyKg)} kg` : undefined}
+          deltaLabel={isOngoing ? t('costs.perDayShort') : t('costs.monthOverMonthShort')}
+          deltaTitle={isOngoing ? t('costs.dailyTonnageTooltip', { cur: FMT0(curDailyKg), prev: FMT0(prevDailyKg) }) : undefined}
           goodWhenDown={false}
           spark={sKg}
         />
@@ -1221,7 +1221,7 @@ function OverviewTab({
           icon={<CalendarDays size={20}/>}
           color={CAT.water}
           delta={dAvg}
-          deltaLabel="m/m"
+          deltaLabel={t('costs.monthOverMonthShort')}
           goodWhenDown
           spark={sAvg}
         />
@@ -1253,19 +1253,19 @@ function OverviewTab({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: IOS_THEME.textSecondary, flexWrap: 'wrap' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#D97706', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ display: 'inline-block', width: '12px', height: '0', borderTop: '2px dashed #F59E0B' }} />
-              <span>Cel: {FMT3(settings?.target_cost_per_kg && Number(settings.target_cost_per_kg) > 0 ? Number(settings.target_cost_per_kg) : (H.map(p => p.plnPerKg).filter(v => v > 0).length ? H.map(p => p.plnPerKg).filter(v => v > 0).reduce((a, b) => a + b, 0) / H.map(p => p.plnPerKg).filter(v => v > 0).length : 0))} zł/kg</span>
+              <span>{t('costs.target')}: {FMT3(settings?.target_cost_per_kg && Number(settings.target_cost_per_kg) > 0 ? Number(settings.target_cost_per_kg) : (H.map(p => p.plnPerKg).filter(v => v > 0).length ? H.map(p => p.plnPerKg).filter(v => v > 0).reduce((a, b) => a + b, 0) / H.map(p => p.plnPerKg).filter(v => v > 0).length : 0))} {t('costs.currencyPerKg')}</span>
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.success }} />
-              <span>Poniżej celu</span>
+              <span>{t('costs.legendBelowTarget')}</span>
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.warning }} />
-              <span>Powyżej celu</span>
+              <span>{t('costs.legendAboveTarget')}</span>
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.accent }} />
-              <span>Bieżący</span>
+              <span>{t('costs.legendCurrent')}</span>
             </span>
           </div>
         </div>
@@ -1571,7 +1571,7 @@ function DriversCard({ cur, perfTotals, settings }) {
       }}>
         <div style={{ minWidth: 0, textAlign: 'center', padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
-            Wydajność
+            {t('costs.productivity')}
           </div>
           <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {overallKgPerH > 0 ? `${FMT1(overallKgPerH)} kg/rbh` : '—'}
@@ -1579,7 +1579,7 @@ function DriversCard({ cur, perfTotals, settings }) {
         </div>
         <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
-            Godziny rbh
+            {t('costs.driverLaborHours')}
           </div>
           <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {FMT0(perfTotals?.h || 0)} rbh
@@ -1587,7 +1587,7 @@ function DriversCard({ cur, perfTotals, settings }) {
         </div>
         <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
-            Stawka rbh
+            {t('costs.driverHourlyRate')}
           </div>
           <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {FMT(settings?.worker_hourly_rate || 45.82)} zł/h
@@ -2828,14 +2828,14 @@ function IntegrityReportModal({
   };
 
   const meterNames = {
-    fiat: 'Fiat (licznik)',
-    isuzu: 'Isuzu (licznik)',
-    merc: 'Mercedes (licznik)',
-    iveco: 'Iveco (licznik)',
-    elec: 'Prąd (kWh)',
-    gas_prod: 'Gaz prod. (m³)',
-    gas_heat: 'Gaz grzewczy (m³)',
-    water: 'Woda (m³)',
+    fiat: `Fiat (${t('costs.meter') || 'licznik'})`,
+    isuzu: `Isuzu (${t('costs.meter') || 'licznik'})`,
+    merc: `Mercedes (${t('costs.meter') || 'licznik'})`,
+    iveco: `Iveco (${t('costs.meter') || 'licznik'})`,
+    elec: `${t('costs.electricity')} (kWh)`,
+    gas_prod: `${t('costs.productionGasShort')} (m³)`,
+    gas_heat: `${t('costs.heatingGasShort')} (m³)`,
+    water: `${t('costs.water')} (m³)`,
   };
 
   const formatDateLabel = (dStr) => {
@@ -2909,17 +2909,17 @@ function IntegrityReportModal({
             </span>
             <div>
               <h3 id="integrity-modal-title" style={{ margin: 0, fontSize: '16.5px', fontWeight: 700, color: IOS_THEME.textPrimary, letterSpacing: '-0.3px' }}>
-                Szczegóły rozbieżności i kontroli odczytów
+                {t('costs.integrityModalTitle')}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
-                Wykryto niezgodności w raportach z ostatnich 12 miesięcy
+                {t('costs.integrityModalSubtitle')}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Zamknij"
+            aria-label={t('common.close', 'Zamknij')}
             style={{
               background: 'rgba(0, 0, 0, 0.05)',
               border: 'none',
@@ -2945,7 +2945,7 @@ function IntegrityReportModal({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: IOS_THEME.textPrimary, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                  Rozbieżności kursów kierowców
+                  {t('costs.courseDiscrepancies')}
                 </span>
                 <span style={{
                   background: 'rgba(255, 149, 0, 0.16)',
@@ -2959,7 +2959,7 @@ function IntegrityReportModal({
                 </span>
               </div>
               <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: IOS_THEME.textSecondary, lineHeight: 1.45 }}>
-                Kurs został zatwierdzony z odczytem licznika końcowego, ale w tabeli kosztów na ten dzień stan licznika pojazdu jest pusty.
+                {t('costs.courseDiscrepancyDesc')}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {courseIssues.map((issue, idx) => {
@@ -2996,9 +2996,15 @@ function IntegrityReportModal({
                           </span>
                         </div>
                         <div style={{ fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
-                          Zatwierdzony stan z kursu: <b style={{ color: IOS_THEME.textPrimary }}>{Number(issue.expected_end_km).toLocaleString('pl-PL')} km</b>
+                          {t('costs.approvedCourseReading')}{' '}
+                          <b style={{ color: IOS_THEME.textPrimary }}>
+                            {Number(issue.expected_end_km).toLocaleString(currentLocale())} km
+                          </b>
                           {' · '}
-                          Wpis w kosztach: <span style={{ color: '#EF4444', fontWeight: 600 }}>{issue.actual_end_km || 'brak (null)'}</span>
+                          {t('costs.costEntryReading')}{' '}
+                          <span style={{ color: '#EF4444', fontWeight: 600 }}>
+                            {issue.actual_end_km || t('costs.missingNull')}
+                          </span>
                         </div>
                       </div>
 
@@ -3021,7 +3027,7 @@ function IntegrityReportModal({
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        Przejdź do tego dnia <ChevronRight size={14} />
+                        {t('costs.goToDay')} <ChevronRight size={14} />
                       </button>
                     </div>
                   );
@@ -3035,7 +3041,7 @@ function IntegrityReportModal({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: IOS_THEME.textPrimary, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                  Problemy z odczytami liczników
+                  {t('costs.meterReadingProblems')}
                 </span>
                 <span style={{
                   background: 'rgba(239, 68, 68, 0.12)',
@@ -3076,9 +3082,10 @@ function IntegrityReportModal({
                           </span>
                         </div>
                         <div style={{ fontSize: '12.5px', color: IOS_THEME.textSecondary }}>
-                          Wpisana wartość: <b style={{ color: '#EF4444' }}>{issue.raw}</b>
+                          {t('costs.enteredValue')}{' '}
+                          <b style={{ color: '#EF4444' }}>{issue.raw}</b>
                           {issue.previous_reading && (
-                            <> (poprzedni stan: {issue.previous_reading})</>
+                            <> ({t('costs.previousReading', { value: issue.previous_reading })})</>
                           )}
                         </div>
                       </div>
@@ -3101,7 +3108,7 @@ function IntegrityReportModal({
                           boxShadow: '0 2px 8px rgba(0, 113, 227, 0.25)',
                         }}
                       >
-                        Przejdź do tego dnia <ChevronRight size={14} />
+                        {t('costs.goToDay')} <ChevronRight size={14} />
                       </button>
                     </div>
                   );
