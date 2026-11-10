@@ -2508,7 +2508,7 @@
     "gas": "Gaz",
     "water": "Woda",
     "employees": "Pracownicy",
-    "people": "Ludzie",
+    "people": "Pracownicy",
     "other": "Inne",
     "kpiTotalCosts": "Koszty razem",
     "kpiCostsToDate": "Koszty do dziś",
@@ -2638,7 +2638,7 @@
     "filePrefix": "Koszty",
     "exportCostsTitle": "Koszty — {{month}} {{year}}",
     "exportPerformanceTitle": "Wydajność — {{month}} {{year}}",
-    "exportCostsHead": ["Data", "Fiat (km)", "Isuzu (km)", "Merc. (km)", "Iveco (km)", "Koszt auta (zł)", "Prąd (kWh)", "Koszt prąd (zł)", "Gaz prod. (m³)", "Koszt prod. (zł)", "Gaz grz. (m³)", "Koszt grz. (zł)", "Woda (m³)", "Koszt woda (zł)", "Ludzie (zł)", "Inne (zł)", "SUMA (zł)", "zł/kg"],
+    "exportCostsHead": ["Data", "Fiat (km)", "Isuzu (km)", "Merc. (km)", "Iveco (km)", "Koszt auta (zł)", "Prąd (kWh)", "Koszt prąd (zł)", "Gaz prod. (m³)", "Koszt prod. (zł)", "Gaz grz. (m³)", "Koszt grz. (zł)", "Woda (m³)", "Koszt woda (zł)", "Pracownicy (zł)", "Inne (zł)", "SUMA (zł)", "zł/kg"],
     "exportPerformanceHead": ["Data", "ZD1 (kg)", "ZD2 (kg)", "Pralki (kg)", "Σ KG", "Czas produkcji (h)", "Przepustowość kg/h", "ZD1 (rbh)", "ZD2 (rbh)", "Kier. (rbh)", "Σ RBH", "ZD1 kg/rbh", "ZD2+Pr. kg/rbh", "Ogółem kg/rbh"]
   },
   "privacy": {

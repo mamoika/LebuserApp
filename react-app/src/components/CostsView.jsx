@@ -1595,7 +1595,7 @@ function DriversCard({ cur, perfTotals, settings }) {
         </div>
         <div style={{ minWidth: 0, textAlign: 'center', borderLeft: `1px solid ${IOS_THEME.border}`, padding: '0 6px' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
-            Koszt pracy
+            {t('costs.employees')}
           </div>
           <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {cur?.workers > 0 ? `${FMT0(cur.workers)} zł` : '—'}
@@ -1631,7 +1631,7 @@ function WaterfallCard({ cur, prev }) {
     { name: t('costs.energy'), d: cur.elec - prev.elec },
     { name: t('costs.gas'), d: cur.gas - prev.gas },
     { name: t('costs.water'), d: cur.water - prev.water },
-    { name: t('costs.people'), d: cur.workers - prev.workers },
+    { name: t('costs.employees'), d: cur.workers - prev.workers },
     { name: t('costs.other'), d: cur.other - prev.other },
   ];
   const cols = [{ label: months[prev.month - 1].slice(0, 3), type: 'edge', val: prev.total, name: `${months[prev.month - 1]} ${prev.year}` }];
