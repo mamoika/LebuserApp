@@ -1513,6 +1513,10 @@
 .ddd-gnss-map { height: 330px; margin-top: 8px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; }
 .ddd-gnss-map .leaflet-container { width: 100%; height: 100%; background: var(--bg-secondary); font-family: inherit; }
 .ddd-gnss-map .leaflet-control-attribution { font-size: 8px; }
+.ddd-map-toolbar { min-height:38px; display:flex; align-items:center; gap:8px; margin-top:8px; padding:6px 8px; border:1px solid var(--border); border-radius:9px; background:var(--bg-card-solid); }
+.ddd-map-toolbar label { color:var(--text-secondary); font-size:10px; font-weight:780; }
+.ddd-map-toolbar select { min-height:28px; padding:3px 28px 3px 8px; border:1px solid var(--border); border-radius:7px; background:var(--bg-secondary); color:var(--text-primary); font:inherit; font-size:10.5px; }
+.ddd-map-toolbar span { margin-left:auto; color:var(--text-tertiary); font-size:9.5px; }
 .ddd-map-note { margin: 7px 2px 0; color: var(--text-tertiary); font-size: 9.5px; line-height: 1.4; }
 .ddd-records-panel { margin-top: 8px; }
 .ddd-metadata-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
@@ -1529,6 +1533,11 @@
 .ddd-control-card strong { font-size: 11.5px; }
 .ddd-control-card span { margin-top: 3px; color: var(--text-secondary); font-size: 10.5px; }
 .ddd-control-card small { margin-top: 3px; color: var(--text-tertiary); font-size: 9.5px; }
+.ddd-assigned-driver { display:flex; flex-direction:column; gap:5px; padding:9px 10px; border:1px solid rgba(0,122,255,.16); border-radius:9px; background:rgba(0,122,255,.04); }
+.ddd-assigned-driver > span { color:var(--text-tertiary); font-size:9px; font-weight:800; letter-spacing:.035em; text-transform:uppercase; }
+.ddd-assigned-driver strong { display:flex; align-items:center; gap:6px; color:var(--text-primary); font-size:11.5px; }
+.ddd-assigned-driver strong svg { color:var(--accent); }
+.ddd-assigned-driver small { color:var(--text-tertiary); font-size:9.5px; }
 .ddd-compliance-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid rgba(180,83,9,.18); border-radius: 10px; color: #92400E; background: rgba(245,158,11,.065); font-size: 10px; line-height: 1.4; }
 .ddd-compliance-note > svg { flex: 0 0 auto; }
 .ddd-compliance-note strong { display: block; margin-bottom: 2px; }

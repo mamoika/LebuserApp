@@ -228,7 +228,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	access, err := loadDispatchContext(ctx, sessionToken)
+	employeeScope := strings.TrimSpace(r.URL.Query().Get("employee_id"))
+	access, err := loadDriverCardContext(ctx, sessionToken, employeeScope)
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, apiResponse{Error: err.Error()})
 		return
@@ -244,7 +245,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, apiResponse{Error: "Brak identyfikatora odczytu DDD"})
 			return
 		}
-		detail, detailErr := loadImportDetail(ctx, sessionToken, importID)
+		detail, detailErr := loadImportDetail(ctx, sessionToken, importID, employeeScope)
 		if detailErr != nil {
 			writeJSON(w, http.StatusBadRequest, apiResponse{Error: detailErr.Error()})
 			return
@@ -854,9 +855,12 @@ func countAuthentications(message protoreflect.Message) (verified int, total int
 	return verified, total
 }
 
-func loadDispatchContext(ctx context.Context, sessionToken string) (*dispatchContext, error) {
+func loadDriverCardContext(ctx context.Context, sessionToken, employeeID string) (*dispatchContext, error) {
 	var result dispatchContext
-	if err := callRPC(ctx, "get_dispatch_ddd_context", map[string]any{"p_session_token": sessionToken}, &result); err != nil {
+	if err := callRPC(ctx, "get_work_schedule_ddd_context", map[string]any{
+		"p_session_token": sessionToken,
+		"p_employee_id":   nullable(employeeID),
+	}, &result); err != nil {
 		return nil, err
 	}
 	if !result.OK || result.Error != "" {
@@ -868,11 +872,12 @@ func loadDispatchContext(ctx context.Context, sessionToken string) (*dispatchCon
 	return &result, nil
 }
 
-func loadImportDetail(ctx context.Context, sessionToken, importID string) (*detailResponse, error) {
+func loadImportDetail(ctx context.Context, sessionToken, importID, employeeID string) (*detailResponse, error) {
 	var result detailResponse
-	if err := callRPC(ctx, "get_dispatch_ddd_import_detail", map[string]any{
+	if err := callRPC(ctx, "get_work_schedule_ddd_import_detail", map[string]any{
 		"p_session_token": sessionToken,
 		"p_import_id":     importID,
+		"p_employee_id":   nullable(employeeID),
 	}, &result); err != nil {
 		return nil, err
 	}

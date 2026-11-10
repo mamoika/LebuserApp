@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ChevronRight, Clock3, Gauge, GripVertical,
-  FileUp, History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
+  History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -22,7 +22,6 @@ import { VEHICLE_LABELS } from '../../lib/vehicles';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import AssignTripSheet from './sheets/AssignTripSheet';
 import DispatchTripArchive from './DispatchTripArchive';
-import DriverCardDddDialog from './DriverCardDddDialog';
 import DriverCoursePlanning from './DriverCoursePlanning';
 import TripCourseStops from './TripCourseStops';
 import '../mockups/mockups.css';
@@ -455,7 +454,7 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
 export default function DispatchBoard() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
-  const { sessionToken, isAdmin, canEditModule } = useAuth();
+  const { sessionToken, isAdmin } = useAuth();
   const { entries, allRoutes, clients, refetch } = useAppData();
   const [viewMode, setViewMode] = useState('day');
   const [tripDate, setTripDate] = useState(() => operationalYmd());
@@ -472,8 +471,6 @@ export default function DispatchBoard() {
   const [hoursStart, setHoursStart] = useState('');
   const [hoursEnd, setHoursEnd] = useState('');
   const [busy, setBusy] = useState(false);
-  const [dddImportOpen, setDddImportOpen] = useState(false);
-  const canImportDdd = canEditModule('live_routes');
 
   const boardColumns = useMemo(
     () => BOARD_COLUMN_KEYS.map(key => ({ key, label: t(`course.board.columns.${key}`) })),
@@ -703,11 +700,6 @@ export default function DispatchBoard() {
             <label htmlFor="dispatch-date">{t('course.board.courseDate')}<input id="dispatch-date" type="date" value={tripDate} onChange={event => setTripDate(event.target.value)} /></label>
           )}
           <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>
-          {canImportDdd && (
-            <button className="driver-tool-btn ddd-toolbar-button" onClick={() => setDddImportOpen(true)} disabled={busy}>
-              <FileUp size={15} /> {t('course.ddd.openButton')}
-            </button>
-          )}
           {isAdmin && viewMode === 'day' && (
             <button className="driver-tool-btn" onClick={() => setAssignTrip({ id: `new_${tripDate}`, trip_date: tripDate, routes: '' })}><Plus size={15} /> {t('course.board.newCourse')}</button>
           )}
@@ -828,11 +820,6 @@ export default function DispatchBoard() {
           }}
         />
       )}
-      <DriverCardDddDialog
-        open={dddImportOpen}
-        onClose={() => setDddImportOpen(false)}
-        sessionToken={sessionToken}
-      />
     </section>
   );
 }

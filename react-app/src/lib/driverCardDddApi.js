@@ -1,13 +1,14 @@
 const DDD_API_URL = import.meta.env.VITE_DDD_API_URL || '/api/driver-card-ddd';
 
-async function callDddApi(sessionToken, file, fields = {}) {
+async function callDddApi(sessionToken, file, fields = {}, employeeId = '') {
   const form = new FormData();
   form.append('file', file);
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) form.append(key, String(value));
   });
 
-  const response = await fetch(DDD_API_URL, {
+  const scope = employeeId ? `?employee_id=${encodeURIComponent(employeeId)}` : '';
+  const response = await fetch(`${DDD_API_URL}${scope}`, {
     method: 'POST',
     headers: { 'X-Session-Token': sessionToken },
     body: form,
@@ -19,8 +20,9 @@ async function callDddApi(sessionToken, file, fields = {}) {
   return data;
 }
 
-export async function getDriverCardDddContext(sessionToken) {
-  const response = await fetch(`${DDD_API_URL}?action=context`, {
+export async function getDriverCardDddContext(sessionToken, employeeId = '') {
+  const employeeScope = employeeId ? `&employee_id=${encodeURIComponent(employeeId)}` : '';
+  const response = await fetch(`${DDD_API_URL}?action=context${employeeScope}`, {
     method: 'POST',
     headers: { 'X-Session-Token': sessionToken },
   });
@@ -31,8 +33,9 @@ export async function getDriverCardDddContext(sessionToken) {
   return data;
 }
 
-export async function getDriverCardDddDetails(sessionToken, importId) {
-  const response = await fetch(`${DDD_API_URL}?action=details&id=${encodeURIComponent(importId)}`, {
+export async function getDriverCardDddDetails(sessionToken, importId, employeeId = '') {
+  const employeeScope = employeeId ? `&employee_id=${encodeURIComponent(employeeId)}` : '';
+  const response = await fetch(`${DDD_API_URL}?action=details&id=${encodeURIComponent(importId)}${employeeScope}`, {
     method: 'POST',
     headers: { 'X-Session-Token': sessionToken },
   });
@@ -43,8 +46,8 @@ export async function getDriverCardDddDetails(sessionToken, importId) {
   return data;
 }
 
-export function parseDriverCardDdd(sessionToken, file) {
-  return callDddApi(sessionToken, file, { action: 'parse' });
+export function parseDriverCardDdd(sessionToken, file, employeeId = '') {
+  return callDddApi(sessionToken, file, { action: 'parse' }, employeeId);
 }
 
 export function importDriverCardDdd(sessionToken, file, employeeId, downloadedAt) {
@@ -52,5 +55,5 @@ export function importDriverCardDdd(sessionToken, file, employeeId, downloadedAt
     action: 'import',
     employee_id: employeeId,
     downloaded_at: downloadedAt,
-  });
+  }, employeeId);
 }

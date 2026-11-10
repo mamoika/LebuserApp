@@ -3,7 +3,7 @@ import {
   AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, FileArchive, FileUp,
   History, IdCard, LoaderCircle, MapPinned, ShieldAlert, ShieldCheck, Truck, UserRoundCheck, X,
 } from 'lucide-react';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
 import { getDriverCardDddContext, getDriverCardDddDetails, importDriverCardDdd, parseDriverCardDdd } from '../../lib/driverCardDddApi';
@@ -63,11 +63,10 @@ function DddGnssMap({ points, locale, t }) {
   return (
     <div className="ddd-gnss-map">
       <MapContainer center={positions[0]} zoom={7} scrollWheelZoom={false}>
-        <TileLayer attribution="&copy; OpenStreetMap &copy; CARTO" url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+        <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <DddMapFit points={points} />
-        <Polyline positions={positions} pathOptions={{ color: '#007AFF', weight: 2, opacity: 0.7 }} />
         {points.map((point, index) => (
-          <CircleMarker key={`${point.timestamp}-${index}`} center={[point.latitude, point.longitude]} radius={index === points.length - 1 ? 5 : 3} pathOptions={{ color: '#007AFF', fillColor: '#fff', fillOpacity: 1, weight: 2 }}>
+          <CircleMarker key={`${point.timestamp}-${index}`} center={[point.latitude, point.longitude]} radius={index === points.length - 1 ? 6 : 4} pathOptions={{ color: '#007AFF', fillColor: index === points.length - 1 ? '#007AFF' : '#fff', fillOpacity: 1, weight: 2 }}>
             <Popup><strong>{formatDateTime(point.timestamp, locale)}</strong><br />{point.odometer_km?.toLocaleString(locale)} km<br />{point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</Popup>
           </CircleMarker>
         ))}
@@ -83,6 +82,9 @@ function DddRecordedDetails({ summary, locale, t }) {
   const selectedDay = days.find(day => day.date === selectedDayDate) || days[0];
   const vehicles = [...(summary.vehicle_details || [])].reverse();
   const gnss = [...(summary.gnss_points || [])].sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const mapDates = [...new Set(gnss.map(point => String(point.timestamp || '').slice(0, 10)).filter(Boolean))].sort().reverse();
+  const [selectedMapDate, setSelectedMapDate] = useState(mapDates[0] || '');
+  const mapPoints = gnss.filter(point => String(point.timestamp || '').startsWith(selectedMapDate));
   const units = [...(summary.vehicle_units || [])].reverse();
   const alerts = summary.compliance_alerts || [];
   const incidents = [
@@ -134,7 +136,7 @@ function DddRecordedDetails({ summary, locale, t }) {
         </div>
       )}
 
-      {section === 'locations' && <div role="tabpanel"><DddGnssMap points={gnss} locale={locale} t={t} /><p className="ddd-map-note">{t('course.ddd.gnssNote')}</p></div>}
+      {section === 'locations' && <div role="tabpanel"><div className="ddd-map-toolbar"><label htmlFor="ddd-map-date">{t('course.ddd.mapDay')}</label><select id="ddd-map-date" value={selectedMapDate} onChange={event => setSelectedMapDate(event.target.value)}>{mapDates.map(date => <option key={date} value={date}>{formatDate(date, locale)}</option>)}</select><span>{t('course.ddd.mapPointsOnDay', { count: mapPoints.length })}</span></div><DddGnssMap points={mapPoints} locale={locale} t={t} /><p className="ddd-map-note">{t('course.ddd.gnssNote')}</p></div>}
 
       {section === 'records' && (
         <div className="ddd-records-panel" role="tabpanel">
@@ -173,14 +175,14 @@ function DddRecordedDetails({ summary, locale, t }) {
   );
 }
 
-export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
+export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriver = null, sessionToken }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(presetDriver?.employee_id || '');
   const [downloadedAt, setDownloadedAt] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -192,14 +194,14 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
   const summary = archivedImport?.summary || result?.summary || null;
   const drivers = useMemo(() => result?.drivers || [], [result?.drivers]);
   const selectedDriver = useMemo(
-    () => drivers.find(driver => driver.employee_id === employeeId),
-    [drivers, employeeId],
+    () => presetDriver || drivers.find(driver => driver.employee_id === employeeId),
+    [drivers, employeeId, presetDriver],
   );
 
   const clearFile = () => {
     setFile(null);
     setResult(null);
-    setEmployeeId('');
+    setEmployeeId(presetDriver?.employee_id || '');
     setDownloadedAt('');
     setError('');
     setArchivedImport(null);
@@ -231,30 +233,30 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
     if (!open || !sessionToken) return undefined;
     let active = true;
     setArchiveLoading(true);
-    getDriverCardDddContext(sessionToken)
+    getDriverCardDddContext(sessionToken, presetDriver?.employee_id)
       .then(data => { if (active) setRecentImports(data.imports || []); })
       .catch(contextError => { if (active) setError(contextError.message); })
       .finally(() => { if (active) setArchiveLoading(false); });
     return () => { active = false; };
-  }, [open, sessionToken]);
+  }, [open, presetDriver?.employee_id, sessionToken]);
 
   useEffect(() => {
     if (open) return;
     setFile(null);
     setResult(null);
-    setEmployeeId('');
+    setEmployeeId(presetDriver?.employee_id || '');
     setDownloadedAt('');
     setError('');
     setArchivedImport(null);
     resetInput(inputRef);
-  }, [open]);
+  }, [open, presetDriver?.employee_id]);
 
   if (!open) return null;
 
   const analyzeFile = async selectedFile => {
     setError('');
     setResult(null);
-    setEmployeeId('');
+    setEmployeeId(presetDriver?.employee_id || '');
     setDownloadedAt('');
     if (!selectedFile?.name?.toLowerCase().endsWith('.ddd')) {
       setError(t('course.ddd.errors.extension'));
@@ -269,10 +271,10 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
     setFile(selectedFile);
     setBusy(true);
     try {
-      const parsed = await parseDriverCardDdd(sessionToken, selectedFile);
+      const parsed = await parseDriverCardDdd(sessionToken, selectedFile, presetDriver?.employee_id);
       setResult(parsed);
       setRecentImports(parsed.imports || []);
-      setEmployeeId(parsed.summary?.matched_employee_id || '');
+      setEmployeeId(presetDriver?.employee_id || parsed.summary?.matched_employee_id || '');
       setDownloadedAt(toLocalDateTimeInput(parsed.summary?.downloaded_at));
     } catch (parseError) {
       setError(parseError.message);
@@ -295,6 +297,7 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
       toastSuccess(response.duplicate
         ? t('course.ddd.duplicate')
         : t('course.ddd.saved', { name: selectedDriver?.name || summary.matched_employee_name }));
+      await onSaved?.();
       onClose();
     } catch (importError) {
       setError(importError.message);
@@ -308,7 +311,7 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
     setArchiveDetailLoading(true);
     setError('');
     try {
-      const detail = await getDriverCardDddDetails(sessionToken, item.id);
+      const detail = await getDriverCardDddDetails(sessionToken, item.id, presetDriver?.employee_id);
       setArchivedImport({ ...item, summary: detail.summary });
     } catch (detailError) {
       setError(detailError.message);
@@ -332,8 +335,8 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
           <div className="ddd-dialog-heading">
             <span className="ddd-dialog-icon"><FileArchive size={20} aria-hidden="true" /></span>
             <div>
-              <h2 id="ddd-dialog-title">{t('course.ddd.title')}</h2>
-              <p>{t('course.ddd.subtitle')}</p>
+              <h2 id="ddd-dialog-title">{presetDriver ? t('course.ddd.driverTitle', { name: presetDriver.name }) : t('course.ddd.title')}</h2>
+              <p>{presetDriver ? t('course.ddd.driverSubtitle') : t('course.ddd.subtitle')}</p>
             </div>
           </div>
           <button type="button" className="journal-close" onClick={onClose} disabled={busy} aria-label={t('course.ddd.close')}><X size={18} /></button>
@@ -409,14 +412,18 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
             </div>
 
             {!archivedImport && <div className="ddd-confirm-grid">
-              <label>
+              {presetDriver ? <div className="ddd-assigned-driver">
+                <span>{t('course.ddd.assignDriver')}</span>
+                <strong><UserRoundCheck size={15} /> {presetDriver.name}</strong>
+                <small>{t('course.ddd.driverLockedHint')}</small>
+              </div> : <label>
                 <span>{t('course.ddd.assignDriver')}</span>
                 <select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>
                   <option value="">{t('course.ddd.selectDriver')}</option>
                   {drivers.map(driver => <option key={driver.employee_id} value={driver.employee_id}>{driver.name}</option>)}
                 </select>
                 <small>{summary.matched_employee_id ? t('course.ddd.matchedAutomatically') : t('course.ddd.matchHint')}</small>
-              </label>
+              </label>}
               <label>
                 <span>{t('course.ddd.readAt')}</span>
                 <input type="datetime-local" value={downloadedAt} max={toLocalDateTimeInput(new Date().toISOString())} onChange={event => setDownloadedAt(event.target.value)} />
@@ -432,7 +439,7 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
               </button>
             </div>}
 
-            <DddRecordedDetails summary={summary} locale={locale} t={t} />
+            <DddRecordedDetails key={archivedImport?.id || summary.sha256 || summary.file_name} summary={summary} locale={locale} t={t} />
           </>
         )}
 

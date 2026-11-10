@@ -14,6 +14,10 @@ const onDemandDetailsMigration = readFileSync(
   new URL('../../db/migrations/20261110170000_driver_card_ddd_on_demand_details.sql', import.meta.url),
   'utf8',
 );
+const workScheduleMigration = readFileSync(
+  new URL('../../db/migrations/20261110183000_move_driver_card_ddd_to_work_schedule.sql', import.meta.url),
+  'utf8',
+);
 
 test('DDD archive is private and protected by RLS', () => {
   assert.match(migration, /alter table public\.driver_card_ddd_imports enable row level security/i);
@@ -43,4 +47,14 @@ test('DDD archive loads large details on demand with the same access check', () 
   assert.match(onDemandDetailsMigration, /get_dispatch_ddd_import_detail/i);
   assert.match(onDemandDetailsMigration, /i\.summary - 'card_number' - 'sha256'/i);
   assert.match(onDemandDetailsMigration, /user_module_access\(v_user\.id, 'live_routes'\), 0\) < 1/i);
+});
+
+test('DDD workflow is moved to work schedule and scoped to the selected driver', () => {
+  assert.match(workScheduleMigration, /get_work_schedule_ddd_context/i);
+  assert.match(workScheduleMigration, /get_work_schedule_ddd_import_detail/i);
+  assert.match(workScheduleMigration, /user_module_access\(v_user\.id, 'work_schedule'\), 0\) < 1/i);
+  assert.match(workScheduleMigration, /user_module_access\(v_user\.id, 'work_schedule'\), 0\) < 2/i);
+  assert.match(workScheduleMigration, /p_employee_id is null or i\.employee_id = p_employee_id/i);
+  assert.match(workScheduleMigration, /revoke all on function public\.get_dispatch_ddd_context/i);
+  assert.match(workScheduleMigration, /revoke all on function public\.get_dispatch_ddd_import_detail/i);
 });
