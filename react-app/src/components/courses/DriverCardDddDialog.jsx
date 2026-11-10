@@ -7,6 +7,8 @@ import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
 import { getDriverCardDddContext, getDriverCardDddDetails, importDriverCardDdd, parseDriverCardDdd } from '../../lib/driverCardDddApi';
+import { partitionDriverCardDddImports } from '../../lib/driverCardDddHistory';
+import { lockPageScroll } from '../../lib/modalScrollLock';
 import { toastError, toastSuccess } from '../../lib/toast';
 import '../mockups/mockups.css';
 
@@ -198,6 +200,10 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
     () => presetDriver || drivers.find(driver => driver.employee_id === employeeId),
     [drivers, employeeId, presetDriver],
   );
+  const { latestImport, olderImports } = useMemo(
+    () => partitionDriverCardDddImports(recentImports),
+    [recentImports],
+  );
 
   const clearFile = () => {
     setFile(null);
@@ -208,6 +214,11 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
     setArchivedImport(null);
     resetInput(inputRef);
   };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    return lockPageScroll();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -452,17 +463,32 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
             </div>
             {archiveLoading && <div className="ddd-archive-loading" role="status"><LoaderCircle className="is-spinning" size={17} /> {t('course.ddd.loadingArchive')}</div>}
             {!archiveLoading && recentImports.length === 0 && <div className="ddd-detail-empty">{t('course.ddd.emptyArchive')}</div>}
-            {!archiveLoading && recentImports.length > 0 && (
-              <div className="ddd-archive-list">
-                {recentImports.map(item => (
-                  <button type="button" key={item.id} onClick={() => showArchivedImport(item)} disabled={archiveDetailLoading}>
-                    <CheckCircle2 size={16} aria-hidden="true" />
-                    <span><strong>{item.employee_name}</strong><small>{formatDateTime(item.downloaded_at, locale)} · {item.generation} · {t('course.ddd.daysCount', { count: item.activity_days })}</small></span>
-                    <span className="ddd-archive-action">{t('course.ddd.showDetails')} <ChevronRight size={15} /></span>
-                  </button>
-                ))}
-              </div>
-            )}
+            {!archiveLoading && latestImport && <>
+              <div className="ddd-latest-label">{t('course.ddd.latestRead')}</div>
+              <button type="button" className="ddd-latest-import" onClick={() => showArchivedImport(latestImport)} disabled={archiveDetailLoading}>
+                <span className="ddd-latest-icon"><CheckCircle2 size={17} aria-hidden="true" /></span>
+                <span><strong>{latestImport.employee_name}</strong><small>{formatDateTime(latestImport.downloaded_at, locale)} · {latestImport.generation} · {t('course.ddd.daysCount', { count: latestImport.activity_days })}</small></span>
+                <span className="ddd-latest-badge">{t('course.ddd.latestBadge')}</span>
+                <span className="ddd-archive-action">{t('course.ddd.showDetails')} <ChevronRight size={15} /></span>
+              </button>
+
+              {olderImports.length > 0 && <details className="ddd-older-imports">
+                <summary>
+                  <span><History size={15} aria-hidden="true" /> {t('course.ddd.olderReads', { count: olderImports.length })}</span>
+                  <ChevronRight className="ddd-older-chevron" size={16} aria-hidden="true" />
+                </summary>
+                <p>{t('course.ddd.olderReadsHint')}</p>
+                <div className="ddd-archive-list">
+                  {olderImports.map(item => (
+                    <button type="button" key={item.id} onClick={() => showArchivedImport(item)} disabled={archiveDetailLoading}>
+                      <FileArchive size={16} aria-hidden="true" />
+                      <span><strong>{item.employee_name}</strong><small>{formatDateTime(item.downloaded_at, locale)} · {item.generation} · {t('course.ddd.daysCount', { count: item.activity_days })}</small></span>
+                      <span className="ddd-archive-action">{t('course.ddd.showDetails')} <ChevronRight size={15} /></span>
+                    </button>
+                  ))}
+                </div>
+              </details>}
+            </>}
           </section>
         )}
       </section>
