@@ -1156,6 +1156,7 @@
       "lastDownload": "Letzter Download",
       "nextDownload": "Nächster Termin",
       "noCards": "Noch keine Fahrerkarten eingerichtet.",
+      "dddFiles": "DDD-Dateien",
       "openButton": "Fahrerkarten öffnen. Dringende Termine: {{count}}"
     },
     "legend": {
@@ -2273,8 +2274,7 @@
       "reminderHint": "Der nächste Termin erscheint im Arbeitsplan.",
       "missingDate": "Datum des letzten Downloads festlegen, um die Erinnerung zu starten.",
       "enabled": "Fahrerkarten-Erinnerungen sind aktiv",
-      "short": "Karte",
-      "dddFiles": "DDD-Dateien"
+      "short": "Karte"
     },
     "errSaveEmployee": "Fehler beim Speichern des Mitarbeiters:",
     "errRestoreEmployment": "Fehler bei der Wiedereinstellung:",
