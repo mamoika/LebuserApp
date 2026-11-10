@@ -1563,34 +1563,42 @@ function DriversCard({ cur, perfTotals, settings }) {
         )}
       </div>
 
-      {/* Operational Insight: Wypełnia przestrzeń i wiąże koszt pracownika z wydajnością operacyjną */}
+      {/* Operational Insight: 4 zrównoważone kolumny wiążące koszt pracownika z wydajnością operacyjną */}
       <div style={{
         marginTop: '16px', padding: '12px 14px', borderRadius: '12px',
         background: 'rgba(0, 0, 0, 0.025)', border: `1px solid ${IOS_THEME.border}`,
-        display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', alignItems: 'center'
+        display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', alignItems: 'center'
       }}>
-        <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
-            Wydajność pracy
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
+            Wydajność
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
+          <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {overallKgPerH > 0 ? `${FMT1(overallKgPerH)} kg/rbh` : '—'}
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
-            Stawka bazowa
+        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
+            Godziny rbh
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
+          <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
+            {FMT0(perfTotals?.h || 0)} rbh
+          </div>
+        </div>
+        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
+            Stawka rbh
+          </div>
+          <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
             {FMT(settings?.worker_hourly_rate || 45.82)} zł/h
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary }}>
-            Godziny rbh
+        <div style={{ minWidth: 0, borderLeft: `1px solid ${IOS_THEME.border}`, paddingLeft: '10px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>
+            Koszt pracy
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px' }}>
-            {FMT0(perfTotals?.h || 0)} rbh
+          <div style={{ fontSize: '13.5px', fontWeight: 700, color: IOS_THEME.textPrimary, fontVariantNumeric: 'tabular-nums', marginTop: '2px', whiteSpace: 'nowrap' }}>
+            {cur?.workers > 0 ? `${FMT0(cur.workers)} zł` : '—'}
           </div>
         </div>
       </div>
