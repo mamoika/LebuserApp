@@ -7,7 +7,7 @@ import { getDriverCardReminders, getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, CreditCard, Download, FileUp, History, Info, Printer, X, XCircle } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, CreditCard, Download, FileArchive, FileUp, History, Info, Printer, X, XCircle } from 'lucide-react';
 import { approveWorkTime, markDriverCardDownloaded, rejectWorkTime } from '../lib/adminRpc';
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
@@ -123,7 +123,7 @@ function driverCardStatusText(reminder, t) {
   return t('grafik.driverCard.dueIn', { count: reminder.daysRemaining });
 }
 
-function DriverCardDialog({ canImportDdd, schedule, history, open, onClose, onOpenDdd, t, locale }) {
+function DriverCardDialog({ canOpenDdd, canImportDdd, schedule, history, open, onClose, onOpenDdd, t, locale }) {
   const [activeTab, setActiveTab] = useState('schedule');
 
   useEffect(() => {
@@ -196,8 +196,8 @@ function DriverCardDialog({ canImportDdd, schedule, history, open, onClose, onOp
                   <div className="driver-card-schedule-status" style={{ color: statusColor, background: `${statusColor}12` }}>
                     {driverCardStatusText(reminder, t)}
                   </div>
-                  {canImportDdd && <button type="button" className="driver-card-ddd-button" onClick={() => onOpenDdd(reminder)}>
-                    <FileUp size={14} aria-hidden="true" /> {t('grafik.driverCard.dddFiles')}
+                  {canOpenDdd && <button type="button" className="driver-card-ddd-button" onClick={() => onOpenDdd(reminder)}>
+                    {canImportDdd ? <FileUp size={14} aria-hidden="true" /> : <FileArchive size={14} aria-hidden="true" />} {t('grafik.driverCard.dddFiles')}
                   </button>}
                 </div>
               );
@@ -483,7 +483,8 @@ function WorkTimeDecisionHistory({ events, open, onClose }) {
 
 export default function GrafikView({ historyOpen = false, onHistoryClose = () => {} }) {
   const { t, i18n } = useTranslation();
-  const { user, isAdmin, canViewAdminData, canEditModule, sessionToken } = useAuth();
+  const { user, isAdmin, canViewAdminData, canViewModule, canEditModule, sessionToken } = useAuth();
+  const canViewWorkSchedule = canViewModule('work_schedule');
   const canEditWorkSchedule = canEditModule('work_schedule');
   const MONTH_NAMES = monthNames();
   const DAY_NAMES = dayNamesSunSat();
@@ -895,6 +896,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
       <WorkTimeApprovalPanel reports={workTimeReports} sessionToken={sessionToken} onChanged={fetchData} canApprove={isAdmin} />
       <WorkTimeDecisionHistory events={workTimeEvents} open={historyOpen} onClose={onHistoryClose} />
       <DriverCardDialog
+        canOpenDdd={canViewWorkSchedule}
         canImportDdd={canEditWorkSchedule}
         schedule={driverCardSchedule}
         history={driverCardHistory}
@@ -908,6 +910,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
         locale={i18n.language}
       />
       <DriverCardDddDialog
+        canImportDdd={canEditWorkSchedule}
         open={Boolean(dddDriver)}
         onClose={() => {
           setDddDriver(null);

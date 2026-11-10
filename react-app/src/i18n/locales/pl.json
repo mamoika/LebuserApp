@@ -1528,6 +1528,7 @@
       "subtitle": "Bezpieczna kontrola podpisów i zapis odczytu w historii kierowcy",
       "driverTitle": "Pliki DDD — {{name}}",
       "driverSubtitle": "Pełny odczyt karty, historia i ręczne dodawanie plików dla wybranego kierowcy.",
+      "viewerSubtitle": "Archiwum odczytów karty i zapisane szczegóły wybranego kierowcy.",
       "driverLockedHint": "Plik zostanie zapisany przy tym kierowcy; numer karty jest dodatkowo weryfikowany.",
       "close": "Zamknij import pliku DDD",
       "flowLabel": "Etapy importu pliku DDD",

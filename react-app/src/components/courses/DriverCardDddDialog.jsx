@@ -178,7 +178,7 @@ function DddRecordedDetails({ summary, locale, t }) {
   );
 }
 
-export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriver = null, sessionToken }) {
+export default function DriverCardDddDialog({ canImportDdd = false, open, onClose, onSaved, presetDriver = null, sessionToken }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const dialogRef = useRef(null);
@@ -266,6 +266,7 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
   if (!open) return null;
 
   const analyzeFile = async selectedFile => {
+    if (!canImportDdd) return;
     setError('');
     setResult(null);
     setEmployeeId(presetDriver?.employee_id || '');
@@ -296,7 +297,7 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
   };
 
   const saveImport = async () => {
-    if (!file || !summary || !employeeId || !downloadedAt) return;
+    if (!canImportDdd || !file || !summary || !employeeId || !downloadedAt) return;
     setBusy(true);
     setError('');
     try {
@@ -348,13 +349,13 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
             <span className="ddd-dialog-icon"><FileArchive size={20} aria-hidden="true" /></span>
             <div>
               <h2 id="ddd-dialog-title">{presetDriver ? t('course.ddd.driverTitle', { name: presetDriver.name }) : t('course.ddd.title')}</h2>
-              <p>{presetDriver ? t('course.ddd.driverSubtitle') : t('course.ddd.subtitle')}</p>
+              <p>{presetDriver ? t(canImportDdd ? 'course.ddd.driverSubtitle' : 'course.ddd.viewerSubtitle') : t('course.ddd.subtitle')}</p>
             </div>
           </div>
           <button type="button" className="journal-close" onClick={onClose} disabled={busy} aria-label={t('course.ddd.close')}><X size={18} /></button>
         </header>
 
-        {!archivedImport && <div className="ddd-flow" aria-label={t('course.ddd.flowLabel')}>
+        {canImportDdd && !archivedImport && <div className="ddd-flow" aria-label={t('course.ddd.flowLabel')}>
           <span className={file ? 'done' : 'active'}><FileUp size={14} /> {t('course.ddd.flowFile')}</span>
           <i aria-hidden="true" />
           <span className={summary?.signature_status === 'verified' ? 'done' : file ? 'active' : ''}><ShieldCheck size={14} /> {t('course.ddd.flowVerify')}</span>
@@ -370,7 +371,7 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
           </button>
         )}
 
-        {!file && !archivedImport && (
+        {canImportDdd && !file && !archivedImport && (
           <div className="ddd-file-start">
             <div>
               <strong>{t('course.ddd.chooseTitle')}</strong>
@@ -380,14 +381,14 @@ export default function DriverCardDddDialog({ open, onClose, onSaved, presetDriv
           </div>
         )}
 
-        <input
+        {canImportDdd && <input
           ref={inputRef}
           id="ddd-file-input"
           className="sr-only"
           type="file"
           accept=".ddd,.DDD,application/octet-stream"
           onChange={event => analyzeFile(event.target.files?.[0])}
-        />
+        />}
 
         {file && (
           <div className="ddd-selected-file">

@@ -1522,6 +1522,7 @@
       "subtitle": "Signaturen sicher prüfen und den Download in der Fahrerhistorie speichern",
       "driverTitle": "DDD-Dateien — {{name}}",
       "driverSubtitle": "Vollständiger Kartendownload, Historie und manueller Datei-Upload für den ausgewählten Fahrer.",
+      "viewerSubtitle": "Archiv der Karten-Downloads und gespeicherte Details des ausgewählten Fahrers.",
       "driverLockedHint": "Die Datei wird diesem Fahrer zugeordnet; die Kartennummer wird zusätzlich geprüft.",
       "close": "DDD-Import schließen",
       "flowLabel": "Schritte des DDD-Imports",
