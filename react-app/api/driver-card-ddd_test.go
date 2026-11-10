@@ -56,4 +56,13 @@ func TestParseRealDriverCardDDD(t *testing.T) {
 	if summary.ActivityDays < 1 || summary.ActivityFirstOn == "" || summary.ActivityLastOn == "" {
 		t.Fatal("activity history was not parsed")
 	}
+	if len(summary.DailyActivities) != summary.ActivityDays {
+		t.Fatalf("daily details = %d, activity days = %d", len(summary.DailyActivities), summary.ActivityDays)
+	}
+	if len(summary.VehicleDetails) != summary.VehicleSessions {
+		t.Fatalf("vehicle details = %d, vehicle sessions = %d", len(summary.VehicleDetails), summary.VehicleSessions)
+	}
+	if len(summary.Events) != summary.EventCount || len(summary.Faults) != summary.FaultCount {
+		t.Fatal("incident counts do not match parsed details")
+	}
 }

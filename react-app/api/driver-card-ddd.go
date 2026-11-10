@@ -23,6 +23,7 @@ import (
 	securityv1 "github.com/way-platform/tachograph-go/proto/gen/go/wayplatform/connect/tachograph/security/v1"
 	tachographv1 "github.com/way-platform/tachograph-go/proto/gen/go/wayplatform/connect/tachograph/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const maxDDDSize = 2 << 20
@@ -36,19 +37,20 @@ type driverOption struct {
 }
 
 type importRow struct {
-	ID                 string `json:"id"`
-	EmployeeID         string `json:"employee_id"`
-	EmployeeName       string `json:"employee_name"`
-	FileName           string `json:"file_name"`
-	DownloadedAt       string `json:"downloaded_at"`
-	ImportedAt         string `json:"imported_at"`
-	Generation         string `json:"generation"`
-	SignatureStatus    string `json:"signature_status"`
-	ActivityFirstOn    string `json:"activity_first_on"`
-	ActivityLastOn     string `json:"activity_last_on"`
-	ActivityDays       int    `json:"activity_days"`
-	SignaturesVerified int    `json:"signatures_verified"`
-	SignaturesTotal    int    `json:"signatures_total"`
+	ID                 string      `json:"id"`
+	EmployeeID         string      `json:"employee_id"`
+	EmployeeName       string      `json:"employee_name"`
+	FileName           string      `json:"file_name"`
+	DownloadedAt       string      `json:"downloaded_at"`
+	ImportedAt         string      `json:"imported_at"`
+	Generation         string      `json:"generation"`
+	SignatureStatus    string      `json:"signature_status"`
+	ActivityFirstOn    string      `json:"activity_first_on"`
+	ActivityLastOn     string      `json:"activity_last_on"`
+	ActivityDays       int         `json:"activity_days"`
+	SignaturesVerified int         `json:"signatures_verified"`
+	SignaturesTotal    int         `json:"signatures_total"`
+	Summary            *dddSummary `json:"summary,omitempty"`
 }
 
 type dispatchContext struct {
@@ -65,29 +67,58 @@ type activityTotals struct {
 	RestMinutes         int `json:"rest_minutes"`
 }
 
+type dailyActivity struct {
+	Date                string `json:"date"`
+	DrivingMinutes      int    `json:"driving_minutes"`
+	WorkMinutes         int    `json:"work_minutes"`
+	AvailabilityMinutes int    `json:"availability_minutes"`
+	RestMinutes         int    `json:"rest_minutes"`
+}
+
+type vehicleSession struct {
+	Registration string `json:"registration"`
+	Nation       string `json:"nation,omitempty"`
+	VIN          string `json:"vin,omitempty"`
+	FirstUse     string `json:"first_use,omitempty"`
+	LastUse      string `json:"last_use,omitempty"`
+	OdometerFrom int32  `json:"odometer_from_km"`
+	OdometerTo   int32  `json:"odometer_to_km"`
+}
+
+type cardIncident struct {
+	Type         string `json:"type"`
+	BeginAt      string `json:"begin_at,omitempty"`
+	EndAt        string `json:"end_at,omitempty"`
+	Registration string `json:"registration,omitempty"`
+}
+
 type dddSummary struct {
-	FileName            string         `json:"file_name"`
-	FileSize            int            `json:"file_size"`
-	SHA256              string         `json:"sha256"`
-	Generation          string         `json:"generation"`
-	CardNumber          string         `json:"card_number"`
-	MaskedCardNumber    string         `json:"masked_card_number"`
-	FirstName           string         `json:"first_name"`
-	Surname             string         `json:"surname"`
-	CardExpiryOn        string         `json:"card_expiry_on,omitempty"`
-	DownloadedAt        string         `json:"downloaded_at,omitempty"`
-	ActivityFirstOn     string         `json:"activity_first_on,omitempty"`
-	ActivityLastOn      string         `json:"activity_last_on,omitempty"`
-	ActivityDays        int            `json:"activity_days"`
-	VehicleSessions     int            `json:"vehicle_sessions"`
-	EventCount          int            `json:"event_count"`
-	FaultCount          int            `json:"fault_count"`
-	SignaturesVerified  int            `json:"signatures_verified"`
-	SignaturesTotal     int            `json:"signatures_total"`
-	SignatureStatus     string         `json:"signature_status"`
-	Totals              activityTotals `json:"totals"`
-	MatchedEmployeeID   string         `json:"matched_employee_id,omitempty"`
-	MatchedEmployeeName string         `json:"matched_employee_name,omitempty"`
+	FileName            string           `json:"file_name"`
+	FileSize            int              `json:"file_size"`
+	SHA256              string           `json:"sha256"`
+	Generation          string           `json:"generation"`
+	CardNumber          string           `json:"card_number"`
+	MaskedCardNumber    string           `json:"masked_card_number"`
+	FirstName           string           `json:"first_name"`
+	Surname             string           `json:"surname"`
+	CardExpiryOn        string           `json:"card_expiry_on,omitempty"`
+	DownloadedAt        string           `json:"downloaded_at,omitempty"`
+	ActivityFirstOn     string           `json:"activity_first_on,omitempty"`
+	ActivityLastOn      string           `json:"activity_last_on,omitempty"`
+	ActivityDays        int              `json:"activity_days"`
+	VehicleSessions     int              `json:"vehicle_sessions"`
+	EventCount          int              `json:"event_count"`
+	FaultCount          int              `json:"fault_count"`
+	SignaturesVerified  int              `json:"signatures_verified"`
+	SignaturesTotal     int              `json:"signatures_total"`
+	SignatureStatus     string           `json:"signature_status"`
+	Totals              activityTotals   `json:"totals"`
+	DailyActivities     []dailyActivity  `json:"daily_activities,omitempty"`
+	VehicleDetails      []vehicleSession `json:"vehicle_details,omitempty"`
+	Events              []cardIncident   `json:"events,omitempty"`
+	Faults              []cardIncident   `json:"faults,omitempty"`
+	MatchedEmployeeID   string           `json:"matched_employee_id,omitempty"`
+	MatchedEmployeeName string           `json:"matched_employee_name,omitempty"`
 }
 
 type apiResponse struct {
@@ -129,6 +160,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	access, err := loadDispatchContext(ctx, sessionToken)
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, apiResponse{Error: err.Error()})
+		return
+	}
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("action")), "context") {
+		writeJSON(w, http.StatusOK, apiResponse{OK: true, Drivers: publicDrivers(access.Drivers), Imports: access.Imports})
 		return
 	}
 
@@ -243,12 +278,19 @@ func parseDDD(ctx context.Context, fileName string, data []byte) (*dddSummary, e
 		}
 		if vehicles := g2.GetVehiclesUsed(); vehicles != nil {
 			result.VehicleSessions = countNonNil(vehicles.GetRecords())
+			for _, record := range vehicles.GetRecords() {
+				if record != nil {
+					result.VehicleDetails = append(result.VehicleDetails, vehicleDetail(record))
+				}
+			}
 		}
 		if events := g2.GetEventsData(); events != nil {
-			result.EventCount = countNonNil(events.GetEvents())
+			result.Events = eventDetails(events.GetEvents())
+			result.EventCount = len(result.Events)
 		}
 		if faults := g2.GetFaultsData(); faults != nil {
-			result.FaultCount = countNonNil(faults.GetFaults())
+			result.Faults = faultDetails(faults.GetFaults())
+			result.FaultCount = len(result.Faults)
 		}
 	} else if g1 := card.GetTachograph(); g1 != nil {
 		identification = g1.GetIdentification()
@@ -256,12 +298,19 @@ func parseDDD(ctx context.Context, fileName string, data []byte) (*dddSummary, e
 		result.Generation = "G1"
 		if vehicles := g1.GetVehiclesUsed(); vehicles != nil {
 			result.VehicleSessions = countNonNil(vehicles.GetRecords())
+			for _, record := range vehicles.GetRecords() {
+				if record != nil {
+					result.VehicleDetails = append(result.VehicleDetails, vehicleDetail(record))
+				}
+			}
 		}
 		if events := g1.GetEventsData(); events != nil {
-			result.EventCount = countNonNil(events.GetEvents())
+			result.Events = eventDetails(events.GetEvents())
+			result.EventCount = len(result.Events)
 		}
 		if faults := g1.GetFaultsData(); faults != nil {
-			result.FaultCount = countNonNil(faults.GetFaults())
+			result.Faults = faultDetails(faults.GetFaults())
+			result.FaultCount = len(result.Faults)
 		}
 	}
 	if identification == nil {
@@ -297,10 +346,7 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 	if activities == nil {
 		return
 	}
-	type dayData struct {
-		date    time.Time
-		changes []*ddv1.ActivityChangeInfo
-	}
+	type dayData struct{ changes []*ddv1.ActivityChangeInfo }
 	days := map[string]dayData{}
 	for _, record := range activities.GetDailyRecords() {
 		if record == nil || !record.GetValid() || record.GetActivityRecordDate() == nil || !record.GetActivityRecordDate().IsValid() {
@@ -308,7 +354,7 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 		}
 		date := record.GetActivityRecordDate().AsTime().UTC()
 		key := date.Format("2006-01-02")
-		days[key] = dayData{date: date, changes: record.GetActivityChangeInfo()}
+		days[key] = dayData{changes: record.GetActivityChangeInfo()}
 	}
 	if len(days) == 0 {
 		return
@@ -322,6 +368,7 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 	result.ActivityLastOn = keys[len(keys)-1]
 	result.ActivityDays = len(keys)
 	for _, key := range keys {
+		detail := dailyActivity{Date: key}
 		changes := append([]*ddv1.ActivityChangeInfo(nil), days[key].changes...)
 		sort.SliceStable(changes, func(i, j int) bool { return changes[i].GetTimeOfChangeMinutes() < changes[j].GetTimeOfChangeMinutes() })
 		for index, change := range changes {
@@ -340,15 +387,100 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 			switch change.GetActivity() {
 			case ddv1.DriverActivityValue_DRIVING:
 				result.Totals.DrivingMinutes += duration
+				detail.DrivingMinutes += duration
 			case ddv1.DriverActivityValue_WORK:
 				result.Totals.WorkMinutes += duration
+				detail.WorkMinutes += duration
 			case ddv1.DriverActivityValue_AVAILABILITY:
 				result.Totals.AvailabilityMinutes += duration
+				detail.AvailabilityMinutes += duration
 			case ddv1.DriverActivityValue_BREAK_REST:
 				result.Totals.RestMinutes += duration
+				detail.RestMinutes += duration
 			}
 		}
+		result.DailyActivities = append(result.DailyActivities, detail)
 	}
+}
+
+type vehicleRecord interface {
+	GetVehicleOdometerBeginKm() int32
+	GetVehicleOdometerEndKm() int32
+	GetVehicleFirstUse() *timestamppb.Timestamp
+	GetVehicleLastUse() *timestamppb.Timestamp
+	GetVehicleRegistration() *ddv1.VehicleRegistrationIdentification
+}
+
+func vehicleDetail(record vehicleRecord) vehicleSession {
+	registration := record.GetVehicleRegistration()
+	detail := vehicleSession{
+		FirstUse:     timestampValue(record.GetVehicleFirstUse()),
+		LastUse:      timestampValue(record.GetVehicleLastUse()),
+		OdometerFrom: record.GetVehicleOdometerBeginKm(),
+		OdometerTo:   record.GetVehicleOdometerEndKm(),
+	}
+	if registration != nil {
+		detail.Registration = strings.TrimSpace(registration.GetNumber().GetValue())
+		detail.Nation = registration.GetNation().String()
+	}
+	if withVIN, ok := record.(interface{ GetVehicleIdentificationNumber() string }); ok {
+		detail.VIN = strings.TrimSpace(withVIN.GetVehicleIdentificationNumber())
+	}
+	return detail
+}
+
+func eventDetails(records []*cardv1.EventsData_Record) []cardIncident {
+	result := make([]cardIncident, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		detail := cardIncident{
+			Type:         strings.TrimPrefix(record.GetEventType().String(), "EVENT_FAULT_TYPE_"),
+			BeginAt:      timestampValue(record.GetEventBeginTime()),
+			EndAt:        timestampValue(record.GetEventEndTime()),
+			Registration: registrationValue(record.GetEventVehicleRegistration()),
+		}
+		if detail.Type == "UNSPECIFIED" && detail.BeginAt == "" && detail.EndAt == "" && detail.Registration == "" {
+			continue
+		}
+		result = append(result, detail)
+	}
+	return result
+}
+
+func faultDetails(records []*cardv1.FaultsData_Record) []cardIncident {
+	result := make([]cardIncident, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		detail := cardIncident{
+			Type:         strings.TrimPrefix(record.GetFaultType().String(), "EVENT_FAULT_TYPE_"),
+			BeginAt:      timestampValue(record.GetFaultBeginTime()),
+			EndAt:        timestampValue(record.GetFaultEndTime()),
+			Registration: registrationValue(record.GetFaultVehicleRegistration()),
+		}
+		if detail.Type == "UNSPECIFIED" && detail.BeginAt == "" && detail.EndAt == "" && detail.Registration == "" {
+			continue
+		}
+		result = append(result, detail)
+	}
+	return result
+}
+
+func timestampValue(value *timestamppb.Timestamp) string {
+	if value == nil || !value.IsValid() {
+		return ""
+	}
+	return value.AsTime().UTC().Format(time.RFC3339)
+}
+
+func registrationValue(value *ddv1.VehicleRegistrationIdentification) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(value.GetNumber().GetValue())
 }
 
 func countAuthentications(message protoreflect.Message) (verified int, total int) {

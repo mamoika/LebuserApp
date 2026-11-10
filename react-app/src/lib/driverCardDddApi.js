@@ -19,6 +19,18 @@ async function callDddApi(sessionToken, file, fields = {}) {
   return data;
 }
 
+export async function getDriverCardDddContext(sessionToken) {
+  const response = await fetch(`${DDD_API_URL}?action=context`, {
+    method: 'POST',
+    headers: { 'X-Session-Token': sessionToken },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error || `Nie udało się pobrać archiwum DDD (${response.status})`);
+  }
+  return data;
+}
+
 export function parseDriverCardDdd(sessionToken, file) {
   return callDddApi(sessionToken, file, { action: 'parse' });
 }
