@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
 import { getDriverCardDddContext, getDriverCardDddDetails, importDriverCardDdd, parseDriverCardDdd } from '../../lib/driverCardDddApi';
 import { toastError, toastSuccess } from '../../lib/toast';
+import '../mockups/mockups.css';
 
 const MAX_DDD_SIZE = 2 * 1024 * 1024;
 
