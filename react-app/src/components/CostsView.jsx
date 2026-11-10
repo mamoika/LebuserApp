@@ -1139,7 +1139,10 @@ function OverviewTab({
     ? ((curDailyCost - prevDailyCost) / prevDailyCost) * 100
     : null;
 
-  // Prognoza
+  // Prognoza run-rate na cały miesiąc (oparta na tempie dziennym)
+  const projectedMonthRunRate = accruedDays > 0 ? (totals.total / accruedDays) * daysInMonth : forecastTotal;
+  const prevMonthTotal = prev?.total || 0;
+  const dRunRate = prevMonthTotal > 0 ? ((projectedMonthRunRate - prevMonthTotal) / prevMonthTotal) * 100 : null;
   const dForecast = (prev && prev.total > 0)
     ? ((forecastTotal - prev.total) / prev.total) * 100
     : null;
@@ -1162,9 +1165,9 @@ function OverviewTab({
           icon={<Sigma size={20}/>}
           color={IOS_THEME.accent}
           hero
-          badge={isOngoing ? `Pacing ${pacingPercent}%` : null}
+          badge={isOngoing ? `Dzień ${accruedDays} z ${daysInMonth} (${pacingPercent}%)` : null}
           delta={isOngoing ? dDailyCost : dTotal}
-          deltaLabel={isOngoing ? 'śr./dz.' : 'm/m'}
+          deltaLabel={isOngoing ? 'śr. dzienna vs ub. m-c' : 'm/m'}
           goodWhenDown
           spark={sTotal}
         />
@@ -1182,8 +1185,9 @@ function OverviewTab({
           unit={t('costs.currency')}
           icon={<TrendingUp size={20}/>}
           color={CAT.gas}
-          delta={dForecast}
-          deltaLabel="vs ub. m-c"
+          delta={isOngoing ? dRunRate : dForecast}
+          deltaLabel={isOngoing ? 'tempo vs ub. m-c' : 'vs ub. m-c'}
+          subtitle={isOngoing ? `Wprowadzone ${FMT0(totals.total)} zł + plan ${FMT0(plannedCosts)} zł` : undefined}
           goodWhenDown
         />
         <KpiCard
@@ -1203,7 +1207,7 @@ function OverviewTab({
           icon={<Package size={20}/>}
           color={CAT.workers}
           delta={dKg}
-          deltaLabel={isOngoing ? 'tempo dzienne' : 'm/m'}
+          deltaLabel={isOngoing ? 'tempo vs ub. m-c' : 'm/m'}
           goodWhenDown={false}
           spark={sKg}
         />
@@ -1704,36 +1708,232 @@ function WaterfallCard({ cur, prev }) {
   );
 }
 
-// Trend wielomiesięczny: słupki zł/kg + linia celu (śr. z miesięcy z danymi), tonaż pod spodem
-function MultiMonthTrend({ months }) {
+// Trend wielomiesięczny: słupki zł/kg + linia celu (śr. z miesięcy z danymi lub cel własny), tonaż pod spodem
+function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null }) {
   const { t } = useTranslation();
   const monthList = monthNames();
   const pts = months;
   const vals = pts.map(p => p.plnPerKg);
   const withData = vals.filter(v => v > 0);
-  const target = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
+  const autoTarget = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
+
+  const [internalCustomTarget, setInternalCustomTarget] = useState(() => {
+    try {
+      const v = localStorage.getItem('costs_target_pln_per_kg');
+      const num = v ? parseFloat(v) : null;
+      return num && !isNaN(num) && num > 0 ? num : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const effectiveCustomTarget = customTarget !== undefined && customTarget !== null ? customTarget : internalCustomTarget;
+  const target = (effectiveCustomTarget != null && effectiveCustomTarget > 0) ? effectiveCustomTarget : autoTarget;
+  const isCustom = effectiveCustomTarget != null && effectiveCustomTarget > 0;
+
+  const handleUpdateTarget = (val) => {
+    if (onSetCustomTarget) {
+      onSetCustomTarget(val);
+    }
+    setInternalCustomTarget(val);
+    try {
+      if (val != null && val > 0) {
+        localStorage.setItem('costs_target_pln_per_kg', String(val));
+      } else {
+        localStorage.removeItem('costs_target_pln_per_kg');
+      }
+    } catch { /* ignore */ }
+  };
+
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState('');
   const [hoveredMonth, setHoveredMonth] = useState(null);
 
   if (!withData.length) {
     return <div style={{ padding: '36px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noMonthsWithTonnage')}</div>;
   }
 
-  const W = 740, Hh = 210, P = 36, axisB = 42;
-  const maxV = Math.max(...vals, target) * 1.15;
+  const W = 740, Hh = 220, P = 36, axisB = 42;
+  const maxV = Math.max(...vals, target) * 1.18;
   const slot = (W - 2 * P) / pts.length;
   const bw = Math.min(slot * 0.52, 44);
   const cx = (i) => P + slot * (i + 0.5);
-  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 14);
+  const y = (v) => (Hh - axisB) - (v / maxV) * (Hh - axisB - 18);
   const currentIdx = pts.length - 1;
 
   return (
     <div style={{ position: 'relative' }}>
+      {/* Pasek sterowania celem zł/kg */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '10px',
+        marginBottom: '14px',
+        padding: '8px 14px',
+        background: isCustom ? '#FFFBEB' : '#F8FAFC',
+        border: `1px solid ${isCustom ? 'rgba(245, 158, 11, 0.4)' : 'rgba(0, 0, 0, 0.06)'}`,
+        borderRadius: '10px',
+        fontSize: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isCustom ? '#92400E' : IOS_THEME.textSecondary }}>
+          <span style={{ fontWeight: 700, color: isCustom ? '#B45309' : IOS_THEME.textPrimary }}>
+            Linia odniesienia (cel):
+          </span>
+          <span style={{
+            fontWeight: 800,
+            fontSize: '13px',
+            color: '#D97706',
+            fontVariantNumeric: 'tabular-nums',
+            background: 'rgba(245, 158, 11, 0.15)',
+            padding: '2px 8px',
+            borderRadius: '6px'
+          }}>
+            {FMT3(target)} {t('costs.currencyPerKg')}
+          </span>
+          <span style={{ fontSize: '11px', opacity: 0.9 }}>
+            {isCustom ? '(wartość ustalona ręcznie)' : `(średnia z ${withData.length} miesięcy z danymi)`}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isEditingTarget ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="text"
+                inputMode="decimal"
+                autoFocus
+                value={targetInput}
+                onChange={(e) => setTargetInput(e.target.value)}
+                placeholder={FMT3(autoTarget)}
+                style={{
+                  width: '64px',
+                  padding: '3px 6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: '1px solid #D97706',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  outline: 'none',
+                  background: '#FFFFFF'
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const parsed = parseFloat(targetInput.replace(',', '.'));
+                    if (!isNaN(parsed) && parsed > 0) handleUpdateTarget(parsed);
+                    setIsEditingTarget(false);
+                  } else if (e.key === 'Escape') {
+                    setIsEditingTarget(false);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const parsed = parseFloat(targetInput.replace(',', '.'));
+                  if (!isNaN(parsed) && parsed > 0) handleUpdateTarget(parsed);
+                  setIsEditingTarget(false);
+                }}
+                style={{
+                  background: '#D97706',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Zapisz
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingTarget(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: IOS_THEME.textSecondary,
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  padding: '4px 6px'
+                }}
+              >
+                Anuluj
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetInput(isCustom ? String(effectiveCustomTarget) : String(autoTarget.toFixed(3)));
+                  setIsEditingTarget(true);
+                }}
+                style={{
+                  background: '#FFFFFF',
+                  border: `1px solid ${isCustom ? '#F59E0B' : IOS_THEME.border}`,
+                  borderRadius: '7px',
+                  padding: '3px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  color: isCustom ? '#B45309' : IOS_THEME.textPrimary,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                }}
+              >
+                {isCustom ? '✎ Zmień cel' : '✎ Ustaw cel ręcznie'}
+              </button>
+              {isCustom && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTarget(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#EF4444',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '3px 6px'
+                  }}
+                  title="Przywróć cel wyliczany automatycznie ze średniej"
+                >
+                  ✕ Przywróć średnią ({FMT3(autoTarget)})
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
       <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
         {/* linia celu */}
-        <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke={IOS_THEME.warning} strokeWidth="1.5" strokeDasharray="5 4" />
-        <text x={W - P} y={y(target) - 6} textAnchor="end" fontSize="10" fontWeight="700" fill={IOS_THEME.warningText}>
-          {t('costs.target')} {FMT3(target)} {t('costs.currencyPerKg')}
-        </text>
+        <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke="#F59E0B" strokeWidth="2" strokeDasharray="5 4" opacity="0.9" />
+
+        {/* Etykieta celu po LEWEJ stronie osi — w bezpiecznej kapsułce z tłem, bez nakładania na prawy słupek */}
+        <g transform={`translate(${P + 4}, ${Math.max(12, Math.min(Hh - axisB - 22, y(target) - 10))})`}>
+          <rect
+            x="0"
+            y="0"
+            width={isCustom ? 136 : 124}
+            height="20"
+            rx="6"
+            fill="#FFFBEB"
+            stroke="#F59E0B"
+            strokeWidth="1.2"
+          />
+          <text
+            x="8"
+            y="14"
+            fontSize="10"
+            fontWeight="700"
+            fill="#B45309"
+          >
+            cel: {FMT3(target)} zł/kg {isCustom ? '★' : ''}
+          </text>
+        </g>
 
         {pts.map((p, i) => {
           const v = p.plnPerKg;
@@ -1766,10 +1966,16 @@ function MultiMonthTrend({ months }) {
                   x={cx(i)}
                   y={top - 6}
                   textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="700"
+                  fontSize="11"
+                  fontWeight="800"
                   fontVariantNumeric="tabular-nums"
-                  fill={IOS_THEME.textPrimary}
+                  fill={isCurrent ? IOS_THEME.accent : IOS_THEME.textPrimary}
+                  style={{
+                    paintOrder: 'stroke fill',
+                    stroke: '#FFFFFF',
+                    strokeWidth: '4px',
+                    strokeLinejoin: 'round',
+                  }}
                 >
                   {FMT3(v)}
                 </text>
