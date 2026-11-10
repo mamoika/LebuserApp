@@ -31,6 +31,18 @@ export async function getDriverCardDddContext(sessionToken) {
   return data;
 }
 
+export async function getDriverCardDddDetails(sessionToken, importId) {
+  const response = await fetch(`${DDD_API_URL}?action=details&id=${encodeURIComponent(importId)}`, {
+    method: 'POST',
+    headers: { 'X-Session-Token': sessionToken },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error || `Nie udało się pobrać szczegółów DDD (${response.status})`);
+  }
+  return data;
+}
+
 export function parseDriverCardDdd(sessionToken, file) {
   return callDddApi(sessionToken, file, { action: 'parse' });
 }

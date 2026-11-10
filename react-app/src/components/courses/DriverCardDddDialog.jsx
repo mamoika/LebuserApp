@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, FileArchive, FileUp,
-  History, LoaderCircle, ShieldCheck, Truck, UserRoundCheck, X,
+  History, IdCard, LoaderCircle, MapPinned, ShieldAlert, ShieldCheck, Truck, UserRoundCheck, X,
 } from 'lucide-react';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
-import { getDriverCardDddContext, importDriverCardDdd, parseDriverCardDdd } from '../../lib/driverCardDddApi';
+import { getDriverCardDddContext, getDriverCardDddDetails, importDriverCardDdd, parseDriverCardDdd } from '../../lib/driverCardDddApi';
 import { toastError, toastSuccess } from '../../lib/toast';
 
 const MAX_DDD_SIZE = 2 * 1024 * 1024;
@@ -39,10 +41,50 @@ function incidentLabel(value) {
   return String(value || 'UNKNOWN').toLowerCase().replaceAll('_', ' ');
 }
 
+function minuteTime(value) {
+  const safe = Math.max(0, Math.min(1440, Number(value) || 0));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+}
+
+function DddMapFit({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!points.length) return;
+    const positions = points.map(point => [point.latitude, point.longitude]);
+    if (positions.length === 1) map.setView(positions[0], 10);
+    else map.fitBounds(positions, { padding: [24, 24], maxZoom: 11 });
+  }, [map, points]);
+  return null;
+}
+
+function DddGnssMap({ points, locale, t }) {
+  if (!points.length) return <div className="ddd-detail-empty">{t('course.ddd.noGnss')}</div>;
+  const positions = points.map(point => [point.latitude, point.longitude]);
+  return (
+    <div className="ddd-gnss-map">
+      <MapContainer center={positions[0]} zoom={7} scrollWheelZoom={false}>
+        <TileLayer attribution="&copy; OpenStreetMap &copy; CARTO" url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+        <DddMapFit points={points} />
+        <Polyline positions={positions} pathOptions={{ color: '#007AFF', weight: 2, opacity: 0.7 }} />
+        {points.map((point, index) => (
+          <CircleMarker key={`${point.timestamp}-${index}`} center={[point.latitude, point.longitude]} radius={index === points.length - 1 ? 5 : 3} pathOptions={{ color: '#007AFF', fillColor: '#fff', fillOpacity: 1, weight: 2 }}>
+            <Popup><strong>{formatDateTime(point.timestamp, locale)}</strong><br />{point.odometer_km?.toLocaleString(locale)} km<br />{point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</Popup>
+          </CircleMarker>
+        ))}
+      </MapContainer>
+    </div>
+  );
+}
+
 function DddRecordedDetails({ summary, locale, t }) {
-  const [section, setSection] = useState('days');
+  const [section, setSection] = useState('activity');
   const days = [...(summary.daily_activities || [])].reverse();
+  const [selectedDayDate, setSelectedDayDate] = useState(days[0]?.date || '');
+  const selectedDay = days.find(day => day.date === selectedDayDate) || days[0];
   const vehicles = [...(summary.vehicle_details || [])].reverse();
+  const gnss = [...(summary.gnss_points || [])].sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const units = [...(summary.vehicle_units || [])].reverse();
+  const alerts = summary.compliance_alerts || [];
   const incidents = [
     ...(summary.events || []).map(item => ({ ...item, kind: 'event' })),
     ...(summary.faults || []).map(item => ({ ...item, kind: 'fault' })),
@@ -51,18 +93,29 @@ function DddRecordedDetails({ summary, locale, t }) {
   return (
     <div className="ddd-record-details">
       <div className="ddd-detail-tabs" role="tablist" aria-label={t('course.ddd.detailsLabel')}>
-        <button type="button" role="tab" aria-selected={section === 'days'} onClick={() => setSection('days')}>{t('course.ddd.daysTab', { count: days.length })}</button>
+        <button type="button" role="tab" aria-selected={section === 'activity'} onClick={() => setSection('activity')}>{t('course.ddd.activityTab')}</button>
         <button type="button" role="tab" aria-selected={section === 'vehicles'} onClick={() => setSection('vehicles')}>{t('course.ddd.vehiclesTab', { count: vehicles.length })}</button>
-        <button type="button" role="tab" aria-selected={section === 'incidents'} onClick={() => setSection('incidents')}>{t('course.ddd.incidentsTab', { count: incidents.length })}</button>
+        <button type="button" role="tab" aria-selected={section === 'locations'} onClick={() => setSection('locations')}><MapPinned size={13} /> {t('course.ddd.locationsTab', { count: gnss.length })}</button>
+        <button type="button" role="tab" aria-selected={section === 'records'} onClick={() => setSection('records')}><IdCard size={13} /> {t('course.ddd.recordsTab')}</button>
+        <button type="button" role="tab" aria-selected={section === 'alerts'} onClick={() => setSection('alerts')}><ShieldAlert size={13} /> {t('course.ddd.alertsTab', { count: alerts.length + incidents.length })}</button>
       </div>
 
-      {section === 'days' && (
-        <div className="ddd-detail-table-wrap" role="tabpanel">
-          <table className="ddd-detail-table">
-            <thead><tr><th>{t('course.ddd.date')}</th><th>{t('course.ddd.driving')}</th><th>{t('course.ddd.work')}</th><th>{t('course.ddd.availability')}</th><th>{t('course.ddd.rest')}</th></tr></thead>
-            <tbody>{days.map(day => <tr key={day.date}><td>{formatDate(day.date, locale)}</td><td>{minutesLabel(day.driving_minutes)}</td><td>{minutesLabel(day.work_minutes)}</td><td>{minutesLabel(day.availability_minutes)}</td><td>{minutesLabel(day.rest_minutes)}</td></tr>)}</tbody>
-          </table>
-          {!days.length && <div className="ddd-detail-empty">{t('course.ddd.noDayDetails')}</div>}
+      {section === 'activity' && (
+        <div role="tabpanel">
+          <div className="ddd-detail-table-wrap">
+            <table className="ddd-detail-table">
+              <thead><tr><th>{t('course.ddd.date')}</th><th>{t('course.ddd.driving')}</th><th>{t('course.ddd.work')}</th><th>{t('course.ddd.availability')}</th><th>{t('course.ddd.rest')}</th><th>{t('course.ddd.distance')}</th></tr></thead>
+              <tbody>{days.map(day => <tr key={day.date} className={selectedDay?.date === day.date ? 'is-selected' : ''}><td><button type="button" onClick={() => setSelectedDayDate(day.date)}>{formatDate(day.date, locale)}</button></td><td>{minutesLabel(day.driving_minutes)}</td><td>{minutesLabel(day.work_minutes)}</td><td>{minutesLabel(day.availability_minutes)}</td><td>{minutesLabel(day.rest_minutes)}</td><td>{day.distance_km?.toLocaleString(locale)} km</td></tr>)}</tbody>
+            </table>
+            {!days.length && <div className="ddd-detail-empty">{t('course.ddd.noDayDetails')}</div>}
+          </div>
+          {selectedDay && (
+            <div className="ddd-day-timeline">
+              <div className="ddd-day-timeline-heading"><strong>{t('course.ddd.dayTimeline')}</strong><span>{formatDate(selectedDay.date, locale)} · {selectedDay.changes?.length || 0} {t('course.ddd.changes')}</span></div>
+              <div className="ddd-day-strip" aria-hidden="true">{(selectedDay.changes || []).map((change, index) => <i key={index} className={`is-${change.activity.toLowerCase()}`} style={{ width: `${Math.max(0.3, ((change.end_minute - change.start_minute) / 1440) * 100)}%` }} />)}</div>
+              <div className="ddd-timeline-list">{(selectedDay.changes || []).map((change, index) => <div key={`${change.start_minute}-${index}`}><time>{minuteTime(change.start_minute)}–{minuteTime(change.end_minute)}</time><span className={`ddd-activity-kind is-${change.activity.toLowerCase()}`}>{t(`course.ddd.activity.${change.activity.toLowerCase()}`)}</span><small>{change.inserted ? t('course.ddd.cardInserted') : t('course.ddd.cardRemoved')} · {t('course.ddd.slot', { slot: change.slot })}{change.crew ? ` · ${t('course.ddd.crew')}` : ''}</small></div>)}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -75,20 +128,45 @@ function DddRecordedDetails({ summary, locale, t }) {
               <span className="ddd-vehicle-km">{vehicle.odometer_from_km?.toLocaleString(locale)}–{vehicle.odometer_to_km?.toLocaleString(locale)} km</span>
             </article>
           ))}
+          {units.length > 0 && <div className="ddd-list-divider">{t('course.ddd.tachographs', { count: units.length })}</div>}
+          {units.map((unit, index) => <article key={`${unit.timestamp}-${index}`}><ShieldCheck size={16} aria-hidden="true" /><span><strong>{t('course.ddd.tachographUnit', { code: unit.manufacturer_code })}</strong><small>{formatDateTime(unit.timestamp, locale)} · {unit.software_version || '—'}</small></span><span className="ddd-vehicle-km">{unit.device_id}</span></article>)}
           {!vehicles.length && <div className="ddd-detail-empty">{t('course.ddd.noVehicleDetails')}</div>}
         </div>
       )}
 
-      {section === 'incidents' && (
-        <div className="ddd-detail-list" role="tabpanel">
-          {incidents.map((incident, index) => (
-            <article key={`${incident.kind}-${incident.begin_at}-${index}`} className={incident.kind === 'fault' ? 'is-fault' : 'is-event'}>
-              <AlertTriangle size={16} aria-hidden="true" />
-              <span><strong>{incidentLabel(incident.type)}</strong><small>{formatDateTime(incident.begin_at, locale)} – {formatDateTime(incident.end_at, locale)}{incident.registration ? ` · ${incident.registration}` : ''}</small></span>
-              <span className="ddd-incident-kind">{t(`course.ddd.${incident.kind}`)}</span>
-            </article>
-          ))}
-          {!incidents.length && <div className="ddd-detail-empty">{t('course.ddd.noIncidents')}</div>}
+      {section === 'locations' && <div role="tabpanel"><DddGnssMap points={gnss} locale={locale} t={t} /><p className="ddd-map-note">{t('course.ddd.gnssNote')}</p></div>}
+
+      {section === 'records' && (
+        <div className="ddd-records-panel" role="tabpanel">
+          <div className="ddd-metadata-grid">
+            {[
+              ['birthDate', summary.card_metadata?.birth_date], ['preferredLanguage', summary.card_metadata?.preferred_language],
+              ['issuingState', summary.card_metadata?.issuing_state], ['issuingAuthority', summary.card_metadata?.issuing_authority],
+              ['issueDate', summary.card_metadata?.issue_date ? formatDateTime(summary.card_metadata.issue_date, locale) : '—'],
+              ['validityBegin', summary.card_metadata?.validity_begin ? formatDateTime(summary.card_metadata.validity_begin, locale) : '—'],
+              ['licence', summary.card_metadata?.licence_number_masked], ['licenceAuthority', summary.card_metadata?.licence_authority],
+              ['previousDownload', formatDateTime(summary.card_metadata?.previous_download_at, locale)],
+              ['currentVehicle', summary.card_metadata?.current_vehicle || '—'],
+            ].map(([label, value]) => <div key={label}><span>{t(`course.ddd.meta.${label}`)}</span><strong>{value || '—'}</strong></div>)}
+          </div>
+          <div className="ddd-control-card"><ShieldCheck size={18} /><div><strong>{t('course.ddd.lastControl')}</strong>{summary.control?.valid ? <><span>{formatDateTime(summary.control.control_at, locale)} · {summary.control.vehicle || '—'}</span><small>{(summary.control.actions || []).map(action => t(`course.ddd.control.${action.toLowerCase()}`)).join(', ') || '—'} · {formatDateTime(summary.control.period_begin, locale)}–{formatDateTime(summary.control.period_end, locale)}</small></> : <span>{summary.control ? t('course.ddd.controlUnreadable') : t('course.ddd.noControl')}</span>}</div></div>
+        </div>
+      )}
+
+      {section === 'alerts' && (
+        <div role="tabpanel">
+          <div className="ddd-compliance-note"><ShieldAlert size={17} /><span><strong>{t('course.ddd.analysisNoticeTitle')}</strong>{t('course.ddd.analysisNotice')}</span></div>
+          <div className="ddd-detail-list ddd-alert-list">
+            {alerts.map((alert, index) => <article key={`${alert.type}-${alert.date_from}-${index}`} className={`is-${alert.severity}`}><ShieldAlert size={16} /><span><strong>{t(`course.ddd.alert.${alert.type.toLowerCase()}`)}</strong><small>{formatDate(alert.date_from, locale)}{alert.date_to ? `–${formatDate(alert.date_to, locale)}` : ''}</small></span><span className="ddd-alert-value">{alert.unit === 'days' ? `${alert.actual}/${alert.limit}` : `${minutesLabel(alert.actual)} / ${minutesLabel(alert.limit)}`}</span></article>)}
+            {incidents.map((incident, index) => (
+              <article key={`${incident.kind}-${incident.begin_at}-${index}`} className={incident.kind === 'fault' ? 'is-fault' : 'is-event'}>
+                <AlertTriangle size={16} aria-hidden="true" />
+                <span><strong>{incidentLabel(incident.type)}</strong><small>{formatDateTime(incident.begin_at, locale)} – {formatDateTime(incident.end_at, locale)}{incident.registration ? ` · ${incident.registration}` : ''}</small></span>
+                <span className="ddd-incident-kind">{t(`course.ddd.${incident.kind}`)}</span>
+              </article>
+            ))}
+            {!alerts.length && !incidents.length && <div className="ddd-detail-empty">{t('course.ddd.noAlerts')}</div>}
+          </div>
         </div>
       )}
     </div>
@@ -108,6 +186,7 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
   const [error, setError] = useState('');
   const [recentImports, setRecentImports] = useState([]);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveDetailLoading, setArchiveDetailLoading] = useState(false);
   const [archivedImport, setArchivedImport] = useState(null);
 
   const summary = archivedImport?.summary || result?.summary || null;
@@ -225,6 +304,19 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
     }
   };
 
+  const showArchivedImport = async item => {
+    setArchiveDetailLoading(true);
+    setError('');
+    try {
+      const detail = await getDriverCardDddDetails(sessionToken, item.id);
+      setArchivedImport({ ...item, summary: detail.summary });
+    } catch (detailError) {
+      setError(detailError.message);
+    } finally {
+      setArchiveDetailLoading(false);
+    }
+  };
+
   return (
     <div className="ddd-dialog-overlay" onPointerDown={() => !busy && onClose()}>
       <section
@@ -290,7 +382,7 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
           </div>
         )}
 
-        {busy && !summary && <div className="ddd-loading" role="status"><LoaderCircle className="is-spinning" size={22} /> <span>{t('course.ddd.analyzing')}<small>{t('course.ddd.analyzingHint')}</small></span></div>}
+        {(busy || archiveDetailLoading) && !summary && <div className="ddd-loading" role="status"><LoaderCircle className="is-spinning" size={22} /> <span>{archiveDetailLoading ? t('course.ddd.loadingDetails') : t('course.ddd.analyzing')}<small>{archiveDetailLoading ? t('course.ddd.loadingDetailsHint') : t('course.ddd.analyzingHint')}</small></span></div>}
 
         {error && <div className="ddd-error" role="alert"><AlertTriangle size={18} /><span><strong>{t('course.ddd.errorTitle')}</strong>{error}</span></div>}
 
@@ -355,10 +447,10 @@ export default function DriverCardDddDialog({ open, onClose, sessionToken }) {
             {!archiveLoading && recentImports.length > 0 && (
               <div className="ddd-archive-list">
                 {recentImports.map(item => (
-                  <button type="button" key={item.id} onClick={() => setArchivedImport(item)} disabled={!item.summary}>
+                  <button type="button" key={item.id} onClick={() => showArchivedImport(item)} disabled={archiveDetailLoading}>
                     <CheckCircle2 size={16} aria-hidden="true" />
                     <span><strong>{item.employee_name}</strong><small>{formatDateTime(item.downloaded_at, locale)} · {item.generation} · {t('course.ddd.daysCount', { count: item.activity_days })}</small></span>
-                    <span className="ddd-archive-action">{item.summary ? t('course.ddd.showDetails') : t('course.ddd.summaryUnavailable')} <ChevronRight size={15} /></span>
+                    <span className="ddd-archive-action">{t('course.ddd.showDetails')} <ChevronRight size={15} /></span>
                   </button>
                 ))}
               </div>

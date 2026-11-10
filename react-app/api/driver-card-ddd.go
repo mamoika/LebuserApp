@@ -68,11 +68,22 @@ type activityTotals struct {
 }
 
 type dailyActivity struct {
-	Date                string `json:"date"`
-	DrivingMinutes      int    `json:"driving_minutes"`
-	WorkMinutes         int    `json:"work_minutes"`
-	AvailabilityMinutes int    `json:"availability_minutes"`
-	RestMinutes         int    `json:"rest_minutes"`
+	Date                string           `json:"date"`
+	DrivingMinutes      int              `json:"driving_minutes"`
+	WorkMinutes         int              `json:"work_minutes"`
+	AvailabilityMinutes int              `json:"availability_minutes"`
+	RestMinutes         int              `json:"rest_minutes"`
+	DistanceKm          int32            `json:"distance_km"`
+	Changes             []activityChange `json:"changes,omitempty"`
+}
+
+type activityChange struct {
+	StartMinute int    `json:"start_minute"`
+	EndMinute   int    `json:"end_minute"`
+	Activity    string `json:"activity"`
+	Slot        string `json:"slot"`
+	Crew        bool   `json:"crew"`
+	Inserted    bool   `json:"inserted"`
 }
 
 type vehicleSession struct {
@@ -92,33 +103,87 @@ type cardIncident struct {
 	Registration string `json:"registration,omitempty"`
 }
 
+type gnssPoint struct {
+	Timestamp  string  `json:"timestamp"`
+	Latitude   float64 `json:"latitude"`
+	Longitude  float64 `json:"longitude"`
+	Accuracy   int32   `json:"accuracy,omitempty"`
+	OdometerKm int32   `json:"odometer_km,omitempty"`
+}
+
+type vehicleUnit struct {
+	Timestamp        string `json:"timestamp"`
+	ManufacturerCode int32  `json:"manufacturer_code"`
+	DeviceID         string `json:"device_id"`
+	SoftwareVersion  string `json:"software_version"`
+}
+
+type controlRecord struct {
+	Valid       bool     `json:"valid"`
+	ControlAt   string   `json:"control_at,omitempty"`
+	Vehicle     string   `json:"vehicle,omitempty"`
+	PeriodBegin string   `json:"period_begin,omitempty"`
+	PeriodEnd   string   `json:"period_end,omitempty"`
+	Actions     []string `json:"actions,omitempty"`
+}
+
+type cardMetadata struct {
+	BirthDate            string `json:"birth_date,omitempty"`
+	PreferredLanguage    string `json:"preferred_language,omitempty"`
+	IssuingState         string `json:"issuing_state,omitempty"`
+	IssuingAuthority     string `json:"issuing_authority,omitempty"`
+	IssueDate            string `json:"issue_date,omitempty"`
+	ValidityBegin        string `json:"validity_begin,omitempty"`
+	LicenceNumberMasked  string `json:"licence_number_masked,omitempty"`
+	LicenceNation        string `json:"licence_nation,omitempty"`
+	LicenceAuthority     string `json:"licence_authority,omitempty"`
+	PreviousDownloadAt   string `json:"previous_download_at,omitempty"`
+	CurrentSessionOpened string `json:"current_session_opened,omitempty"`
+	CurrentVehicle       string `json:"current_vehicle,omitempty"`
+}
+
+type complianceAlert struct {
+	Type     string `json:"type"`
+	Severity string `json:"severity"`
+	DateFrom string `json:"date_from"`
+	DateTo   string `json:"date_to,omitempty"`
+	Actual   int    `json:"actual"`
+	Limit    int    `json:"limit"`
+	Unit     string `json:"unit"`
+}
+
 type dddSummary struct {
-	FileName            string           `json:"file_name"`
-	FileSize            int              `json:"file_size"`
-	SHA256              string           `json:"sha256"`
-	Generation          string           `json:"generation"`
-	CardNumber          string           `json:"card_number"`
-	MaskedCardNumber    string           `json:"masked_card_number"`
-	FirstName           string           `json:"first_name"`
-	Surname             string           `json:"surname"`
-	CardExpiryOn        string           `json:"card_expiry_on,omitempty"`
-	DownloadedAt        string           `json:"downloaded_at,omitempty"`
-	ActivityFirstOn     string           `json:"activity_first_on,omitempty"`
-	ActivityLastOn      string           `json:"activity_last_on,omitempty"`
-	ActivityDays        int              `json:"activity_days"`
-	VehicleSessions     int              `json:"vehicle_sessions"`
-	EventCount          int              `json:"event_count"`
-	FaultCount          int              `json:"fault_count"`
-	SignaturesVerified  int              `json:"signatures_verified"`
-	SignaturesTotal     int              `json:"signatures_total"`
-	SignatureStatus     string           `json:"signature_status"`
-	Totals              activityTotals   `json:"totals"`
-	DailyActivities     []dailyActivity  `json:"daily_activities,omitempty"`
-	VehicleDetails      []vehicleSession `json:"vehicle_details,omitempty"`
-	Events              []cardIncident   `json:"events,omitempty"`
-	Faults              []cardIncident   `json:"faults,omitempty"`
-	MatchedEmployeeID   string           `json:"matched_employee_id,omitempty"`
-	MatchedEmployeeName string           `json:"matched_employee_name,omitempty"`
+	FileName            string            `json:"file_name"`
+	FileSize            int               `json:"file_size"`
+	SHA256              string            `json:"sha256"`
+	Generation          string            `json:"generation"`
+	CardNumber          string            `json:"card_number"`
+	MaskedCardNumber    string            `json:"masked_card_number"`
+	FirstName           string            `json:"first_name"`
+	Surname             string            `json:"surname"`
+	CardExpiryOn        string            `json:"card_expiry_on,omitempty"`
+	DownloadedAt        string            `json:"downloaded_at,omitempty"`
+	ActivityFirstOn     string            `json:"activity_first_on,omitempty"`
+	ActivityLastOn      string            `json:"activity_last_on,omitempty"`
+	ActivityDays        int               `json:"activity_days"`
+	VehicleSessions     int               `json:"vehicle_sessions"`
+	EventCount          int               `json:"event_count"`
+	FaultCount          int               `json:"fault_count"`
+	SignaturesVerified  int               `json:"signatures_verified"`
+	SignaturesTotal     int               `json:"signatures_total"`
+	SignatureStatus     string            `json:"signature_status"`
+	Totals              activityTotals    `json:"totals"`
+	DailyActivities     []dailyActivity   `json:"daily_activities,omitempty"`
+	VehicleDetails      []vehicleSession  `json:"vehicle_details,omitempty"`
+	Events              []cardIncident    `json:"events,omitempty"`
+	Faults              []cardIncident    `json:"faults,omitempty"`
+	GnssPoints          []gnssPoint       `json:"gnss_points,omitempty"`
+	VehicleUnits        []vehicleUnit     `json:"vehicle_units,omitempty"`
+	Control             *controlRecord    `json:"control,omitempty"`
+	CardMetadata        cardMetadata      `json:"card_metadata"`
+	ComplianceAlerts    []complianceAlert `json:"compliance_alerts,omitempty"`
+	MatchedEmployeeID   string            `json:"matched_employee_id,omitempty"`
+	MatchedEmployeeName string            `json:"matched_employee_name,omitempty"`
 }
 
 type apiResponse struct {
@@ -136,6 +201,12 @@ type saveResponse struct {
 	Duplicate bool   `json:"duplicate"`
 	ImportID  string `json:"import_id"`
 	Error     string `json:"error"`
+}
+
+type detailResponse struct {
+	OK      bool        `json:"ok"`
+	Summary *dddSummary `json:"summary,omitempty"`
+	Error   string      `json:"error,omitempty"`
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -162,8 +233,23 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, apiResponse{Error: err.Error()})
 		return
 	}
-	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("action")), "context") {
+	queryAction := strings.TrimSpace(r.URL.Query().Get("action"))
+	if strings.EqualFold(queryAction, "context") {
 		writeJSON(w, http.StatusOK, apiResponse{OK: true, Drivers: publicDrivers(access.Drivers), Imports: access.Imports})
+		return
+	}
+	if strings.EqualFold(queryAction, "details") {
+		importID := strings.TrimSpace(r.URL.Query().Get("id"))
+		if importID == "" {
+			writeJSON(w, http.StatusBadRequest, apiResponse{Error: "Brak identyfikatora odczytu DDD"})
+			return
+		}
+		detail, detailErr := loadImportDetail(ctx, sessionToken, importID)
+		if detailErr != nil {
+			writeJSON(w, http.StatusBadRequest, apiResponse{Error: detailErr.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, apiResponse{OK: true, Summary: detail.Summary})
 		return
 	}
 
@@ -269,20 +355,28 @@ func parseDDD(ctx context.Context, fileName string, data []byte) (*dddSummary, e
 
 	var identification *cardv1.DriverCardIdentification
 	var activities *cardv1.DriverActivityData
+	var licence *cardv1.DrivingLicenceInfo
+	var cardDownload *cardv1.CardDownloadDriver
+	var currentUsage *cardv1.CurrentUsage
+	var control *cardv1.ControlActivityData
 	if g2 := card.GetTachographG2(); g2 != nil {
 		identification = g2.GetIdentification()
 		activities = g2.GetDriverActivityData()
+		licence = g2.GetDrivingLicenceInfo()
+		cardDownload = g2.GetCardDownload()
+		currentUsage = g2.GetCurrentUsage()
+		control = g2.GetControlActivityData()
 		result.Generation = "G2"
 		if g2.GetApplicationIdentificationV2() != nil {
 			result.Generation = "G2.2 (Smart V2)"
 		}
 		if vehicles := g2.GetVehiclesUsed(); vehicles != nil {
-			result.VehicleSessions = countNonNil(vehicles.GetRecords())
 			for _, record := range vehicles.GetRecords() {
-				if record != nil {
-					result.VehicleDetails = append(result.VehicleDetails, vehicleDetail(record))
+				if detail, ok := vehicleDetail(record); ok {
+					result.VehicleDetails = append(result.VehicleDetails, detail)
 				}
 			}
+			result.VehicleSessions = len(result.VehicleDetails)
 		}
 		if events := g2.GetEventsData(); events != nil {
 			result.Events = eventDetails(events.GetEvents())
@@ -292,17 +386,23 @@ func parseDDD(ctx context.Context, fileName string, data []byte) (*dddSummary, e
 			result.Faults = faultDetails(faults.GetFaults())
 			result.FaultCount = len(result.Faults)
 		}
+		result.GnssPoints = gnssDetails(g2.GetGnssPlaces())
+		result.VehicleUnits = vehicleUnitDetails(g2.GetVehicleUnitsUsed())
 	} else if g1 := card.GetTachograph(); g1 != nil {
 		identification = g1.GetIdentification()
 		activities = g1.GetDriverActivityData()
+		licence = g1.GetDrivingLicenceInfo()
+		cardDownload = g1.GetCardDownload()
+		currentUsage = g1.GetCurrentUsage()
+		control = g1.GetControlActivityData()
 		result.Generation = "G1"
 		if vehicles := g1.GetVehiclesUsed(); vehicles != nil {
-			result.VehicleSessions = countNonNil(vehicles.GetRecords())
 			for _, record := range vehicles.GetRecords() {
-				if record != nil {
-					result.VehicleDetails = append(result.VehicleDetails, vehicleDetail(record))
+				if detail, ok := vehicleDetail(record); ok {
+					result.VehicleDetails = append(result.VehicleDetails, detail)
 				}
 			}
+			result.VehicleSessions = len(result.VehicleDetails)
 		}
 		if events := g1.GetEventsData(); events != nil {
 			result.Events = eventDetails(events.GetEvents())
@@ -327,12 +427,15 @@ func parseDDD(ctx context.Context, fileName string, data []byte) (*dddSummary, e
 	if expiry := identification.GetCardExpiryDate(); expiry != nil && expiry.IsValid() {
 		result.CardExpiryOn = expiry.AsTime().UTC().Format("2006-01-02")
 	}
+	populateCardMetadata(result, identification, licence, cardDownload, currentUsage)
+	result.Control = controlDetail(control)
 	result.DownloadedAt = timestampFromFilename(fileName)
 	if result.DownloadedAt == "" {
 		result.DownloadedAt = time.Now().UTC().Truncate(time.Second).Format(time.RFC3339)
 	}
 
 	populateActivities(result, activities)
+	result.ComplianceAlerts = analyzeCompliance(result.DailyActivities)
 	result.SignaturesVerified, result.SignaturesTotal = countAuthentications(parsed.ProtoReflect())
 	if result.SignaturesTotal > 0 && result.SignaturesVerified == result.SignaturesTotal {
 		result.SignatureStatus = "verified"
@@ -346,7 +449,10 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 	if activities == nil {
 		return
 	}
-	type dayData struct{ changes []*ddv1.ActivityChangeInfo }
+	type dayData struct {
+		changes  []*ddv1.ActivityChangeInfo
+		distance int32
+	}
 	days := map[string]dayData{}
 	for _, record := range activities.GetDailyRecords() {
 		if record == nil || !record.GetValid() || record.GetActivityRecordDate() == nil || !record.GetActivityRecordDate().IsValid() {
@@ -354,7 +460,7 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 		}
 		date := record.GetActivityRecordDate().AsTime().UTC()
 		key := date.Format("2006-01-02")
-		days[key] = dayData{changes: record.GetActivityChangeInfo()}
+		days[key] = dayData{changes: record.GetActivityChangeInfo(), distance: record.GetActivityDayDistance()}
 	}
 	if len(days) == 0 {
 		return
@@ -368,7 +474,7 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 	result.ActivityLastOn = keys[len(keys)-1]
 	result.ActivityDays = len(keys)
 	for _, key := range keys {
-		detail := dailyActivity{Date: key}
+		detail := dailyActivity{Date: key, DistanceKm: days[key].distance}
 		changes := append([]*ddv1.ActivityChangeInfo(nil), days[key].changes...)
 		sort.SliceStable(changes, func(i, j int) bool { return changes[i].GetTimeOfChangeMinutes() < changes[j].GetTimeOfChangeMinutes() })
 		for index, change := range changes {
@@ -384,6 +490,14 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 				continue
 			}
 			duration := end - start
+			detail.Changes = append(detail.Changes, activityChange{
+				StartMinute: start,
+				EndMinute:   end,
+				Activity:    strings.TrimPrefix(change.GetActivity().String(), "DRIVER_ACTIVITY_VALUE_"),
+				Slot:        strings.TrimPrefix(change.GetSlot().String(), "CARD_SLOT_NUMBER_"),
+				Crew:        change.GetCrew(),
+				Inserted:    change.GetInserted(),
+			})
 			switch change.GetActivity() {
 			case ddv1.DriverActivityValue_DRIVING:
 				result.Totals.DrivingMinutes += duration
@@ -403,6 +517,84 @@ func populateActivities(result *dddSummary, activities *cardv1.DriverActivityDat
 	}
 }
 
+func analyzeCompliance(days []dailyActivity) []complianceAlert {
+	if len(days) == 0 {
+		return nil
+	}
+	type weekData struct {
+		start    string
+		end      string
+		driving  int
+		extended int
+	}
+	weeks := map[string]*weekData{}
+	alerts := make([]complianceAlert, 0)
+	for _, day := range days {
+		date, err := time.Parse("2006-01-02", day.Date)
+		if err != nil {
+			continue
+		}
+		monday := date.AddDate(0, 0, -((int(date.Weekday()) + 6) % 7))
+		key := monday.Format("2006-01-02")
+		week := weeks[key]
+		if week == nil {
+			week = &weekData{start: key, end: monday.AddDate(0, 0, 6).Format("2006-01-02")}
+			weeks[key] = week
+		}
+		week.driving += day.DrivingMinutes
+		if day.DrivingMinutes > 540 {
+			week.extended++
+		}
+		if day.DrivingMinutes > 600 {
+			alerts = append(alerts, complianceAlert{Type: "DAILY_DRIVING_OVER_10H", Severity: "high", DateFrom: day.Date, Actual: day.DrivingMinutes, Limit: 600, Unit: "minutes"})
+		}
+		continuous, partialBreak, flagged := 0, false, false
+		for _, change := range day.Changes {
+			duration := change.EndMinute - change.StartMinute
+			if duration <= 0 {
+				continue
+			}
+			switch change.Activity {
+			case "DRIVING":
+				continuous += duration
+				if continuous > 270 && !flagged {
+					alerts = append(alerts, complianceAlert{Type: "DRIVING_WITHOUT_45M_BREAK", Severity: "high", DateFrom: day.Date, Actual: continuous, Limit: 270, Unit: "minutes"})
+					flagged = true
+				}
+			case "BREAK_REST":
+				if duration >= 45 || (partialBreak && duration >= 30) {
+					continuous, partialBreak, flagged = 0, false, false
+				} else if duration >= 15 {
+					partialBreak = true
+				}
+			}
+		}
+	}
+	keys := make([]string, 0, len(weeks))
+	for key := range weeks {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for index, key := range keys {
+		week := weeks[key]
+		if week.driving > 3360 {
+			alerts = append(alerts, complianceAlert{Type: "WEEKLY_DRIVING_OVER_56H", Severity: "high", DateFrom: week.start, DateTo: week.end, Actual: week.driving, Limit: 3360, Unit: "minutes"})
+		}
+		if week.extended > 2 {
+			alerts = append(alerts, complianceAlert{Type: "TOO_MANY_10H_DAYS", Severity: "medium", DateFrom: week.start, DateTo: week.end, Actual: week.extended, Limit: 2, Unit: "days"})
+		}
+		if index > 0 {
+			previous := weeks[keys[index-1]]
+			currentStart, _ := time.Parse("2006-01-02", week.start)
+			previousStart, _ := time.Parse("2006-01-02", previous.start)
+			if currentStart.Sub(previousStart) == 7*24*time.Hour && previous.driving+week.driving > 5400 {
+				alerts = append(alerts, complianceAlert{Type: "FORTNIGHT_DRIVING_OVER_90H", Severity: "high", DateFrom: previous.start, DateTo: week.end, Actual: previous.driving + week.driving, Limit: 5400, Unit: "minutes"})
+			}
+		}
+	}
+	return alerts
+}
+
 type vehicleRecord interface {
 	GetVehicleOdometerBeginKm() int32
 	GetVehicleOdometerEndKm() int32
@@ -411,7 +603,10 @@ type vehicleRecord interface {
 	GetVehicleRegistration() *ddv1.VehicleRegistrationIdentification
 }
 
-func vehicleDetail(record vehicleRecord) vehicleSession {
+func vehicleDetail(record vehicleRecord) (vehicleSession, bool) {
+	if record == nil || record.GetVehicleFirstUse() == nil || !record.GetVehicleFirstUse().IsValid() {
+		return vehicleSession{}, false
+	}
 	registration := record.GetVehicleRegistration()
 	detail := vehicleSession{
 		FirstUse:     timestampValue(record.GetVehicleFirstUse()),
@@ -426,7 +621,145 @@ func vehicleDetail(record vehicleRecord) vehicleSession {
 	if withVIN, ok := record.(interface{ GetVehicleIdentificationNumber() string }); ok {
 		detail.VIN = strings.TrimSpace(withVIN.GetVehicleIdentificationNumber())
 	}
-	return detail
+	return detail, true
+}
+
+func gnssDetails(data *cardv1.GnssPlaces) []gnssPoint {
+	if data == nil {
+		return nil
+	}
+	result := make([]gnssPoint, 0, len(data.GetRecords()))
+	for _, record := range data.GetRecords() {
+		if record == nil || record.GetTimestamp() == nil || !record.GetTimestamp().IsValid() {
+			continue
+		}
+		place := record.GetGnssPlaceRecord()
+		if place == nil || place.GetGeoCoordinates() == nil {
+			continue
+		}
+		lat, latOK := coordinateDegrees(place.GetGeoCoordinates().GetLatitude())
+		lng, lngOK := coordinateDegrees(place.GetGeoCoordinates().GetLongitude())
+		if !latOK || !lngOK {
+			continue
+		}
+		result = append(result, gnssPoint{
+			Timestamp: timestampValue(record.GetTimestamp()), Latitude: lat, Longitude: lng,
+			Accuracy: place.GetGnssAccuracy(), OdometerKm: record.GetVehicleOdometerKm(),
+		})
+	}
+	return result
+}
+
+func coordinateDegrees(raw int32) (float64, bool) {
+	if raw == 8388607 || raw == -8388607 {
+		return 0, false
+	}
+	sign := 1.0
+	value := int64(raw)
+	if value < 0 {
+		sign = -1
+		value = -value
+	}
+	degrees := value / 1000
+	minutesTenths := value % 1000
+	decimal := float64(degrees) + float64(minutesTenths)/10.0/60.0
+	if decimal > 180 {
+		return 0, false
+	}
+	return sign * decimal, true
+}
+
+func vehicleUnitDetails(data *cardv1.VehicleUnitsUsed) []vehicleUnit {
+	if data == nil {
+		return nil
+	}
+	result := make([]vehicleUnit, 0, len(data.GetRecords()))
+	for _, record := range data.GetRecords() {
+		if record == nil || record.GetTimestamp() == nil || !record.GetTimestamp().IsValid() {
+			continue
+		}
+		result = append(result, vehicleUnit{
+			Timestamp:        timestampValue(record.GetTimestamp()),
+			ManufacturerCode: record.GetManufacturerCode(),
+			DeviceID:         maskHex(record.GetDeviceId()),
+			SoftwareVersion:  strings.Trim(string(record.GetVuSoftwareVersion()), "\x00\xff "),
+		})
+	}
+	return result
+}
+
+func controlDetail(data *cardv1.ControlActivityData) *controlRecord {
+	if data == nil {
+		return nil
+	}
+	if !data.GetValid() {
+		return &controlRecord{Valid: false}
+	}
+	result := &controlRecord{
+		Valid: true, ControlAt: timestampValue(data.GetControlTime()),
+		Vehicle:     registrationValue(data.GetControlVehicleRegistration()),
+		PeriodBegin: timestampValue(data.GetControlDownloadPeriodBegin()),
+		PeriodEnd:   timestampValue(data.GetControlDownloadPeriodEnd()),
+	}
+	if kind := data.GetControlType(); kind != nil {
+		if kind.GetCardDownloading() {
+			result.Actions = append(result.Actions, "CARD_DOWNLOADING")
+		}
+		if kind.GetVuDownloading() {
+			result.Actions = append(result.Actions, "VU_DOWNLOADING")
+		}
+		if kind.GetPrinting() {
+			result.Actions = append(result.Actions, "PRINTING")
+		}
+		if kind.GetDisplay() {
+			result.Actions = append(result.Actions, "DISPLAY")
+		}
+		if kind.GetCalibrationChecking() {
+			result.Actions = append(result.Actions, "CALIBRATION_CHECKING")
+		}
+	}
+	return result
+}
+
+func populateCardMetadata(result *dddSummary, identification *cardv1.DriverCardIdentification, licence *cardv1.DrivingLicenceInfo, download *cardv1.CardDownloadDriver, usage *cardv1.CurrentUsage) {
+	metadata := cardMetadata{
+		PreferredLanguage: strings.TrimSpace(identification.GetCardHolderPreferredLanguage().GetValue()),
+		IssuingState:      strings.TrimPrefix(identification.GetCardIssuingMemberState().String(), "NATION_NUMERIC_"),
+		IssuingAuthority:  strings.TrimSpace(identification.GetCardIssuingAuthorityName().GetValue()),
+		IssueDate:         timestampValue(identification.GetCardIssueDate()),
+		ValidityBegin:     timestampValue(identification.GetCardValidityBegin()),
+	}
+	if birth := identification.GetCardHolderBirthDate(); birth != nil && birth.GetYear() > 0 {
+		metadata.BirthDate = fmt.Sprintf("%04d-%02d-%02d", birth.GetYear(), birth.GetMonth(), birth.GetDay())
+	}
+	if licence != nil {
+		metadata.LicenceNumberMasked = maskIdentifier(strings.TrimSpace(licence.GetDrivingLicenceNumber().GetValue()))
+		metadata.LicenceNation = strings.TrimPrefix(licence.GetDrivingLicenceIssuingNation().String(), "NATION_NUMERIC_")
+		metadata.LicenceAuthority = strings.TrimSpace(licence.GetDrivingLicenceIssuingAuthority().GetValue())
+	}
+	if download != nil {
+		metadata.PreviousDownloadAt = timestampValue(download.GetTimestamp())
+	}
+	if usage != nil {
+		metadata.CurrentSessionOpened = timestampValue(usage.GetSessionOpenTime())
+		metadata.CurrentVehicle = registrationValue(usage.GetSessionOpenVehicle())
+	}
+	result.CardMetadata = metadata
+}
+
+func maskIdentifier(value string) string {
+	if len(value) <= 4 {
+		return value
+	}
+	return strings.Repeat("•", len(value)-4) + value[len(value)-4:]
+}
+
+func maskHex(value []byte) string {
+	encoded := hex.EncodeToString(value)
+	if len(encoded) <= 8 {
+		return encoded
+	}
+	return encoded[:4] + "••••" + encoded[len(encoded)-4:]
 }
 
 func eventDetails(records []*cardv1.EventsData_Record) []cardIncident {
@@ -529,6 +862,23 @@ func loadDispatchContext(ctx context.Context, sessionToken string) (*dispatchCon
 	if !result.OK || result.Error != "" {
 		if result.Error == "" {
 			result.Error = "Brak dostępu do importu DDD"
+		}
+		return nil, errors.New(result.Error)
+	}
+	return &result, nil
+}
+
+func loadImportDetail(ctx context.Context, sessionToken, importID string) (*detailResponse, error) {
+	var result detailResponse
+	if err := callRPC(ctx, "get_dispatch_ddd_import_detail", map[string]any{
+		"p_session_token": sessionToken,
+		"p_import_id":     importID,
+	}, &result); err != nil {
+		return nil, err
+	}
+	if !result.OK || result.Error != "" || result.Summary == nil {
+		if result.Error == "" {
+			result.Error = "Nie znaleziono szczegółów odczytu DDD"
 		}
 		return nil, errors.New(result.Error)
 	}

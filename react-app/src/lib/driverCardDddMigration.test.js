@@ -10,6 +10,10 @@ const detailsMigration = readFileSync(
   new URL('../../db/migrations/20261110153000_driver_card_ddd_details.sql', import.meta.url),
   'utf8',
 );
+const onDemandDetailsMigration = readFileSync(
+  new URL('../../db/migrations/20261110170000_driver_card_ddd_on_demand_details.sql', import.meta.url),
+  'utf8',
+);
 
 test('DDD archive is private and protected by RLS', () => {
   assert.match(migration, /alter table public\.driver_card_ddd_imports enable row level security/i);
@@ -32,4 +36,11 @@ test('DDD import is deduplicated and updates the card download history', () => {
 test('DDD archive exposes details without exposing the full card number or file hash', () => {
   assert.match(detailsMigration, /i\.summary - 'card_number' - 'sha256' as summary/i);
   assert.match(detailsMigration, /user_module_access\(v_user\.id, 'live_routes'\), 0\) < 1/i);
+});
+
+test('DDD archive loads large details on demand with the same access check', () => {
+  assert.doesNotMatch(onDemandDetailsMigration, /as summary\s+from public\.driver_card_ddd_imports[\s\S]+limit 30/i);
+  assert.match(onDemandDetailsMigration, /get_dispatch_ddd_import_detail/i);
+  assert.match(onDemandDetailsMigration, /i\.summary - 'card_number' - 'sha256'/i);
+  assert.match(onDemandDetailsMigration, /user_module_access\(v_user\.id, 'live_routes'\), 0\) < 1/i);
 });
