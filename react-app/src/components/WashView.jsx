@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
+  Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   History,
   Maximize2,
@@ -11,6 +14,7 @@ import {
   PackageCheck,
   RefreshCw,
   RotateCcw,
+  Scale,
   Trash2,
   Truck,
   WashingMachine,
@@ -51,11 +55,12 @@ function dateOnly(value) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), {
+  const str = new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), {
     weekday: 'long',
     day: '2-digit',
     month: '2-digit',
   });
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Poprawna polska odmiana: 1 punkt, 2-4 punkty, 5+ punktów (z wyjątkiem 12-14).
@@ -294,19 +299,43 @@ function routeBadge(routeId, routeMap) {
   return `T${route.num}`;
 }
 
-function Metric({ icon: Icon, label, value, tone, active = false, onClick }) {
+function Metric({ icon: Icon, label, value, tone, active = false, onClick, badge, subtitle }) {
   const Tag = onClick ? 'button' : 'div';
+
+  let displayValue = value;
+  let displayUnit = '';
+  if (typeof value === 'string') {
+    const kgMatch = value.match(/^(.*?)\s*kg$/i);
+    const slashMatch = value.match(/^(.*?)\/(\d+)$/);
+    if (kgMatch) {
+      displayValue = kgMatch[1];
+      displayUnit = 'kg';
+    } else if (slashMatch) {
+      displayValue = slashMatch[1];
+      displayUnit = `/${slashMatch[2]}`;
+    }
+  }
+
   return (
     <Tag
-      className={`laundry-metric ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''}`}
+      className={`laundry-metric ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''} ${onClick ? 'is-clickable' : ''}`}
       type={onClick ? 'button' : undefined}
       onClick={onClick}
     >
-      <div className="laundry-metric-icon"><Icon size={18} /></div>
-      <div>
-        <div className="laundry-metric-value">{value}</div>
-        <div className="laundry-metric-label">{label}</div>
+      <div className="laundry-metric-top">
+        <div className="laundry-metric-header">
+          <div className="laundry-metric-icon">
+            <Icon size={18} />
+          </div>
+          <span className="laundry-metric-label">{label}</span>
+        </div>
+        {badge && <span className="laundry-metric-badge">{badge}</span>}
       </div>
+      <div className="laundry-metric-body">
+        <span className="laundry-metric-value tabular-nums">{displayValue}</span>
+        {displayUnit && <span className="laundry-metric-unit">{displayUnit}</span>}
+      </div>
+      {subtitle && <div className="laundry-metric-sub">{subtitle}</div>}
     </Tag>
   );
 }
@@ -1080,20 +1109,54 @@ export default function WashView() {
   return (
     <div className="laundry-shell">
       <div className="laundry-toolbar">
-        <div>
+        <div className="laundry-title-group">
           <div className="laundry-kicker">{t('wash.kicker')}</div>
           <h1>{t('wash.title')}</h1>
           <p>{t('wash.subtitle', { date: formatDate(selectedDate) })}</p>
         </div>
         <div className="laundry-toolbar-actions">
-          <div className="laundry-date-nav">
-            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>‹</button>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value || operationalYmd())} />
-            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>›</button>
+          <div className="laundry-date-nav apple-date-nav">
+            <button
+              type="button"
+              className="laundry-date-nav-btn"
+              onClick={() => setSelectedDate(addDays(selectedDate, -1))}
+              title="Poprzedni dzień"
+              aria-label="Poprzedni dzień"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <label className="laundry-date-picker-label" title="Wybierz datę">
+              <Calendar size={14} className="laundry-date-icon" />
+              <span className="laundry-date-text">{formatDate(selectedDate)}</span>
+              <input
+                type="date"
+                className="laundry-date-input"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value || operationalYmd())}
+              />
+            </label>
+            <button
+              type="button"
+              className="laundry-date-nav-btn"
+              onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+              title="Następny dzień"
+              aria-label="Następny dzień"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <button className="laundry-icon-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>
-            <RefreshCw size={16} className={workflowLoading ? 'spin' : ''} />
-            {t('common.refresh')}
+          {selectedDate !== operationalYmd() && (
+            <button
+              type="button"
+              className="laundry-today-btn"
+              onClick={() => setSelectedDate(operationalYmd())}
+            >
+              {t('common.today')}
+            </button>
+          )}
+          <button className="laundry-refresh-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>
+            <RefreshCw size={15} className={workflowLoading ? 'spin' : ''} />
+            <span>{t('common.refresh')}</span>
           </button>
         </div>
       </div>
@@ -1110,24 +1173,30 @@ export default function WashView() {
           label={t('wash.metrics.planned')}
           value={`${metrics.plannedKg} kg`}
           tone="pending"
+          subtitle={t('wash.metrics.plannedSub')}
         />
         <Metric
           icon={CheckCircle2}
           label={t('wash.metrics.washedToday')}
           value={`${metrics.washedKg} kg`}
           tone="washed"
+          badge={metrics.plannedKg > 0 ? `${Math.min(100, Math.round((metrics.washedKg / metrics.plannedKg) * 100))}%` : null}
+          subtitle={t('wash.metrics.washedSub')}
         />
         <Metric
           icon={Truck}
           label={t('wash.metrics.departure')}
           value={`${metrics.departureKg} kg`}
           tone="ready"
+          subtitle={t('wash.metrics.departureSub')}
         />
         <Metric
           icon={Archive}
           label={t('wash.metrics.occupied', { count: trolleyCount })}
           value={`${metrics.activeTrolleys}/${trolleyCount}`}
           tone="trolley"
+          badge={freeTrolleyCount > 0 ? t('wash.metrics.freeBadge', { count: freeTrolleyCount }) : null}
+          subtitle={t('wash.metrics.trolleySub')}
           onClick={() => setTrolleysModalOpen(true)}
         />
       </div>
@@ -1205,14 +1274,41 @@ export default function WashView() {
                     <StagePill stage={group.stage} />
                   </div>
                   <div className="laundry-work-meta">
-                    <span>{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</span>
-                    {group.washDate && <span className="is-wash-date">{t('wash.plannedWashDate', { date: formatDate(group.washDate) })}</span>}
-                    {group.departureDate && <span className="is-departure-date">{t('wash.plannedDepartureDate', { date: formatDate(group.departureDate) })}</span>}
-                    {group.packedKg > 0 && <span>{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>}
-                    {group.packedKg > 0 && group.remainingKg > 0 && <span>{t('wash.remainingAmount', { weight: group.remainingKg })}</span>}
-                    {group.washedAt && <span>{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
-                    {group.packedAt && <span>{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
-                    {group.trolleyNo && <span>{t('wash.trolleysList', { list: group.trolleyNo })}</span>}
+                    <span className="laundry-meta-chip is-weight">
+                      <Scale size={12} />
+                      <strong className="tabular-nums">{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</strong>
+                    </span>
+                    {group.washDate && (
+                      <span className="laundry-meta-chip is-wash-date">
+                        <Calendar size={12} />
+                        <span>{t('wash.plannedWashDate', { date: formatDate(group.washDate) })}</span>
+                      </span>
+                    )}
+                    {group.departureDate && (
+                      <span className="laundry-meta-chip is-departure-date">
+                        <Truck size={12} />
+                        <span>{t('wash.plannedDepartureDate', { date: formatDate(group.departureDate) })}</span>
+                      </span>
+                    )}
+                    {group.packedKg > 0 && (
+                      <span className="laundry-meta-chip is-packed">
+                        <Package size={12} />
+                        <span className="tabular-nums">{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>
+                      </span>
+                    )}
+                    {group.packedKg > 0 && group.remainingKg > 0 && (
+                      <span className="laundry-meta-chip is-remaining">
+                        <span className="tabular-nums">{t('wash.remainingAmount', { weight: group.remainingKg })}</span>
+                      </span>
+                    )}
+                    {group.washedAt && <span className="laundry-meta-chip">{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
+                    {group.packedAt && <span className="laundry-meta-chip">{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
+                    {group.trolleyNo && (
+                      <span className="laundry-meta-chip is-trolleys">
+                        <Archive size={12} />
+                        <span>{t('wash.trolleysList', { list: group.trolleyNo })}</span>
+                      </span>
+                    )}
                   </div>
                   
                   {group.hasKnownWeight && (
@@ -1229,7 +1325,7 @@ export default function WashView() {
                         return (
                           <span key={cycle.id} className="laundry-cycle-chip">
                             <strong>{t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
-                            <b>{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
+                            <b className="tabular-nums">{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
                           </span>
                         );
                       })}
@@ -1247,17 +1343,19 @@ export default function WashView() {
                       disabled={primaryAction.disabled}
                     >
                       <primaryAction.Icon size={16} />
-                      {primaryAction.label}
+                      <span>{primaryAction.label}</span>
                     </button>
                   ) : (
-                    <div className="laundry-work-state">{waitingNote}</div>
+                    <div className="laundry-work-state">
+                      {group.stage === 'ready' && <CheckCircle2 size={15} />}
+                      <span>{waitingNote}</span>
+                    </div>
                   )}
 
                   {hasCorrections && (
                     <details className="laundry-correction-menu">
-                      <summary>
+                      <summary title={t('wash.actions.correction')} aria-label={t('wash.actions.correction')}>
                         <MoreHorizontal size={16} />
-                        {t('wash.actions.correction')}
                       </summary>
                       <div className="laundry-correction-panel">
                         {canUnmarkWashed && (
@@ -1269,7 +1367,7 @@ export default function WashView() {
                             title={t('wash.actions.undoWashedTitle')}
                           >
                             <RotateCcw size={15} />
-                            {busyUnwashed ? t('wash.actions.undoing') : t('wash.actions.undoWashed')}
+                            <span>{busyUnwashed ? t('wash.actions.undoing') : t('wash.actions.undoWashed')}</span>
                           </button>
                         )}
                         {cycleCorrections.map(action => (
@@ -1281,7 +1379,7 @@ export default function WashView() {
                             disabled={action.disabled}
                           >
                             <RotateCcw size={15} />
-                            {action.label}
+                            <span>{action.label}</span>
                           </button>
                         ))}
                       </div>
@@ -1302,29 +1400,16 @@ export default function WashView() {
             <span>{t('wash.trolleyBoard.summary', { free: freeTrolleyCount, occupied: activeTrolleyByNo.size, total: trolleyCount })}</span>
             <p className="laundry-live-context">{t('wash.trolleyBoard.liveContext')}</p>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="laundry-section-actions">
             {trolleyTab === 'packages' && packageCycles.length > 0 && isAdmin && (
               <button
                 type="button"
                 className="laundry-header-action is-danger"
                 onClick={handleClearOldPackages}
                 disabled={busyKey === 'clear-old-packages'}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 59, 48, 0.25)',
-                  background: 'rgba(255, 59, 48, 0.08)',
-                  color: 'var(--red-600, #dc2626)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
               >
                 <Trash2 size={13} />
-                {busyKey === 'clear-old-packages' ? t('wash.trolleyBoard.clearing') : t('wash.trolleyBoard.clearPackages')}
+                <span>{busyKey === 'clear-old-packages' ? t('wash.trolleyBoard.clearing') : t('wash.trolleyBoard.clearPackages')}</span>
               </button>
             )}
             <button
@@ -1334,27 +1419,14 @@ export default function WashView() {
                 setHistoryTrolley(null);
                 setTrolleysModalOpen(true);
               }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
             >
               <Maximize2 size={13} />
-              {t('wash.trolleyBoard.manageFleet', { count: trolleyCount })}
+              <span>{t('wash.trolleyBoard.manageFleet', { count: trolleyCount })}</span>
             </button>
           </div>
         </div>
 
-        <div className="segmented-control" style={{ maxWidth: '620px', marginTop: '6px', marginBottom: '14px' }}>
+        <div className="segmented-control laundry-trolley-tabs">
           <button
             type="button"
             className={`seg-btn ${trolleyTab === 'active' ? 'active' : ''}`}
@@ -1387,38 +1459,15 @@ export default function WashView() {
 
         {trolleyTab === 'active' && (
           occupiedTrolleys.length === 0 ? (
-            <div className="laundry-empty-state apple-glass" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <CheckCircle2 size={36} color="var(--accent-green, #34C759)" />
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {t('wash.trolleyBoard.allFreeTitle')}
-              </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
-                {t('wash.trolleyBoard.allFreeDescription', { count: trolleyCount })}
-              </p>
+            <div className="laundry-empty-state apple-glass">
+              <div className="laundry-empty-icon-badge">
+                <CheckCircle2 size={32} />
+              </div>
+              <h3>{t('wash.trolleyBoard.allFreeTitle')}</h3>
+              <p>{t('wash.trolleyBoard.allFreeDescription', { count: trolleyCount })}</p>
               <button
                 type="button"
-                className="laundry-return-btn"
-                style={{
-                  display: 'inline-flex',
-                  width: 'auto',
-                  marginTop: '8px',
-                  padding: '7px 16px',
-                  borderRadius: '10px',
-                  gap: '6px',
-                  alignItems: 'center',
-                  fontWeight: 700,
-                  fontSize: '13px'
-                }}
+                className="laundry-empty-action-btn"
                 onClick={() => setTrolleyTab('fleet')}
               >
                 {t('wash.trolleyBoard.showFleet')}
@@ -1436,12 +1485,7 @@ export default function WashView() {
         )}
 
         {trolleyTab === 'fleet' && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-            gap: '10px',
-            marginTop: '4px'
-          }}>
+          <div className="laundry-fleet-grid">
             {trolleyNumbers.map(tNo => {
               const active = activeTrolleyByNo.get(tNo);
               const isFree = !active;
@@ -1450,37 +1494,17 @@ export default function WashView() {
               return (
                 <div
                   key={tNo}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: isFree ? 'var(--bg-card)' : atClient ? 'rgba(255, 149, 0, 0.08)' : dirtyInLaundry ? 'rgba(175, 82, 222, 0.08)' : 'rgba(0, 122, 255, 0.08)',
-                    border: isFree ? '1px solid var(--border)' : atClient ? '1px solid rgba(255, 149, 0, 0.25)' : dirtyInLaundry ? '1px solid rgba(175, 82, 222, 0.25)' : '1px solid rgba(0, 122, 255, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
+                  className={`laundry-fleet-cell ${isFree ? 'is-free' : atClient ? 'is-client' : dirtyInLaundry ? 'is-dirty' : 'is-packed'}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <strong style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>#{tNo}</strong>
-                    <span style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: isFree ? 'var(--accent-green, #34C759)' : atClient ? 'var(--accent-orange, #FF9500)' : dirtyInLaundry ? '#AF52DE' : 'var(--accent, #007AFF)'
-                    }} />
+                  <div className="laundry-fleet-cell-top">
+                    <strong className="tabular-nums">#{tNo}</strong>
+                    <span className="laundry-fleet-dot" />
                   </div>
-                  <span style={{
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: isFree ? 'var(--accent-green, #34C759)' : 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <span className="laundry-fleet-cell-name">
                     {isFree ? t('wash.trolleyBoard.free') : active.client_name}
                   </span>
                   {!isFree && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                    <span className="laundry-fleet-cell-meta">
                       {atClient ? t('wash.trolleyBoard.atClient') : dirtyInLaundry ? t('wash.fleet.dirtyAtLaundry') : `${Number(active.total_kg || 0).toFixed(0)} kg`}
                     </span>
                   )}
@@ -1492,15 +1516,11 @@ export default function WashView() {
 
         {trolleyTab === 'packages' && (
           packageCycles.length === 0 ? (
-            <div className="laundry-empty-state" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)'
-            }}>
-              <Package size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{t('wash.trolleyBoard.noPackages')}</p>
+            <div className="laundry-empty-state apple-glass">
+              <div className="laundry-empty-icon-badge tone-neutral">
+                <Package size={30} />
+              </div>
+              <p>{t('wash.trolleyBoard.noPackages')}</p>
             </div>
           ) : (
             <div className="laundry-trolley-board">
@@ -1511,15 +1531,11 @@ export default function WashView() {
 
         {trolleyTab === 'history' && (
           historyTrolleys.length === 0 ? (
-            <div className="laundry-empty-state" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)'
-            }}>
-              <Archive size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{t('wash.trolleyBoard.noHistory')}</p>
+            <div className="laundry-empty-state apple-glass">
+              <div className="laundry-empty-icon-badge tone-neutral">
+                <Archive size={30} />
+              </div>
+              <p>{t('wash.trolleyBoard.noHistory')}</p>
             </div>
           ) : (
             <div className="laundry-trolley-board">

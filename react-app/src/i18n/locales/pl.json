@@ -450,12 +450,17 @@
     "issuedHint": "Wydane kierowcy — najpierw cofnij odbiór/dostawę w trasie, dopiero potem pakowanie.",
     "metrics": {
       "planned": "Plan prania",
+      "plannedSub": "Zlecone na ten dzień",
       "washedToday": "Faktycznie wyprano",
+      "washedSub": "Gotowe do pakowania",
       "departure": "Wyjazd czystego",
+      "departureSub": "Odbiór przez kierowcę",
       "toWash": "Do wyprania · {{count}}",
       "toPack": "Do pakowania · {{count}}",
       "ready": "Gotowe dla kierowcy · {{count}}",
-      "occupied": "Wózki zajęte / {{count}}"
+      "occupied": "Wózki zajęte / {{count}}",
+      "trolleySub": "Kliknij, aby zarządzać",
+      "freeBadge": "{{count}} wolnych"
     },
     "filters": {
       "all": "Wszystkie",

@@ -6684,10 +6684,10 @@ select.ap-input {
 .laundry-shell {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 4px 40px;
+  padding: 0 4px 44px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
 }
 .laundry-toolbar {
   display: flex;
@@ -6695,81 +6695,142 @@ select.ap-input {
   justify-content: space-between;
   gap: 16px;
 }
+.laundry-title-group {
+  display: flex;
+  flex-direction: column;
+}
 .laundry-kicker {
   font-size: 11px;
-  font-weight: 800;
-  color: var(--accent);
+  font-weight: 700;
+  color: var(--accent, #0071E3);
   text-transform: uppercase;
-  letter-spacing: .4px;
+  letter-spacing: 0.06em;
   margin-bottom: 4px;
 }
 .laundry-toolbar h1 {
   font-size: 28px;
-  line-height: 1.1;
-  margin: 0 0 5px;
+  line-height: 1.15;
+  margin: 0 0 6px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 .laundry-toolbar p {
   margin: 0;
   color: var(--text-secondary);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .laundry-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .laundry-date-nav {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-card);
+  padding: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: var(--bg-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.03);
 }
-.laundry-date-nav button,
-.laundry-icon-btn {
-  min-height: 36px;
-  border: 1px solid transparent;
-  background: var(--bg-card-solid);
-  color: var(--text-secondary);
-  border-radius: 9px;
-  cursor: pointer;
-  font-weight: 800;
-}
-.laundry-date-nav button {
-  width: 34px;
-  font-size: 18px;
-}
-.laundry-date-nav input {
-  height: 36px;
-  border: 0;
+.laundry-date-nav-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
   background: transparent;
-  color: var(--text-primary);
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 700;
-  outline: none;
+  color: var(--text-secondary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
 }
-.laundry-icon-btn {
+.laundry-date-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+.laundry-date-picker-label {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 13px;
-  border-color: var(--border);
+  padding: 0 10px;
+  height: 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.16s ease;
 }
-.laundry-icon-btn:disabled,
+.laundry-date-picker-label:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.laundry-date-icon {
+  color: var(--accent, #0071E3);
+  flex-shrink: 0;
+}
+.laundry-date-text {
+  user-select: none;
+  white-space: nowrap;
+}
+.laundry-date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.laundry-today-btn {
+  height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: var(--bg-card, #FFFFFF);
+  color: var(--accent, #0071E3);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.laundry-today-btn:hover {
+  background: rgba(0, 113, 227, 0.06);
+  border-color: rgba(0, 113, 227, 0.2);
+}
+.laundry-refresh-btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: var(--bg-card, #FFFFFF);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+.laundry-refresh-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--text-primary);
+  border-color: rgba(0, 0, 0, 0.14);
+}
+.laundry-refresh-btn:disabled,
 .laundry-action-btn:disabled,
 .laundry-return-btn:disabled {
-  opacity: .55;
+  opacity: 0.55;
   cursor: not-allowed;
 }
-/* Wyszarzony przycisk „danger" ma wyglądać na nieaktywny, a nie jak aktywna
-   czerwona akcja — neutralizujemy kolor zamiast tylko przygaszać. */
 .laundry-action-btn.is-danger:disabled,
 .laundry-return-btn.is-danger:disabled {
   background: var(--bg-tertiary);
@@ -6778,162 +6839,257 @@ select.ap-input {
   opacity: 1;
 }
 .laundry-warning {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,149,0,.28);
-  background: rgba(255,149,0,.09);
-  color: #92400E;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 149, 0, 0.28);
+  background: rgba(255, 149, 0, 0.08);
+  color: #B25000;
   font-size: 13px;
-  line-height: 1.4;
-  font-weight: 650;
+  line-height: 1.45;
+  font-weight: 600;
 }
+
+/* Apple KPI Grid */
 .laundry-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
 }
 .laundry-metric {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
-  text-align: left;
-  min-height: 82px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  min-height: 110px;
+  padding: 18px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  background: var(--bg-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04);
   color: inherit;
   font-family: var(--font);
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
-button.laundry-metric {
+.laundry-metric.is-clickable {
   cursor: pointer;
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background .16s ease;
 }
-button.laundry-metric:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0,122,255,.22);
-  box-shadow: 0 8px 24px rgba(0,0,0,.07);
+.laundry-metric.is-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 113, 227, 0.24);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04), 0 14px 32px rgba(0, 0, 0, 0.06);
 }
-button.laundry-metric:focus-visible {
-  outline: none;
-  border-color: rgba(0,122,255,.48);
-  box-shadow: 0 0 0 3px rgba(0,122,255,.12), var(--shadow-sm);
+.laundry-metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
-.laundry-metric.is-active {
-  border-color: rgba(0,122,255,.42);
-  background: rgba(0,122,255,.06);
+.laundry-metric-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
 }
 .laundry-metric-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent-light);
-  color: var(--accent);
+  background: rgba(0, 113, 227, 0.1);
+  color: #0071E3;
   flex-shrink: 0;
 }
-.laundry-metric.tone-pending .laundry-metric-icon { background: rgba(255,149,0,.12); color: var(--accent-orange-text); }
-.laundry-metric.tone-washed .laundry-metric-icon { background: rgba(52,199,89,.12); color: #15803D; }
-.laundry-metric.tone-ready .laundry-metric-icon { background: rgba(0,122,255,.11); color: var(--accent); }
-.laundry-metric.tone-trolley .laundry-metric-icon { background: rgba(88,86,214,.11); color: var(--accent-indigo); }
-.laundry-metric-value {
-  font-size: 22px;
-  font-weight: 850;
-  color: var(--text-primary);
-  line-height: 1.1;
+.laundry-metric.tone-pending .laundry-metric-icon {
+  background: rgba(255, 149, 0, 0.12);
+  color: #FF9500;
+}
+.laundry-metric.tone-washed .laundry-metric-icon {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34C759;
+}
+.laundry-metric.tone-ready .laundry-metric-icon {
+  background: rgba(0, 113, 227, 0.10);
+  color: #0071E3;
+}
+.laundry-metric.tone-trolley .laundry-metric-icon {
+  background: rgba(88, 86, 214, 0.12);
+  color: #5856D6;
 }
 .laundry-metric-label {
-  margin-top: 3px;
   font-size: 11px;
-  font-weight: 750;
-  color: var(--text-tertiary);
+  font-weight: 700;
+  color: var(--text-secondary, #6E6E73);
   text-transform: uppercase;
-  letter-spacing: .2px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.laundry-metric-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--accent, #0071E3);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.laundry-metric.tone-washed .laundry-metric-badge {
+  background: rgba(52, 199, 89, 0.12);
+  color: #248A3D;
+}
+.laundry-metric.tone-trolley .laundry-metric-badge {
+  background: rgba(88, 86, 214, 0.10);
+  color: #5856D6;
+}
+.laundry-metric-body {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+}
+.laundry-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary, #1D1D1F);
+}
+.laundry-metric-unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #86868B);
+}
+.laundry-metric-sub {
+  font-size: 12px;
+  color: var(--text-secondary, #86868B);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Sections */
 .laundry-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .laundry-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   padding: 0 2px;
 }
 .laundry-section-head h2 {
-  font-size: 18px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   margin: 0 0 3px;
   color: var(--text-primary);
 }
 .laundry-section-head span {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 500;
 }
 .laundry-section-head .laundry-live-context {
-  max-width: 560px;
-  margin: 5px 0 0;
+  max-width: 580px;
+  margin: 4px 0 0;
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 650;
-  line-height: 1.4;
+  font-weight: 500;
+  line-height: 1.45;
 }
+.laundry-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.laundry-header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg-card, #FFFFFF);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.laundry-header-action:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.14);
+}
+.laundry-header-action.is-danger {
+  border-color: rgba(255, 59, 48, 0.25);
+  background: rgba(255, 59, 48, 0.08);
+  color: #D70015;
+}
+.laundry-header-action.is-danger:hover {
+  background: rgba(255, 59, 48, 0.14);
+}
+
+/* Apple Segmented Control for Operational Plan Filters */
 .laundry-filter-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--border);
+  gap: 2px;
+  padding: 3px;
   border-radius: 12px;
-  background: var(--bg-card);
+  background: rgba(118, 118, 128, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .laundry-filter-tabs button {
-  min-height: 34px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 10px;
-  border: 1px solid transparent;
+  padding: 0 13px;
+  border: none;
   border-radius: 9px;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--text-secondary, #6E6E73);
   font-family: var(--font);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .laundry-filter-tabs button strong {
-  min-width: 22px;
-  min-height: 20px;
+  min-width: 20px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0 6px;
-  border-radius: 99px;
-  background: var(--bg-tertiary);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 700;
 }
 .laundry-filter-tabs button:hover {
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 .laundry-filter-tabs button.is-active {
-  background: var(--bg-card-solid);
-  border-color: rgba(0,122,255,.2);
-  color: var(--accent);
-  box-shadow: var(--shadow-sm);
+  background: #FFFFFF;
+  color: var(--text-primary, #1D1D1F);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .laundry-filter-tabs button.is-active strong {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: rgba(0, 113, 227, 0.12);
+  color: #0071E3;
 }
 .laundry-trolley-count-control {
   display: inline-flex;
@@ -7167,101 +7323,142 @@ button.laundry-metric:focus-visible {
 .laundry-work-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .laundry-work-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
-  gap: 14px;
+  gap: 16px;
   align-items: center;
-  padding: 14px;
-  border: 1px solid var(--border);
+  padding: 16px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 16px;
-  background: rgba(var(--bg-card-rgb, 255, 255, 255), 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 6px 18px rgba(0, 0, 0, 0.03);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 .laundry-work-row:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04), 0 12px 28px rgba(0, 0, 0, 0.06);
 }
 .laundry-work-row.stage-ready {
-  background: rgba(52,199,89,.08);
-  border-color: rgba(52,199,89,.2);
+  background: linear-gradient(180deg, #FFFFFF 0%, rgba(52, 199, 89, 0.04) 100%);
+  border-color: rgba(52, 199, 89, 0.28);
 }
 .laundry-work-main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .laundry-client-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
   flex-wrap: wrap;
 }
 .laundry-client-line strong {
-  font-size: 15px;
-  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #1D1D1F);
+  letter-spacing: -0.01em;
   min-width: 0;
 }
 .laundry-route-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
+  min-width: 32px;
   height: 24px;
-  padding: 0 9px;
-  border-radius: 99px;
-  background: var(--accent-light);
-  color: var(--accent);
+  padding: 0 8px;
+  border-radius: 8px;
+  background: rgba(0, 113, 227, 0.10);
+  color: #0071E3;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
 }
 .laundry-stage-pill,
 .laundry-trolley-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 25px;
-  padding: 4px 9px;
-  border-radius: 99px;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   border: 1px solid transparent;
 }
-.laundry-stage-pill.tone-pending { background: rgba(255,149,0,.11); color: var(--accent-orange-text); border-color: rgba(255,149,0,.2); }
-.laundry-stage-pill.tone-partial { background: rgba(88,86,214,.1); color: var(--accent-indigo); border-color: rgba(88,86,214,.18); }
-.laundry-stage-pill.tone-washed { background: rgba(52,199,89,.11); color: #15803D; border-color: rgba(52,199,89,.2); }
-.laundry-stage-pill.tone-ready { background: rgba(0,122,255,.1); color: var(--accent); border-color: rgba(0,122,255,.19); }
+.laundry-stage-pill.tone-pending {
+  background: rgba(255, 149, 0, 0.12);
+  color: #B25000;
+  border-color: rgba(255, 149, 0, 0.22);
+}
+.laundry-stage-pill.tone-partial {
+  background: rgba(88, 86, 214, 0.10);
+  color: #5856D6;
+  border-color: rgba(88, 86, 214, 0.20);
+}
+.laundry-stage-pill.tone-washed {
+  background: rgba(52, 199, 89, 0.12);
+  color: #248A3D;
+  border-color: rgba(52, 199, 89, 0.22);
+}
+.laundry-stage-pill.tone-ready {
+  background: rgba(0, 113, 227, 0.10);
+  color: #0071E3;
+  border-color: rgba(0, 113, 227, 0.20);
+}
 .laundry-work-meta {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 6px 8px;
   flex-wrap: wrap;
-  color: var(--text-tertiary);
+  color: var(--text-secondary, #6E6E73);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
+.laundry-work-meta .laundry-meta-chip,
 .laundry-work-meta span {
   display: inline-flex;
-  min-height: 22px;
+  min-height: 24px;
   align-items: center;
-  padding: 3px 8px;
-  border-radius: 99px;
-  background: var(--bg-tertiary);
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-secondary, #6E6E73);
+  font-size: 12px;
+  font-weight: 600;
+}
+.laundry-work-meta .is-weight {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary, #1D1D1F);
+}
+.laundry-work-meta .is-weight strong {
+  color: var(--text-primary, #1D1D1F);
 }
 .laundry-work-meta .is-wash-date {
-  background: rgba(255,149,0,.1);
-  color: var(--accent-orange-text);
+  background: rgba(255, 149, 0, 0.10);
+  color: #B25000;
 }
 .laundry-work-meta .is-departure-date {
-  background: rgba(0,122,255,.09);
-  color: var(--accent);
+  background: rgba(0, 113, 227, 0.09);
+  color: #0071E3;
+}
+.laundry-work-meta .is-packed {
+  background: rgba(52, 199, 89, 0.10);
+  color: #248A3D;
+}
+.laundry-work-meta .is-remaining {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-secondary, #6E6E73);
+}
+.laundry-work-meta .is-trolleys {
+  background: rgba(88, 86, 214, 0.09);
+  color: #5856D6;
 }
 
 /* Trolley history opens in place, without forcing the operator below the 40-card fleet. */
@@ -7590,27 +7787,27 @@ button.laundry-metric:focus-visible {
   align-items: center;
   gap: 7px;
   min-height: 28px;
-  padding: 4px 5px 4px 9px;
-  border-radius: 99px;
-  border: 1px solid rgba(0,122,255,.2);
-  background: rgba(0,122,255,.08);
-  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 113, 227, 0.18);
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--accent, #0071E3);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .laundry-cycle-chip b {
-  color: var(--text-primary);
-  font-weight: 900;
+  color: var(--text-primary, #1D1D1F);
+  font-weight: 700;
 }
 .laundry-cycle-chip button {
   min-height: 22px;
-  border: 1px solid rgba(255,59,48,.22);
-  border-radius: 99px;
-  background: rgba(255,59,48,.09);
-  color: #C2410C;
+  border: 1px solid rgba(255, 59, 48, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 59, 48, 0.09);
+  color: #D70015;
   font-family: var(--font);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   cursor: pointer;
 }
 .laundry-cycle-chip button:disabled {
@@ -7626,188 +7823,307 @@ button.laundry-metric:focus-visible {
 }
 .laundry-action-btn,
 .laundry-return-btn {
-  min-height: 40px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 0 12px;
+  padding: 0 16px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-card-solid);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg-card, #FFFFFF);
   color: var(--text-secondary);
   font-family: var(--font);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.laundry-action-btn:active,
+.laundry-return-btn:active {
+  transform: scale(0.98);
 }
 .laundry-action-btn.is-primary {
-  border-color: rgba(0,122,255,.22);
-  background: var(--accent);
-  color: #fff;
+  border-color: rgba(0, 113, 227, 0.2);
+  background: var(--accent, #0071E3);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.22);
+}
+.laundry-action-btn.is-primary:hover {
+  background: #0077ED;
 }
 .laundry-action-btn.is-pack {
-  border-color: rgba(0,122,255,.22);
-  background: var(--accent);
-  color: #fff;
+  border-color: rgba(88, 86, 214, 0.2);
+  background: #5856D6;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(88, 86, 214, 0.22);
+}
+.laundry-action-btn.is-pack:hover {
+  background: #6462E7;
 }
 .laundry-action-btn.is-danger {
-  border-color: rgba(255,59,48,.22);
-  background: rgba(255,59,48,.08);
-  color: #C2410C;
+  border-color: rgba(255, 59, 48, 0.22);
+  background: rgba(255, 59, 48, 0.08);
+  color: #D70015;
+}
+.laundry-action-btn.is-danger:hover {
+  background: rgba(255, 59, 48, 0.14);
 }
 .laundry-work-state {
-  min-height: 40px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px;
-  border: 1px solid rgba(52,199,89,.2);
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid rgba(52, 199, 89, 0.22);
   border-radius: 10px;
-  background: rgba(52,199,89,.08);
-  color: #15803D;
+  background: rgba(52, 199, 89, 0.10);
+  color: #248A3D;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 600;
   white-space: nowrap;
 }
 .laundry-correction-menu {
   position: relative;
 }
 .laundry-correction-menu summary {
-  min-height: 40px;
+  width: 38px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  background: var(--bg-card-solid);
-  color: var(--text-tertiary);
-  font-size: 13px;
-  font-weight: 850;
+  background: var(--bg-card, #FFFFFF);
+  color: var(--text-secondary);
   cursor: pointer;
   list-style: none;
-  white-space: nowrap;
+  transition: background 0.16s ease, border-color 0.16s ease;
 }
 .laundry-correction-menu summary::-webkit-details-marker {
   display: none;
 }
+.laundry-correction-menu summary:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
 .laundry-correction-menu[open] summary {
-  color: var(--text-secondary);
-  border-color: rgba(0,122,255,.22);
+  color: var(--accent, #0071E3);
+  border-color: rgba(0, 113, 227, 0.3);
+  background: rgba(0, 113, 227, 0.06);
 }
 .laundry-correction-panel {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 8;
+  z-index: 10;
   width: min(280px, 84vw);
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-card-solid);
-  box-shadow: 0 18px 40px rgba(15,23,42,.16), var(--shadow-md);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: var(--bg-card, #FFFFFF);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 16px 36px rgba(0, 0, 0, 0.12);
 }
 .laundry-correction-btn {
-  min-height: 38px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
+  padding: 0 12px;
+  border: 1px solid transparent;
   border-radius: 9px;
-  background: var(--bg-card);
-  color: var(--text-secondary);
+  background: transparent;
+  color: var(--text-primary);
   font-family: var(--font);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 600;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s ease;
+}
+.laundry-correction-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 .laundry-correction-btn.is-danger {
-  border-color: rgba(255,59,48,.22);
-  background: rgba(255,59,48,.08);
-  color: #C2410C;
+  color: #D70015;
+}
+.laundry-correction-btn.is-danger:hover {
+  background: rgba(255, 59, 48, 0.08);
 }
 .laundry-correction-btn:disabled {
   opacity: .55;
   cursor: not-allowed;
 }
-.laundry-trolley-input {
+.laundry-empty {
+  padding: 32px 20px;
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Empty states */
+.laundry-empty-state {
+  padding: 44px 24px;
+  text-align: center;
+  background: var(--bg-card, #FFFFFF);
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.laundry-empty-icon-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(52, 199, 89, 0.12);
+  color: #34C759;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.laundry-empty-icon-badge.tone-neutral {
+  background: rgba(0, 0, 0, 0.05);
+  color: #86868B;
+}
+.laundry-empty-state h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #1D1D1F);
+}
+.laundry-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #6E6E73);
+  max-width: 440px;
+  line-height: 1.45;
+}
+.laundry-empty-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  background: rgba(52, 199, 89, 0.12);
+  border: 1px solid rgba(52, 199, 89, 0.22);
+  color: #248A3D;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+.laundry-empty-action-btn:hover {
+  background: rgba(52, 199, 89, 0.18);
+}
+
+/* Trolley Fleet Grid */
+.laundry-fleet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+.laundry-fleet-cell {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-card, #FFFFFF);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .2px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
-.laundry-trolley-input input,
-.laundry-trolley-input select {
-  width: 100%;
-  height: 40px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-card-solid);
-  color: var(--text-primary);
-  font-family: var(--font);
-  font-size: 14px;
-  font-weight: 750;
-  outline: none;
+.laundry-fleet-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
 }
-.laundry-trolley-input.is-kg input {
-  text-align: right;
+.laundry-fleet-cell.is-free {
+  border-color: rgba(52, 199, 89, 0.22);
 }
-.laundry-trolley-input select {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-tertiary) 50%), linear-gradient(135deg, var(--text-tertiary) 50%, transparent 50%);
-  background-position: calc(100% - 16px) 17px, calc(100% - 11px) 17px;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-  padding-right: 28px;
+.laundry-fleet-cell.is-client {
+  background: rgba(255, 149, 0, 0.07);
+  border-color: rgba(255, 149, 0, 0.24);
 }
-.laundry-trolley-input input:focus,
-.laundry-trolley-input select:focus {
-  border-color: rgba(0,122,255,.45);
-  box-shadow: 0 0 0 3px rgba(0,122,255,.09);
+.laundry-fleet-cell.is-dirty {
+  background: rgba(175, 82, 222, 0.07);
+  border-color: rgba(175, 82, 222, 0.24);
 }
-.laundry-empty {
-  padding: 28px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 14px;
-  background: var(--bg-secondary);
-  color: var(--text-tertiary);
-  text-align: center;
-  font-size: 14px;
+.laundry-fleet-cell.is-packed {
+  background: rgba(0, 113, 227, 0.07);
+  border-color: rgba(0, 113, 227, 0.24);
+}
+.laundry-fleet-cell-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.laundry-fleet-cell-top strong {
+  font-size: 17px;
   font-weight: 700;
+  color: var(--text-primary);
 }
+.laundry-fleet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34C759;
+}
+.laundry-fleet-cell.is-client .laundry-fleet-dot { background: #FF9500; }
+.laundry-fleet-cell.is-dirty .laundry-fleet-dot { background: #AF52DE; }
+.laundry-fleet-cell.is-packed .laundry-fleet-dot { background: #0071E3; }
+.laundry-fleet-cell-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.laundry-fleet-cell.is-free .laundry-fleet-cell-name {
+  color: #248A3D;
+}
+.laundry-fleet-cell-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Trolley Board and Cards */
 .laundry-trolley-board {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
 }
 .laundry-trolley-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: var(--bg-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 6px 18px rgba(0, 0, 0, 0.03);
 }
-.laundry-trolley-card.tone-packed { border-color: rgba(0,122,255,.22); }
-.laundry-trolley-card.tone-released { border-color: rgba(88,86,214,.25); }
-.laundry-trolley-card.tone-client { border-color: rgba(255,149,0,.25); }
+.laundry-trolley-card.tone-packed { border-color: rgba(0, 113, 227, 0.22); }
+.laundry-trolley-card.tone-released { border-color: rgba(88, 86, 214, 0.25); }
+.laundry-trolley-card.tone-client { border-color: rgba(255, 149, 0, 0.25); }
 .laundry-trolley-card.tone-returned { opacity: .78; }
-.laundry-trolley-card.tone-canceled { opacity: .74; border-color: rgba(255,59,48,.2); }
+.laundry-trolley-card.tone-canceled { opacity: .74; border-color: rgba(255, 59, 48, 0.2); }
 .laundry-trolley-top {
   display: flex;
   align-items: flex-start;
@@ -7816,11 +8132,11 @@ button.laundry-metric:focus-visible {
 }
 .laundry-trolley-top span {
   display: block;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 800;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .2px;
+  letter-spacing: .04em;
 }
 .laundry-trolley-top strong {
   display: block;
@@ -7828,82 +8144,79 @@ button.laundry-metric:focus-visible {
   color: var(--text-primary);
   font-size: 26px;
   line-height: 1;
-  font-weight: 900;
+  font-weight: 700;
 }
-.laundry-trolley-status.tone-packed { background: rgba(0,122,255,.1); color: var(--accent); }
-.laundry-trolley-status.tone-released { background: rgba(88,86,214,.11); color: var(--accent-indigo); }
-.laundry-trolley-status.tone-client { background: rgba(255,149,0,.12); color: var(--accent-orange-text); }
-.laundry-trolley-status.tone-returned { background: rgba(52,199,89,.11); color: #15803D; }
-.laundry-trolley-status.tone-canceled { background: rgba(255,59,48,.09); color: #C2410C; }
+.laundry-trolley-status.tone-packed { background: rgba(0, 113, 227, 0.10); color: #0071E3; }
+.laundry-trolley-status.tone-released { background: rgba(88, 86, 214, 0.11); color: #5856D6; }
+.laundry-trolley-status.tone-client { background: rgba(255, 149, 0, 0.12); color: #B25000; }
+.laundry-trolley-status.tone-returned { background: rgba(52, 199, 89, 0.11); color: #248A3D; }
+.laundry-trolley-status.tone-canceled { background: rgba(255, 59, 48, 0.09); color: #D70015; }
 .laundry-trolley-client {
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 700;
   color: var(--text-primary);
 }
 .laundry-trolley-grid {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
+  gap: 6px 12px;
   align-items: baseline;
   font-size: 12px;
 }
 .laundry-trolley-grid span {
-  color: var(--text-tertiary);
-  font-weight: 750;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 .laundry-trolley-grid strong {
   min-width: 0;
-  color: var(--text-secondary);
-  font-weight: 800;
-  overflow-wrap: anywhere;
-}
-.laundry-trolley-grid .laundry-trolley-age {
   color: var(--text-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .laundry-trolley-overdue {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 10px;
-  border: 1px solid rgba(255,149,0,.24);
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 59, 48, 0.25);
   border-radius: 10px;
-  background: rgba(255,149,0,.09);
-  color: var(--accent-orange-text, #9A5700);
+  background: rgba(255, 59, 48, 0.08);
+  color: #D70015;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 .laundry-history-btn {
-  min-height: 40px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  background: var(--bg-secondary);
+  background: var(--bg-card, #FFFFFF);
   color: var(--text-secondary);
   font: inherit;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .laundry-history-btn:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-tertiary, var(--bg-secondary));
+  border-color: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.03);
   color: var(--text-primary);
 }
 .laundry-history-btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent, #0071E3);
   outline-offset: 2px;
 }
 .laundry-return-btn {
   width: 100%;
   margin-top: 2px;
-  border-color: rgba(52,199,89,.28);
-  color: #15803D;
-  background: rgba(52,199,89,.08);
+  border-color: rgba(52, 199, 89, 0.25);
+  color: #248A3D;
+  background: rgba(52, 199, 89, 0.10);
 }
 .laundry-card-actions {
   display: flex;
@@ -7911,26 +8224,26 @@ button.laundry-metric:focus-visible {
   gap: 7px;
 }
 .laundry-return-btn.is-danger {
-  border-color: rgba(255,59,48,.24);
-  color: #C2410C;
-  background: rgba(255,59,48,.08);
+  border-color: rgba(255, 59, 48, 0.24);
+  color: #D70015;
+  background: rgba(255, 59, 48, 0.08);
 }
 .laundry-return-btn.is-secondary {
-  border-color: rgba(88,86,214,.24);
-  color: var(--accent-indigo);
-  background: rgba(88,86,214,.08);
+  border-color: rgba(88, 86, 214, 0.24);
+  color: #5856D6;
+  background: rgba(88, 86, 214, 0.08);
 }
 .laundry-flow-note {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(0,122,255,.18);
-  background: rgba(0,122,255,.07);
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 113, 227, 0.14);
+  background: rgba(0, 113, 227, 0.05);
   color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 @media(max-width:900px) {
@@ -7997,7 +8310,9 @@ button.laundry-metric:focus-visible {
     font-size: 24px;
   }
   .laundry-date-nav,
-  .laundry-icon-btn {
+  .laundry-icon-btn,
+  .laundry-refresh-btn,
+  .laundry-today-btn {
     width: 100%;
   }
   .laundry-date-nav {
@@ -8007,7 +8322,7 @@ button.laundry-metric:focus-visible {
     grid-template-columns: 1fr;
   }
   .laundry-metric {
-    min-height: 72px;
+    min-height: 80px;
   }
   .laundry-trolley-board {
     grid-template-columns: 1fr;

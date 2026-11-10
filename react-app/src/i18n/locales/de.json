@@ -450,12 +450,17 @@
     "issuedHint": "An den Fahrer ausgegeben — zuerst Abholung oder Lieferung im Kurs zurücknehmen, danach das Packen.",
     "metrics": {
       "planned": "Waschplan",
+      "plannedSub": "Für diesen Tag geplant",
       "washedToday": "Tatsächlich gewaschen",
+      "washedSub": "Bereit zum Packen",
       "departure": "Saubere Abfahrt",
+      "departureSub": "Abholung durch Fahrer",
       "toWash": "Zu waschen · {{count}}",
       "toPack": "Zu packen · {{count}}",
       "ready": "Für Fahrer bereit · {{count}}",
-      "occupied": "Belegte Wagen / {{count}}"
+      "occupied": "Belegte Wagen / {{count}}",
+      "trolleySub": "Klicken zum Verwalten",
+      "freeBadge": "{{count}} frei"
     },
     "filters": {
       "all": "Alle",
