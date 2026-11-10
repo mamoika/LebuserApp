@@ -1154,8 +1154,6 @@ function OverviewTab({
   const sKg = H.map(p => p.kg);
   const sAvg = H.map(p => p.total / dIM(p));
 
-  const pacingPercent = ((accruedDays / daysInMonth) * 100).toFixed(0);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
       {/* KPI GRID — 6 zbalansowanych kart w stylu Apple */}
@@ -1167,9 +1165,10 @@ function OverviewTab({
           icon={<Sigma size={20}/>}
           color={IOS_THEME.accent}
           hero
-          badge={isOngoing ? `Dzień ${accruedDays} z ${daysInMonth} (${pacingPercent}%)` : null}
+          badge={isOngoing ? `Dzień ${accruedDays}/${daysInMonth}` : null}
           delta={isOngoing ? dDailyCost : dTotal}
-          deltaLabel={isOngoing ? 'śr. dzienna vs ub. m-c' : 'm/m'}
+          deltaLabel={isOngoing ? '/ dzień' : 'm/m'}
+          deltaTitle={isOngoing ? `Średnia dzienna Like-for-Like vs ub. m-c: ${FMT(curDailyCost)} zł vs ${FMT(prevDailyCost)} zł` : undefined}
           goodWhenDown
           spark={sTotal}
         />
@@ -1188,7 +1187,7 @@ function OverviewTab({
           icon={<TrendingUp size={20}/>}
           color={CAT.gas}
           delta={isOngoing ? dRunRate : dForecast}
-          deltaLabel={isOngoing ? 'tempo vs ub. m-c' : 'vs ub. m-c'}
+          deltaLabel="vs ub. m-c"
           subtitle={isOngoing ? `Wprowadzone ${FMT0(totals.total)} zł + plan ${FMT0(plannedCosts)} zł` : undefined}
           goodWhenDown
         />
@@ -1199,6 +1198,7 @@ function OverviewTab({
           icon={<Scale size={20}/>}
           color={CAT.transport}
           delta={dPpk}
+          deltaLabel="m/m"
           goodWhenDown
           spark={sPpk}
         />
@@ -1209,7 +1209,8 @@ function OverviewTab({
           icon={<Package size={20}/>}
           color={CAT.workers}
           delta={dKg}
-          deltaLabel={isOngoing ? 'tempo vs ub. m-c' : 'm/m'}
+          deltaLabel={isOngoing ? '/ dzień' : 'm/m'}
+          deltaTitle={isOngoing ? `Średnia dzienna tonażu vs ub. m-c: ${FMT0(curDailyKg)} kg vs ${FMT0(prevDailyKg)} kg` : undefined}
           goodWhenDown={false}
           spark={sKg}
         />
@@ -1220,6 +1221,7 @@ function OverviewTab({
           icon={<CalendarDays size={20}/>}
           color={CAT.water}
           delta={dAvg}
+          deltaLabel="m/m"
           goodWhenDown
           spark={sAvg}
         />
@@ -1368,7 +1370,7 @@ function OverviewTab({
   );
 }
 
-function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goodWhenDown, spark, subtitle, badge }) {
+function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, deltaTitle, goodWhenDown, spark, subtitle, badge }) {
   const { t } = useTranslation();
   const hasDelta = delta != null && isFinite(delta);
   const good = hasDelta && (goodWhenDown ? delta <= 0 : delta >= 0);
@@ -1398,7 +1400,7 @@ function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goo
         }} />
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
           <span style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: '34px', height: '34px', borderRadius: '10px',
@@ -1406,14 +1408,15 @@ function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goo
           }}>
             {icon}
           </span>
-          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textSecondary }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: IOS_THEME.textSecondary, whiteSpace: 'nowrap' }}>
             {label}
           </span>
         </div>
         {badge && (
           <span style={{
-            fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
-            background: 'rgba(0, 113, 227, 0.08)', color: IOS_THEME.accent, letterSpacing: '0.02em'
+            fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px',
+            background: 'rgba(0, 113, 227, 0.08)', color: IOS_THEME.accent, letterSpacing: '0.02em',
+            whiteSpace: 'nowrap', flexShrink: 0
           }}>
             {badge}
           </span>
@@ -1424,20 +1427,24 @@ function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goo
         {value} <span style={{ fontSize: '13px', fontWeight: 500, color: IOS_THEME.textTertiary, letterSpacing: 'normal' }}>{unit}</span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minHeight: '26px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minHeight: '24px' }}>
         {hasDelta ? (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-            padding: '3px 8px', borderRadius: '999px', color: deltaColor, background: deltaBg
-          }}>
+          <span
+            title={deltaTitle || undefined}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+              padding: '2.5px 7px', borderRadius: '999px', color: deltaColor, background: deltaBg,
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
             {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% <span style={{ fontWeight: 600, opacity: 0.85 }}>{deltaLabel || t('costs.monthOverMonthShort')}</span>
           </span>
         ) : subtitle ? (
-          <span style={{ fontSize: '11.5px', fontWeight: 600, color: IOS_THEME.textSecondary }}>
+          <span style={{ fontSize: '11.5px', fontWeight: 600, color: IOS_THEME.textSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {subtitle}
           </span>
         ) : (
-          <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textTertiary }}>{t('costs.noComparison')}</span>
+          <span style={{ fontSize: '11px', fontWeight: 500, color: IOS_THEME.textTertiary, whiteSpace: 'nowrap' }}>{t('costs.noComparison')}</span>
         )}
         {spark && spark.some(v => v > 0) && <Sparkline data={spark} color={color} />}
       </div>
@@ -1448,7 +1455,7 @@ function KpiCard({ label, value, unit, icon, color, hero, delta, deltaLabel, goo
 // Mini-wykres ostatnich ~6 miesięcy ze zmiękczonym gradientem Apple
 function Sparkline({ data, color }) {
   const pts = data.slice(-6);
-  const W = 84, Hh = 28;
+  const W = 72, Hh = 24;
   const max = Math.max(...pts, 1), min = Math.min(...pts, 0);
   const rng = (max - min) || 1;
   const x = (i) => pts.length <= 1 ? W : (i / (pts.length - 1)) * W;
