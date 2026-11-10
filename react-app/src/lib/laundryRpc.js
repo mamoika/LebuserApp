@@ -38,6 +38,15 @@ export function forceReleaseTrolley(sessionToken, trolleyNo, action, by) {
   });
 }
 
+export function assignTrolleyToClient(sessionToken, trolleyNo, clientId, by) {
+  return callLaundryRpc('admin_assign_trolley_to_client', {
+    p_session_token: sessionToken,
+    p_trolley_no: String(trolleyNo),
+    p_client_id: clientId,
+    p_by: by || null,
+  });
+}
+
 export function markLaundryWashed(sessionToken, ids, by) {
   return callLaundryRpc('admin_mark_laundry_washed', {
     p_session_token: sessionToken,

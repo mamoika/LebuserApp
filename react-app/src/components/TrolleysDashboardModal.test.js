@@ -29,7 +29,17 @@ test('admins can choose between loose laundry and a forced empty trolley with co
   assert.match(component, /setPendingAction\('make_loose'\)/);
   assert.match(component, /setPendingAction\('force_empty'\)/);
   assert.match(component, /wash\.fleet\.actions\.\$\{pendingAction\}ConfirmTitle/);
-  assert.match(component, /canForceReset && selectedActive/);
+  assert.match(component, /canForceReset && \(/);
+  assert.match(component, /selectedActive \? \(/);
   assert.equal(polish.wash.fleet.actions.makeLoose, 'Zmień na bez wózka');
   assert.equal(polish.wash.fleet.actions.forceEmpty, 'Wymuś pusty wózek');
+});
+
+test('admins can manually assign a free trolley to an active client', () => {
+  assert.match(component, /assignTrolleyToClient/);
+  assert.match(component, /setPendingAction\('assign_client'\)/);
+  assert.match(component, /activeClients\.map/);
+  assert.match(component, /pendingAction === 'assign_client' && !selectedClientId/);
+  assert.equal(polish.wash.fleet.actions.assignClient, 'Oznacz jako u klienta');
+  assert.equal(polish.wash.fleet.actions.clientLabel, 'Klient');
 });

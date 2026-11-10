@@ -1554,6 +1554,7 @@ export default function WashView() {
           sessionToken={sessionToken}
           trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
+          clients={clients}
           initialTrolley={historyTrolley}
           canForceReset={isAdmin}
           actorName={user?.name}

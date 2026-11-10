@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CalendarClock, CheckCircle2, ChevronRight, History, MapPin, PackageOpen, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
+import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
 import { formatTrolleyCode } from '../lib/trolleyCodes';
 
 function daysSince(value) {
@@ -27,6 +27,7 @@ export default function TrolleysDashboardModal({
   sessionToken,
   trolleyCount,
   activeTrolleyByNo,
+  clients = [],
   initialTrolley = null,
   canForceReset = false,
   actorName = null,
@@ -37,6 +38,7 @@ export default function TrolleysDashboardModal({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -57,6 +59,7 @@ export default function TrolleysDashboardModal({
       return undefined;
     }
     setPendingAction(null);
+    setSelectedClientId('');
     setActionError('');
     setActionSuccess('');
     setHistoryLoading(true);
@@ -115,6 +118,9 @@ export default function TrolleysDashboardModal({
   );
 
   const selectedActive = selectedTrolley ? activeTrolleyByNo.get(String(selectedTrolley)) : null;
+  const activeClients = clients
+    .filter(client => client?.id && !client.archived_at)
+    .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
   const selectedPresentation = trolleyPresentation(selectedActive, t);
   const SelectedStatusIcon = selectedPresentation.Icon;
 
@@ -124,7 +130,15 @@ export default function TrolleysDashboardModal({
     setActionError('');
     setActionSuccess('');
     try {
-      await forceReleaseTrolley(sessionToken, selectedTrolley, pendingAction, actorName);
+      if (pendingAction === 'assign_client') {
+        if (!selectedClientId) {
+          setActionError(t('wash.fleet.actions.selectClientError'));
+          return;
+        }
+        await assignTrolleyToClient(sessionToken, selectedTrolley, selectedClientId, actorName);
+      } else {
+        await forceReleaseTrolley(sessionToken, selectedTrolley, pendingAction, actorName);
+      }
       const data = await getTrolleyHistory(sessionToken, selectedTrolley);
       setHistory(data?.events || []);
       await onRefresh?.();
@@ -250,28 +264,46 @@ export default function TrolleysDashboardModal({
                 )}
               </div>
 
-              {canForceReset && selectedActive && (
+              {canForceReset && (
                 <footer className="fleet-history-actions">
-                  <div className="fleet-history-actions-title"><ShieldAlert size={15} aria-hidden="true" /> {t('wash.fleet.actions.title')}</div>
+                  <div className="fleet-history-actions-title">{selectedActive ? <ShieldAlert size={15} aria-hidden="true" /> : <MapPin size={15} aria-hidden="true" />} {t(selectedActive ? 'wash.fleet.actions.title' : 'wash.fleet.actions.manualTitle')}</div>
                   {!pendingAction ? (
                     <div className="fleet-history-action-buttons">
-                      <button type="button" className="fleet-history-action is-loose" onClick={() => setPendingAction('make_loose')}>
-                        <PackageOpen size={16} aria-hidden="true" />
-                        <span><strong>{t('wash.fleet.actions.makeLoose')}</strong><small>{t('wash.fleet.actions.makeLooseHint')}</small></span>
-                      </button>
-                      <button type="button" className="fleet-history-action is-force" onClick={() => setPendingAction('force_empty')}>
-                        <ShieldAlert size={16} aria-hidden="true" />
-                        <span><strong>{t('wash.fleet.actions.forceEmpty')}</strong><small>{t('wash.fleet.actions.forceEmptyHint')}</small></span>
-                      </button>
+                      {selectedActive ? (
+                        <>
+                          <button type="button" className="fleet-history-action is-loose" onClick={() => setPendingAction('make_loose')}>
+                            <PackageOpen size={16} aria-hidden="true" />
+                            <span><strong>{t('wash.fleet.actions.makeLoose')}</strong><small>{t('wash.fleet.actions.makeLooseHint')}</small></span>
+                          </button>
+                          <button type="button" className="fleet-history-action is-force" onClick={() => setPendingAction('force_empty')}>
+                            <ShieldAlert size={16} aria-hidden="true" />
+                            <span><strong>{t('wash.fleet.actions.forceEmpty')}</strong><small>{t('wash.fleet.actions.forceEmptyHint')}</small></span>
+                          </button>
+                        </>
+                      ) : (
+                        <button type="button" className="fleet-history-action is-client" onClick={() => setPendingAction('assign_client')}>
+                          <MapPin size={16} aria-hidden="true" />
+                          <span><strong>{t('wash.fleet.actions.assignClient')}</strong><small>{t('wash.fleet.actions.assignClientHint')}</small></span>
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <div className="fleet-history-confirm" role="alert">
+                    <div className={`fleet-history-confirm ${pendingAction === 'assign_client' ? 'is-client' : ''}`} role="alert">
                       <strong>{t(`wash.fleet.actions.${pendingAction}ConfirmTitle`)}</strong>
                       <p>{t(`wash.fleet.actions.${pendingAction}ConfirmBody`, { trolley: formatTrolleyCode(selectedTrolley) })}</p>
+                      {pendingAction === 'assign_client' && (
+                        <label className="fleet-history-client-field">
+                          <span>{t('wash.fleet.actions.clientLabel')}</span>
+                          <select value={selectedClientId} onChange={event => setSelectedClientId(event.target.value)} disabled={actionBusy} autoFocus>
+                            <option value="">{t('wash.fleet.actions.clientPlaceholder')}</option>
+                            {activeClients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+                          </select>
+                        </label>
+                      )}
                       {actionError && <div className="ap-error">{actionError}</div>}
                       <div>
-                        <button type="button" className="btn-secondary" onClick={() => setPendingAction(null)} disabled={actionBusy}>{t('common.cancel')}</button>
-                        <button type="button" className="btn-danger" onClick={handleCorrection} disabled={actionBusy}>{actionBusy ? t('wash.fleet.actions.saving') : t('wash.fleet.actions.confirm')}</button>
+                        <button type="button" className="btn-secondary" onClick={() => { setPendingAction(null); setSelectedClientId(''); setActionError(''); }} disabled={actionBusy}>{t('common.cancel')}</button>
+                        <button type="button" className={pendingAction === 'assign_client' ? 'btn-primary' : 'btn-danger'} onClick={handleCorrection} disabled={actionBusy || (pendingAction === 'assign_client' && !selectedClientId)}>{actionBusy ? t('wash.fleet.actions.saving') : t(pendingAction === 'assign_client' ? 'wash.fleet.actions.assignConfirm' : 'wash.fleet.actions.confirm')}</button>
                       </div>
                     </div>
                   )}
