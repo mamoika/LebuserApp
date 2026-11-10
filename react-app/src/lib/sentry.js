@@ -9,6 +9,8 @@
 //   - brak Session Replay     -> nie nagrywamy ekranu/DOM użytkownika,
 //   - kontekst użytkownika ograniczony do: id konta, login, rola (bez nazwiska/maila).
 import * as Sentry from '@sentry/react';
+import { chunkReloadIsPending } from './chunkReload';
+import { shouldIgnoreRecoveredPreloadError } from './sentryPreloadRecovery';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 
@@ -18,6 +20,13 @@ export function initSentry() {
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
     sendDefaultPii: false,
+    beforeSend(event, hint) {
+      // Po deployu Vite może chwilowo nie pobrać starego chunka lub CSS. Gdy
+      // mechanizm jednorazowego auto-reloadu już przejął ten błąd, nie tworzymy
+      // fałszywego alarmu w Sentry. Nieodzyskane i powtórzone awarie nadal lecą.
+      if (shouldIgnoreRecoveredPreloadError(event, hint, chunkReloadIsPending())) return null;
+      return event;
+    },
     // Domyślne integracje łapią nieobsłużone błędy (window.onerror) oraz
     // odrzucone obietnice (unhandledrejection). Bez tracingu i Session Replay.
   });

@@ -38,6 +38,10 @@ function reloadIsPending(runtime) {
   }
 }
 
+export function chunkReloadIsPending(runtime = browserRuntime()) {
+  return reloadIsPending(runtime);
+}
+
 // React.lazy() może dostać zwykłe odrzucenie Promise bez zdarzenia
 // `vite:preloadError`. Wtedy przeładowujemy aplikację bez przekazywania błędu do
 // ErrorBoundary; oczekujący Promise zostanie porzucony wraz z bieżącą stroną.
