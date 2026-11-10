@@ -11,8 +11,9 @@
 - Route scheduling uses codes: daily / mwf / tth / other (see memory/glossary.md).
 - Trolley (wózek) handling on deliveries: driver decides stay/return/exchange.
 
-## Workflow
-- Po każdej gotowej paczce zmian: commit + push na `main` automatycznie (preferencja Ruslana, 2026-07-12).
+## Workflow & Rules
+- **Obowiązkowa dwujęzyczność (PL + DE jednocześnie)**: Aplikacja obsługuje wyłącznie języki polski (`pl.json`) i niemiecki (`de.json`). Przy KAŻDEJ zmianie tekstu, nowej etykiecie, komunikacie, nagłówku czy tooltipie w UI należy ZAWSZE i JEDNOCZEŚNIE aktualizować OBA pliki językowe. Nie wprowadzamy hardkodowanych stringów do JSX.
+- Po każdej gotowej paczce zmian: commit + push na `main` automatycznie (preferencja Ruslana).
 
 ## Recent Work
 - Historia kursów kierowcy: filtr miesiąca, synchronizacja godzin z grafikiem (bez statusu „zaplanowane” / I).
