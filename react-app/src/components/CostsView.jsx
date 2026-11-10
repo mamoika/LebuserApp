@@ -1038,7 +1038,6 @@ export default function CostsView() {
               gasProdReconciliation={gasProdReconciliation}
               currentDateStr={currentDateStr}
               settings={settings}
-              onOpenRates={() => setShowRates(true)}
             />
           )}
 
@@ -1096,7 +1095,6 @@ function OverviewTab({
   gasProdReconciliation,
   currentDateStr,
   settings,
-  onOpenRates,
 }) {
   const { t } = useTranslation();
   const cats = [
@@ -1243,30 +1241,33 @@ function OverviewTab({
 
       {/* TREND WIELOMIESIĘCZNY zł/kg + cel */}
       <div style={cardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
           <div style={cardTitleStyle}>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: tint(IOS_THEME.accent, 0.12), color: IOS_THEME.accent }}>
               <BarChart3 size={16}/>
             </span>
             <span>{t('costs.plnPerKgOverTime', { year: cur?.year || '' })}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: IOS_THEME.textSecondary }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: IOS_THEME.textSecondary, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#D97706', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ display: 'inline-block', width: '12px', height: '0', borderTop: '2px dashed #F59E0B' }} />
+              <span>Cel: {FMT3(settings?.target_cost_per_kg && Number(settings.target_cost_per_kg) > 0 ? Number(settings.target_cost_per_kg) : (H.map(p => p.plnPerKg).filter(v => v > 0).length ? H.map(p => p.plnPerKg).filter(v => v > 0).reduce((a, b) => a + b, 0) / H.map(p => p.plnPerKg).filter(v => v > 0).length : 0))} zł/kg</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.success }} />
               <span>Poniżej celu</span>
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.warning }} />
               <span>Powyżej celu</span>
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: IOS_THEME.accent }} />
               <span>Bieżący</span>
             </span>
           </div>
         </div>
-        <div style={{ fontSize: '12px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>{t('costs.multiMonthHint')}</div>
-        <MultiMonthTrend months={H} targetCostPerKg={settings?.target_cost_per_kg} onOpenRates={onOpenRates} />
+        <MultiMonthTrend months={H} targetCostPerKg={settings?.target_cost_per_kg} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
@@ -1713,7 +1714,7 @@ function WaterfallCard({ cur, prev }) {
 }
 
 // Trend wielomiesięczny: słupki zł/kg + linia celu (zdefiniowany w Stawkach lub śr. z miesięcy z danymi), tonaż pod spodem
-function MultiMonthTrend({ months, targetCostPerKg = null, onOpenRates = null }) {
+function MultiMonthTrend({ months, targetCostPerKg = null }) {
   const { t } = useTranslation();
   const monthList = monthNames();
   const pts = months;
@@ -1725,15 +1726,14 @@ function MultiMonthTrend({ months, targetCostPerKg = null, onOpenRates = null })
     ? targetCostPerKg
     : (targetCostPerKg && !isNaN(parseFloat(targetCostPerKg)) && parseFloat(targetCostPerKg) > 0 ? parseFloat(targetCostPerKg) : null);
 
-  const isFromSettings = numericTarget != null;
-  const target = isFromSettings ? numericTarget : autoTarget;
+  const target = numericTarget != null ? numericTarget : autoTarget;
   const [hoveredMonth, setHoveredMonth] = useState(null);
 
   if (!withData.length) {
     return <div style={{ padding: '36px 0', textAlign: 'center', fontSize: '13px', color: IOS_THEME.textSecondary }}>{t('costs.noMonthsWithTonnage')}</div>;
   }
 
-  const W = 740, Hh = 220, P = 36, axisB = 42;
+  const W = 740, Hh = 220, P = 42, axisB = 40;
   const maxV = Math.max(...vals, target) * 1.18;
   const slot = (W - 2 * P) / pts.length;
   const bw = Math.min(slot * 0.52, 44);
@@ -1743,93 +1743,22 @@ function MultiMonthTrend({ months, targetCostPerKg = null, onOpenRates = null })
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* Pasek informacyjny celu zł/kg ze Stawek */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '10px',
-        marginBottom: '14px',
-        padding: '8px 14px',
-        background: isFromSettings ? '#FFFBEB' : '#F8FAFC',
-        border: `1px solid ${isFromSettings ? 'rgba(245, 158, 11, 0.35)' : 'rgba(0, 0, 0, 0.06)'}`,
-        borderRadius: '10px',
-        fontSize: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isFromSettings ? '#92400E' : IOS_THEME.textSecondary }}>
-          <span style={{ fontWeight: 700, color: isFromSettings ? '#B45309' : IOS_THEME.textPrimary }}>
-            Linia odniesienia (cel):
-          </span>
-          <span style={{
-            fontWeight: 800,
-            fontSize: '13px',
-            color: '#D97706',
-            fontVariantNumeric: 'tabular-nums',
-            background: 'rgba(245, 158, 11, 0.15)',
-            padding: '2px 8px',
-            borderRadius: '6px'
-          }}>
-            {FMT3(target)} {t('costs.currencyPerKg')}
-          </span>
-          <span style={{ fontSize: '11px', opacity: 0.9 }}>
-            {isFromSettings ? `(${t('costs.targetFromRates')})` : `(${t('costs.targetFromAverage')}: ${withData.length} m-cy)`}
-          </span>
-        </div>
-
-        {onOpenRates && (
-          <button
-            type="button"
-            onClick={onOpenRates}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: '#FFFFFF',
-              border: `1px solid ${isFromSettings ? '#F59E0B' : IOS_THEME.border}`,
-              borderRadius: '7px',
-              padding: '4px 10px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              color: isFromSettings ? '#B45309' : IOS_THEME.textPrimary,
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-              transition: 'all 0.15s ease'
-            }}
-            title="Otwórz panel Stawek, aby ustawić lub zmienić cel zł/kg"
-          >
-            <Settings size={13} />
-            <span>{isFromSettings ? 'Zmień w Stawkach' : 'Ustaw cel w Stawkach'}</span>
-          </button>
-        )}
-      </div>
-
       <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
         {/* linia celu */}
-        <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke="#F59E0B" strokeWidth="2" strokeDasharray="5 4" opacity="0.9" />
+        <line x1={P} x2={W - P} y1={y(target)} y2={y(target)} stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
 
-        {/* Etykieta celu po LEWEJ stronie osi — w bezpiecznej kapsułce z tłem, bez nakładania na prawy słupek */}
-        <g transform={`translate(${P + 4}, ${Math.max(12, Math.min(Hh - axisB - 22, y(target) - 10))})`}>
-          <rect
-            x="0"
-            y="0"
-            width={isFromSettings ? 134 : 124}
-            height="20"
-            rx="6"
-            fill="#FFFBEB"
-            stroke="#F59E0B"
-            strokeWidth="1.2"
-          />
-          <text
-            x="8"
-            y="14"
-            fontSize="10"
-            fontWeight="700"
-            fill="#B45309"
-          >
-            cel: {FMT3(target)} zł/kg {isFromSettings ? '★' : ''}
-          </text>
-        </g>
+        {/* Etykieta celu na osi pionowej po LEWEJ stronie — poza zakresem słupków, bez zakrywania danych */}
+        <text
+          x={P - 6}
+          y={y(target) + 3.5}
+          textAnchor="end"
+          fontSize="9.5"
+          fontWeight="700"
+          fontVariantNumeric="tabular-nums"
+          fill="#D97706"
+        >
+          {FMT3(target)}
+        </text>
 
         {pts.map((p, i) => {
           const v = p.plnPerKg;
