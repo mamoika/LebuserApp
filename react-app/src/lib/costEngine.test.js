@@ -291,17 +291,26 @@ test('production gas invoice cost is allocated exactly across days without meter
   assert.equal(Math.round(daily.reduce((sum, value) => sum + value, 0) * 100) / 100, 26751.80);
 });
 
-test('invoice fields are optional but reject negative values', () => {
+test('invoice fields and target cost per kg are optional but reject negative values', () => {
   const settings = {
     fiat_l_100km: 9, isuzu_l_100km: 10, merc_l_100km: 11, iveco_l_100km: 12,
     fuel_price: 5, elec_multiplier: 80, elec_fixed_monthly: 1, elec_price_kwh: 1,
     elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
     elec_invoice_kwh: null, elec_invoice_net: -1,
     gas_prod_invoice_kwh: null, gas_prod_invoice_net: -1,
+    target_cost_per_kg: -0.5,
     gas_prod_price_m3: 2, gas_prod_fixed_daily: 3, gas_heat_price_m3: 4,
     gas_heat_fixed_monthly: 1, water_fixed_monthly: 2, water_price_m3: 3,
     worker_hourly_rate: 40,
   };
 
-  assert.deepEqual(invalidCostSettingFields(settings), ['elec_invoice_net', 'gas_prod_invoice_net']);
+  assert.deepEqual(invalidCostSettingFields(settings), ['elec_invoice_net', 'gas_prod_invoice_net', 'target_cost_per_kg']);
+
+  const validSettings = {
+    ...settings,
+    elec_invoice_net: 100,
+    gas_prod_invoice_net: 200,
+    target_cost_per_kg: 5.5,
+  };
+  assert.deepEqual(invalidCostSettingFields(validSettings), []);
 });

@@ -220,7 +220,8 @@ const DEFAULT_SETTINGS = {
   gas_prod_invoice_kwh: null, gas_prod_invoice_net: null,
   gas_heat_price_m3: 6.15, gas_heat_fixed_monthly: 49.78,
   water_price_m3: 16.25, water_fixed_monthly: 20.10,
-  worker_hourly_rate: 45.82
+  worker_hourly_rate: 45.82,
+  target_cost_per_kg: null,
 };
 
 /* ───────────── HISTORIA MIESIĘCZNA (silnik dla Przeglądu) ───────────── */
@@ -236,6 +237,7 @@ function settingsForMonth(monthKey, settsAsc) {
     elec_invoice_net: exact?.elec_invoice_net ?? null,
     gas_prod_invoice_kwh: exact?.gas_prod_invoice_kwh ?? null,
     gas_prod_invoice_net: exact?.gas_prod_invoice_net ?? null,
+    target_cost_per_kg: exact?.target_cost_per_kg ?? chosen?.target_cost_per_kg ?? null,
   };
 }
 // Zużycie licznika kumulatywnego, z obsługą jawnej wymiany/resetu licznika.
@@ -1036,6 +1038,7 @@ export default function CostsView() {
               gasProdReconciliation={gasProdReconciliation}
               currentDateStr={currentDateStr}
               settings={settings}
+              onOpenRates={() => setShowRates(true)}
             />
           )}
 
@@ -1093,6 +1096,7 @@ function OverviewTab({
   gasProdReconciliation,
   currentDateStr,
   settings,
+  onOpenRates,
 }) {
   const { t } = useTranslation();
   const cats = [
@@ -1262,7 +1266,7 @@ function OverviewTab({
           </div>
         </div>
         <div style={{ fontSize: '12px', color: IOS_THEME.textSecondary, marginBottom: '14px' }}>{t('costs.multiMonthHint')}</div>
-        <MultiMonthTrend months={H} />
+        <MultiMonthTrend months={H} targetCostPerKg={settings?.target_cost_per_kg} onOpenRates={onOpenRates} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
@@ -1708,8 +1712,8 @@ function WaterfallCard({ cur, prev }) {
   );
 }
 
-// Trend wielomiesięczny: słupki zł/kg + linia celu (śr. z miesięcy z danymi lub cel własny), tonaż pod spodem
-function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null }) {
+// Trend wielomiesięczny: słupki zł/kg + linia celu (zdefiniowany w Stawkach lub śr. z miesięcy z danymi), tonaż pod spodem
+function MultiMonthTrend({ months, targetCostPerKg = null, onOpenRates = null }) {
   const { t } = useTranslation();
   const monthList = monthNames();
   const pts = months;
@@ -1717,36 +1721,12 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
   const withData = vals.filter(v => v > 0);
   const autoTarget = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
 
-  const [internalCustomTarget, setInternalCustomTarget] = useState(() => {
-    try {
-      const v = localStorage.getItem('costs_target_pln_per_kg');
-      const num = v ? parseFloat(v) : null;
-      return num && !isNaN(num) && num > 0 ? num : null;
-    } catch {
-      return null;
-    }
-  });
+  const numericTarget = typeof targetCostPerKg === 'number' && Number.isFinite(targetCostPerKg) && targetCostPerKg > 0
+    ? targetCostPerKg
+    : (targetCostPerKg && !isNaN(parseFloat(targetCostPerKg)) && parseFloat(targetCostPerKg) > 0 ? parseFloat(targetCostPerKg) : null);
 
-  const effectiveCustomTarget = customTarget !== undefined && customTarget !== null ? customTarget : internalCustomTarget;
-  const target = (effectiveCustomTarget != null && effectiveCustomTarget > 0) ? effectiveCustomTarget : autoTarget;
-  const isCustom = effectiveCustomTarget != null && effectiveCustomTarget > 0;
-
-  const handleUpdateTarget = (val) => {
-    if (onSetCustomTarget) {
-      onSetCustomTarget(val);
-    }
-    setInternalCustomTarget(val);
-    try {
-      if (val != null && val > 0) {
-        localStorage.setItem('costs_target_pln_per_kg', String(val));
-      } else {
-        localStorage.removeItem('costs_target_pln_per_kg');
-      }
-    } catch { /* ignore */ }
-  };
-
-  const [isEditingTarget, setIsEditingTarget] = useState(false);
-  const [targetInput, setTargetInput] = useState('');
+  const isFromSettings = numericTarget != null;
+  const target = isFromSettings ? numericTarget : autoTarget;
   const [hoveredMonth, setHoveredMonth] = useState(null);
 
   if (!withData.length) {
@@ -1763,7 +1743,7 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* Pasek sterowania celem zł/kg */}
+      {/* Pasek informacyjny celu zł/kg ze Stawek */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -1772,13 +1752,13 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
         gap: '10px',
         marginBottom: '14px',
         padding: '8px 14px',
-        background: isCustom ? '#FFFBEB' : '#F8FAFC',
-        border: `1px solid ${isCustom ? 'rgba(245, 158, 11, 0.4)' : 'rgba(0, 0, 0, 0.06)'}`,
+        background: isFromSettings ? '#FFFBEB' : '#F8FAFC',
+        border: `1px solid ${isFromSettings ? 'rgba(245, 158, 11, 0.35)' : 'rgba(0, 0, 0, 0.06)'}`,
         borderRadius: '10px',
         fontSize: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isCustom ? '#92400E' : IOS_THEME.textSecondary }}>
-          <span style={{ fontWeight: 700, color: isCustom ? '#B45309' : IOS_THEME.textPrimary }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isFromSettings ? '#92400E' : IOS_THEME.textSecondary }}>
+          <span style={{ fontWeight: 700, color: isFromSettings ? '#B45309' : IOS_THEME.textPrimary }}>
             Linia odniesienia (cel):
           </span>
           <span style={{
@@ -1793,119 +1773,35 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
             {FMT3(target)} {t('costs.currencyPerKg')}
           </span>
           <span style={{ fontSize: '11px', opacity: 0.9 }}>
-            {isCustom ? '(wartość ustalona ręcznie)' : `(średnia z ${withData.length} miesięcy z danymi)`}
+            {isFromSettings ? `(${t('costs.targetFromRates')})` : `(${t('costs.targetFromAverage')}: ${withData.length} m-cy)`}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {isEditingTarget ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                type="text"
-                inputMode="decimal"
-                autoFocus
-                value={targetInput}
-                onChange={(e) => setTargetInput(e.target.value)}
-                placeholder={FMT3(autoTarget)}
-                style={{
-                  width: '64px',
-                  padding: '3px 6px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  border: '1px solid #D97706',
-                  borderRadius: '6px',
-                  textAlign: 'center',
-                  outline: 'none',
-                  background: '#FFFFFF'
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const parsed = parseFloat(targetInput.replace(',', '.'));
-                    if (!isNaN(parsed) && parsed > 0) handleUpdateTarget(parsed);
-                    setIsEditingTarget(false);
-                  } else if (e.key === 'Escape') {
-                    setIsEditingTarget(false);
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const parsed = parseFloat(targetInput.replace(',', '.'));
-                  if (!isNaN(parsed) && parsed > 0) handleUpdateTarget(parsed);
-                  setIsEditingTarget(false);
-                }}
-                style={{
-                  background: '#D97706',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                Zapisz
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingTarget(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: IOS_THEME.textSecondary,
-                  fontSize: '11.5px',
-                  cursor: 'pointer',
-                  padding: '4px 6px'
-                }}
-              >
-                Anuluj
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setTargetInput(isCustom ? String(effectiveCustomTarget) : String(autoTarget.toFixed(3)));
-                  setIsEditingTarget(true);
-                }}
-                style={{
-                  background: '#FFFFFF',
-                  border: `1px solid ${isCustom ? '#F59E0B' : IOS_THEME.border}`,
-                  borderRadius: '7px',
-                  padding: '3px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  color: isCustom ? '#B45309' : IOS_THEME.textPrimary,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                }}
-              >
-                {isCustom ? '✎ Zmień cel' : '✎ Ustaw cel ręcznie'}
-              </button>
-              {isCustom && (
-                <button
-                  type="button"
-                  onClick={() => handleUpdateTarget(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#EF4444',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: '3px 6px'
-                  }}
-                  title="Przywróć cel wyliczany automatycznie ze średniej"
-                >
-                  ✕ Przywróć średnią ({FMT3(autoTarget)})
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        {onOpenRates && (
+          <button
+            type="button"
+            onClick={onOpenRates}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#FFFFFF',
+              border: `1px solid ${isFromSettings ? '#F59E0B' : IOS_THEME.border}`,
+              borderRadius: '7px',
+              padding: '4px 10px',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: isFromSettings ? '#B45309' : IOS_THEME.textPrimary,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Otwórz panel Stawek, aby ustawić lub zmienić cel zł/kg"
+          >
+            <Settings size={13} />
+            <span>{isFromSettings ? 'Zmień w Stawkach' : 'Ustaw cel w Stawkach'}</span>
+          </button>
+        )}
       </div>
 
       <svg viewBox={`0 0 ${W} ${Hh}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
@@ -1917,7 +1813,7 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
           <rect
             x="0"
             y="0"
-            width={isCustom ? 136 : 124}
+            width={isFromSettings ? 134 : 124}
             height="20"
             rx="6"
             fill="#FFFBEB"
@@ -1931,7 +1827,7 @@ function MultiMonthTrend({ months, customTarget = null, onSetCustomTarget = null
             fontWeight="700"
             fill="#B45309"
           >
-            cel: {FMT3(target)} zł/kg {isCustom ? '★' : ''}
+            cel: {FMT3(target)} zł/kg {isFromSettings ? '★' : ''}
           </text>
         </g>
 
@@ -2062,6 +1958,9 @@ function TrendChart({ data, days, avg, offFlags = [] }) {
 function RatesPanel({ settings, onChange, readOnly = false }) {
   const { t } = useTranslation();
   const groups = [
+    { title: t('costs.targetCostGroup'), color: '#D97706', fields: [
+      ['target_cost_per_kg', t('costs.targetCostPerKg')],
+    ], hint: t('costs.targetCostPerKgHint') },
     { title: t('costs.transport'), color: CAT.transport, fields: [
       ['fiat_l_100km', 'Fiat L/100km'], ['isuzu_l_100km', 'Isuzu L/100km'], ['merc_l_100km', 'Merc. L/100km'],
       ['iveco_l_100km', 'Iveco L/100km'], ['fuel_price', t('costs.fuelRate')],
@@ -2114,6 +2013,11 @@ function RatesPanel({ settings, onChange, readOnly = false }) {
                 </label>
               ))}
             </div>
+            {g.hint && (
+              <div style={{ marginTop: '8px', fontSize: '11px', color: IOS_THEME.textSecondary, lineHeight: 1.4 }}>
+                {g.hint}
+              </div>
+            )}
             {g.isInvoiceSection && (
               <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${IOS_THEME.border}`, color: IOS_THEME.textSecondary, fontSize: '12px' }}>
                 <div style={{ color: IOS_THEME.textSecondary }}>{t('costs.invoiceDataHint')}</div>
