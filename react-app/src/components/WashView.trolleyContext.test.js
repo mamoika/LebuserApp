@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const washView = await readFile(new URL('./WashView.jsx', import.meta.url), 'utf8');
+const dashboardModal = await readFile(new URL('./TrolleysDashboardModal.jsx', import.meta.url), 'utf8');
 const polish = JSON.parse(await readFile(new URL('../i18n/locales/pl.json', import.meta.url), 'utf8'));
 
 test('occupied dirty trolley cards explain their date context and next planning dates', () => {
@@ -13,9 +14,9 @@ test('occupied dirty trolley cards explain their date context and next planning 
   assert.equal(polish.wash.trolleyBoard.liveContext, 'Stan na teraz — niezależny od daty wybranej w planie pralni powyżej.');
 });
 
-test('an overdue dirty trolley is highlighted and opens its own history', () => {
-  assert.match(washView, /className="laundry-trolley-overdue"/);
-  assert.match(washView, /missingPlanWarning/);
-  assert.match(washView, /setHistoryTrolley\(String\(reservation\.trolley_no\)\)/);
+test('an overdue dirty trolley is highlighted in fleet modal and trolley chip opens its own history', () => {
+  assert.match(dashboardModal, /className="laundry-trolley-overdue"/);
+  assert.match(dashboardModal, /missingPlanWarning/);
+  assert.match(washView, /setHistoryTrolley\(String\(cycle\.trolley_no\)\)/);
   assert.match(washView, /initialTrolley=\{historyTrolley\}/);
 });
