@@ -299,44 +299,31 @@ function routeBadge(routeId, routeMap) {
   return `T${route.num}`;
 }
 
-function Metric({ icon: Icon, label, value, tone, active = false, onClick, badge, subtitle }) {
-  const Tag = onClick ? 'button' : 'div';
-
-  let displayValue = value;
-  let displayUnit = '';
-  if (typeof value === 'string') {
-    const kgMatch = value.match(/^(.*?)\s*kg$/i);
-    const slashMatch = value.match(/^(.*?)\/(\d+)$/);
-    if (kgMatch) {
-      displayValue = kgMatch[1];
-      displayUnit = 'kg';
-    } else if (slashMatch) {
-      displayValue = slashMatch[1];
-      displayUnit = `/${slashMatch[2]}`;
-    }
-  }
-
+function FlowMetric({ icon: Icon, label, value, subtitle, tone, progress }) {
   return (
-    <Tag
-      className={`laundry-metric ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''} ${onClick ? 'is-clickable' : ''}`}
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-    >
-      <div className="laundry-metric-top">
-        <div className="laundry-metric-header">
-          <div className="laundry-metric-icon">
-            <Icon size={18} />
-          </div>
-          <span className="laundry-metric-label">{label}</span>
+    <div className={`laundry-flow-metric tone-${tone}`}>
+      <div className="laundry-flow-metric-head">
+        <span className="laundry-flow-metric-icon">
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <span>{label}</span>
+      </div>
+      <div className="laundry-flow-metric-value">
+        <strong className="tabular-nums">{value}</strong>
+        <span>kg</span>
+      </div>
+      <div className="laundry-flow-metric-meta">
+        <span>{subtitle}</span>
+        {progress !== null && progress !== undefined && (
+          <strong className="tabular-nums">{progress}%</strong>
+        )}
+      </div>
+      {progress !== null && progress !== undefined && (
+        <div className="laundry-flow-metric-progress" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
         </div>
-        {badge && <span className="laundry-metric-badge">{badge}</span>}
-      </div>
-      <div className="laundry-metric-body">
-        <span className="laundry-metric-value tabular-nums">{displayValue}</span>
-        {displayUnit && <span className="laundry-metric-unit">{displayUnit}</span>}
-      </div>
-      {subtitle && <div className="laundry-metric-sub">{subtitle}</div>}
-    </Tag>
+      )}
+    </div>
   );
 }
 
@@ -601,6 +588,17 @@ export default function WashView() {
     ),
     activeTrolleys: activeTrolleyByNo.size,
   }), [activeTrolleyByNo.size, dailyServiceByClient, entries, scheduleByRoute, selectedDate]);
+
+  const packedKg = useMemo(
+    () => Number(laundryGroups.reduce((sum, group) => sum + group.packedKg, 0).toFixed(1)),
+    [laundryGroups],
+  );
+  const washedProgress = metrics.plannedKg > 0
+    ? Math.min(100, Math.round((metrics.washedKg / metrics.plannedKg) * 100))
+    : 0;
+  const packedProgress = metrics.plannedKg > 0
+    ? Math.min(100, Math.round((packedKg / metrics.plannedKg) * 100))
+    : 0;
 
   const filterCounts = useMemo(() => (
     WORK_FILTERS.reduce((acc, filter) => {
@@ -1120,12 +1118,12 @@ export default function WashView() {
               type="button"
               className="laundry-date-nav-btn"
               onClick={() => setSelectedDate(addDays(selectedDate, -1))}
-              title="Poprzedni dzień"
-              aria-label="Poprzedni dzień"
+              title={t('wash.date.previous')}
+              aria-label={t('wash.date.previous')}
             >
               <ChevronLeft size={16} />
             </button>
-            <label className="laundry-date-picker-label" title="Wybierz datę">
+            <label className="laundry-date-picker-label" title={t('wash.date.choose')}>
               <Calendar size={14} className="laundry-date-icon" />
               <span className="laundry-date-text">{formatDate(selectedDate)}</span>
               <input
@@ -1139,8 +1137,8 @@ export default function WashView() {
               type="button"
               className="laundry-date-nav-btn"
               onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-              title="Następny dzień"
-              aria-label="Następny dzień"
+              title={t('wash.date.next')}
+              aria-label={t('wash.date.next')}
             >
               <ChevronRight size={16} />
             </button>
@@ -1167,39 +1165,67 @@ export default function WashView() {
         </div>
       )}
 
-      <div className="laundry-metrics">
-        <Metric
-          icon={WashingMachine}
-          label={t('wash.metrics.planned')}
-          value={`${metrics.plannedKg} kg`}
-          tone="pending"
-          subtitle={t('wash.metrics.plannedSub')}
-        />
-        <Metric
-          icon={CheckCircle2}
-          label={t('wash.metrics.washedToday')}
-          value={`${metrics.washedKg} kg`}
-          tone="washed"
-          badge={metrics.plannedKg > 0 ? `${Math.min(100, Math.round((metrics.washedKg / metrics.plannedKg) * 100))}%` : null}
-          subtitle={t('wash.metrics.washedSub')}
-        />
-        <Metric
-          icon={Truck}
-          label={t('wash.metrics.departure')}
-          value={`${metrics.departureKg} kg`}
-          tone="ready"
-          subtitle={t('wash.metrics.departureSub')}
-        />
-        <Metric
-          icon={Archive}
-          label={t('wash.metrics.occupied', { count: trolleyCount })}
-          value={`${metrics.activeTrolleys}/${trolleyCount}`}
-          tone="trolley"
-          badge={freeTrolleyCount > 0 ? t('wash.metrics.freeBadge', { count: freeTrolleyCount }) : null}
-          subtitle={t('wash.metrics.trolleySub')}
+      <section className="laundry-operations-overview" aria-labelledby="laundry-flow-title">
+        <div className="laundry-operations-head">
+          <div>
+            <span>{t('wash.flowOverview.eyebrow')}</span>
+            <h2 id="laundry-flow-title">{t('wash.flowOverview.title')}</h2>
+          </div>
+          <span className="laundry-operations-live">
+            <span aria-hidden="true" />
+            {t('wash.flowOverview.current')}
+          </span>
+        </div>
+
+        <div className="laundry-flow-metrics">
+          <FlowMetric
+            icon={WashingMachine}
+            label={t('wash.flowOverview.planned')}
+            value={metrics.plannedKg}
+            tone="planned"
+            subtitle={t('wash.flowOverview.plannedHint')}
+          />
+          <FlowMetric
+            icon={CheckCircle2}
+            label={t('wash.flowOverview.washed')}
+            value={metrics.washedKg}
+            tone="washed"
+            progress={washedProgress}
+            subtitle={t('wash.flowOverview.washedHint')}
+          />
+          <FlowMetric
+            icon={PackageCheck}
+            label={t('wash.flowOverview.packed')}
+            value={packedKg}
+            tone="packed"
+            progress={packedProgress}
+            subtitle={t('wash.flowOverview.packedHint')}
+          />
+          <FlowMetric
+            icon={Truck}
+            label={t('wash.flowOverview.departure')}
+            value={metrics.departureKg}
+            tone="departure"
+            subtitle={t('wash.flowOverview.departureHint')}
+          />
+        </div>
+
+        <button
+          type="button"
+          className="laundry-fleet-summary"
           onClick={() => setTrolleysModalOpen(true)}
-        />
-      </div>
+        >
+          <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
+          <span className="laundry-fleet-summary-copy">
+            <strong>{t('wash.flowOverview.fleetTitle')}</strong>
+            <span>{t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
+          </span>
+          <strong className="laundry-fleet-summary-free tabular-nums">
+            {t('wash.flowOverview.fleetFree', { count: freeTrolleyCount })}
+          </strong>
+          <Maximize2 size={16} aria-hidden="true" />
+        </button>
+      </section>
 
       <section className="laundry-section">
         <div className="laundry-section-head">

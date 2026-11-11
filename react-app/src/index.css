@@ -6682,7 +6682,13 @@ select.ap-input {
 .spin { animation: spin .8s linear infinite; }
 
 .laundry-shell {
-  max-width: 1280px;
+  --laundry-ink: #1d1d1f;
+  --laundry-muted: #6e6e73;
+  --laundry-line: rgba(29, 29, 31, 0.08);
+  --laundry-blue: #0071e3;
+  --laundry-green: #248a3d;
+  --laundry-amber: #b25000;
+  max-width: 1340px;
   margin: 0 auto;
   padding: 0 4px 44px;
   display: flex;
@@ -6738,8 +6744,8 @@ select.ap-input {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 .laundry-date-nav-btn {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6760,7 +6766,7 @@ select.ap-input {
   align-items: center;
   gap: 7px;
   padding: 0 10px;
-  height: 32px;
+  height: 40px;
   border-radius: 10px;
   cursor: pointer;
   font-size: 13px;
@@ -6788,7 +6794,7 @@ select.ap-input {
   cursor: pointer;
 }
 .laundry-today-btn {
-  height: 38px;
+  min-height: 44px;
   padding: 0 13px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
@@ -6805,7 +6811,7 @@ select.ap-input {
   border-color: rgba(0, 113, 227, 0.2);
 }
 .laundry-refresh-btn {
-  height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -6824,6 +6830,16 @@ select.ap-input {
   background: rgba(0, 0, 0, 0.03);
   color: var(--text-primary);
   border-color: rgba(0, 0, 0, 0.14);
+}
+.laundry-date-nav-btn:focus-visible,
+.laundry-date-picker-label:focus-within,
+.laundry-today-btn:focus-visible,
+.laundry-refresh-btn:focus-visible,
+.laundry-filter-tabs button:focus-visible,
+.laundry-action-btn:focus-visible,
+.laundry-correction-menu summary:focus-visible {
+  outline: 2px solid var(--accent, #0071e3);
+  outline-offset: 2px;
 }
 .laundry-refresh-btn:disabled,
 .laundry-action-btn:disabled,
@@ -6849,128 +6865,192 @@ select.ap-input {
   font-weight: 600;
 }
 
-/* Apple KPI Grid */
-.laundry-metrics {
+/* Operational flow: one visual story instead of unrelated KPI cards. */
+.laundry-operations-overview {
+  overflow: hidden;
+  border: 1px solid var(--laundry-line);
+  border-radius: 18px;
+  background: var(--bg-card, #fff);
+  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.025), 0 10px 30px rgba(29, 29, 31, 0.035);
+}
+.laundry-operations-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px 14px;
+  border-block-end: 1px solid rgba(29, 29, 31, 0.055);
+}
+.laundry-operations-head > div > span {
+  display: block;
+  margin-block-end: 3px;
+  color: var(--laundry-blue);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+.laundry-operations-head h2 {
+  margin: 0;
+  color: var(--laundry-ink);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.laundry-operations-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--laundry-muted);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.laundry-operations-live > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 0 4px rgba(52, 199, 89, 0.1);
+}
+.laundry-flow-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
 }
-.laundry-metric {
+.laundry-flow-metric {
+  --flow-tone: var(--laundry-blue);
   position: relative;
+  min-width: 0;
+  min-height: 138px;
+  padding: 18px 22px 16px;
+}
+.laundry-flow-metric:not(:last-child) {
+  border-inline-end: 1px solid rgba(29, 29, 31, 0.06);
+}
+.laundry-flow-metric.tone-planned { --flow-tone: #8e8e93; }
+.laundry-flow-metric.tone-washed { --flow-tone: #248a3d; }
+.laundry-flow-metric.tone-packed { --flow-tone: #0071e3; }
+.laundry-flow-metric.tone-departure { --flow-tone: #5856d6; }
+.laundry-flow-metric-head {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  min-height: 110px;
-  padding: 18px 20px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 18px;
-  background: var(--bg-card, #FFFFFF);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04);
-  color: inherit;
-  font-family: var(--font);
-  text-align: left;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  align-items: center;
+  gap: 8px;
+  color: var(--laundry-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
 }
-.laundry-metric.is-clickable {
-  cursor: pointer;
+.laundry-flow-metric-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--flow-tone) 10%, white);
+  color: var(--flow-tone);
 }
-.laundry-metric.is-clickable:hover {
-  transform: translateY(-2px);
-  border-color: rgba(0, 113, 227, 0.24);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04), 0 14px 32px rgba(0, 0, 0, 0.06);
+.laundry-flow-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-block-start: 12px;
+  color: var(--laundry-ink);
 }
-.laundry-metric-top {
+.laundry-flow-metric-value strong {
+  font-size: 30px;
+  font-weight: 720;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+.laundry-flow-metric-value > span {
+  color: var(--laundry-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.laundry-flow-metric-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-.laundry-metric-header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-.laundry-metric-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 113, 227, 0.1);
-  color: #0071E3;
-  flex-shrink: 0;
-}
-.laundry-metric.tone-pending .laundry-metric-icon {
-  background: rgba(255, 149, 0, 0.12);
-  color: #FF9500;
-}
-.laundry-metric.tone-washed .laundry-metric-icon {
-  background: rgba(52, 199, 89, 0.12);
-  color: #34C759;
-}
-.laundry-metric.tone-ready .laundry-metric-icon {
-  background: rgba(0, 113, 227, 0.10);
-  color: #0071E3;
-}
-.laundry-metric.tone-trolley .laundry-metric-icon {
-  background: rgba(88, 86, 214, 0.12);
-  color: #5856D6;
-}
-.laundry-metric-label {
+  margin-block-start: 9px;
+  color: var(--laundry-muted);
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary, #6E6E73);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+  font-weight: 500;
+}
+.laundry-flow-metric-meta > span {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.laundry-metric-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(0, 113, 227, 0.08);
-  color: var(--accent, #0071E3);
-  letter-spacing: 0.02em;
   white-space: nowrap;
-  flex-shrink: 0;
 }
-.laundry-metric.tone-washed .laundry-metric-badge {
-  background: rgba(52, 199, 89, 0.12);
-  color: #248A3D;
+.laundry-flow-metric-meta strong { color: var(--flow-tone); }
+.laundry-flow-metric-progress {
+  overflow: hidden;
+  height: 3px;
+  margin-block-start: 10px;
+  border-radius: 999px;
+  background: rgba(29, 29, 31, 0.07);
 }
-.laundry-metric.tone-trolley .laundry-metric-badge {
-  background: rgba(88, 86, 214, 0.10);
-  color: #5856D6;
+.laundry-flow-metric-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--flow-tone);
+  transition: width 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.laundry-metric-body {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: 4px;
+.laundry-fleet-summary {
+  width: calc(100% - 24px);
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto 20px;
+  align-items: center;
+  gap: 11px;
+  margin: 0 12px 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 113, 227, 0.12);
+  border-radius: 12px;
+  background: rgba(0, 113, 227, 0.045);
+  color: var(--laundry-muted);
+  font-family: var(--font);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
-.laundry-metric-value {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--text-primary, #1D1D1F);
+.laundry-fleet-summary:hover {
+  border-color: rgba(0, 113, 227, 0.22);
+  background: rgba(0, 113, 227, 0.075);
 }
-.laundry-metric-unit {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary, #86868B);
+.laundry-fleet-summary:focus-visible {
+  outline: 2px solid var(--laundry-blue);
+  outline-offset: 2px;
 }
-.laundry-metric-sub {
+.laundry-fleet-summary-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--laundry-blue);
+}
+.laundry-fleet-summary-copy { min-width: 0; }
+.laundry-fleet-summary-copy strong,
+.laundry-fleet-summary-copy span { display: block; }
+.laundry-fleet-summary-copy strong {
+  color: var(--laundry-ink);
   font-size: 12px;
-  color: var(--text-secondary, #86868B);
+  font-weight: 700;
+}
+.laundry-fleet-summary-copy span {
+  margin-block-start: 2px;
+  font-size: 11px;
   font-weight: 500;
-  margin-top: 2px;
+}
+.laundry-fleet-summary-free {
+  color: var(--laundry-green);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Sections */
@@ -7050,7 +7130,7 @@ select.ap-input {
   border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .laundry-filter-tabs button {
-  min-height: 32px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -7323,27 +7403,30 @@ select.ap-input {
 .laundry-work-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .laundry-work-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
-  gap: 16px;
+  gap: 14px;
   align-items: center;
-  padding: 16px 20px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 16px;
+  padding: 13px 16px;
+  border: 1px solid rgba(29, 29, 31, 0.075);
+  border-inline-start: 3px solid #ff9500;
+  border-radius: 12px;
   background: var(--bg-card, #FFFFFF);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 6px 18px rgba(0, 0, 0, 0.03);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
 .laundry-work-row:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04), 0 12px 28px rgba(0, 0, 0, 0.06);
+  border-color: rgba(29, 29, 31, 0.13);
+  background: rgba(255, 255, 255, 0.82);
 }
+.laundry-work-row.stage-partial { border-inline-start-color: #5856d6; }
+.laundry-work-row.stage-washed { border-inline-start-color: #248a3d; }
 .laundry-work-row.stage-ready {
-  background: linear-gradient(180deg, #FFFFFF 0%, rgba(52, 199, 89, 0.04) 100%);
-  border-color: rgba(52, 199, 89, 0.28);
+  border-color: rgba(52, 199, 89, 0.2);
+  border-inline-start-color: #248a3d;
+  background: rgba(52, 199, 89, 0.025);
 }
 .laundry-work-main {
   min-width: 0;
@@ -7428,25 +7511,27 @@ select.ap-input {
   gap: 5px;
   padding: 3px 9px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(29, 29, 31, 0.035);
   color: var(--text-secondary, #6E6E73);
   font-size: 12px;
   font-weight: 600;
 }
 .laundry-work-meta .is-weight {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(29, 29, 31, 0.055);
   color: var(--text-primary, #1D1D1F);
 }
 .laundry-work-meta .is-weight strong {
   color: var(--text-primary, #1D1D1F);
 }
 .laundry-work-meta .is-wash-date {
-  background: rgba(255, 149, 0, 0.10);
-  color: #B25000;
+  background: transparent;
+  color: var(--text-secondary, #6E6E73);
+  box-shadow: inset 0 0 0 1px rgba(29, 29, 31, 0.07);
 }
 .laundry-work-meta .is-departure-date {
-  background: rgba(0, 113, 227, 0.09);
-  color: #0071E3;
+  background: transparent;
+  color: var(--text-secondary, #6E6E73);
+  box-shadow: inset 0 0 0 1px rgba(29, 29, 31, 0.07);
 }
 .laundry-work-meta .is-packed {
   background: rgba(52, 199, 89, 0.10);
@@ -7823,7 +7908,7 @@ select.ap-input {
 }
 .laundry-action-btn,
 .laundry-return-btn {
-  min-height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7871,7 +7956,7 @@ select.ap-input {
   background: rgba(255, 59, 48, 0.14);
 }
 .laundry-work-state {
-  min-height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7889,8 +7974,8 @@ select.ap-input {
   position: relative;
 }
 .laundry-correction-menu summary {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8254,9 +8339,11 @@ select.ap-input {
   .laundry-toolbar-actions {
     justify-content: flex-start;
   }
-  .laundry-metrics {
+  .laundry-flow-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .laundry-flow-metric:nth-child(2) { border-inline-end: 0; }
+  .laundry-flow-metric:nth-child(-n+2) { border-block-end: 1px solid rgba(29, 29, 31, 0.06); }
   .laundry-work-row {
     grid-template-columns: 1fr;
   }
@@ -8318,11 +8405,25 @@ select.ap-input {
   .laundry-date-nav {
     justify-content: space-between;
   }
-  .laundry-metrics {
+  .laundry-flow-metrics {
     grid-template-columns: 1fr;
   }
-  .laundry-metric {
-    min-height: 80px;
+  .laundry-flow-metric {
+    min-height: 126px;
+    border-inline-end: 0 !important;
+    border-block-end: 1px solid rgba(29, 29, 31, 0.06);
+  }
+  .laundry-flow-metric:last-child { border-block-end: 0; }
+  .laundry-fleet-summary {
+    grid-template-columns: 36px minmax(0, 1fr) 20px;
+  }
+  .laundry-fleet-summary-free {
+    grid-column: 2;
+    margin-block-start: -7px;
+  }
+  .laundry-fleet-summary > svg {
+    grid-column: 3;
+    grid-row: 1 / span 2;
   }
   .laundry-trolley-board {
     grid-template-columns: 1fr;
