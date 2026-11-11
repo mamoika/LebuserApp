@@ -54,11 +54,18 @@ test('work rows count physical trolleys from arrivals and packing without counti
   assert.match(washView, /group\.trolleyCount > 0/);
 });
 
-test('operational plan is primary header and laundry plan is detailed section without flow overview header banner', () => {
-  assert.equal(pl.wash.title, 'Plan operacyjny');
-  assert.equal(de.wash.title, 'Operativer Plan');
+test('laundry list is at the top and operational plan with weights and trolleys is at the bottom', () => {
+  assert.equal(pl.wash.title, 'Plan prania');
+  assert.equal(de.wash.title, 'Wäscheplan');
   assert.match(pl.wash.dayPlan, /^Plan prania/);
   assert.match(de.wash.dayPlan, /^Wäscheplan/);
+  assert.equal(pl.wash.operationsPlan, 'Plan operacyjny');
+  assert.equal(de.wash.operationsPlan, 'Operativer Plan');
+  assert.ok(
+    washView.indexOf('className="laundry-work-list"')
+      < washView.indexOf('className="laundry-operations-overview"'),
+    'laundry-work-list must be rendered before laundry-operations-overview (top of page)',
+  );
   assert.doesNotMatch(washView, /laundry-operations-head/);
   assert.doesNotMatch(washView, /wash\.flowOverview\.eyebrow/);
   assert.doesNotMatch(washView, /wash\.flowOverview\.current/);

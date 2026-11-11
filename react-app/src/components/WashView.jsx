@@ -852,57 +852,6 @@ export default function WashView() {
         </div>
       )}
 
-      <section className="laundry-operations-overview" aria-label={t('wash.flowOverview.title')}>
-        <div className="laundry-flow-metrics">
-          <FlowMetric
-            icon={WashingMachine}
-            label={t('wash.flowOverview.planned')}
-            value={metrics.plannedKg}
-            tone="planned"
-            subtitle={t('wash.flowOverview.plannedHint')}
-          />
-          <FlowMetric
-            icon={CheckCircle2}
-            label={t('wash.flowOverview.washed')}
-            value={metrics.washedKg}
-            tone="washed"
-            progress={washedProgress}
-            subtitle={t('wash.flowOverview.washedHint')}
-          />
-          <FlowMetric
-            icon={PackageCheck}
-            label={t('wash.flowOverview.packed')}
-            value={packedKg}
-            tone="packed"
-            progress={packedProgress}
-            subtitle={t('wash.flowOverview.packedHint')}
-          />
-          <FlowMetric
-            icon={Truck}
-            label={t('wash.flowOverview.departure')}
-            value={metrics.departureKg}
-            tone="departure"
-            subtitle={t('wash.flowOverview.departureHint')}
-          />
-        </div>
-
-        <button
-          type="button"
-          className="laundry-fleet-summary"
-          onClick={() => setTrolleysModalOpen(true)}
-        >
-          <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
-          <span className="laundry-fleet-summary-copy">
-            <strong>{t('wash.flowOverview.fleetTitle')}</strong>
-            <span>{t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
-          </span>
-          <strong className="laundry-fleet-summary-free tabular-nums">
-            {t('wash.flowOverview.fleetFree', { count: freeTrolleyCount })}
-          </strong>
-          <Maximize2 size={16} aria-hidden="true" />
-        </button>
-      </section>
-
       <section className="laundry-section">
         <div className="laundry-section-head">
           <div>
@@ -1122,6 +1071,66 @@ export default function WashView() {
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="laundry-section" aria-label={t('wash.operationsPlan')}>
+        <div className="laundry-section-head">
+          <div>
+            <h2>{t('wash.operationsPlan')}</h2>
+            <span>{t('wash.operationsSubtitle')}</span>
+          </div>
+        </div>
+
+        <div className="laundry-operations-overview" aria-label={t('wash.operationsPlan')}>
+          <div className="laundry-flow-metrics">
+            <FlowMetric
+              icon={WashingMachine}
+              label={t('wash.flowOverview.planned')}
+              value={metrics.plannedKg}
+              tone="planned"
+              subtitle={t('wash.flowOverview.plannedHint')}
+            />
+            <FlowMetric
+              icon={CheckCircle2}
+              label={t('wash.flowOverview.washed')}
+              value={metrics.washedKg}
+              tone="washed"
+              progress={washedProgress}
+              subtitle={t('wash.flowOverview.washedHint')}
+            />
+            <FlowMetric
+              icon={PackageCheck}
+              label={t('wash.flowOverview.packed')}
+              value={packedKg}
+              tone="packed"
+              progress={packedProgress}
+              subtitle={t('wash.flowOverview.packedHint')}
+            />
+            <FlowMetric
+              icon={Truck}
+              label={t('wash.flowOverview.departure')}
+              value={metrics.departureKg}
+              tone="departure"
+              subtitle={t('wash.flowOverview.departureHint')}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="laundry-fleet-summary"
+            onClick={() => setTrolleysModalOpen(true)}
+          >
+            <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
+            <span className="laundry-fleet-summary-copy">
+              <strong>{t('wash.flowOverview.fleetTitle')}</strong>
+              <span>{t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
+            </span>
+            <strong className="laundry-fleet-summary-free tabular-nums">
+              {t('wash.flowOverview.fleetFree', { count: freeTrolleyCount })}
+            </strong>
+            <Maximize2 size={16} aria-hidden="true" />
+          </button>
         </div>
       </section>
 

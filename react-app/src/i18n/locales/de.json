@@ -408,7 +408,7 @@
     "operationFailed": "Vorgang fehlgeschlagen",
     "loading": "Wäscherei wird geladen…",
     "kicker": "Wäscherei",
-    "title": "Operativer Plan",
+    "title": "Wäscheplan",
     "subtitle": "{{date}} · Waschen, Packen und Bereitstellung für Fahrer",
     "date": {
       "previous": "Vorheriger Tag",
@@ -431,6 +431,8 @@
       "fleetFree": "{{count}} frei",
       "fleetOccupied": "{{count}} von {{total}} belegt"
     },
+    "operationsPlan": "Operativer Plan",
+    "operationsSubtitle": "Übersicht über Gewichte und Wagenverfügbarkeit",
     "workflowWarning": "Der Wagenumlauf konnte nicht geladen werden. Falls die Migration in Supabase noch nicht ausgeführt wurde, zeigt die Ansicht weiterhin die Wäscheliste, das Packen ist jedoch nicht verfügbar. Details: {{message}}",
     "todayLaundry": "Heutige Wäsche",
     "dayPlan": "Wäscheplan · {{date}}",
