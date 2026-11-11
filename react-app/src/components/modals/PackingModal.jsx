@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Archive,
   Scale,
+  ScanBarcode,
+  Plus,
 } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
@@ -27,9 +29,32 @@ export default function PackingModal({
   const { t } = useTranslation();
   const [scannedTrolleys, setScannedTrolleys] = useState([]);
   const [kgByTrolley, setKgByTrolley] = useState({});
+  const [manualInput, setManualInput] = useState('');
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'none'
+
+  const handleAddManual = () => {
+    const raw = manualInput.trim();
+    if (!raw) return;
+    const trolleyNo = parseTrolleyCode(raw) || raw;
+    if (!trolleyNumbers.includes(trolleyNo)) {
+      setError(t('wash.packing.missingTrolley', { trolley: trolleyNo }));
+      return;
+    }
+    const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
+    if (activeCycle) {
+      setError(t('wash.packing.occupied', { trolley: trolleyNo, client: activeCycle.client_name }));
+      return;
+    }
+    if (scannedTrolleys.includes(trolleyNo)) {
+      setError(t('wash.packing.duplicate', { trolley: trolleyNo }));
+      return;
+    }
+    setError('');
+    setScannedTrolleys(prev => [...prev, trolleyNo]);
+    setManualInput('');
+  };
 
   // Barcode scanner — dodaje zeskanowany wózek do bieżącej partii
   useBarcodeScanner({
@@ -168,13 +193,15 @@ export default function PackingModal({
         className="ap-sheet"
         onClick={e => e.stopPropagation()}
         style={{
-          maxWidth: '540px',
+          maxWidth: '640px',
+          width: '94vw',
           margin: 'auto',
-          borderRadius: '20px',
+          borderRadius: '24px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08)',
         }}
       >
         <div className="ap-handle" />
@@ -360,26 +387,132 @@ export default function PackingModal({
           {/* Główna sekcja wyboru wózków / pakowania */}
           {packMode === 'trolley' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Dokładnie taki sam przycisk wyboru wózków jak u kierowcy */}
-              <ArrivalTrolleyPicker
-                sessionToken={sessionToken}
-                clientName={group.clientName}
-                arrivalDate={group.washDate || group.departureDate}
-                mode="trolley"
-                onModeChange={() => {}}
-                selected={scannedTrolleys}
-                onSelectedChange={handleTrolleySelectionChange}
-                activeTrolleyByNo={activeTrolleyByNo}
-                trolleyCount={trolleyNumbers.length}
-                purpose="pack"
-                hideModeSwitch={true}
-                triggerLabel={t('wash.packing.chooseTrolleysButton')}
-                triggerHint={t('wash.packing.chooseTrolleysSubtitle', { count: trolleyNumbers.length })}
-                disabled={isPacking}
-              />
+              {/* Baner skanera kodów kreskowych (zawsze aktywny automatycznie) */}
+              <div style={{
+                background: 'rgba(0, 122, 255, 0.04)',
+                border: '1px solid rgba(0, 122, 255, 0.16)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(0, 122, 255, 0.1)',
+                  color: '#007AFF',
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                }}>
+                  <ScanBarcode size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {t('wash.packing.scannerReady')}
+                    </strong>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '1px 7px',
+                      borderRadius: '999px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      background: 'rgba(52, 199, 89, 0.14)',
+                      color: '#248A3D',
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34C759' }} />
+                      {t('wash.packing.scannerLive')}
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                    {t('wash.packing.scannerInstruction')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Ręczny wybór wózków dla osoby bez skanera */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <ArrivalTrolleyPicker
+                  sessionToken={sessionToken}
+                  clientName={group.clientName}
+                  arrivalDate={group.washDate || group.departureDate}
+                  mode="trolley"
+                  onModeChange={() => {}}
+                  selected={scannedTrolleys}
+                  onSelectedChange={handleTrolleySelectionChange}
+                  activeTrolleyByNo={activeTrolleyByNo}
+                  trolleyCount={trolleyNumbers.length}
+                  purpose="pack"
+                  hideModeSwitch={true}
+                  triggerLabel={t('wash.packing.chooseTrolleysButton')}
+                  triggerHint={t('wash.packing.chooseTrolleysSubtitle', { count: trolleyNumbers.length })}
+                  disabled={isPacking}
+                />
+
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                }}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={t('wash.packing.manualTrolleyAdd')}
+                    value={manualInput}
+                    onChange={e => setManualInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddManual();
+                      }
+                    }}
+                    disabled={isPacking}
+                    style={{
+                      flex: 1,
+                      height: '42px',
+                      padding: '0 12px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-card-solid)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddManual}
+                    disabled={isPacking || !manualInput.trim()}
+                    style={{
+                      height: '42px',
+                      padding: '0 14px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(0, 122, 255, 0.25)',
+                      background: 'rgba(0, 122, 255, 0.08)',
+                      color: '#007AFF',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>{t('wash.packing.addTrolleyBtn')}</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Wybrane wózki w tej bieżącej partii z opcją wpisania kg na wózek */}
-              {scannedTrolleys.length > 0 && (
+              {scannedTrolleys.length > 0 ? (
                 <div style={{
                   padding: '14px 16px',
                   background: 'var(--bg-secondary)',
@@ -419,8 +552,11 @@ export default function PackingModal({
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 750, fontSize: '14px', color: 'var(--text-primary)' }}>
+                          <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-primary)' }} className="tabular-nums">
                             {formatTrolleyCode(no)}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                            {t('wash.packing.scannedTrolleyTag')}
                           </span>
                         </div>
 
@@ -435,18 +571,18 @@ export default function PackingModal({
                               disabled={isPacking}
                               className="tabular-nums"
                               style={{
-                                width: '64px',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
+                                width: '68px',
+                                padding: '5px 8px',
+                                borderRadius: '8px',
                                 border: '1px solid var(--border)',
                                 background: 'var(--bg-secondary)',
                                 color: 'var(--text-primary)',
                                 fontSize: '13px',
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 textAlign: 'right',
                               }}
                             />
-                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>kg</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>kg</span>
                           </div>
 
                           <button
@@ -454,7 +590,7 @@ export default function PackingModal({
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              padding: '4px',
+                              padding: '5px',
                               cursor: 'pointer',
                               display: 'grid',
                               placeItems: 'center',
@@ -471,15 +607,16 @@ export default function PackingModal({
                     ))}
                   </div>
 
-                  {group.hasKnownWeight && scannedTrolleys.length > 0 && (
+                  {group.hasKnownWeight && (
                     <div style={{
-                      marginTop: '10px',
-                      paddingTop: '8px',
+                      marginTop: '12px',
+                      paddingTop: '10px',
                       borderTop: '1px solid var(--border)',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       color: 'var(--text-secondary)',
+                      fontWeight: 600,
                     }} className="tabular-nums">
                       <span>{t('wash.packing.batchTotal', { weight: Number(currentBatchTotalKg).toFixed(1) })}</span>
                       <span>
@@ -489,6 +626,24 @@ export default function PackingModal({
                       </span>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '14px',
+                  border: '1px dashed var(--border)',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  color: 'var(--text-tertiary)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}>
+                  <ShoppingCart size={16} />
+                  <span>{t('wash.packing.batchEmpty')}</span>
                 </div>
               )}
             </div>

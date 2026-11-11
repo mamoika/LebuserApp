@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getArrivalTrolleyReservations, getLaundryWorkflow } from '../../lib/laundryRpc';
@@ -280,7 +281,7 @@ export default function ArrivalTrolleyPicker({
 
       {error && !pickerOpen && <div className="ap-error live-arrival-trolley-error">{error}</div>}
 
-      {pickerOpen && (
+      {pickerOpen && typeof document !== 'undefined' && createPortal(
         <div className="ap-overlay live-trolley-picker-overlay" style={{ display: 'flex' }} onClick={closePicker}>
           <div className="ap-sheet live-trolley-picker-sheet" onClick={event => event.stopPropagation()}>
             <div className="ap-handle" />
@@ -502,7 +503,8 @@ export default function ArrivalTrolleyPicker({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

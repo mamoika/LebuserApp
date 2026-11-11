@@ -620,7 +620,15 @@
       "weightKg": "kg",
       "weightPlaceholder": "kg (opcjonalnie)",
       "batchTotal": "Suma w tej partii: {{weight}} kg",
-      "remainingKgAfterBatch": "Pozostanie do spakowania: {{weight}} kg"
+      "remainingKgAfterBatch": "Pozostanie do spakowania: {{weight}} kg",
+      "scannerReady": "Skaner kodów aktywny",
+      "scannerLive": "Automatyczny",
+      "scannerInstruction": "Zeskanuj kod kreskowy wózka (LEB-#...) lub skorzystaj z wyboru ręcznego poniżej.",
+      "manualTrolleyAdd": "Wpisz nr (np. 12)",
+      "addTrolleyBtn": "Dodaj",
+      "batchEmpty": "Brak wózków w tej partii. Zeskanuj wózek skanerem lub wybierz ze schematu powyżej.",
+      "scannedTrolleyTag": "Zeskanowany wózek",
+      "chooseFromSchema": "Wybierz ze schematu 1–{{count}}"
     },
     "fleet": {
       "title": "Stan floty wózków",

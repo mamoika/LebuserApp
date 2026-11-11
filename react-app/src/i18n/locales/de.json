@@ -618,7 +618,15 @@
       "weightKg": "kg",
       "weightPlaceholder": "kg (optional)",
       "batchTotal": "Summe dieser Charge: {{weight}} kg",
-      "remainingKgAfterBatch": "Verbleibend zum Packen: {{weight}} kg"
+      "remainingKgAfterBatch": "Verbleibend zum Packen: {{weight}} kg",
+      "scannerReady": "Barcodescanner aktiv",
+      "scannerLive": "Automatisch",
+      "scannerInstruction": "Scannen Sie den Wagen-Barcode (LEB-#...) oder wählen Sie unten manuell aus.",
+      "manualTrolleyAdd": "Nr. eingeben (z. B. 12)",
+      "addTrolleyBtn": "Hinzufügen",
+      "batchEmpty": "Keine Wagen in dieser Charge. Scannen Sie einen Wagen oder wählen Sie ihn oben aus.",
+      "scannedTrolleyTag": "Gescannter Wagen",
+      "chooseFromSchema": "Aus Übersicht 1–{{count}} wählen"
     },
     "fleet": {
       "title": "Wagenflotte",
