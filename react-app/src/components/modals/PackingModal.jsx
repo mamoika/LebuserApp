@@ -10,7 +10,6 @@ import {
   Archive,
   Scale,
   ScanBarcode,
-  Plus,
 } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
@@ -29,32 +28,9 @@ export default function PackingModal({
   const { t } = useTranslation();
   const [scannedTrolleys, setScannedTrolleys] = useState([]);
   const [kgByTrolley, setKgByTrolley] = useState({});
-  const [manualInput, setManualInput] = useState('');
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'none'
-
-  const handleAddManual = () => {
-    const raw = manualInput.trim();
-    if (!raw) return;
-    const trolleyNo = parseTrolleyCode(raw) || raw;
-    if (!trolleyNumbers.includes(trolleyNo)) {
-      setError(t('wash.packing.missingTrolley', { trolley: trolleyNo }));
-      return;
-    }
-    const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
-    if (activeCycle) {
-      setError(t('wash.packing.occupied', { trolley: trolleyNo, client: activeCycle.client_name }));
-      return;
-    }
-    if (scannedTrolleys.includes(trolleyNo)) {
-      setError(t('wash.packing.duplicate', { trolley: trolleyNo }));
-      return;
-    }
-    setError('');
-    setScannedTrolleys(prev => [...prev, trolleyNo]);
-    setManualInput('');
-  };
 
   // Barcode scanner — dodaje zeskanowany wózek do bieżącej partii
   useBarcodeScanner({
@@ -435,81 +411,23 @@ export default function PackingModal({
                 </div>
               </div>
 
-              {/* Ręczny wybór wózków dla osoby bez skanera */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <ArrivalTrolleyPicker
-                  sessionToken={sessionToken}
-                  clientName={group.clientName}
-                  arrivalDate={group.washDate || group.departureDate}
-                  mode="trolley"
-                  onModeChange={() => {}}
-                  selected={scannedTrolleys}
-                  onSelectedChange={handleTrolleySelectionChange}
-                  activeTrolleyByNo={activeTrolleyByNo}
-                  trolleyCount={trolleyNumbers.length}
-                  purpose="pack"
-                  hideModeSwitch={true}
-                  triggerLabel={t('wash.packing.chooseTrolleysButton')}
-                  triggerHint={t('wash.packing.chooseTrolleysSubtitle', { count: trolleyNumbers.length })}
-                  disabled={isPacking}
-                />
-
-                <div style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
-                }}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder={t('wash.packing.manualTrolleyAdd')}
-                    value={manualInput}
-                    onChange={e => setManualInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddManual();
-                      }
-                    }}
-                    disabled={isPacking}
-                    style={{
-                      flex: 1,
-                      height: '42px',
-                      padding: '0 12px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-card-solid)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddManual}
-                    disabled={isPacking || !manualInput.trim()}
-                    style={{
-                      height: '42px',
-                      padding: '0 14px',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(0, 122, 255, 0.25)',
-                      background: 'rgba(0, 122, 255, 0.08)',
-                      color: '#007AFF',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Plus size={15} />
-                    <span>{t('wash.packing.addTrolleyBtn')}</span>
-                  </button>
-                </div>
-              </div>
+              {/* Ręczny wybór wózków dla osoby bez skanera (siatka floty 1-90) */}
+              <ArrivalTrolleyPicker
+                sessionToken={sessionToken}
+                clientName={group.clientName}
+                arrivalDate={group.washDate || group.departureDate}
+                mode="trolley"
+                onModeChange={() => {}}
+                selected={scannedTrolleys}
+                onSelectedChange={handleTrolleySelectionChange}
+                activeTrolleyByNo={activeTrolleyByNo}
+                trolleyCount={trolleyNumbers.length}
+                purpose="pack"
+                hideModeSwitch={true}
+                triggerLabel={t('wash.packing.chooseTrolleysButton')}
+                triggerHint={t('wash.packing.chooseTrolleysSubtitle', { count: trolleyNumbers.length })}
+                disabled={isPacking}
+              />
 
               {/* Wybrane wózki w tej bieżącej partii z opcją wpisania kg na wózek */}
               {scannedTrolleys.length > 0 ? (

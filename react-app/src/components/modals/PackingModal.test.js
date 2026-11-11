@@ -15,10 +15,10 @@ test('PackingModal automatically enables barcode scanner on open with live indic
   assert.match(packingModal, /wash\.packing\.scannerInstruction/);
 });
 
-test('PackingModal offers manual trolley selection for users without a scanner', () => {
-  assert.match(packingModal, /handleAddManual/);
-  assert.match(packingModal, /wash\.packing\.manualTrolleyAdd/);
-  assert.match(packingModal, /wash\.packing\.addTrolleyBtn/);
+test('PackingModal offers visual trolley selection via fleet grid for users without a scanner and has no text input', () => {
+  assert.doesNotMatch(packingModal, /handleAddManual/);
+  assert.doesNotMatch(packingModal, /wash\.packing\.manualTrolleyAdd/);
+  assert.doesNotMatch(packingModal, /wash\.packing\.addTrolleyBtn/);
   assert.match(packingModal, /<ArrivalTrolleyPicker/);
 });
 
