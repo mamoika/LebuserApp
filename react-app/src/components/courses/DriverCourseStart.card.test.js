@@ -35,6 +35,12 @@ test('translations for driverCard button and states exist in pl and de', () => {
   assert.ok(deJson.course.driverCard.tooltip);
 });
 
+test('driver course start strictly resolves current user card and never falls back to arbitrary cards', () => {
+  assert.match(startSource, /isSamePersonName/);
+  assert.match(startSource, /cardReminders\?\.my_card/);
+  assert.doesNotMatch(startSource, /cardReminders\?\.cards.*\[0\]/);
+});
+
 test('database migration allows drivers to view their own card reminder and DDD archive', () => {
   assert.match(migration, /create or replace function public\.get_driver_card_reminders/);
   assert.match(migration, /create or replace function public\.get_work_schedule_ddd_context/);

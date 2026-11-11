@@ -12,8 +12,9 @@ as $$
 declare
   v_user record;
   v_cards json;
+  v_history json;
+  v_my_card json;
   v_is_work_schedule boolean;
-  v_user_employee_id uuid;
 begin
   select * into v_user from public.session_user(p_session_token) limit 1;
   if v_user.id is null then
@@ -21,6 +22,26 @@ begin
   end if;
 
   v_is_work_schedule := coalesce(private.user_module_access(v_user.id, 'work_schedule'), 0) >= 1;
+
+  -- Karta przypisana ściśle do zalogowanego konta (zgodność po employee_id lub nazwisku)
+  select coalesce(row_to_json(card), 'null'::json)
+  into v_my_card
+  from (
+    select
+      e.id as employee_id,
+      e.name,
+      e.driver_card_last_downloaded_on as last_downloaded_on
+    from public.employees e
+    join public.users u on (u.employee_id = e.id or (u.employee_id is null and lower(trim(e.name)) = lower(trim(u.name))))
+    where u.id = v_user.id
+      and e.driver_card_required = true
+      and e.active = true
+    limit 1
+  ) card;
+
+  if v_my_card::text = 'null' then
+    v_my_card := null;
+  end if;
 
   if v_is_work_schedule then
     select coalesce(json_agg(row_to_json(card) order by card.name), '[]'::json)
@@ -31,35 +52,42 @@ begin
         e.name,
         e.driver_card_last_downloaded_on as last_downloaded_on
       from public.employees e
+      join public.employee_months em
+        on em.employee_id = e.id
+        and em.year = extract(year from current_date)::integer
+        and em.month = extract(month from current_date)::integer
+        and em.active = true
+        and upper(trim(coalesce(em.group_name, ''))) = 'KIEROWCY'
       where e.driver_card_required = true
         and e.active = true
     ) card;
-  else
-    select coalesce(u.employee_id, (select id from public.employees where lower(name) = lower(u.name) and active = true limit 1))
-    into v_user_employee_id
-    from public.users u
-    where u.id = v_user.id;
 
-    if v_user_employee_id is null then
-      return json_build_object('ok', true, 'cards', '[]'::json);
-    end if;
-
-    select coalesce(json_agg(row_to_json(card)), '[]'::json)
-    into v_cards
+    select coalesce(json_agg(row_to_json(event_row) order by event_row.downloaded_on desc, event_row.recorded_at desc), '[]'::json)
+    into v_history
     from (
       select
-        e.id as employee_id,
+        h.id,
+        h.employee_id,
         e.name,
-        e.driver_card_last_downloaded_on as last_downloaded_on
-      from public.employees e
-      where e.id = v_user_employee_id
-        and e.driver_card_required = true
-        and e.active = true
-      limit 1
-    ) card;
+        h.downloaded_on,
+        h.recorded_by_name,
+        h.recorded_at
+      from public.driver_card_download_events h
+      join public.employees e on e.id = h.employee_id
+      order by h.downloaded_on desc, h.recorded_at desc
+      limit 250
+    ) event_row;
+  else
+    v_cards := case when v_my_card is not null then json_build_array(v_my_card) else '[]'::json end;
+    v_history := '[]'::json;
   end if;
 
-  return json_build_object('ok', true, 'cards', v_cards);
+  return json_build_object(
+    'ok', true,
+    'my_card', v_my_card,
+    'cards', v_cards,
+    'history', v_history
+  );
 end;
 $$;
 

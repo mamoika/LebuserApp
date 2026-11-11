@@ -17,6 +17,13 @@ import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import DriverCardDddDialog from './DriverCardDddDialog';
 import '../mockups/mockups.css';
 
+function isSamePersonName(nameA, nameB) {
+  if (!nameA || !nameB) return false;
+  const a = nameA.toLowerCase().trim().split(/\s+/).sort().join(' ');
+  const b = nameB.toLowerCase().trim().split(/\s+/).sort().join(' ');
+  return a === b;
+}
+
 function StartSection({ label, children, hint }) {
   return (
     <section className="live-start-section">
@@ -81,9 +88,9 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           today,
         );
         setDefaultCar(car);
-        const myCard = (cardReminders?.cards || []).find(
-          c => c.employee_id === user?.employee_id || (user?.name && c.name?.toLowerCase() === user.name.toLowerCase())
-        ) || (cardReminders?.cards || [])[0] || null;
+        const myCard = cardReminders?.my_card || (cardReminders?.cards || []).find(
+          c => (user?.employee_id && c.employee_id === user.employee_id) || isSamePersonName(c.name, user?.name)
+        ) || null;
         if (myCard) {
           setDriverCard(getDriverCardReminder(myCard));
         } else {
