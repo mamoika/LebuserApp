@@ -40,6 +40,15 @@ export function getDriverCardReminder(card, today = new Date()) {
   return { ...card, state, dueOn, daysRemaining };
 }
 
+export function driverCardBadgeText(reminder, t) {
+  if (!reminder) return '';
+  if (reminder.state === 'missing') return t('course.driverCard.missing');
+  if (reminder.daysRemaining < 0) return t('course.driverCard.overdueDays', { count: Math.abs(reminder.daysRemaining) });
+  if (reminder.daysRemaining === 0) return t('course.driverCard.dueToday');
+  if (reminder.daysRemaining === 1) return t('course.driverCard.dueTomorrow');
+  return t('course.driverCard.dueDays', { count: reminder.daysRemaining });
+}
+
 export function groupDriverCardsByEmployeeDueDay(cards, year, month) {
   return cards.reduce((result, card) => {
     const dueOn = getDriverCardDueDate(card?.last_downloaded_on);

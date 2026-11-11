@@ -4,6 +4,7 @@ import {
   addDriverCardHistoryEvent,
   applyDriverCardDownload,
   DRIVER_CARD_DOWNLOAD_INTERVAL_DAYS,
+  driverCardBadgeText,
   getDriverCardDueDate,
   getDriverCardReminder,
   groupDriverCardHistoryByEmployeeDay,
@@ -63,4 +64,22 @@ test('driver card download updates live state without moving the last date backw
     applyDriverCardDownload([{ employee_id: 'a', last_downloaded_on: '2026-11-04' }], 'a', '2026-10-07')[0].last_downloaded_on,
     '2026-11-04',
   );
+});
+
+test('driver card badge text formats missing, due today, tomorrow, remaining and overdue days', () => {
+  const mockT = (key, params) => {
+    if (key === 'course.driverCard.missing') return 'Brak';
+    if (key === 'course.driverCard.dueToday') return 'Dziś';
+    if (key === 'course.driverCard.dueTomorrow') return '1 dzień';
+    if (key === 'course.driverCard.dueDays') return `${params.count} dni`;
+    if (key === 'course.driverCard.overdueDays') return `-${params.count} d.`;
+    return key;
+  };
+  assert.equal(driverCardBadgeText(null, mockT), '');
+  assert.equal(driverCardBadgeText({ state: 'missing' }, mockT), 'Brak');
+  assert.equal(driverCardBadgeText({ state: 'dueSoon', daysRemaining: 0 }, mockT), 'Dziś');
+  assert.equal(driverCardBadgeText({ state: 'dueSoon', daysRemaining: 1 }, mockT), '1 dzień');
+  assert.equal(driverCardBadgeText({ state: 'dueSoon', daysRemaining: 5 }, mockT), '5 dni');
+  assert.equal(driverCardBadgeText({ state: 'ok', daysRemaining: 21 }, mockT), '21 dni');
+  assert.equal(driverCardBadgeText({ state: 'overdue', daysRemaining: -3 }, mockT), '-3 d.');
 });

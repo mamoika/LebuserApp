@@ -1773,6 +1773,15 @@
       "hours_approved": "Czas pracy zatwierdzony",
       "hours_rejected": "Czas pracy odrzucony"
     },
+    "driverCard": {
+      "button": "Karta kierowcy",
+      "missing": "Brak",
+      "dueToday": "Dziś",
+      "dueTomorrow": "1 dzień",
+      "dueDays": "{{count}} dni",
+      "overdueDays": "-{{count}} d.",
+      "tooltip": "Termin kolejnego odczytu karty: {{dueOn}}"
+    },
     "driver": {
       "inRoute": "W trasie",
       "courseLabel": "Kurs",

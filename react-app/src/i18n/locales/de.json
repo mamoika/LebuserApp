@@ -1755,6 +1755,15 @@
       "hours_approved": "Arbeitszeit bestätigt",
       "hours_rejected": "Arbeitszeit abgelehnt"
     },
+    "driverCard": {
+      "button": "Fahrerkarte",
+      "missing": "Fehlt",
+      "dueToday": "Heute",
+      "dueTomorrow": "1 Tag",
+      "dueDays": "{{count}} Tage",
+      "overdueDays": "-{{count}} T.",
+      "tooltip": "Nächster Termin für den Kartendownload: {{dueOn}}"
+    },
     "driver": {
       "inRoute": "Unterwegs",
       "courseLabel": "Kurs",
