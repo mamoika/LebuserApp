@@ -881,6 +881,7 @@
     "trolleyOccupiedCount": "Zajęte ({{count}})",
     "trolleyNoneAvailable": "Brak dostępnych wózków.",
     "trolleyDoneCount": "Gotowe ({{count}})",
+    "trolleyDoneEmpty": "Gotowe (bez wózka)",
     "trolleyChooseRequired": "Wybierz wózek",
     "trolleyManual": "Dodaj wózek ręcznie:",
     "trolleyPickPlaceholder": "Wybierz wózek…",

@@ -873,6 +873,7 @@
     "trolleyOccupiedCount": "Belegt ({{count}})",
     "trolleyNoneAvailable": "Keine verfügbaren Wagen.",
     "trolleyDoneCount": "Fertig ({{count}})",
+    "trolleyDoneEmpty": "Fertig (ohne Wagen)",
     "trolleyChooseRequired": "Wagen wählen",
     "trolleyManual": "Wagen manuell hinzufügen:",
     "trolleyPickPlaceholder": "Wagen wählen…",

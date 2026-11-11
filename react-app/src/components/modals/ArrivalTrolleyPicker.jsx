@@ -67,7 +67,7 @@ export default function ArrivalTrolleyPicker({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'returning' | 'free' | 'busy' | 'selected'
+  const [filterTab, setFilterTab] = useState('free'); // 'free' | 'all' | 'returning' | 'busy' | 'selected'
 
   useEffect(() => {
     let cancelled = false;
@@ -145,7 +145,7 @@ export default function ArrivalTrolleyPicker({
           return draftSelected.includes(no);
         }
         if (filterTab === 'free') {
-          return state === 'free';
+          return state !== 'busy';
         }
         if (filterTab === 'busy') return state === 'busy';
         return true;
@@ -171,7 +171,7 @@ export default function ArrivalTrolleyPicker({
     setDraftSelected(selected);
     setError('');
     setSearchQuery('');
-    setFilterTab('all');
+    setFilterTab('free');
     setPickerOpen(true);
   };
 
@@ -323,6 +323,13 @@ export default function ArrivalTrolleyPicker({
               <div className="live-trolley-filter-chips">
                 <button
                   type="button"
+                  className={`live-trolley-chip${filterTab === 'free' ? ' is-active' : ''}`}
+                  onClick={() => setFilterTab('free')}
+                >
+                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
+                </button>
+                <button
+                  type="button"
                   className={`live-trolley-chip${filterTab === 'all' ? ' is-active' : ''}`}
                   onClick={() => setFilterTab('all')}
                 >
@@ -338,13 +345,6 @@ export default function ArrivalTrolleyPicker({
                     {t('entry.trolleyAtClientCount', { count: returningTrolleys.length })}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className={`live-trolley-chip${filterTab === 'free' ? ' is-active' : ''}`}
-                  onClick={() => setFilterTab('free')}
-                >
-                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
-                </button>
                 {occupiedTrolleyCount > 0 && (
                   <button
                     type="button"
@@ -490,7 +490,7 @@ export default function ArrivalTrolleyPicker({
                 type="button"
                 className="live-trolley-picker-save-btn"
                 onClick={savePicker}
-                disabled={disabled || draftSelected.length === 0}
+                disabled={disabled}
               >
                 {draftSelected.length > 0 ? (
                   <>
@@ -498,7 +498,7 @@ export default function ArrivalTrolleyPicker({
                     <span>{t('entry.trolleyDoneCount', { count: draftSelected.length })}</span>
                   </>
                 ) : (
-                  <span>{t('entry.trolleyChooseRequired')}</span>
+                  <span>{t('entry.trolleyDoneEmpty')}</span>
                 )}
               </button>
             </div>
