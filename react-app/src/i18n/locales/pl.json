@@ -408,7 +408,7 @@
     "operationFailed": "Operacja nie powiodła się",
     "loading": "Ładowanie pralni…",
     "kicker": "Pralnia",
-    "title": "Plan prania i wózki",
+    "title": "Plan operacyjny",
     "subtitle": "{{date}} · pranie, pakowanie i gotowość dla kierowcy",
     "date": {
       "previous": "Poprzedni dzień",
@@ -433,7 +433,7 @@
     },
     "workflowWarning": "Nie mogę pobrać obiegu wózków. Jeśli migracja nie była jeszcze uruchomiona w Supabase, ekran pokaże listę prania, ale pakowanie będzie niedostępne. Szczegóły: {{message}}",
     "todayLaundry": "Dzisiejsze pranie",
-    "dayPlan": "Plan operacyjny · {{date}}",
+    "dayPlan": "Plan prania · {{date}}",
     "watchPoints_one": "{{count}} punkt do pilnowania",
     "watchPoints_few": "{{count}} punkty do pilnowania",
     "watchPoints_many": "{{count}} punktów do pilnowania",

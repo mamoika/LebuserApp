@@ -852,18 +852,7 @@ export default function WashView() {
         </div>
       )}
 
-      <section className="laundry-operations-overview" aria-labelledby="laundry-flow-title">
-        <div className="laundry-operations-head">
-          <div>
-            <span>{t('wash.flowOverview.eyebrow')}</span>
-            <h2 id="laundry-flow-title">{t('wash.flowOverview.title')}</h2>
-          </div>
-          <span className="laundry-operations-live">
-            <span aria-hidden="true" />
-            {t('wash.flowOverview.current')}
-          </span>
-        </div>
-
+      <section className="laundry-operations-overview" aria-label={t('wash.flowOverview.title')}>
         <div className="laundry-flow-metrics">
           <FlowMetric
             icon={WashingMachine}

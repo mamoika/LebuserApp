@@ -53,3 +53,13 @@ test('work rows count physical trolleys from arrivals and packing without counti
   assert.match(washView, /wash\.trolleysAssigned/);
   assert.match(washView, /group\.trolleyCount > 0/);
 });
+
+test('operational plan is primary header and laundry plan is detailed section without flow overview header banner', () => {
+  assert.equal(pl.wash.title, 'Plan operacyjny');
+  assert.equal(de.wash.title, 'Operativer Plan');
+  assert.match(pl.wash.dayPlan, /^Plan prania/);
+  assert.match(de.wash.dayPlan, /^Wäscheplan/);
+  assert.doesNotMatch(washView, /laundry-operations-head/);
+  assert.doesNotMatch(washView, /wash\.flowOverview\.eyebrow/);
+  assert.doesNotMatch(washView, /wash\.flowOverview\.current/);
+});
