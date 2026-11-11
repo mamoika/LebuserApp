@@ -25,14 +25,15 @@ import { useAppData } from '../hooks/useAppData';
 import TrolleysDashboardModal from './TrolleysDashboardModal';
 import {
   cancelLaundryTrolley,
+  deleteLaundryTrolley,
+  finishLaundryPacking,
   getLaundryWorkflow,
   markLaundryWashed,
   packLaundryTrolley,
   returnLaundryTrolley,
+  setTrolleyAtClient,
   undoReturnLaundryTrolley,
   unmarkLaundryWashed,
-  deleteLaundryTrolley,
-  setTrolleyAtClient,
   updateLaundryTrolleyKg,
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
@@ -229,8 +230,7 @@ function filterGroup(group, filterKey) {
 function isPackCandidate(group) {
   return group.stage !== 'ready'
     && group.pendingIds.length === 0
-    && group.washedIds.length > 0
-    && (group.hasKnownWeight ? group.remainingKg > 0 : true);
+    && group.washedIds.length > 0;
 }
 
 function isEntryIssuedToDriver(entry) {
@@ -483,11 +483,9 @@ export default function WashView() {
       const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
       const remainingKg = Math.max(0, totalKg - packedKg);
       const hasKnownWeight = totalKg > 0;
-      // Gdy waga nie jest jeszcze znana, "zostało 0 kg" nic nie mówi o realnym stanie —
-      // o gotowości decydują wtedy wyłącznie flagi na wpisach (ready/washed), a nie matematyka kg.
-      const groupReady = hasKnownWeight
-        ? (remainingKg <= 0.05 || ready.length === group.entries.length)
-        : ready.length === group.entries.length;
+      // O gotowości decydują flagi gotowości/spakowania na wpisach (laundry_ready_at / laundry_packed_at)
+      // ustawiane po zakończeniu pakowania („Zakończ pakowanie”).
+      const groupReady = ready.length === group.entries.length;
       const stage = groupReady
         ? 'ready'
         : pending.length > 0 && washed.length > 0
@@ -721,7 +719,7 @@ export default function WashView() {
     }
   };
 
-  const handlePackMulti = async (group, trolleyNos, kgByTrolley) => {
+  const handlePackMulti = async (group, trolleyNos, kgByTrolley, finish = true) => {
     if (!trolleyNos || trolleyNos.length === 0) {
       throw new Error(t('wash.validation.noTrolleys'));
     }
@@ -738,16 +736,25 @@ export default function WashView() {
       }
     }
 
-    // Waga znana z przyjazdu → dzielimy ją automatycznie na wózki jak dotychczas.
-    // Waga nieznana → kgByTrolley to realne kg zważone teraz przy pakowaniu (z modala).
+    // Waga znana z przyjazdu:
+    // - Jeśli finish = true (Zakończ pakowanie), brakującą wagę dzielimy na wybrane wózki
+    // - Jeśli finish = false (Kontynuuj pakowanie), użytkownik może podać kg lub używamy proporcji
     let kgFor;
     if (group.hasKnownWeight) {
-      const baseKg = Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10;
-      const totalBase = baseKg * (trolleyNos.length - 1);
-      const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
-      kgFor = (i) => (i === trolleyNos.length - 1) ? lastKg : baseKg;
+      const perTrolleyDefault = finish
+        ? Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10
+        : Math.min(Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10, 80);
+      const totalBase = perTrolleyDefault * (trolleyNos.length - 1);
+      const lastKgDefault = finish
+        ? Math.round((group.remainingKg - totalBase) * 10) / 10
+        : perTrolleyDefault;
+
+      kgFor = (i) => {
+        const custom = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
+        if (Number.isFinite(custom) && custom > 0) return custom;
+        return (i === trolleyNos.length - 1) ? lastKgDefault : perTrolleyDefault;
+      };
     } else {
-      // Kg opcjonalne przy nieznanej wadze — puste pole = 0, do uzupełnienia później.
       kgFor = (i) => {
         const kg = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
         return Number.isFinite(kg) && kg > 0 ? kg : 0;
@@ -758,12 +765,20 @@ export default function WashView() {
       setBusyKey(`pack:${group.key}`);
       for (let i = 0; i < trolleyNos.length; i++) {
         const kgValue = kgFor(i);
-        await packLaundryTrolley(sessionToken, group.washedIds, trolleyNos[i], kgValue, user?.name);
+        const isLast = i === trolleyNos.length - 1;
+        await packLaundryTrolley(
+          sessionToken,
+          group.washedIds,
+          trolleyNos[i],
+          kgValue,
+          user?.name,
+          isLast ? finish : false,
+        );
       }
-      if (trolleyNos.includes('brak')) {
-        toastSuccess(t('wash.messages.packedLoose', { client: group.clientName }));
+      if (finish) {
+        toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
       } else {
-        toastSuccess(t('wash.messages.packedTrolleys', { client: group.clientName, count: trolleyNos.length }));
+        toastSuccess(t('wash.messages.packingSavedInProgress', { client: group.clientName, count: trolleyNos.length }));
       }
       await Promise.all([refetch(), fetchWorkflow()]);
       setPackingGroup(null);
@@ -771,6 +786,21 @@ export default function WashView() {
       toastError(err.message || t('wash.messages.packError'));
       // Refetch anyway in case partial packing happened
       await Promise.all([refetch(), fetchWorkflow()]);
+    } finally {
+      setBusyKey('');
+    }
+  };
+
+  const handleFinishPacking = async (group) => {
+    setBusyKey(`pack:${group.key}`);
+    try {
+      const entryIds = group.entries?.map(e => e.id) || group.washedIds || [];
+      await finishLaundryPacking(sessionToken, entryIds, user?.name);
+      toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
+      await Promise.all([refetch(), fetchWorkflow()]);
+      setPackingGroup(null);
+    } catch (err) {
+      toastError(err.message || t('wash.messages.packError'));
     } finally {
       setBusyKey('');
     }
@@ -1614,6 +1644,8 @@ export default function WashView() {
           onClose={() => setPackingGroup(null)}
           onPack={handlePack}
           onPackMulti={handlePackMulti}
+          onFinishPacking={handleFinishPacking}
+          sessionToken={sessionToken}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}
         />
