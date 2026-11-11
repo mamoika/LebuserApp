@@ -26,9 +26,18 @@ test('new operational copy is complete in Polish and German', () => {
     assert.ok(locale.wash.date.next);
     assert.ok(locale.wash.date.choose);
     assert.ok(locale.wash.actions.washed);
+    assert.ok(locale.wash.trolleysAssigned_one);
   }
 
   assert.equal(pl.wash.actions.washed, 'Oznacz jako wyprane');
   assert.equal(de.wash.actions.washed, 'Als gewaschen markieren');
   assert.doesNotMatch(washView, /title="(?:Poprzedni dzień|Następny dzień|Wybierz datę)"/);
+});
+
+test('work rows count physical trolleys from arrivals and packing without counting loose issues', () => {
+  assert.match(washView, /arrivalReservations\s*\.filter\(reservation => entryIdSet\.has\(reservation\.entry_id\) && isRealTrolley\(reservation\)\)/);
+  assert.match(washView, /activeCycles\s*\.filter\(isRealTrolley\)/);
+  assert.match(washView, /trolleyCount: trolleyNos\.length/);
+  assert.match(washView, /wash\.trolleysAssigned/);
+  assert.match(washView, /group\.trolleyCount > 0/);
 });

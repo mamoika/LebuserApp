@@ -497,7 +497,14 @@ export default function WashView() {
             : packedKg > 0
               ? 'partial'
               : 'washed';
-      const trolleyNos = [...new Set(activeCycles.map(cycle => cycle.trolley_no).filter(Boolean))];
+      const packedTrolleyNos = activeCycles
+        .filter(isRealTrolley)
+        .map(cycle => String(cycle.trolley_no).trim());
+      const arrivalTrolleyNos = arrivalReservations
+        .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
+        .map(reservation => String(reservation.trolley_no).trim());
+      const trolleyNos = [...new Set([...arrivalTrolleyNos, ...packedTrolleyNos])]
+        .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b, 'pl'));
 
       return {
         ...group,
@@ -512,6 +519,7 @@ export default function WashView() {
         cycles: activeCycles,
         allCycles: groupCycles,
         issuedToDriver: group.entries.some(isEntryIssuedToDriver),
+        trolleyCount: trolleyNos.length,
         trolleyNo: trolleyNos.join(', '),
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
         packedAt: [
@@ -526,7 +534,7 @@ export default function WashView() {
       if (routeDiff) return routeDiff;
       return a.clientName.localeCompare(b.clientName, currentLocale());
     });
-  }, [clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
+  }, [arrivalReservations, clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
   // Tylko realne fizyczne wózki 1–40 (wykluczamy 'brak' pakowany bez wózka)
   const activeTrolleys = useMemo(
@@ -1304,6 +1312,14 @@ export default function WashView() {
                       <Scale size={12} />
                       <strong className="tabular-nums">{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</strong>
                     </span>
+                    {group.trolleyCount > 0 && (
+                      <span className="laundry-meta-chip is-trolleys">
+                        <Archive size={12} />
+                        <strong className="tabular-nums">
+                          {t('wash.trolleysAssigned', { count: group.trolleyCount, list: group.trolleyNo })}
+                        </strong>
+                      </span>
+                    )}
                     {group.washDate && (
                       <span className="laundry-meta-chip is-wash-date">
                         <Calendar size={12} />
@@ -1329,12 +1345,6 @@ export default function WashView() {
                     )}
                     {group.washedAt && <span className="laundry-meta-chip">{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
                     {group.packedAt && <span className="laundry-meta-chip">{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
-                    {group.trolleyNo && (
-                      <span className="laundry-meta-chip is-trolleys">
-                        <Archive size={12} />
-                        <span>{t('wash.trolleysList', { list: group.trolleyNo })}</span>
-                      </span>
-                    )}
                   </div>
                   
                   {group.hasKnownWeight && (

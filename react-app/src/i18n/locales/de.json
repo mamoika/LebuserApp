@@ -451,6 +451,8 @@
     "plannedWashDate": "Waschen: {{date}}",
     "plannedDepartureDate": "Abfahrt: {{date}}",
     "trolleysList": "Wagen {{list}}",
+    "trolleysAssigned_one": "{{count}} Wagen · Nr. {{list}}",
+    "trolleysAssigned_other": "{{count}} Wagen · Nr. {{list}}",
     "trolleyNumber": "Wagen {{number}}",
     "historyTitle": "Wagenverlauf und -plan",
     "fleetSummary": "{{free}} frei · {{active}} belegt · insgesamt {{total}}",
