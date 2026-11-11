@@ -26,12 +26,24 @@ test('new operational copy is complete in Polish and German', () => {
     assert.ok(locale.wash.date.next);
     assert.ok(locale.wash.date.choose);
     assert.ok(locale.wash.actions.washed);
+    assert.ok(locale.wash.actions.waitingForUnload);
+    assert.ok(locale.wash.locationStatus.inVehicle);
+    assert.ok(locale.wash.locationStatus.atLaundry);
+    assert.ok(locale.wash.messages.laundryStillInVehicle);
     assert.ok(locale.wash.trolleysAssigned_one);
   }
 
   assert.equal(pl.wash.actions.washed, 'Oznacz jako wyprane');
   assert.equal(de.wash.actions.washed, 'Als gewaschen markieren');
   assert.doesNotMatch(washView, /title="(?:Poprzedni dzień|Następny dzień|Wybierz datę)"/);
+});
+
+test('washing is blocked until the dirty laundry has returned from the vehicle', () => {
+  assert.match(washView, /arrivalEntryIds\.has\(entry\.id\) && !entry\.dirty_received_at/);
+  assert.match(washView, /canMarkWashed = hasWashRole && group\.pendingIds\.length > 0 && !group\.hasInTransitLaundry/);
+  assert.match(washView, /wash\.actions\.waitingForUnload/);
+  assert.match(washView, /wash\.locationStatus\.inVehicle/);
+  assert.match(washView, /wash\.locationStatus\.atLaundry/);
 });
 
 test('work rows count physical trolleys from arrivals and packing without counting loose issues', () => {

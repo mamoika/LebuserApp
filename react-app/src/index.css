@@ -7545,6 +7545,14 @@ select.ap-input {
   background: rgba(88, 86, 214, 0.09);
   color: #5856D6;
 }
+.laundry-work-meta .is-in-vehicle {
+  background: rgba(255, 149, 0, 0.11);
+  color: #A65300;
+}
+.laundry-work-meta .is-at-laundry {
+  background: rgba(52, 199, 89, 0.10);
+  color: #248A3D;
+}
 
 /* Trolley history opens in place, without forcing the operator below the 40-card fleet. */
 .fleet-history-backdrop {
@@ -7969,6 +7977,11 @@ select.ap-input {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+}
+.laundry-work-state.is-blocked {
+  border-color: rgba(255, 149, 0, 0.24);
+  background: rgba(255, 149, 0, 0.10);
+  color: #A65300;
 }
 .laundry-correction-menu {
   position: relative;

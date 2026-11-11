@@ -453,6 +453,10 @@
     "trolleysList": "Wagen {{list}}",
     "trolleysAssigned_one": "{{count}} Wagen · Nr. {{list}}",
     "trolleysAssigned_other": "{{count}} Wagen · Nr. {{list}}",
+    "locationStatus": {
+      "inVehicle": "Im Fahrzeug",
+      "atLaundry": "In der Wäscherei"
+    },
     "trolleyNumber": "Wagen {{number}}",
     "historyTitle": "Wagenverlauf und -plan",
     "fleetSummary": "{{free}} frei · {{active}} belegt · insgesamt {{total}}",
@@ -514,6 +518,7 @@
       "opening": "Öffnen…",
       "deleting": "Löschen…",
       "washed": "Als gewaschen markieren",
+      "waitingForUnload": "Warten auf Rückkehr und Entladung",
       "pack": "Packen",
       "packMore": "Weiterpacken",
       "ready": "Für Fahrer bereit",
@@ -542,6 +547,7 @@
       "invalidWeight": "Gültiges Gewicht eingeben"
     },
     "messages": {
+      "laundryStillInVehicle": "Das Waschen kann nicht gestartet werden — die Wäsche ist noch im Fahrzeug.",
       "markedWashed": "{{client}}: als gewaschen markiert",
       "unmarkedWashed": "{{client}}: Waschen rückgängig gemacht",
       "packedToTrolley": "{{client}}: {{weight}} in Wagen {{trolley}} gepackt",

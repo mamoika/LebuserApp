@@ -455,6 +455,10 @@
     "trolleysAssigned_few": "{{count}} wózki · nr {{list}}",
     "trolleysAssigned_many": "{{count}} wózków · nr {{list}}",
     "trolleysAssigned_other": "{{count}} wózka · nr {{list}}",
+    "locationStatus": {
+      "inVehicle": "W pojeździe",
+      "atLaundry": "Na pralni"
+    },
     "trolleyNumber": "wózek {{number}}",
     "historyTitle": "Historia i harmonogram wózków",
     "fleetSummary": "{{free}} wolne · {{active}} zajęte · razem {{total}}",
@@ -516,6 +520,7 @@
       "opening": "Otwieram…",
       "deleting": "Usuwam…",
       "washed": "Oznacz jako wyprane",
+      "waitingForUnload": "Oczekiwanie na powrót i rozładunek",
       "pack": "Pakuj",
       "packMore": "Dopakuj",
       "ready": "Gotowe dla kierowcy",
@@ -544,6 +549,7 @@
       "invalidWeight": "Podaj poprawną wagę"
     },
     "messages": {
+      "laundryStillInVehicle": "Nie można rozpocząć prania — pranie jest jeszcze w pojeździe.",
       "markedWashed": "{{client}}: oznaczono wyprane",
       "unmarkedWashed": "{{client}}: cofnięto wypranie",
       "packedToTrolley": "{{client}}: {{weight}} do wózka {{trolley}}",

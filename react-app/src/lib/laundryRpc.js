@@ -4,7 +4,11 @@ import { throwRpcError } from './rpcError';
 async function callLaundryRpc(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) throwRpcError(error, `${fn} failed`);
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) {
+    const rpcError = new Error(data.error);
+    rpcError.code = data.error_code || data.error;
+    throw rpcError;
+  }
   return data;
 }
 

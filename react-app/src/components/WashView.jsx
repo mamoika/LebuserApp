@@ -503,6 +503,14 @@ export default function WashView() {
       const arrivalTrolleyNos = arrivalReservations
         .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
         .map(reservation => String(reservation.trolley_no).trim());
+      const arrivalEntryIds = new Set(
+        arrivalReservations
+          .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
+          .map(reservation => reservation.entry_id),
+      );
+      const hasInTransitLaundry = group.entries.some(entry => (
+        arrivalEntryIds.has(entry.id) && !entry.dirty_received_at
+      ));
       const trolleyNos = [...new Set([...arrivalTrolleyNos, ...packedTrolleyNos])]
         .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b, 'pl'));
 
@@ -521,6 +529,8 @@ export default function WashView() {
         issuedToDriver: group.entries.some(isEntryIssuedToDriver),
         trolleyCount: trolleyNos.length,
         trolleyNo: trolleyNos.join(', '),
+        hasArrivalTrolleys: arrivalTrolleyNos.length > 0,
+        hasInTransitLaundry,
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
         packedAt: [
           ...group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean),
@@ -651,7 +661,9 @@ export default function WashView() {
       await action();
       await Promise.all([refetch(), fetchWorkflow()]);
     } catch (err) {
-      toastError(err.message || t('wash.operationFailed'));
+      toastError(err.code === 'laundry_not_at_laundry'
+        ? t('wash.messages.laundryStillInVehicle')
+        : err.message || t('wash.operationFailed'));
     } finally {
       setBusyKey('');
     }
@@ -1267,9 +1279,9 @@ export default function WashView() {
             const route = routeBadge(group.routeId, routeMap);
             const groupIssuedToDriver = group.issuedToDriver
               || group.allCycles.some(cycle => getCycleTransportState(cycle, entryById, t).isIssuedToDriver);
-            const canMarkWashed = hasWashRole && group.pendingIds.length > 0;
+            const canMarkWashed = hasWashRole && group.pendingIds.length > 0 && !group.hasInTransitLaundry;
             const canUnmarkWashed = hasWashRole && !groupIssuedToDriver && group.entries.some(entry => entry.washed);
-            const canPack = hasPackRole && isPackCandidate(group);
+            const canPack = hasPackRole && !group.hasInTransitLaundry && isPackCandidate(group);
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
@@ -1292,11 +1304,13 @@ export default function WashView() {
                   disabled: busyPack,
                 }
                 : null;
-            const waitingNote = !primaryAction && group.stage === 'ready'
-              ? t('wash.actions.ready')
-              : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
-                ? t('wash.actions.nothing')
-                : null;
+            const waitingNote = group.hasInTransitLaundry
+              ? t('wash.actions.waitingForUnload')
+              : !primaryAction && group.stage === 'ready'
+                ? t('wash.actions.ready')
+                : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
+                  ? t('wash.actions.nothing')
+                  : null;
 
 
             return (
@@ -1317,6 +1331,14 @@ export default function WashView() {
                         <Archive size={12} />
                         <strong className="tabular-nums">
                           {t('wash.trolleysAssigned', { count: group.trolleyCount, list: group.trolleyNo })}
+                        </strong>
+                      </span>
+                    )}
+                    {group.hasArrivalTrolleys && (
+                      <span className={`laundry-meta-chip ${group.hasInTransitLaundry ? 'is-in-vehicle' : 'is-at-laundry'}`}>
+                        {group.hasInTransitLaundry ? <Truck size={12} /> : <WashingMachine size={12} />}
+                        <strong>
+                          {t(group.hasInTransitLaundry ? 'wash.locationStatus.inVehicle' : 'wash.locationStatus.atLaundry')}
                         </strong>
                       </span>
                     )}
@@ -1382,8 +1404,8 @@ export default function WashView() {
                       <span>{primaryAction.label}</span>
                     </button>
                   ) : (
-                    <div className="laundry-work-state">
-                      {group.stage === 'ready' && <CheckCircle2 size={15} />}
+                    <div className={`laundry-work-state ${group.hasInTransitLaundry ? 'is-blocked' : ''}`}>
+                      {group.hasInTransitLaundry ? <Truck size={15} /> : group.stage === 'ready' && <CheckCircle2 size={15} />}
                       <span>{waitingNote}</span>
                     </div>
                   )}
