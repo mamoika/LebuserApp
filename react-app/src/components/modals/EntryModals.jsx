@@ -565,7 +565,18 @@ export function printSavedLaundryReceipt(row, printedBy) {
   printLaundryReceipt({ receipt: draft, printedBy });
 }
 
-export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients, routes, onAdded, defaultClientName, defaultType }) {
+export function AddEntryModal({
+  isOpen,
+  onClose,
+  defaultArrDay,
+  weekKey,
+  clients,
+  routes,
+  onAdded,
+  defaultClientName,
+  defaultType,
+  laundryPlannedDate = null,
+}) {
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const [clientName, setClientName] = useState('');
@@ -684,7 +695,8 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
       // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
       // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
       const newEntryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const { data, error } = await supabase.rpc('admin_insert_entry', {
+      const rpcName = laundryPlannedDate ? 'admin_add_laundry_plan_entry' : 'admin_insert_entry';
+      const rpcArgs = {
         p_session_token: sessionToken,
         p_id: newEntryId,
         p_week_key: resolvedWeekKey,
@@ -699,7 +711,9 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
         p_arrival_trolley_nos: trolleyData.arrival_trolley_nos,
         p_urgent: urgent,
         p_added_by: user.name,
-      });
+      };
+      if (laundryPlannedDate) rpcArgs.p_planned_date = laundryPlannedDate;
+      const { data, error } = await supabase.rpc(rpcName, rpcArgs);
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

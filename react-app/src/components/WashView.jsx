@@ -27,7 +27,6 @@ import {
   cancelLaundryTrolley,
   finishLaundryPacking,
   getLaundryWorkflow,
-  addLaundryPlanEntry,
   markLaundryWashed,
   packLaundryTrolley,
   undoReturnLaundryTrolley,
@@ -36,16 +35,11 @@ import {
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 import PackingModal from './modals/PackingModal';
-import { ViewEditEntryModal } from './modals/EntryModals';
+import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
 import { calculateLaundryDayMetrics, effectiveLaundryWashDate, laundryBatchKey } from '../lib/laundryDayPlan';
-import {
-  firstAllowedLaundryType,
-  laundryCategoriesForClient,
-  laundryTypeLabel,
-} from '../lib/laundryCategories';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -94,6 +88,14 @@ function addDays(dateStr, days) {
   const dt = new Date(`${dateStr}T00:00:00`);
   dt.setDate(dt.getDate() + days);
   return ymd(dt);
+}
+
+function dateToWeekSlot(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = ((date.getDay() + 6) % 7) + 1;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - (day - 1));
+  return { day, weekKey: ymd(monday) };
 }
 
 function parseMonday(weekKey) {
@@ -341,145 +343,6 @@ function StagePill({ stage }) {
   );
 }
 
-function ManualLaundryPlanModal({ selectedDate, clients, routes, sessionToken, onAdded, onClose }) {
-  const { t } = useTranslation();
-  const sortedRoutes = useMemo(
-    () => [...routes].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999)),
-    [routes],
-  );
-  const availableClients = useMemo(
-    () => clients.filter(client => client.route_id && !client.archived_at),
-    [clients],
-  );
-  const firstClient = useMemo(() => {
-    for (const route of sortedRoutes) {
-      const client = availableClients
-        .filter(item => item.route_id === route.id)
-        .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))[0];
-      if (client) return client;
-    }
-    return availableClients[0] || null;
-  }, [availableClients, sortedRoutes]);
-  const [clientName, setClientName] = useState(firstClient?.name || '');
-  const [type, setType] = useState(() => firstAllowedLaundryType(firstClient, routes) || '');
-  const [weight, setWeight] = useState('');
-  const [urgent, setUrgent] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const selectedClient = availableClients.find(client => client.name === clientName) || firstClient;
-  const allowedTypes = laundryCategoriesForClient(selectedClient, routes);
-
-  const changeClient = (name) => {
-    const client = availableClients.find(item => item.name === name);
-    setClientName(name);
-    setType(firstAllowedLaundryType(client, routes) || '');
-  };
-
-  const handleSubmit = async event => {
-    event.preventDefault();
-    const normalizedWeight = String(weight).trim().replace(',', '.');
-    const parsedWeight = normalizedWeight === '' ? null : Number(normalizedWeight);
-    if (!selectedClient || !type) {
-      toastError(t('wash.manualPlan.validationClient'));
-      return;
-    }
-    if (parsedWeight !== null && (!Number.isFinite(parsedWeight) || parsedWeight < 0)) {
-      toastError(t('wash.manualPlan.validationWeight'));
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const id = `LP_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-      await addLaundryPlanEntry(sessionToken, {
-        id,
-        plannedDate: selectedDate,
-        clientName: selectedClient.name,
-        type,
-        weight: parsedWeight,
-        urgent,
-      });
-      toastSuccess(t('wash.manualPlan.added', { client: selectedClient.name }));
-      await onAdded();
-      onClose();
-    } catch (error) {
-      toastError(`${t('wash.manualPlan.addError')}: ${error.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={onClose}>
-      <section
-        className="ap-sheet laundry-manual-plan-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="laundry-manual-plan-title"
-        onPointerDown={event => event.stopPropagation()}
-      >
-        <div className="ap-handle" />
-        <form className="ap-content" onSubmit={handleSubmit}>
-          <div className="laundry-manual-plan-head">
-            <span className="laundry-manual-plan-icon"><Plus size={20} aria-hidden="true" /></span>
-            <div>
-              <span>{t('wash.manualPlan.kicker')}</span>
-              <h2 id="laundry-manual-plan-title">{t('wash.manualPlan.title')}</h2>
-              <p>{t('wash.manualPlan.date', { date: formatDate(selectedDate) })}</p>
-            </div>
-          </div>
-
-          <label className="laundry-manual-plan-field">
-            <span>{t('entry.client')}</span>
-            <select className="ap-input" value={clientName} onChange={event => changeClient(event.target.value)}>
-              {sortedRoutes.map((route, index) => {
-                const routeClients = availableClients
-                  .filter(client => client.route_id === route.id)
-                  .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
-                if (!routeClients.length) return null;
-                return (
-                  <optgroup key={route.id} label={`T${index + 1} — ${route.name}`}>
-                    {routeClients.map(client => <option key={client.id} value={client.name}>{client.name}</option>)}
-                  </optgroup>
-                );
-              })}
-            </select>
-          </label>
-
-          <fieldset className="laundry-manual-plan-types">
-            <legend>{t('entry.laundryType')}</legend>
-            <div>
-              {allowedTypes.map(code => (
-                <label key={code} className={type === code ? 'is-selected' : ''}>
-                  <input type="radio" name="manual-laundry-type" value={code} checked={type === code} onChange={() => setType(code)} />
-                  <strong>{code}</strong>
-                  <span>{laundryTypeLabel(code, t)}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <label className="laundry-manual-plan-field">
-            <span>{t('wash.manualPlan.weight')}</span>
-            <input className="ap-input" inputMode="decimal" value={weight} onChange={event => setWeight(event.target.value)} placeholder={t('wash.manualPlan.weightPlaceholder')} />
-          </label>
-
-          <label className="laundry-manual-plan-urgent">
-            <input type="checkbox" checked={urgent} onChange={event => setUrgent(event.target.checked)} />
-            <span>{t('entry.urgent')}</span>
-          </label>
-
-          <div className="ap-btn-group laundry-manual-plan-actions">
-            <button type="submit" className="ap-btn ap-btn-primary" disabled={saving || !selectedClient || !type}>
-              {saving ? t('common.saving') : t('wash.manualPlan.add')}
-            </button>
-            <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
 function LaundryEntryPicker({ group, onSelect, onClose }) {
   const { t } = useTranslation();
 
@@ -547,6 +410,8 @@ export default function WashView() {
   const [entryPickerGroup, setEntryPickerGroup] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
   const [manualPlanOpen, setManualPlanOpen] = useState(false);
+  const manualPlanSlot = useMemo(() => dateToWeekSlot(selectedDate), [selectedDate]);
+  const canAddOnSelectedDate = manualPlanSlot.day <= 6;
 
   const canEditWash = canEditModule('wash');
   const hasWashRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker);
@@ -1047,7 +912,13 @@ export default function WashView() {
             </button>
           </div>
           {isAdmin && (
-            <button type="button" className="laundry-add-plan-btn" onClick={() => setManualPlanOpen(true)}>
+            <button
+              type="button"
+              className="laundry-add-plan-btn"
+              onClick={() => setManualPlanOpen(true)}
+              disabled={!canAddOnSelectedDate}
+              title={!canAddOnSelectedDate ? t('wash.manualPlan.sundayUnavailable') : undefined}
+            >
               <Plus size={15} aria-hidden="true" />
               <span>{t('wash.manualPlan.open')}</span>
             </button>
@@ -1395,11 +1266,13 @@ export default function WashView() {
       )}
 
       {manualPlanOpen && (
-        <ManualLaundryPlanModal
-          selectedDate={selectedDate}
-          clients={clients}
+        <AddEntryModal
+          isOpen
+          defaultArrDay={manualPlanSlot.day}
+          weekKey={manualPlanSlot.weekKey}
+          laundryPlannedDate={selectedDate}
+          clients={clients.filter(client => client.route_id && !client.archived_at)}
           routes={routes}
-          sessionToken={sessionToken}
           onAdded={refreshAll}
           onClose={() => setManualPlanOpen(false)}
         />

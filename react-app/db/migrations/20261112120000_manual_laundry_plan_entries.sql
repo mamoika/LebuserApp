@@ -1,118 +1,83 @@
--- Administrator może dodać ręczną pozycję bezpośrednio do planu Pralni.
--- Jawna data ma pierwszeństwo przed datą wyliczaną z przyjazdu i wyjazdu,
--- ale nie zmienia zachowania istniejących wpisów (NULL = dotychczasowa reguła).
+-- Administrator dodaje pozycję do planu Pralni tym samym pełnym formularzem,
+-- którego używa kierowca. Jawna data prania ma pierwszeństwo przed datą
+-- wyliczaną z przyjazdu i wyjazdu; NULL zachowuje dotychczasową regułę.
 
 alter table public.entries
   add column if not exists laundry_planned_date date;
+
+-- Usuwa pierwszy, uproszczony wariant RPC, jeśli zdążył trafić na środowisko.
+drop function if exists public.admin_add_laundry_plan_entry(
+  text, text, date, text, text, numeric, boolean
+);
 
 create or replace function public.admin_add_laundry_plan_entry(
   p_session_token text,
   p_id text,
   p_planned_date date,
+  p_week_key text,
   p_client_name text,
+  p_arr_day integer,
+  p_pick_day integer,
+  p_pick_week_key text,
+  p_route_id integer,
   p_type text,
   p_weight numeric default null,
-  p_urgent boolean default false
+  p_trolleys integer default 1,
+  p_urgent boolean default false,
+  p_added_by text default null,
+  p_arrival_trolley_nos text default null
 )
 returns json
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public, private, extensions
 as $$
 declare
-  v_admin_id uuid;
-  v_admin_name text;
-  v_route_id integer;
-  v_arr_day integer;
-  v_pick_date date;
-  v_pick_day integer;
-  v_week_key text;
-  v_pick_week_key text;
+  v_result json;
 begin
-  v_admin_id := public.require_admin(p_session_token);
+  perform public.require_admin(p_session_token);
 
-  if nullif(trim(coalesce(p_id, '')), '') is null then
-    return json_build_object('error', 'Brak id wpisu');
-  end if;
   if p_planned_date is null then
     return json_build_object('error', 'Wybierz dzień prania');
   end if;
   if extract(isodow from p_planned_date)::integer = 7 then
     return json_build_object('error', 'Niedziela nie jest dniem operacyjnym pralni');
   end if;
-  if p_weight is not null and p_weight < 0 then
-    return json_build_object('error', 'Waga nie może być ujemna');
-  end if;
 
-  select name into v_admin_name
-  from public.session_user(p_session_token)
-  limit 1;
-  select route_id into v_route_id
-  from public.clients
-  where name = nullif(trim(coalesce(p_client_name, '')), '')
-    and archived_at is null
-  limit 1;
-
-  if v_route_id is null then
-    return json_build_object('error', 'Nie znaleziono aktywnego klienta');
-  end if;
-
-  v_arr_day := extract(isodow from p_planned_date)::integer;
-  v_pick_date := case
-    when v_arr_day = 6 then p_planned_date + 2
-    else p_planned_date + 1
-  end;
-  v_pick_day := extract(isodow from v_pick_date)::integer;
-  v_week_key := to_char(date_trunc('week', p_planned_date)::date, 'YYYY-MM-DD');
-  v_pick_week_key := to_char(date_trunc('week', v_pick_date)::date, 'YYYY-MM-DD');
-
-  insert into public.entries (
-    id,
-    week_key,
-    client_name,
-    arr_day,
-    pick_day,
-    pick_week_key,
-    route_id,
-    type,
-    weight,
-    arrival_gross_kg,
-    arrival_tare_kg,
-    trolleys,
-    urgent,
-    added_by,
-    laundry_planned_date,
-    laundry_status
-  ) values (
-    p_id,
-    v_week_key,
-    trim(p_client_name),
-    v_arr_day,
-    v_pick_day,
-    v_pick_week_key,
-    v_route_id,
-    coalesce(nullif(trim(coalesce(p_type, '')), ''), 'P'),
-    p_weight,
-    p_weight,
-    0,
-    0,
-    coalesce(p_urgent, false),
-    coalesce(nullif(trim(coalesce(v_admin_name, '')), ''), 'Administrator'),
-    p_planned_date,
-    'pending'
+  v_result := public.admin_insert_entry(
+    p_session_token => p_session_token,
+    p_id => p_id,
+    p_week_key => p_week_key,
+    p_client_name => p_client_name,
+    p_arr_day => p_arr_day,
+    p_pick_day => p_pick_day,
+    p_pick_week_key => p_pick_week_key,
+    p_route_id => p_route_id,
+    p_type => p_type,
+    p_weight => p_weight,
+    p_trolleys => p_trolleys,
+    p_urgent => p_urgent,
+    p_added_by => p_added_by,
+    p_arrival_trolley_nos => p_arrival_trolley_nos
   );
 
-  return json_build_object(
-    'ok', true,
-    'id', p_id,
-    'planned_date', p_planned_date,
-    'client_name', trim(p_client_name),
-    'weight', p_weight
-  );
+  if v_result->>'error' is not null then
+    return v_result;
+  end if;
+
+  update public.entries
+  set laundry_planned_date = p_planned_date
+  where id = p_id;
+
+  return (v_result::jsonb || jsonb_build_object('planned_date', p_planned_date))::json;
 end;
 $$;
 
-revoke all on function public.admin_add_laundry_plan_entry(text, text, date, text, text, numeric, boolean)
-  from public;
-grant execute on function public.admin_add_laundry_plan_entry(text, text, date, text, text, numeric, boolean)
-  to anon, authenticated;
+revoke all on function public.admin_add_laundry_plan_entry(
+  text, text, date, text, text, integer, integer, text, integer, text,
+  numeric, integer, boolean, text, text
+) from public;
+grant execute on function public.admin_add_laundry_plan_entry(
+  text, text, date, text, text, integer, integer, text, integer, text,
+  numeric, integer, boolean, text, text
+) to anon, authenticated;

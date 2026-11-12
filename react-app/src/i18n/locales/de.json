@@ -466,16 +466,7 @@
     "editEntriesDescription": "Diese Karte enthält mehrere Einträge. Wählen Sie die Wäscheart, die Sie korrigieren möchten.",
     "manualPlan": {
       "open": "Wäsche hinzufügen",
-      "kicker": "Manueller Plan",
-      "title": "Wäsche hinzufügen",
-      "date": "Waschtag: {{date}}",
-      "weight": "Wäschegewicht (kg, optional)",
-      "weightPlaceholder": "z. B. 120",
-      "add": "Zum Plan hinzufügen",
-      "added": "Wäsche hinzugefügt für: {{client}}",
-      "addError": "Wäsche konnte nicht hinzugefügt werden",
-      "validationClient": "Kunde und Wäscheart auswählen",
-      "validationWeight": "Das Gewicht muss eine gültige Zahl größer oder gleich null sein"
+      "sundayUnavailable": "Sonntag ist kein Betriebstag der Wäscherei"
     },
     "fleetSummary": "{{free}} frei · {{active}} belegt · insgesamt {{total}}",
     "noTrolleyHistory": "Kein Wagenverlauf.",

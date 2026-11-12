@@ -468,16 +468,7 @@
     "editEntriesDescription": "Ta karta zawiera kilka wpisów. Wybierz rodzaj prania, który chcesz poprawić.",
     "manualPlan": {
       "open": "Dodaj pranie",
-      "kicker": "Ręczny plan",
-      "title": "Dodaj pranie",
-      "date": "Dzień prania: {{date}}",
-      "weight": "Waga prania (kg, opcjonalnie)",
-      "weightPlaceholder": "np. 120",
-      "add": "Dodaj do planu",
-      "added": "Dodano pranie dla: {{client}}",
-      "addError": "Nie udało się dodać prania",
-      "validationClient": "Wybierz klienta i rodzaj prania",
-      "validationWeight": "Waga musi być poprawną liczbą większą lub równą zero"
+      "sundayUnavailable": "Niedziela nie jest dniem operacyjnym pralni"
     },
     "fleetSummary": "{{free}} wolne · {{active}} zajęte · razem {{total}}",
     "noTrolleyHistory": "Brak historii wózków.",
