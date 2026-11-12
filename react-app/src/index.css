@@ -6833,6 +6833,10 @@ select.ap-input {
 .laundry-date-nav {
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
+  width: 300px;
+  min-width: 300px;
+  box-sizing: border-box;
   padding: 3px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 14px;
@@ -6859,8 +6863,11 @@ select.ap-input {
 .laundry-date-picker-label {
   position: relative;
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: center;
   gap: 7px;
+  min-width: 0;
   padding: 0 10px;
   height: 40px;
   border-radius: 10px;
@@ -8645,6 +8652,7 @@ select.ap-input {
     width: 100%;
   }
   .laundry-date-nav {
+    min-width: 0;
     justify-content: space-between;
   }
   .laundry-flow-metrics {
