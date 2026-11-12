@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getArrivalTrolleyReservations, getLaundryWorkflow } from '../../lib/laundryRpc';
-import { trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
+import { trolleysAtClient, trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
 import './ArrivalTrolleyPicker.css';
@@ -67,7 +67,7 @@ export default function ArrivalTrolleyPicker({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState('free'); // 'free' | 'all' | 'returning' | 'busy' | 'selected'
+  const [filterTab, setFilterTab] = useState(() => purpose === 'pack' ? 'free' : 'returning');
 
   useEffect(() => {
     let cancelled = false;
@@ -123,13 +123,9 @@ export default function ArrivalTrolleyPicker({
   );
 
   const returningTrolleys = useMemo(
-    () => {
-      if (purpose === 'pack') return [];
-      return trolleyNumbers.filter(no => {
-        const active = effectiveActiveTrolleyByNo.get(no.toLowerCase());
-        return active?.status === 'at_client' && active.client_name === clientName;
-      });
-    },
+    () => purpose === 'pack'
+      ? []
+      : trolleysAtClient(trolleyNumbers, effectiveActiveTrolleyByNo, clientName),
     [purpose, trolleyNumbers, effectiveActiveTrolleyByNo, clientName]
   );
 
@@ -139,19 +135,19 @@ export default function ArrivalTrolleyPicker({
         if (searchQuery.trim() && !no.includes(searchQuery.trim())) return false;
         const state = trolleyCellState(no, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo);
         if (filterTab === 'returning') {
-          return state === 'returning';
+          return returningTrolleys.includes(no);
         }
         if (filterTab === 'selected') {
           return draftSelected.includes(no);
         }
         if (filterTab === 'free') {
-          return state !== 'busy';
+          return state === 'free' || state === 'selected';
         }
         if (filterTab === 'busy') return state === 'busy';
         return true;
       });
     },
-    [trolleyNumbers, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo, searchQuery, filterTab],
+    [trolleyNumbers, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo, returningTrolleys, searchQuery, filterTab],
   );
 
   const availableTrolleyCount = useMemo(() => visibleArrivalTrolleyNumbers(
@@ -166,12 +162,16 @@ export default function ArrivalTrolleyPicker({
     trolleyCellState(no, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'busy'
   )).length, [trolleyNumbers, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo]);
 
+  const otherAvailableTrolleyCount = useMemo(() => trolleyNumbers.filter(no => (
+    trolleyCellState(no, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'free'
+  )).length, [trolleyNumbers, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo]);
+
   const openPicker = () => {
     setLoading(true);
     setDraftSelected(selected);
     setError('');
     setSearchQuery('');
-    setFilterTab('free');
+    setFilterTab(purpose === 'pack' ? 'free' : 'returning');
     setPickerOpen(true);
   };
 
@@ -226,6 +226,7 @@ export default function ArrivalTrolleyPicker({
         return;
       }
       toggleTrolley(no);
+      if (purpose !== 'pack' && !returningTrolleys.includes(no)) setFilterTab('selected');
     },
   });
 
@@ -312,7 +313,13 @@ export default function ArrivalTrolleyPicker({
                   className="live-trolley-search-input"
                   placeholder={t('entry.trolleySearchPlaceholder')}
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => {
+                    const nextQuery = e.target.value;
+                    setSearchQuery(nextQuery);
+                    if (purpose !== 'pack' && nextQuery.trim() && filterTab === 'returning') {
+                      setFilterTab('free');
+                    }
+                  }}
                 />
                 {searchQuery && (
                   <button type="button" className="live-trolley-search-clear" onClick={() => setSearchQuery('')}>
@@ -321,12 +328,23 @@ export default function ArrivalTrolleyPicker({
                 )}
               </div>
               <div className="live-trolley-filter-chips">
+                {purpose !== 'pack' && (
+                  <button
+                    type="button"
+                    className={`live-trolley-chip is-client${filterTab === 'returning' ? ' is-active' : ''}`}
+                    onClick={() => { setFilterTab('returning'); setSearchQuery(''); }}
+                  >
+                    {t('entry.trolleyAtClientCount', { count: returningTrolleys.length })}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`live-trolley-chip${filterTab === 'free' ? ' is-active' : ''}`}
                   onClick={() => setFilterTab('free')}
                 >
-                  {t('entry.trolleyAvailableCount', { count: availableTrolleyCount })}
+                  {purpose === 'pack'
+                    ? t('entry.trolleyAvailableCount', { count: availableTrolleyCount })
+                    : t('entry.trolleyOtherAvailableCount', { count: otherAvailableTrolleyCount })}
                 </button>
                 <button
                   type="button"
@@ -335,16 +353,6 @@ export default function ArrivalTrolleyPicker({
                 >
                   {t('entry.trolleyAllCount', { count: trolleyNumbers.length })}
                 </button>
-                {returningTrolleys.length > 0 && (
-                  <button
-                    type="button"
-                    className={`live-trolley-chip${filterTab === 'returning' ? ' is-active' : ''}`}
-                    onClick={() => setFilterTab('returning')}
-                    style={filterTab === 'returning' ? {} : { color: '#248A3D', borderColor: 'rgba(52,199,89,0.3)' }}
-                  >
-                    {t('entry.trolleyAtClientCount', { count: returningTrolleys.length })}
-                  </button>
-                )}
                 {occupiedTrolleyCount > 0 && (
                   <button
                     type="button"
@@ -372,15 +380,15 @@ export default function ArrivalTrolleyPicker({
                 </div>
               ) : (
                 <>
-                  {/* Sugerowane wózki u klienta */}
-                  {returningTrolleys.length > 0 && filterTab === 'all' && !searchQuery && (
+                  {/* Najpierw fizyczny stan klienta; pełna lista jest korektą awaryjną. */}
+                  {purpose !== 'pack' && filterTab === 'returning' && !searchQuery && (
                     <div className="live-arrival-trolley-returning">
                       <div className="live-arrival-trolley-returning-head">
                         <div className="live-arrival-trolley-returning-label">
                           <Sparkles size={13} />
                           <span>{t('entry.trolleyReturningFromClient')}</span>
                         </div>
-                        {returningTrolleys.some(no => !draftSelected.includes(no)) ? (
+                        {returningTrolleys.length > 0 && returningTrolleys.some(no => !draftSelected.includes(no)) ? (
                           <button
                             type="button"
                             className="live-arrival-trolley-select-all"
@@ -388,24 +396,22 @@ export default function ArrivalTrolleyPicker({
                           >
                             {t('entry.trolleySelectAll', { count: returningTrolleys.length })}
                           </button>
-                        ) : (
+                        ) : returningTrolleys.length > 0 ? (
                           <span style={{ fontSize: '11px', color: '#248A3D', fontWeight: 600 }}>{t('entry.trolleyAllSelected')} ✓</span>
-                        )}
+                        ) : null}
                       </div>
-                      <div className="live-arrival-trolley-returning-row">
-                        {returningTrolleys.map(no => (
-                          <button
-                            key={no}
-                            type="button"
-                            className={`live-arrival-trolley-return-btn${draftSelected.includes(no) ? ' is-selected' : ''}`}
-                            onClick={() => toggleTrolley(no)}
-                            disabled={disabled}
-                          >
-                            {draftSelected.includes(no) && <Check size={14} />}
-                            {no}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="live-arrival-trolley-returning-copy">
+                        {returningTrolleys.length > 0
+                          ? t('entry.trolleyAtClientHint', { client: clientName })
+                          : t('entry.trolleyAtClientEmpty', { client: clientName })}
+                      </p>
+                      <button
+                        type="button"
+                        className="live-arrival-trolley-add-other"
+                        onClick={() => setFilterTab('free')}
+                      >
+                        {t('entry.trolleyAddOther')}
+                      </button>
                     </div>
                   )}
 
@@ -436,7 +442,7 @@ export default function ArrivalTrolleyPicker({
                         );
                       })}
                     </div>
-                  ) : (
+                  ) : filterTab === 'returning' ? null : (
                     <div className="live-arrival-trolley-none">
                       {searchQuery || filterTab !== 'all'
                         ? t('entry.trolleyNoSearchResults')

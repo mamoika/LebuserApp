@@ -194,6 +194,17 @@
   border-color: #1c1c1e;
 }
 
+.live-trolley-chip.is-client:not(.is-active) {
+  border-color: rgba(52, 199, 89, 0.3);
+  background: rgba(52, 199, 89, 0.08);
+  color: #248a3d;
+}
+
+.live-trolley-chip.is-client.is-active {
+  border-color: #248a3d;
+  background: #248a3d;
+}
+
 /* Przewijany obszar zawartości */
 .live-trolley-picker-content {
   flex: 1 1 auto;
@@ -241,6 +252,44 @@
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.live-arrival-trolley-returning-copy {
+  margin: 0;
+  color: #3a6b47;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.live-arrival-trolley-add-other {
+  min-height: 44px;
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid rgba(36, 138, 61, 0.25);
+  border-radius: 11px;
+  background: #ffffff;
+  color: #248a3d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.live-arrival-trolley-add-other:hover {
+  border-color: rgba(36, 138, 61, 0.45);
+  background: rgba(52, 199, 89, 0.08);
+}
+
+.live-arrival-trolley-add-other:active {
+  transform: scale(0.99);
+}
+
+.live-arrival-trolley-add-other:focus-visible,
+.live-trolley-chip:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
 }
 
 .live-arrival-trolley-select-all {

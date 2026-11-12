@@ -32,3 +32,14 @@ export function visibleArrivalTrolleyNumbers(
     trolleyCellState(no, selected, activeTrolleyByNo, clientName, reservedTrolleyByNo) !== 'busy'
   ));
 }
+
+export function trolleysAtClient(
+  trolleyNumbers = [],
+  activeTrolleyByNo = new Map(),
+  clientName = '',
+) {
+  return trolleyNumbers.filter(no => {
+    const active = activeTrolleyByNo.get(String(no).toLowerCase());
+    return active?.status === 'at_client' && active.client_name === clientName;
+  });
+}

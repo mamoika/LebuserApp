@@ -36,9 +36,13 @@ test('every arrival picker receives the exact dirty-arrival date', () => {
   assert.match(planPickupSource, /arrivalDate=\{draft\.dirtyDate\}/);
 });
 
-test('trolley picker opens on free trolleys by default and allows saving zero trolleys', () => {
-  assert.match(pickerSource, /useState\('free'\)/);
-  assert.match(pickerSource, /setFilterTab\('free'\)/);
+test('pickup opens on trolleys at the client while packing still opens on free trolleys', () => {
+  assert.match(pickerSource, /purpose === 'pack' \? 'free' : 'returning'/);
+  assert.match(pickerSource, /t\('entry\.trolleyAtClientCount'/);
+  assert.match(pickerSource, /t\('entry\.trolleyAddOther'/);
+});
+
+test('trolley picker allows saving zero trolleys', () => {
   assert.match(pickerSource, /t\('entry\.trolleyDoneEmpty'\)/);
   assert.match(pickerSource, /disabled=\{disabled\}/);
   assert.doesNotMatch(pickerSource, /disabled=\{disabled \|\| draftSelected\.length === 0\}/);
