@@ -24,3 +24,21 @@ test('keeps planned wash, actual wash and clean departure as separate daily weig
     { plannedKg: 385, washedKg: 385, departureKg: 267 },
   );
 });
+
+test('does not count completed entries that are hidden from the laundry work list', () => {
+  const entries = [
+    {
+      id: 'completed',
+      done: true,
+      weight: 267,
+      washDate: '2026-11-05',
+      departureDate: '2026-11-06',
+      washed_at: '2026-11-05T12:00:00+01:00',
+    },
+  ];
+
+  assert.deepEqual(
+    calculateLaundryDayMetrics(entries, '2026-11-05', entry => entry.washDate, entry => entry.departureDate),
+    { plannedKg: 0, washedKg: 0, departureKg: 0 },
+  );
+});
