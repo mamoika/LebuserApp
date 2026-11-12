@@ -677,6 +677,10 @@
   "schedule": {
     "loadingData": "Daten werden geladen…",
     "errorPrefix": "Fehler:",
+    "overviewKicker": "Zeitplan",
+    "overviewTitle": "Wochenplan",
+    "overviewDescription": "Übersicht über Ankünfte, Wäsche und Auslieferungen für zwei Wochen.",
+    "readOnly": "Nur Ansicht",
     "twoWeekView": "2-Wochen-Ansicht",
     "mobileRange": "Tagesbereich des Plans",
     "rangeTwoDays": "2 Tage",
@@ -696,6 +700,10 @@
     "metricPickup": "Zum Kunden",
     "secArrival": "Abholung vom Kunden",
     "secPickup": "Lieferung zum Kunden",
+    "statusToWash": "Zu waschen",
+    "statusToPack": "Zu verpacken",
+    "statusReady": "Bereit",
+    "statusPickedUp": "Abgeholt",
     "addArrival": "+ Ankunft hinzufügen"
   },
   "tunnel": {

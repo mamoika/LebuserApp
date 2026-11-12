@@ -683,6 +683,10 @@
   "schedule": {
     "loadingData": "Ładowanie danych…",
     "errorPrefix": "Błąd:",
+    "overviewKicker": "Harmonogram",
+    "overviewTitle": "Plan tygodnia",
+    "overviewDescription": "Podgląd przyjazdów, prania i wyjazdów w ciągu dwóch tygodni.",
+    "readOnly": "Tylko podgląd",
     "twoWeekView": "Widok 2 tygodni",
     "mobileRange": "Zakres dni harmonogramu",
     "rangeTwoDays": "2 dni",
@@ -702,6 +706,10 @@
     "metricPickup": "Do klienta",
     "secArrival": "Przywóz od klienta",
     "secPickup": "Wywóz do klienta",
+    "statusToWash": "Do prania",
+    "statusToPack": "Do pakowania",
+    "statusReady": "Gotowe",
+    "statusPickedUp": "Odebrane",
     "addArrival": "+ dodaj przyjazd"
   },
   "tunnel": {

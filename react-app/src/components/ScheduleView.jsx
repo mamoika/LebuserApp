@@ -6,11 +6,7 @@ import DataError from './DataError';
 import { getCurrentMonday, formatWeekKey, dayNamesFull, operationalDate } from '../lib/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { routeBadgeStyle } from '../lib/visualSystem';
-import { supabase } from '../lib/supabaseClient';
-import { getScheduleDriverTrips } from '../lib/driverTripsRpc';
-import { VEHICLE_LABELS } from '../lib/vehicles';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
-import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -47,37 +43,6 @@ function formatDate(date) {
   const d = String(date.getDate()).padStart(2, '0');
   const m = String(date.getMonth() + 1).padStart(2, '0');
   return `${d}.${m}`;
-}
-
-function parseRouteIds(routesStr) {
-  return new Set(
-    (routesStr || '').split(',').map(s => Number(s.trim())).filter(Boolean)
-  );
-}
-
-function parseExtraClients(value) {
-  try {
-    const parsed = JSON.parse(value || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function ymd(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function parseMonday(weekKey) {
-  const [y, m, d] = (weekKey || '').split('-').map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
-}
-
-function arrivalDateStr(entry) {
-  if (!entry?.week_key) return null;
-  const dt = parseMonday(entry.week_key);
-  dt.setDate(dt.getDate() + ((Number(entry.arr_day) || 1) - 1));
-  return ymd(dt);
 }
 
 function addDaysToWeekKey(weekKey, days) {
@@ -194,9 +159,8 @@ function groupPickupEntries(entries, compareEntries) {
 export default function ScheduleView() {
   const { t } = useTranslation();
   const rawData = useAppData();
-  const { isAdmin, isDriver, sessionToken, canEditModule } = useAuth();
-  const canEditSchedule = canEditModule('schedule');
-  const { entries, clients, routes, receipts, loading, error, refetch } = rawData;
+  const { isDriver } = useAuth();
+  const { entries, clients, routes, loading, error, refetch } = rawData;
   
   // Zamiast activeWeekTab używamy weekOffset podobnie jak w starym index.html
   const [weekOffset, setWeekOffset] = useState(0);
@@ -207,16 +171,6 @@ export default function ScheduleView() {
   const [mobileMode, setMobileMode] = useState('two');
   const [mobileDayOffset, setMobileDayOffset] = useState(0);
 
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(1);
-  const [selectedWeekKey, setSelectedWeekKey] = useState(null);
-  
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
-  const [selectedRelatedEntries, setSelectedRelatedEntries] = useState([]);
-  const [selectedEntryMode, setSelectedEntryMode] = useState('view');
-  const [driverTrips, setDriverTrips] = useState([]);
-
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 600px), (max-device-width: 600px)');
     const onChange = () => setIsPhone(mq.matches);
@@ -225,31 +179,6 @@ export default function ScheduleView() {
     return () => mq.removeEventListener?.('change', onChange);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadDriverTrips = async () => {
-      if (!sessionToken) {
-        if (!cancelled) setDriverTrips([]);
-        return;
-      }
-      try {
-        const data = await getScheduleDriverTrips(sessionToken, { limit: 120 });
-        if (!cancelled) setDriverTrips(data || []);
-      } catch {
-        if (!cancelled) setDriverTrips([]);
-      }
-    };
-    loadDriverTrips();
-    const channel = supabase
-      .channel('schedule-driver-trips')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_trips' }, loadDriverTrips)
-      .subscribe();
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [sessionToken]);
-  
   if (loading) return <div className="loader">{t('schedule.loadingData')}</div>;
   if (error) return <DataError onRetry={refetch} />;
 
@@ -318,38 +247,6 @@ export default function ScheduleView() {
       .forEach((client, index) => clientPointByName.set(client.name, index + 1));
   });
   const routeIdForEntry = entry => clientByName.get(entry.client_name)?.route_id || entry.route_id || 0;
-  const tripContainsEntryClient = (sourceTrip, entry) => {
-    if (!sourceTrip || !entry) return false;
-    const entryRouteId = routeIdForEntry(entry);
-    const routeIds = parseRouteIds(sourceTrip.routes);
-    const extras = new Set(parseExtraClients(sourceTrip.extra_clients));
-    return routeIds.size === 0 || routeIds.has(entryRouteId) || extras.has(entry.client_name);
-  };
-  const entryAssignmentLabel = (entry) => {
-    return assignedTripForEntry(entry)?.label || null;
-  };
-  const entryAssignmentCaption = (entry) => {
-    const status = assignedTripForEntry(entry)?.trip?.status;
-    if (status === 'finished') return 'Przywiózł';
-    if (status === 'active') return 'Wiezie';
-    return 'Przywiezie';
-  };
-  const assignedTripForEntry = (entry) => {
-    if (!entry) return null;
-    const date = arrivalDateStr(entry);
-    const candidates = [
-      ...driverTrips
-        .filter(t => t.trip_date === date && t.status !== 'finished')
-        .sort((a, b) => (a.status === 'active' ? -1 : 0) - (b.status === 'active' ? -1 : 0)),
-      ...driverTrips.filter(t => t.trip_date === date && t.status === 'finished'),
-    ];
-    const assignedTrip = candidates.find(t => tripContainsEntryClient(t, entry));
-    if (!assignedTrip) return null;
-    const driver = assignedTrip.driver_name || 'nieprzypisane';
-    const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
-    const status = assignedTrip.status === 'planned' ? ' · planowana' : assignedTrip.status === 'active' ? ' · na trasie' : '';
-    return { trip: assignedTrip, label: `${driver}${car}${status}` };
-  };
   const compareEntriesByRouteOrder = (a, b) => {
     const routeA = routeIdForEntry(a);
     const routeB = routeIdForEntry(b);
@@ -370,21 +267,13 @@ export default function ScheduleView() {
     washKgBySlot.set(slot, (washKgBySlot.get(slot) || 0) + (parseFloat(e.weight) || 0));
   });
 
-  const renderLaundryStatusDot = (entry, mode) => {
+  const laundryStatus = (entry, mode) => {
     if (mode === 'pick') {
-      const isDone = entry.done;
-      const title = isDone ? t('schedule.pickedUp', 'Odebrane') : t('schedule.toPickUp', 'Do odebrania');
-      return (
-        <span
-          className={`gps-dot ${isDone ? 'gps-green' : 'gps-grey'}`}
-          title={title}
-          role="img"
-          aria-label={title}
-        />
-      );
+      return entry.done
+        ? { label: t('schedule.statusPickedUp'), tone: 'complete' }
+        : { label: t('schedule.statusReady'), tone: 'ready' };
     }
 
-    // Clean Delivery (mode === 'arr')
     const isPacked = ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status) 
       || entry.done 
       || (hasLaundryWorkflowState(entry) && (entry.laundry_ready_at || entry.laundry_packed_at))
@@ -393,25 +282,11 @@ export default function ScheduleView() {
     const isWashed = entry.laundry_status === 'washed' 
       || (!hasLaundryWorkflowState(entry) && entry.washed && !entry.done);
 
-    let dotClass = 'gps-red';
-    let title = 'Do prania';
-
     if (isPacked) {
-      dotClass = 'gps-green';
-      title = 'Zapakowana, gotowa do odbioru';
-    } else if (isWashed) {
-      dotClass = 'gps-yellow';
-      title = 'Wyprana, czeka na pakowanie';
+      return { label: t('schedule.statusReady'), tone: 'ready' };
     }
-
-    return (
-      <span 
-        className={`gps-dot ${dotClass}`} 
-        title={title}
-        role="img"
-        aria-label={title}
-      />
-    );
+    if (isWashed) return { label: t('schedule.statusToPack'), tone: 'packing' };
+    return { label: t('schedule.statusToWash'), tone: 'waiting' };
   };
 
   const renderEntryTag = (entry, mode) => {
@@ -427,20 +302,15 @@ export default function ScheduleView() {
       : parseFloat(entry.weight) || 0;
     const groupedTypes = [...new Set(relatedEntries.map(item => item.type || 'P'))];
     const hasMixedTypes = entry.isPickupGroup && groupedTypes.length > 1;
+    const status = laundryStatus(entry, mode);
 
     return (
-      <button
-        type="button"
+      <div
         key={entry.id}
-        className={`tag ${tagClass} ${isAdmin && canEditSchedule ? 'draggable' : ''}`}
+        className={`tag ${tagClass} schedule-entry-readonly`}
+        role="group"
         title={entry.client_name}
         aria-label={`${entry.client_name}, ${entry.urgent ? `${t('schedule.urgent')}, ` : ''}T${displayNum}, ${Number(totalWeight.toFixed(1)) || 0} kg`}
-        onClick={() => {
-          setSelectedEntry(entry);
-          setSelectedRelatedEntries(relatedEntries);
-          setSelectedEntryMode(mode);
-          setViewModalOpen(true);
-        }}
       >
         {pointNum != null && <span className="schedule-point-badge">{pointNum}</span>}
         <span className="schedule-tag-content">
@@ -452,12 +322,10 @@ export default function ScheduleView() {
           </span>
         </span>
         <span className="schedule-tag-state">
-          <span className="schedule-route-status">
-            <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
-            {renderLaundryStatusDot(entry, mode)}
-          </span>
+          <span className="rt-badge" style={routeBadgeStyle(displayNum)}>T{displayNum}</span>
+          <span className={`schedule-status-pill is-${status.tone}`}>{status.label}</span>
         </span>
-      </button>
+      </div>
     );
   };
 
@@ -521,7 +389,6 @@ export default function ScheduleView() {
           </>
         )}
 
-        {isAdmin && canEditSchedule && <button className="add-btn" onClick={() => { setSelectedDay(dayIndex + 1); setSelectedWeekKey(weekKey); setAddModalOpen(true); }}>{t('schedule.addArrival')}</button>}
       </div>
     );
   };
@@ -556,6 +423,15 @@ export default function ScheduleView() {
 
   return (
     <div id="mainView">
+      <header className="schedule-overview-header">
+        <div>
+          <span className="schedule-overview-kicker">{t('schedule.overviewKicker')}</span>
+          <h1>{t('schedule.overviewTitle')}</h1>
+          <p>{t('schedule.overviewDescription')}</p>
+        </div>
+        <span className="schedule-readonly-badge">{t('schedule.readOnly')}</span>
+      </header>
+
       <div className="week-nav">
         <div className="week-nav-row">
           <button
@@ -628,44 +504,6 @@ export default function ScheduleView() {
         </>
       )}
 
-      {addModalOpen && (
-        <AddEntryModal 
-          isOpen={addModalOpen} 
-          onClose={() => setAddModalOpen(false)} 
-          defaultArrDay={selectedDay}
-          weekKey={selectedWeekKey || week1Key}
-          clients={clients.filter(c => c.route_id)}
-          routes={routes}
-          onAdded={() => {
-            setAddModalOpen(false);
-            refetch();
-          }}
-        />
-      )}
-
-      {viewModalOpen && selectedEntry && (
-        <ViewEditEntryModal 
-          isOpen={viewModalOpen} 
-          onClose={() => { setViewModalOpen(false); setSelectedEntry(null); setSelectedRelatedEntries([]); }} 
-          entry={selectedEntry}
-          relatedEntries={selectedRelatedEntries}
-          contextMode={selectedEntryMode}
-          onUpdated={() => {
-            setViewModalOpen(false);
-            refetch();
-          }}
-          onDeleted={() => {
-            setViewModalOpen(false);
-            refetch();
-          }}
-          clients={clients}
-          routes={routes}
-          receipts={receipts}
-          source="schedule"
-          entryAssignmentLabel={selectedEntryMode === 'arr' ? entryAssignmentLabel(selectedEntry) : null}
-          entryAssignmentCaption={selectedEntryMode === 'arr' ? entryAssignmentCaption(selectedEntry) : 'Przywiezie'}
-        />
-      )}
     </div>
   );
 }

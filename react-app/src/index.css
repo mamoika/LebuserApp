@@ -801,6 +801,53 @@ body{
   display:none;
 }
 
+/* ── SCHEDULE OVERVIEW: read-only two-week briefing board ── */
+.schedule-overview-header {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin:2px 2px 14px;
+}
+.schedule-overview-header > div { min-width:0; }
+.schedule-overview-kicker {
+  display:block;
+  margin-bottom:3px;
+  color:var(--accent);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.65px;
+  text-transform:uppercase;
+}
+.schedule-overview-header h1 {
+  margin:0;
+  color:var(--text-primary);
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:-.55px;
+  line-height:1.15;
+}
+.schedule-overview-header p {
+  max-width:620px;
+  margin:5px 0 0;
+  color:var(--text-secondary);
+  font-size:12px;
+  line-height:1.45;
+}
+.schedule-readonly-badge {
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
+  font-size:10px;
+  font-weight:750;
+  white-space:nowrap;
+}
+
 /* ── SECTION HEADING ── */
 .section-heading {
   display:flex;
@@ -1086,6 +1133,55 @@ html.phone-layout .legend-box { padding: 10px; gap: 8px; margin-bottom: 14px; }
   justify-content:center;
   gap:5px;
   flex-shrink:0;
+}
+.schedule-entry-readonly {
+  cursor:default;
+  user-select:text;
+}
+.schedule-entry-readonly:hover {
+  border-color:var(--border);
+  box-shadow:none;
+}
+.schedule-entry-readonly:active {
+  opacity:1;
+  filter:none;
+  transform:none;
+}
+.schedule-status-pill {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  max-width:82px;
+  min-height:18px;
+  padding:2px 5px;
+  border:1px solid transparent;
+  border-radius:999px;
+  font-size:8.5px;
+  font-weight:800;
+  letter-spacing:.05px;
+  line-height:1.05;
+  text-align:center;
+  text-wrap:balance;
+}
+.schedule-status-pill.is-waiting {
+  border-color:rgba(178,106,0,.18);
+  background:rgba(255,149,0,.10);
+  color:#945800;
+}
+.schedule-status-pill.is-packing {
+  border-color:rgba(0,122,255,.18);
+  background:rgba(0,122,255,.09);
+  color:#0055aa;
+}
+.schedule-status-pill.is-ready {
+  border-color:rgba(26,122,55,.18);
+  background:rgba(52,199,89,.10);
+  color:#176b32;
+}
+.schedule-status-pill.is-complete {
+  border-color:var(--border);
+  background:var(--bg-tertiary);
+  color:var(--text-secondary);
 }
 .schedule-route-status {
   display:flex;
@@ -8095,6 +8191,10 @@ button.laundry-metric:focus-visible {
 .schedule-tag-state .gps-green { box-shadow:0 0 0 3px rgba(52,199,89,.12); }
 
 @media(max-width:600px), (max-device-width:600px) {
+  .schedule-overview-header { margin:0 2px 12px; }
+  .schedule-overview-header h1 { font-size:21px; }
+  .schedule-overview-header p { font-size:11px; }
+  .schedule-readonly-badge { display:none; }
   .week-nav-row { gap:6px; }
   .week-label-title { display:none; }
   .week-label-range { font-size:13px; }
