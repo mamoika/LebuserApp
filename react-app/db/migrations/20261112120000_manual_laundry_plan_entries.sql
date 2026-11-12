@@ -66,7 +66,9 @@ begin
   end if;
 
   update public.entries
-  set laundry_planned_date = p_planned_date
+  set laundry_planned_date = p_planned_date,
+      dirty_received_at = coalesce(dirty_received_at, now()),
+      dirty_received_by = coalesce(dirty_received_by, p_added_by, 'Administrator')
   where id = p_id;
 
   return (v_result::jsonb || jsonb_build_object('planned_date', p_planned_date))::json;
