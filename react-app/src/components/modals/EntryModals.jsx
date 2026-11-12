@@ -891,7 +891,7 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, permissionModule = 'schedule', entryAssignmentLabel = null, entryAssignmentCaption = 'Przywiezie' }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, permissionModule = 'schedule', allowDeleteInEditor = false, entryAssignmentLabel = null, entryAssignmentCaption = 'Przywiezie' }) {
   const { t } = useTranslation();
   const { isAdmin, canEditModule, isViewer, user, sessionToken } = useAuth();
   const canEdit = canEditModule(permissionModule);
@@ -1543,6 +1543,11 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <div className="ap-btn-group">
               <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading || !type}>{t('entry.save')}</button>
               <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>{t('common.cancel')}</button>
+              {isAdmin && allowDeleteInEditor && (
+                <button type="button" className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>
+                  {confirmDelete ? t('entry.confirmDeleteShort') : t('entry.delete')}
+                </button>
+              )}
             </div>
           </div>
         </div>

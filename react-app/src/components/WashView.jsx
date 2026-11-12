@@ -1244,6 +1244,7 @@ export default function WashView() {
           initiallyEditing
           source="wash"
           permissionModule="wash"
+          allowDeleteInEditor
           onClose={() => setEditingEntry(null)}
           onUpdated={refreshAll}
           onDeleted={refreshAll}
