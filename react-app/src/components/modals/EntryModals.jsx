@@ -891,10 +891,10 @@ export function AddEntryModal({ isOpen, onClose, defaultArrDay, weekKey, clients
   );
 }
 
-export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, entryAssignmentLabel = null, entryAssignmentCaption = 'Przywiezie' }) {
+export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, permissionModule = 'schedule', entryAssignmentLabel = null, entryAssignmentCaption = 'Przywiezie' }) {
   const { t } = useTranslation();
   const { isAdmin, canEditModule, isViewer, user, sessionToken } = useAuth();
-  const canEdit = canEditModule('schedule');
+  const canEdit = canEditModule(permissionModule);
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
   const [type, setType] = useState('P');
