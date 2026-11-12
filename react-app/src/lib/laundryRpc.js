@@ -4,7 +4,11 @@ import { throwRpcError } from './rpcError';
 async function callLaundryRpc(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) throwRpcError(error, `${fn} failed`);
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) {
+    const rpcError = new Error(data.error);
+    rpcError.code = data.error_code || data.error;
+    throw rpcError;
+  }
   return data;
 }
 
@@ -63,12 +67,21 @@ export function unmarkLaundryWashed(sessionToken, ids, by) {
   });
 }
 
-export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by) {
+export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by, finish = null) {
   return callLaundryRpc('admin_pack_laundry_trolley', {
     p_session_token: sessionToken,
     p_ids: ids,
     p_trolley_no: trolleyNo,
     p_kg: kg,
+    p_by: by || null,
+    p_finish: finish,
+  });
+}
+
+export function finishLaundryPacking(sessionToken, ids, by) {
+  return callLaundryRpc('admin_finish_laundry_packing', {
+    p_session_token: sessionToken,
+    p_ids: ids,
     p_by: by || null,
   });
 }

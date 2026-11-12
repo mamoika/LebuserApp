@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Archive, CalendarClock, CheckCircle2, ChevronRight, History, MapPin, PackageOpen, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
+import { Archive, CalendarClock, CheckCircle2, ChevronRight, Clock3, History, MapPin, PackageOpen, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
 import { formatTrolleyCode } from '../lib/trolleyCodes';
+import { operationalYmd } from '../lib/dateUtils';
 
 function daysSince(value) {
   if (!value) return 0;
@@ -105,6 +106,12 @@ export default function TrolleysDashboardModal({
   }, { free: 0, inUse: 0, dirty: 0, atClient: 0 });
 
   const formatDate = value => {
+    if (!value) return '—';
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const parts = value.split('-');
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return d.toLocaleDateString(i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL', { dateStyle: 'medium' });
+    }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
     return date.toLocaleString(i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
@@ -118,6 +125,11 @@ export default function TrolleysDashboardModal({
   );
 
   const selectedActive = selectedTrolley ? activeTrolleyByNo.get(String(selectedTrolley)) : null;
+  const occupiedDays = selectedActive ? daysSince(selectedActive.dirty_received_at || selectedActive.picked_up_at) : 0;
+  const overdueDays = selectedActive?.wash_date && selectedActive.wash_date < operationalYmd()
+    ? daysSince(selectedActive.wash_date)
+    : 0;
+  const needsPlanReview = selectedActive?.occupancy_source === 'arrival' && !selectedActive.wash_date && occupiedDays > 1;
   const activeClients = clients
     .filter(client => client?.id && !client.archived_at)
     .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
@@ -243,6 +255,41 @@ export default function TrolleysDashboardModal({
                   {selectedActive?.client_name && <small><MapPin size={12} aria-hidden="true" /> {selectedActive.client_name}</small>}
                 </div>
               </div>
+
+              {selectedActive?.occupancy_source === 'arrival' && (
+                <div style={{ margin: '0 24px 16px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(175,82,222,.05)', border: '1px solid rgba(175,82,222,.18)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', fontSize: '12px' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '11px' }}>{t('wash.trolleyBoard.laundryFrom')}</span>
+                    <strong>{selectedActive.laundry_origin_date ? formatDate(selectedActive.laundry_origin_date) : '—'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '11px' }}>{t('wash.trolleyBoard.receivedAtLaundry')}</span>
+                    <strong>{selectedActive.dirty_received_at ? formatDate(selectedActive.dirty_received_at) : (selectedActive.picked_up_at ? formatDate(selectedActive.picked_up_at) : '—')}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '11px' }}>{t('wash.trolleyBoard.plannedWash')}</span>
+                    <strong>{selectedActive.wash_date ? formatDate(selectedActive.wash_date) : t('wash.trolleyBoard.missingPlan')}</strong>
+                  </div>
+                  {selectedActive.departure_date && (
+                    <div>
+                      <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '11px' }}>{t('wash.trolleyBoard.plannedDeparture')}</span>
+                      <strong>{formatDate(selectedActive.departure_date)}</strong>
+                    </div>
+                  )}
+                  {overdueDays > 0 && (
+                    <div className="laundry-trolley-overdue" role="status" style={{ gridColumn: 'span 2' }}>
+                      <Clock3 size={15} />
+                      {t('wash.trolleyBoard.overdueDays', { count: overdueDays })}
+                    </div>
+                  )}
+                  {needsPlanReview && (
+                    <div className="laundry-trolley-overdue" role="status" style={{ gridColumn: 'span 2' }}>
+                      <Clock3 size={15} />
+                      {t('wash.trolleyBoard.missingPlanWarning', { count: occupiedDays })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="fleet-history-content">
                 {historyLoading && <div className="fleet-history-state">{t('wash.fleet.historyLoading')}</div>}

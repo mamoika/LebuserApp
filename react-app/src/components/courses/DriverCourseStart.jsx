@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { History, LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
+import { History, IdCard, LoaderCircle, PlayCircle, Star, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { callExistingTripRpc } from '../../lib/courseRpc';
-import { getDriverAppSettings, getDriverTripsData } from '../../lib/readRpc';
+import { getDriverAppSettings, getDriverCardReminders, getDriverTripsData } from '../../lib/readRpc';
 import { getWeeklyRoutePlan } from '../../lib/weeklyRoutePlanRpc';
 import { parseRouteIds, routeNamesForTrip, findDriverPlannedTrip } from '../../lib/tripUiHelpers';
 import { assignedCarForDate, assignedRouteIdsForDate } from '../../lib/driverPlanAssignments';
+import { driverCardBadgeText, getDriverCardReminder } from '../../lib/driverCardReminder';
 import { operationalYmd } from '../../lib/dateUtils';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
+import DriverCardDddDialog from './DriverCardDddDialog';
 import '../mockups/mockups.css';
+
+function isSamePersonName(nameA, nameB) {
+  if (!nameA || !nameB) return false;
+  const a = nameA.toLowerCase().trim().split(/\s+/).sort().join(' ');
+  const b = nameB.toLowerCase().trim().split(/\s+/).sort().join(' ');
+  return a === b;
+}
 
 function StartSection({ label, children, hint }) {
   return (
@@ -34,6 +43,8 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
   const [defaultCar, setDefaultCar] = useState(null);
   const [selectedCar, setSelectedCar] = useState('');
   const [selectedRoutes, setSelectedRoutes] = useState(() => new Set());
+  const [driverCard, setDriverCard] = useState(null);
+  const [driverCardOpen, setDriverCardOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -56,10 +67,11 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     (async () => {
       setLoading(true);
       try {
-        const [trips, settings, routePlan] = await Promise.all([
+        const [trips, settings, routePlan, cardReminders] = await Promise.all([
           loadTrips(),
           getDriverAppSettings(sessionToken),
           getWeeklyRoutePlan(sessionToken, today),
+          sessionToken ? getDriverCardReminders(sessionToken).catch(() => ({ cards: [] })) : Promise.resolve({ cards: [] }),
         ]);
         if (cancelled) return;
         const car = settings?.driver_cars?.[user?.id] || null;
@@ -76,6 +88,14 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           today,
         );
         setDefaultCar(car);
+        const myCard = cardReminders?.my_card || (cardReminders?.cards || []).find(
+          c => (user?.employee_id && c.employee_id === user.employee_id) || isSamePersonName(c.name, user?.name)
+        ) || null;
+        if (myCard) {
+          setDriverCard(getDriverCardReminder(myCard));
+        } else {
+          setDriverCard(null);
+        }
         if (plannedTrip) {
           setSelectedCar(plannedTrip.car || carAssignedToday || car || '');
           setSelectedRoutes(parseRouteIds(plannedTrip.routes));
@@ -91,7 +111,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       }
     })();
     return () => { cancelled = true; };
-  }, [loadTrips, plannedTrip, sessionToken, t, today, user?.id, user?.name]);
+  }, [loadTrips, plannedTrip, sessionToken, t, today, user?.employee_id, user?.id, user?.name]);
 
   const carsInUse = useMemo(() => {
     const map = new Map();
@@ -197,10 +217,27 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
               <p className="live-start-subtitle">{t('course.start.doneToday', { count: doneToday.length })}</p>
             )}
           </div>
-          <button type="button" className="live-start-history-btn" onClick={onHistory} disabled={busy}>
-            <History size={17} aria-hidden="true" />
-            <span>{t('course.driver.courseHistory')}</span>
-          </button>
+          <div className="live-start-header-actions">
+            {driverCard && (
+              <button
+                type="button"
+                className={`live-start-card-btn state-${driverCard.state}`}
+                onClick={() => setDriverCardOpen(true)}
+                disabled={busy}
+                title={t('course.driverCard.tooltip', { dueOn: driverCard.dueOn || '—' })}
+              >
+                <IdCard size={17} aria-hidden="true" />
+                <span className="live-start-card-label">{t('course.driverCard.button')}</span>
+                <span className="live-start-card-badge">
+                  {driverCardBadgeText(driverCard, t)}
+                </span>
+              </button>
+            )}
+            <button type="button" className="live-start-history-btn" onClick={onHistory} disabled={busy}>
+              <History size={17} aria-hidden="true" />
+              <span>{t('course.driver.courseHistory')}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -340,6 +377,16 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           ? t('course.start.startCustomRoute')
           : (plannedTrip ? t('course.start.beginCourse') : t('course.start.beginRoute'))}
       </button>
+
+      {driverCard && (
+        <DriverCardDddDialog
+          canImportDdd={false}
+          open={driverCardOpen}
+          onClose={() => setDriverCardOpen(false)}
+          presetDriver={driverCard}
+          sessionToken={sessionToken}
+        />
+      )}
     </section>
   );
 }

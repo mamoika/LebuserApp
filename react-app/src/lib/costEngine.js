@@ -31,6 +31,7 @@ export const OPTIONAL_COST_SETTING_FIELDS = [
   'elec_invoice_net',
   'gas_prod_invoice_kwh',
   'gas_prod_invoice_net',
+  'target_cost_per_kg',
 ];
 
 // Aktualny współczynnik potwierdzony na przeliczniku CMK-03:

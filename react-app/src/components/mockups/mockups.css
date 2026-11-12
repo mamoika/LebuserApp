@@ -2612,6 +2612,69 @@
 }
 .live-start-history-btn:active { transform: scale(.97); }
 .live-start-history-btn:disabled { opacity: .5; cursor: not-allowed; }
+.live-start-header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.live-start-card-btn {
+  flex: 0 0 auto;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 8px 12px 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card-solid);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transition: border-color 150ms ease, color 150ms ease, transform 150ms ease, background-color 150ms ease;
+}
+.live-start-card-btn:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.live-start-card-btn:active { transform: scale(.97); }
+.live-start-card-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.live-start-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.live-start-card-btn.state-ok .live-start-card-badge {
+  background: rgba(52, 199, 89, 0.12);
+  color: #248a3d;
+}
+.live-start-card-btn.state-dueSoon .live-start-card-badge {
+  background: rgba(255, 149, 0, 0.14);
+  color: #b45309;
+}
+.live-start-card-btn.state-overdue .live-start-card-badge {
+  background: rgba(255, 59, 48, 0.14);
+  color: #d92d20;
+}
+.live-start-card-btn.state-missing .live-start-card-badge {
+  background: rgba(142, 142, 147, 0.12);
+  color: #636366;
+}
 .live-start-kicker {
   margin: 0 0 6px;
   color: #005FCC;
@@ -2839,11 +2902,24 @@
 
 @media (max-width: 430px) {
   .live-start-heading-row { gap: 12px; }
+  .live-start-header-actions { gap: 6px; }
   .live-start-history-btn {
     width: 42px;
     padding: 0;
   }
   .live-start-history-btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .live-start-card-btn {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .live-start-card-btn .live-start-card-label {
     position: absolute;
     width: 1px;
     height: 1px;

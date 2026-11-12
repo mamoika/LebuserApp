@@ -2,16 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
+  Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
-  History,
   Maximize2,
   MoreHorizontal,
   Package,
   PackageCheck,
   RefreshCw,
   RotateCcw,
-  Trash2,
+  Scale,
   Truck,
   WashingMachine,
 } from 'lucide-react';
@@ -21,15 +23,12 @@ import { useAppData } from '../hooks/useAppData';
 import TrolleysDashboardModal from './TrolleysDashboardModal';
 import {
   cancelLaundryTrolley,
+  finishLaundryPacking,
   getLaundryWorkflow,
   markLaundryWashed,
   packLaundryTrolley,
-  returnLaundryTrolley,
   undoReturnLaundryTrolley,
   unmarkLaundryWashed,
-  deleteLaundryTrolley,
-  setTrolleyAtClient,
-  updateLaundryTrolleyKg,
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
@@ -51,11 +50,12 @@ function dateOnly(value) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), {
+  const str = new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), {
     weekday: 'long',
     day: '2-digit',
     month: '2-digit',
   });
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Poprawna polska odmiana: 1 punkt, 2-4 punkty, 5+ punktów (z wyjątkiem 12-14).
@@ -131,14 +131,6 @@ function departureDateOf(entry) {
 function arrivalDateOf(entry) {
   if (!entry?.arr_day || !entry?.week_key) return null;
   return slotToDate(`${entry.week_key}|${entry.arr_day}`);
-}
-
-function daysBetween(startDate, endDate) {
-  if (!startDate || !endDate) return 0;
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-  return Math.max(0, Math.floor((end - start) / 86400000));
 }
 
 function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
@@ -224,8 +216,7 @@ function filterGroup(group, filterKey) {
 function isPackCandidate(group) {
   return group.stage !== 'ready'
     && group.pendingIds.length === 0
-    && group.washedIds.length > 0
-    && (group.hasKnownWeight ? group.remainingKg > 0 : true);
+    && group.washedIds.length > 0;
 }
 
 function isEntryIssuedToDriver(entry) {
@@ -294,20 +285,31 @@ function routeBadge(routeId, routeMap) {
   return `T${route.num}`;
 }
 
-function Metric({ icon: Icon, label, value, tone, active = false, onClick }) {
-  const Tag = onClick ? 'button' : 'div';
+function FlowMetric({ icon: Icon, label, value, subtitle, tone, progress }) {
   return (
-    <Tag
-      className={`laundry-metric ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''}`}
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-    >
-      <div className="laundry-metric-icon"><Icon size={18} /></div>
-      <div>
-        <div className="laundry-metric-value">{value}</div>
-        <div className="laundry-metric-label">{label}</div>
+    <div className={`laundry-flow-metric tone-${tone}`}>
+      <div className="laundry-flow-metric-head">
+        <span className="laundry-flow-metric-icon">
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <span>{label}</span>
       </div>
-    </Tag>
+      <div className="laundry-flow-metric-value">
+        <strong className="tabular-nums">{value}</strong>
+        <span>kg</span>
+      </div>
+      <div className="laundry-flow-metric-meta">
+        <span>{subtitle}</span>
+        {progress !== null && progress !== undefined && (
+          <strong className="tabular-nums">{progress}%</strong>
+        )}
+      </div>
+      {progress !== null && progress !== undefined && (
+        <div className="laundry-flow-metric-progress" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -337,9 +339,7 @@ export default function WashView() {
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [historyTrolley, setHistoryTrolley] = useState(null);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
-  const [kgEdit, setKgEdit] = useState({}); // { [cycleId]: '12,5' } — dopisanie kg poznanego po fakcie
   const [workFilter, setWorkFilter] = useState('all');
-  const [trolleyTab, setTrolleyTab] = useState('active'); // 'active' | 'fleet' | 'packages' | 'history'
 
   const canEditWash = canEditModule('wash');
   const hasWashRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker);
@@ -467,11 +467,9 @@ export default function WashView() {
       const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
       const remainingKg = Math.max(0, totalKg - packedKg);
       const hasKnownWeight = totalKg > 0;
-      // Gdy waga nie jest jeszcze znana, "zostało 0 kg" nic nie mówi o realnym stanie —
-      // o gotowości decydują wtedy wyłącznie flagi na wpisach (ready/washed), a nie matematyka kg.
-      const groupReady = hasKnownWeight
-        ? (remainingKg <= 0.05 || ready.length === group.entries.length)
-        : ready.length === group.entries.length;
+      // O gotowości decydują flagi gotowości/spakowania na wpisach (laundry_ready_at / laundry_packed_at)
+      // ustawiane po zakończeniu pakowania („Zakończ pakowanie”).
+      const groupReady = ready.length === group.entries.length;
       const stage = groupReady
         ? 'ready'
         : pending.length > 0 && washed.length > 0
@@ -481,7 +479,22 @@ export default function WashView() {
             : packedKg > 0
               ? 'partial'
               : 'washed';
-      const trolleyNos = [...new Set(activeCycles.map(cycle => cycle.trolley_no).filter(Boolean))];
+      const packedTrolleyNos = activeCycles
+        .filter(isRealTrolley)
+        .map(cycle => String(cycle.trolley_no).trim());
+      const arrivalTrolleyNos = arrivalReservations
+        .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
+        .map(reservation => String(reservation.trolley_no).trim());
+      const arrivalEntryIds = new Set(
+        arrivalReservations
+          .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
+          .map(reservation => reservation.entry_id),
+      );
+      const hasInTransitLaundry = group.entries.some(entry => (
+        arrivalEntryIds.has(entry.id) && !entry.dirty_received_at
+      ));
+      const trolleyNos = [...new Set([...arrivalTrolleyNos, ...packedTrolleyNos])]
+        .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b, 'pl'));
 
       return {
         ...group,
@@ -496,7 +509,10 @@ export default function WashView() {
         cycles: activeCycles,
         allCycles: groupCycles,
         issuedToDriver: group.entries.some(isEntryIssuedToDriver),
+        trolleyCount: trolleyNos.length,
         trolleyNo: trolleyNos.join(', '),
+        hasArrivalTrolleys: arrivalTrolleyNos.length > 0,
+        hasInTransitLaundry,
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
         packedAt: [
           ...group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean),
@@ -510,26 +526,11 @@ export default function WashView() {
       if (routeDiff) return routeDiff;
       return a.clientName.localeCompare(b.clientName, currentLocale());
     });
-  }, [clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
+  }, [arrivalReservations, clientByName, dailyServiceByClient, entries, routeMap, scheduleByRoute, selectedDate, trolleys]);
 
   // Tylko realne fizyczne wózki 1–40 (wykluczamy 'brak' pakowany bez wózka)
   const activeTrolleys = useMemo(
     () => activePhysicalTrolleyCycles(trolleys),
-    [trolleys]
-  );
-
-  // Wydania bez wózka (worki / paczki)
-  const packageCycles = useMemo(
-    () => trolleys.filter(cycle => !isRealTrolley(cycle)),
-    [trolleys]
-  );
-
-  // Historia zwróconych lub anulowanych wózków
-  const historyTrolleys = useMemo(
-    () => trolleys.filter(cycle =>
-      isRealTrolley(cycle) &&
-      (Boolean(cycle.returned_at) || ['returned', 'canceled'].includes(cycle.status))
-    ),
     [trolleys]
   );
 
@@ -553,14 +554,6 @@ export default function WashView() {
     return buildTrolleyOccupancy(activeTrolleys, enrichedArrivals);
   }, [activeTrolleys, arrivalReservations, dailyServiceByClient, entryById, scheduleByRoute]);
 
-  const occupiedTrolleys = useMemo(
-    () => [...activeTrolleyByNo.values()].sort((a, b) => (
-      Number(a.trolley_no) - Number(b.trolley_no)
-      || String(a.trolley_no).localeCompare(String(b.trolley_no), 'pl')
-    )),
-    [activeTrolleyByNo],
-  );
-
   const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleyByNo.size);
 
   const metrics = useMemo(() => ({
@@ -572,6 +565,17 @@ export default function WashView() {
     ),
     activeTrolleys: activeTrolleyByNo.size,
   }), [activeTrolleyByNo.size, dailyServiceByClient, entries, scheduleByRoute, selectedDate]);
+
+  const packedKg = useMemo(
+    () => Number(laundryGroups.reduce((sum, group) => sum + group.packedKg, 0).toFixed(1)),
+    [laundryGroups],
+  );
+  const washedProgress = metrics.plannedKg > 0
+    ? Math.min(100, Math.round((metrics.washedKg / metrics.plannedKg) * 100))
+    : 0;
+  const packedProgress = metrics.plannedKg > 0
+    ? Math.min(100, Math.round((packedKg / metrics.plannedKg) * 100))
+    : 0;
 
   const filterCounts = useMemo(() => (
     WORK_FILTERS.reduce((acc, filter) => {
@@ -616,7 +620,9 @@ export default function WashView() {
       await action();
       await Promise.all([refetch(), fetchWorkflow()]);
     } catch (err) {
-      toastError(err.message || t('wash.operationFailed'));
+      toastError(err.code === 'laundry_not_at_laundry'
+        ? t('wash.messages.laundryStillInVehicle')
+        : err.message || t('wash.operationFailed'));
     } finally {
       setBusyKey('');
     }
@@ -674,7 +680,7 @@ export default function WashView() {
     }
   };
 
-  const handlePackMulti = async (group, trolleyNos, kgByTrolley) => {
+  const handlePackMulti = async (group, trolleyNos, kgByTrolley, finish = true) => {
     if (!trolleyNos || trolleyNos.length === 0) {
       throw new Error(t('wash.validation.noTrolleys'));
     }
@@ -691,16 +697,25 @@ export default function WashView() {
       }
     }
 
-    // Waga znana z przyjazdu → dzielimy ją automatycznie na wózki jak dotychczas.
-    // Waga nieznana → kgByTrolley to realne kg zważone teraz przy pakowaniu (z modala).
+    // Waga znana z przyjazdu:
+    // - Jeśli finish = true (Zakończ pakowanie), brakującą wagę dzielimy na wybrane wózki
+    // - Jeśli finish = false (Kontynuuj pakowanie), użytkownik może podać kg lub używamy proporcji
     let kgFor;
     if (group.hasKnownWeight) {
-      const baseKg = Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10;
-      const totalBase = baseKg * (trolleyNos.length - 1);
-      const lastKg = Math.round((group.remainingKg - totalBase) * 10) / 10;
-      kgFor = (i) => (i === trolleyNos.length - 1) ? lastKg : baseKg;
+      const perTrolleyDefault = finish
+        ? Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10
+        : Math.min(Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10, 80);
+      const totalBase = perTrolleyDefault * (trolleyNos.length - 1);
+      const lastKgDefault = finish
+        ? Math.round((group.remainingKg - totalBase) * 10) / 10
+        : perTrolleyDefault;
+
+      kgFor = (i) => {
+        const custom = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
+        if (Number.isFinite(custom) && custom > 0) return custom;
+        return (i === trolleyNos.length - 1) ? lastKgDefault : perTrolleyDefault;
+      };
     } else {
-      // Kg opcjonalne przy nieznanej wadze — puste pole = 0, do uzupełnienia później.
       kgFor = (i) => {
         const kg = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
         return Number.isFinite(kg) && kg > 0 ? kg : 0;
@@ -711,12 +726,20 @@ export default function WashView() {
       setBusyKey(`pack:${group.key}`);
       for (let i = 0; i < trolleyNos.length; i++) {
         const kgValue = kgFor(i);
-        await packLaundryTrolley(sessionToken, group.washedIds, trolleyNos[i], kgValue, user?.name);
+        const isLast = i === trolleyNos.length - 1;
+        await packLaundryTrolley(
+          sessionToken,
+          group.washedIds,
+          trolleyNos[i],
+          kgValue,
+          user?.name,
+          isLast ? finish : false,
+        );
       }
-      if (trolleyNos.includes('brak')) {
-        toastSuccess(t('wash.messages.packedLoose', { client: group.clientName }));
+      if (finish) {
+        toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
       } else {
-        toastSuccess(t('wash.messages.packedTrolleys', { client: group.clientName, count: trolleyNos.length }));
+        toastSuccess(t('wash.messages.packingSavedInProgress', { client: group.clientName, count: trolleyNos.length }));
       }
       await Promise.all([refetch(), fetchWorkflow()]);
       setPackingGroup(null);
@@ -729,11 +752,19 @@ export default function WashView() {
     }
   };
 
-  const handleReturnTrolley = (cycle) => {
-    runAction(`return:${cycle.id}`, async () => {
-      await returnLaundryTrolley(sessionToken, cycle.id, user?.name);
-      toastSuccess(t('wash.messages.trolleyReturned', { trolley: cycle.trolley_no }));
-    });
+  const handleFinishPacking = async (group) => {
+    setBusyKey(`pack:${group.key}`);
+    try {
+      const entryIds = group.entries?.map(e => e.id) || group.washedIds || [];
+      await finishLaundryPacking(sessionToken, entryIds, user?.name);
+      toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
+      await Promise.all([refetch(), fetchWorkflow()]);
+      setPackingGroup(null);
+    } catch (err) {
+      toastError(err.message || t('wash.messages.packError'));
+    } finally {
+      setBusyKey('');
+    }
   };
 
   const handleCancelTrolley = (cycle) => {
@@ -741,18 +772,6 @@ export default function WashView() {
       await cancelLaundryTrolley(sessionToken, cycle.id, user?.name);
       toastSuccess(t('wash.messages.packingUndone', { trolley: cycle.trolley_no }));
     });
-  };
-
-  const handleUndoReturnTrolley = async (cycle) => {
-    try {
-      setBusyKey(`undo-return:${cycle.id}`);
-      await undoReturnLaundryTrolley(sessionToken, cycle.id);
-      await Promise.all([refetch(), fetchWorkflow()]);
-    } catch (e) {
-      alert(t('wash.messages.genericError', { message: e.message }));
-    } finally {
-      setBusyKey(null);
-    }
   };
 
   // "Bez wózka" (brak) jest od razu oznaczane jako "wróciło" — bo nie zajmuje realnego
@@ -767,311 +786,6 @@ export default function WashView() {
     });
   };
 
-  // Uzupełnienie kg poznanego po fakcie (np. kierowca zgłosił wagę po dostawie),
-  // gdy pakowanie odbyło się bez znanej wagi.
-  const handleSaveTrolleyKg = (cycle) => {
-    const kg = parseFloat(String(kgEdit[cycle.id] ?? '').replace(',', '.'));
-    if (!Number.isFinite(kg) || kg <= 0) {
-      toastError(t('wash.validation.invalidWeight'));
-      return;
-    }
-    runAction(`kg:${cycle.id}`, async () => {
-      await updateLaundryTrolleyKg(sessionToken, cycle.id, kg, user?.name);
-      setKgEdit(prev => { const next = { ...prev }; delete next[cycle.id]; return next; });
-      toastSuccess(t('wash.messages.weightSaved', { client: cycle.client_name, weight: kg }));
-    });
-  };
-
-  const handleDeleteTrolley = async (cycle, force = false) => {
-    const isVirtual = !isRealTrolley(cycle);
-    const label = isVirtual
-      ? t('wash.delete.packageLabel', { client: cycle.client_name })
-      : t('wash.delete.trolleyLabel', { trolley: cycle.trolley_no });
-    const confirmMsg = force
-      ? t('wash.delete.forceConfirm', { label })
-      : t('wash.delete.confirm', { label });
-    if (!window.confirm(confirmMsg)) return;
-    try {
-      setBusyKey(`delete:${cycle.id}`);
-      const res = await deleteLaundryTrolley(sessionToken, cycle.id, force);
-      if (res?.can_force && !force) {
-        if (window.confirm(`${res.error}\n\n${t('wash.delete.forceQuestion')}`)) {
-          await handleDeleteTrolley(cycle, true);
-          return;
-        }
-      }
-      toastSuccess(t('wash.delete.deleted', { label }));
-      await Promise.all([refetch(), fetchWorkflow()]);
-    } catch (e) {
-      if (e.message?.includes('can_force') || e.message?.includes('wymuszonego usunięcia') || e.message?.includes('po wydaniu kierowcy')) {
-        if (window.confirm(`${e.message}\n\n${t('wash.delete.forceQuestion')}`)) {
-          await handleDeleteTrolley(cycle, true);
-          return;
-        }
-      }
-      toastError(t('wash.messages.genericError', { message: e.message }));
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleClearOldPackages = async () => {
-    if (!window.confirm(t('wash.delete.clearPackagesConfirm', { count: packageCycles.length }))) return;
-    try {
-      setBusyKey('clear-old-packages');
-      let deletedCount = 0;
-      for (const cycle of packageCycles) {
-        try {
-          await deleteLaundryTrolley(sessionToken, cycle.id, true);
-          deletedCount++;
-        } catch {
-          // Kontynuuj usuwanie pozostałych wpisów.
-        }
-      }
-      toastSuccess(t('wash.delete.packagesDeleted', { count: deletedCount }));
-      await Promise.all([refetch(), fetchWorkflow()]);
-    } catch (e) {
-      toastError(t('wash.delete.clearError', { message: e.message }));
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleSetAtClient = async (cycle) => {
-    try {
-      setBusyKey(`at-client:${cycle.id}`);
-      await setTrolleyAtClient(sessionToken, cycle.id);
-      await Promise.all([refetch(), fetchWorkflow()]);
-    } catch (e) {
-      alert(t('wash.messages.genericError', { message: e.message }));
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const renderTrolleyCardItem = (cycle) => {
-    const { status, driver, deliveredAt, isIssuedToDriver } = getCycleTransportState(cycle, entryById, t);
-    const busyReturn = busyKey === `return:${cycle.id}`;
-    const busyCancel = busyKey === `cancel:${cycle.id}`;
-    const busyUndoReturn = busyKey === `undo-return:${cycle.id}`;
-    const busyDelete = busyKey === `delete:${cycle.id}`;
-    const busyAtClient = busyKey === `at-client:${cycle.id}`;
-    const busyKg = busyKey === `kg:${cycle.id}`;
-    const isNoTrolley = !isRealTrolley(cycle);
-    const kgUnknown = !(Number(cycle.total_kg || 0) > 0);
-    const isEditingKg = cycle.id in kgEdit;
-    const canCancelCycle = hasPackRole && !cycle.returned_at && status.key === 'packed' && !isIssuedToDriver;
-    const canUndoPackNoTrolley = hasPackRole && isNoTrolley && status.key === 'packed' && !isIssuedToDriver;
-    const canUndoReturn = hasPackRole && status.key === 'returned';
-    const canDelete = isAdmin;
-    const canReturnTrolley = hasPackRole && !isNoTrolley && !cycle.returned_at && status.key !== 'canceled' && ['picked', 'delivered', 'at_client'].includes(status.key);
-    const canSetAtClient = hasPackRole && !cycle.returned_at && status.key === 'delivered';
-
-    return (
-      <article key={cycle.id} className={`laundry-trolley-card tone-${status.tone}`}>
-        <div className="laundry-trolley-top">
-          <div>
-              <span>{isNoTrolley ? t('wash.issue') : t('wash.trolley')}</span>
-            {isNoTrolley ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                <Package size={18} color="var(--text-secondary)" />
-                <strong style={{ fontSize: '18px' }}>{t('wash.withoutTrolley')}</strong>
-              </div>
-            ) : (
-              <strong>{cycle.trolley_no}</strong>
-            )}
-          </div>
-          <span className={`laundry-trolley-status tone-${status.tone}`}>{status.label}</span>
-        </div>
-        <div className="laundry-trolley-client">{cycle.client_name}</div>
-        <div className="laundry-trolley-grid">
-          <span>kg</span>
-          {kgUnknown && hasPackRole ? (
-            isEditingKg ? (
-              <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  autoFocus
-                  placeholder="kg"
-                  value={kgEdit[cycle.id]}
-                  onChange={e => setKgEdit(prev => ({ ...prev, [cycle.id]: e.target.value }))}
-                  style={{ width: '60px', border: '1px solid var(--border)', borderRadius: '8px', padding: '3px 6px', fontSize: '13px', fontWeight: 600 }}
-                />
-                <button type="button" onClick={() => handleSaveTrolleyKg(cycle)} disabled={busyKg} style={{ fontSize: '12px', fontWeight: 700 }}>
-                  {busyKg ? t('wash.actions.savingShort') : t('common.save')}
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setKgEdit(prev => ({ ...prev, [cycle.id]: '' }))}
-                style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-tertiary)', fontStyle: 'italic', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                {t('wash.enterUnknownWeight')}
-              </button>
-            )
-          ) : (
-            <strong>{Number(cycle.total_kg || 0).toFixed(1)}</strong>
-          )}
-          <span>{t('wash.packed')}</span><strong>{fmtDateTime(cycle.packed_at)}</strong>
-          {driver && <><span>{t('wash.driver')}</span><strong>{driver}</strong></>}
-          {deliveredAt && <><span>{t('wash.delivered')}</span><strong>{fmtDateTime(deliveredAt)}</strong></>}
-          {!isNoTrolley && cycle.returned_at && <><span>{t('wash.return')}</span><strong>{fmtDateTime(cycle.returned_at)}</strong></>}
-        </div>
-        {hasPackRole && (
-          <div className="laundry-card-actions">
-            {isNoTrolley ? (
-              canUndoPackNoTrolley && (
-                <button
-                  type="button"
-                  className="laundry-return-btn is-danger"
-                  onClick={() => handleUndoPackNoTrolley(cycle)}
-                  disabled={busyCancel}
-                >
-                  <RotateCcw size={15} />
-                  {busyCancel ? t('wash.actions.undoing') : t('wash.actions.undoPack')}
-                </button>
-              )
-            ) : (
-              <>
-                {canCancelCycle && (
-                  <button
-                    type="button"
-                    className="laundry-return-btn is-danger"
-                    onClick={() => handleCancelTrolley(cycle)}
-                    disabled={busyCancel}
-                  >
-                    <RotateCcw size={15} />
-                      {busyCancel ? t('wash.actions.undoing') : t('wash.actions.undoPack')}
-                  </button>
-                )}
-                {canReturnTrolley && (
-                  <button
-                    type="button"
-                    className="laundry-return-btn"
-                    onClick={() => handleReturnTrolley(cycle)}
-                    disabled={busyReturn}
-                  >
-                    <RotateCcw size={15} />
-                      {busyReturn ? t('wash.actions.savingShort') : t('wash.actions.trolleyReturned')}
-                  </button>
-                )}
-                {canSetAtClient && (
-                  <button
-                    type="button"
-                    className="laundry-return-btn is-secondary"
-                    onClick={() => handleSetAtClient(cycle)}
-                    disabled={busyAtClient}
-                  >
-                    <Archive size={15} />
-                      {busyAtClient ? t('wash.actions.savingShort') : t('wash.actions.leftAtClient')}
-                  </button>
-                )}
-                {canUndoReturn && (
-                  <button
-                    type="button"
-                    className="laundry-return-btn is-secondary"
-                    onClick={() => handleUndoReturnTrolley(cycle)}
-                    disabled={busyUndoReturn}
-                  >
-                    <RotateCcw size={15} />
-                      {busyUndoReturn ? t('wash.actions.undoing') : t('wash.actions.undoReturn')}
-                  </button>
-                )}
-              </>
-            )}
-            {canDelete && (
-              <button
-                type="button"
-                className="laundry-return-btn is-danger"
-                style={{ background: 'rgba(255, 59, 48, 0.08)', color: 'var(--red-600, #dc2626)', border: '1px solid rgba(255, 59, 48, 0.25)' }}
-                onClick={() => handleDeleteTrolley(cycle)}
-                disabled={busyDelete}
-              >
-                <Trash2 size={15} />
-                {busyDelete ? t('wash.actions.deleting') : t('wash.actions.deleteEntry')}
-              </button>
-            )}
-            {isIssuedToDriver && !canDelete && status.key !== 'returned' && status.key !== 'canceled' && (
-              <div style={{ fontSize: '12px', lineHeight: 1.35, color: 'var(--text-tertiary)', fontWeight: 600, padding: '4px 2px' }}>
-                {t('wash.issuedHint')}
-              </div>
-            )}
-          </div>
-        )}
-      </article>
-    );
-  };
-
-  const renderArrivalReservationCard = (reservation) => {
-    const occupiedSince = reservation.dirty_received_at || reservation.picked_up_at;
-    const occupiedSinceDate = dateOnly(occupiedSince);
-    const occupiedDays = daysBetween(occupiedSinceDate, operationalYmd());
-    const overdueDays = reservation.wash_date && reservation.wash_date < operationalYmd()
-      ? daysBetween(reservation.wash_date, operationalYmd())
-      : 0;
-    const needsPlanReview = !reservation.wash_date && occupiedDays > 1;
-
-    return (
-    <article key={`arrival:${reservation.trolley_no}`} className="laundry-trolley-card tone-partial">
-      <div className="laundry-trolley-top">
-        <div>
-          <span>{t('wash.trolley')}</span>
-          <strong>{reservation.trolley_no}</strong>
-        </div>
-        <span className="laundry-trolley-status tone-partial">
-          {(reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.fleet.dirtyAtLaundry')).toUpperCase()}
-        </span>
-      </div>
-      <div className="laundry-trolley-client">{reservation.client_name}</div>
-      <div className="laundry-trolley-grid">
-        <span>{t('wash.trolleyBoard.laundryFrom')}</span><strong>{formatDate(reservation.laundry_origin_date)}</strong>
-        {reservation.dirty_received_at ? (
-          <><span>{t('wash.trolleyBoard.receivedAtLaundry')}</span><strong>{fmtDateTime(reservation.dirty_received_at)}</strong></>
-        ) : (
-          <><span>{t('wash.trolleyBoard.pickedUpAt')}</span><strong>{fmtDateTime(reservation.picked_up_at)}</strong></>
-        )}
-        {occupiedSince && (
-          <><span>{t('wash.trolleyBoard.occupiedFor')}</span><strong className="laundry-trolley-age">{occupiedDays === 0 ? t('wash.trolleyBoard.occupiedToday') : t('wash.trolleyBoard.occupiedDays', { count: occupiedDays })}</strong></>
-        )}
-        <span>{t('wash.trolleyBoard.plannedWash')}</span><strong>{reservation.wash_date ? formatDate(reservation.wash_date) : t('wash.trolleyBoard.missingPlan')}</strong>
-        {reservation.departure_date && <><span>{t('wash.trolleyBoard.plannedDeparture')}</span><strong>{formatDate(reservation.departure_date)}</strong></>}
-        <span>{t('wash.location')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.locations.vehicle') : t('wash.laundry')}</strong>
-        <span>{t('wash.state')}</span><strong>{reservation.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.waitingForWashed')}</strong>
-      </div>
-      {overdueDays > 0 && (
-        <div className="laundry-trolley-overdue" role="status">
-          <Clock3 size={15} />
-          {t('wash.trolleyBoard.overdueDays', { count: overdueDays })}
-        </div>
-      )}
-      {needsPlanReview && (
-        <div className="laundry-trolley-overdue" role="status">
-          <Clock3 size={15} />
-          {t('wash.trolleyBoard.missingPlanWarning', { count: occupiedDays })}
-        </div>
-      )}
-      {reservation.occupancy_conflict && (
-        <div className="laundry-warning" style={{ marginTop: '10px' }}>
-          {t('wash.occupancyConflict')}
-        </div>
-      )}
-      <button
-        type="button"
-        className="laundry-history-btn"
-        onClick={() => {
-          setHistoryTrolley(String(reservation.trolley_no));
-          setTrolleysModalOpen(true);
-        }}
-      >
-        <History size={15} />
-        {t('wash.trolleyBoard.showTrolleyHistory')}
-      </button>
-    </article>
-    );
-  };
-
   const refreshAll = () => Promise.all([refetch(), fetchWorkflow()]);
 
   if (loading) return <div className="loader">{t('wash.loading')}</div>;
@@ -1080,20 +794,54 @@ export default function WashView() {
   return (
     <div className="laundry-shell">
       <div className="laundry-toolbar">
-        <div>
+        <div className="laundry-title-group">
           <div className="laundry-kicker">{t('wash.kicker')}</div>
           <h1>{t('wash.title')}</h1>
           <p>{t('wash.subtitle', { date: formatDate(selectedDate) })}</p>
         </div>
         <div className="laundry-toolbar-actions">
-          <div className="laundry-date-nav">
-            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>‹</button>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value || operationalYmd())} />
-            <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>›</button>
+          <div className="laundry-date-nav apple-date-nav">
+            <button
+              type="button"
+              className="laundry-date-nav-btn"
+              onClick={() => setSelectedDate(addDays(selectedDate, -1))}
+              title={t('wash.date.previous')}
+              aria-label={t('wash.date.previous')}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <label className="laundry-date-picker-label" title={t('wash.date.choose')}>
+              <Calendar size={14} className="laundry-date-icon" />
+              <span className="laundry-date-text">{formatDate(selectedDate)}</span>
+              <input
+                type="date"
+                className="laundry-date-input"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value || operationalYmd())}
+              />
+            </label>
+            <button
+              type="button"
+              className="laundry-date-nav-btn"
+              onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+              title={t('wash.date.next')}
+              aria-label={t('wash.date.next')}
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <button className="laundry-icon-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>
-            <RefreshCw size={16} className={workflowLoading ? 'spin' : ''} />
-            {t('common.refresh')}
+          {selectedDate !== operationalYmd() && (
+            <button
+              type="button"
+              className="laundry-today-btn"
+              onClick={() => setSelectedDate(operationalYmd())}
+            >
+              {t('common.today')}
+            </button>
+          )}
+          <button className="laundry-refresh-btn" type="button" onClick={refreshAll} disabled={workflowLoading}>
+            <RefreshCw size={15} className={workflowLoading ? 'spin' : ''} />
+            <span>{t('common.refresh')}</span>
           </button>
         </div>
       </div>
@@ -1103,34 +851,6 @@ export default function WashView() {
           {t('wash.workflowWarning', { message: workflowError })}
         </div>
       )}
-
-      <div className="laundry-metrics">
-        <Metric
-          icon={WashingMachine}
-          label={t('wash.metrics.planned')}
-          value={`${metrics.plannedKg} kg`}
-          tone="pending"
-        />
-        <Metric
-          icon={CheckCircle2}
-          label={t('wash.metrics.washedToday')}
-          value={`${metrics.washedKg} kg`}
-          tone="washed"
-        />
-        <Metric
-          icon={Truck}
-          label={t('wash.metrics.departure')}
-          value={`${metrics.departureKg} kg`}
-          tone="ready"
-        />
-        <Metric
-          icon={Archive}
-          label={t('wash.metrics.occupied', { count: trolleyCount })}
-          value={`${metrics.activeTrolleys}/${trolleyCount}`}
-          tone="trolley"
-          onClick={() => setTrolleysModalOpen(true)}
-        />
-      </div>
 
       <section className="laundry-section">
         <div className="laundry-section-head">
@@ -1164,9 +884,9 @@ export default function WashView() {
             const route = routeBadge(group.routeId, routeMap);
             const groupIssuedToDriver = group.issuedToDriver
               || group.allCycles.some(cycle => getCycleTransportState(cycle, entryById, t).isIssuedToDriver);
-            const canMarkWashed = hasWashRole && group.pendingIds.length > 0;
+            const canMarkWashed = hasWashRole && group.pendingIds.length > 0 && !group.hasInTransitLaundry;
             const canUnmarkWashed = hasWashRole && !groupIssuedToDriver && group.entries.some(entry => entry.washed);
-            const canPack = hasPackRole && isPackCandidate(group);
+            const canPack = hasPackRole && !group.hasInTransitLaundry && isPackCandidate(group);
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
@@ -1189,11 +909,13 @@ export default function WashView() {
                   disabled: busyPack,
                 }
                 : null;
-            const waitingNote = !primaryAction && group.stage === 'ready'
-              ? t('wash.actions.ready')
-              : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
-                ? t('wash.actions.nothing')
-                : null;
+            const waitingNote = group.hasInTransitLaundry
+              ? t('wash.actions.waitingForUnload')
+              : !primaryAction && group.stage === 'ready'
+                ? t('wash.actions.ready')
+                : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
+                  ? t('wash.actions.nothing')
+                  : null;
 
 
             return (
@@ -1205,14 +927,51 @@ export default function WashView() {
                     <StagePill stage={group.stage} />
                   </div>
                   <div className="laundry-work-meta">
-                    <span>{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</span>
-                    {group.washDate && <span className="is-wash-date">{t('wash.plannedWashDate', { date: formatDate(group.washDate) })}</span>}
-                    {group.departureDate && <span className="is-departure-date">{t('wash.plannedDepartureDate', { date: formatDate(group.departureDate) })}</span>}
-                    {group.packedKg > 0 && <span>{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>}
-                    {group.packedKg > 0 && group.remainingKg > 0 && <span>{t('wash.remainingAmount', { weight: group.remainingKg })}</span>}
-                    {group.washedAt && <span>{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
-                    {group.packedAt && <span>{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
-                    {group.trolleyNo && <span>{t('wash.trolleysList', { list: group.trolleyNo })}</span>}
+                    <span className="laundry-meta-chip is-weight">
+                      <Scale size={12} />
+                      <strong className="tabular-nums">{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</strong>
+                    </span>
+                    {group.trolleyCount > 0 && (
+                      <span className="laundry-meta-chip is-trolleys">
+                        <Archive size={12} />
+                        <strong className="tabular-nums">
+                          {t('wash.trolleysAssigned', { count: group.trolleyCount, list: group.trolleyNo })}
+                        </strong>
+                      </span>
+                    )}
+                    {group.hasArrivalTrolleys && (
+                      <span className={`laundry-meta-chip ${group.hasInTransitLaundry ? 'is-in-vehicle' : 'is-at-laundry'}`}>
+                        {group.hasInTransitLaundry ? <Truck size={12} /> : <WashingMachine size={12} />}
+                        <strong>
+                          {t(group.hasInTransitLaundry ? 'wash.locationStatus.inVehicle' : 'wash.locationStatus.atLaundry')}
+                        </strong>
+                      </span>
+                    )}
+                    {group.washDate && (
+                      <span className="laundry-meta-chip is-wash-date">
+                        <Calendar size={12} />
+                        <span>{t('wash.plannedWashDate', { date: formatDate(group.washDate) })}</span>
+                      </span>
+                    )}
+                    {group.departureDate && (
+                      <span className="laundry-meta-chip is-departure-date">
+                        <Truck size={12} />
+                        <span>{t('wash.plannedDepartureDate', { date: formatDate(group.departureDate) })}</span>
+                      </span>
+                    )}
+                    {group.packedKg > 0 && (
+                      <span className="laundry-meta-chip is-packed">
+                        <Package size={12} />
+                        <span className="tabular-nums">{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>
+                      </span>
+                    )}
+                    {group.packedKg > 0 && group.remainingKg > 0 && (
+                      <span className="laundry-meta-chip is-remaining">
+                        <span className="tabular-nums">{t('wash.remainingAmount', { weight: group.remainingKg })}</span>
+                      </span>
+                    )}
+                    {group.washedAt && <span className="laundry-meta-chip">{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
+                    {group.packedAt && <span className="laundry-meta-chip">{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
                   </div>
                   
                   {group.hasKnownWeight && (
@@ -1225,14 +984,32 @@ export default function WashView() {
                   )}
                   {group.cycles.length > 0 && (
                     <div className="laundry-cycle-chips">
-                      {group.cycles.map(cycle => {
-                        return (
-                          <span key={cycle.id} className="laundry-cycle-chip">
-                            <strong>{t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
-                            <b>{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
-                          </span>
-                        );
-                      })}
+                      {group.cycles.map(cycle => (
+                        <span
+                          key={cycle.id}
+                          className="laundry-cycle-chip"
+                          role={cycle.trolley_no !== 'brak' ? 'button' : undefined}
+                          tabIndex={cycle.trolley_no !== 'brak' ? 0 : undefined}
+                          onClick={() => {
+                            if (cycle.trolley_no !== 'brak') {
+                              setHistoryTrolley(String(cycle.trolley_no));
+                              setTrolleysModalOpen(true);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (cycle.trolley_no !== 'brak' && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              setHistoryTrolley(String(cycle.trolley_no));
+                              setTrolleysModalOpen(true);
+                            }
+                          }}
+                          style={{ cursor: cycle.trolley_no !== 'brak' ? 'pointer' : 'default' }}
+                          title={cycle.trolley_no !== 'brak' ? t('wash.fleet.openHistory') : undefined}
+                        >
+                          <strong>{t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
+                          <b className="tabular-nums">{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1247,17 +1024,19 @@ export default function WashView() {
                       disabled={primaryAction.disabled}
                     >
                       <primaryAction.Icon size={16} />
-                      {primaryAction.label}
+                      <span>{primaryAction.label}</span>
                     </button>
                   ) : (
-                    <div className="laundry-work-state">{waitingNote}</div>
+                    <div className={`laundry-work-state ${group.hasInTransitLaundry ? 'is-blocked' : ''}`}>
+                      {group.hasInTransitLaundry ? <Truck size={15} /> : group.stage === 'ready' && <CheckCircle2 size={15} />}
+                      <span>{waitingNote}</span>
+                    </div>
                   )}
 
                   {hasCorrections && (
                     <details className="laundry-correction-menu">
-                      <summary>
+                      <summary title={t('wash.actions.correction')} aria-label={t('wash.actions.correction')}>
                         <MoreHorizontal size={16} />
-                        {t('wash.actions.correction')}
                       </summary>
                       <div className="laundry-correction-panel">
                         {canUnmarkWashed && (
@@ -1269,7 +1048,7 @@ export default function WashView() {
                             title={t('wash.actions.undoWashedTitle')}
                           >
                             <RotateCcw size={15} />
-                            {busyUnwashed ? t('wash.actions.undoing') : t('wash.actions.undoWashed')}
+                            <span>{busyUnwashed ? t('wash.actions.undoing') : t('wash.actions.undoWashed')}</span>
                           </button>
                         )}
                         {cycleCorrections.map(action => (
@@ -1281,7 +1060,7 @@ export default function WashView() {
                             disabled={action.disabled}
                           >
                             <RotateCcw size={15} />
-                            {action.label}
+                            <span>{action.label}</span>
                           </button>
                         ))}
                       </div>
@@ -1295,243 +1074,64 @@ export default function WashView() {
         </div>
       </section>
 
-      <section className="laundry-section">
+      <section className="laundry-section" aria-label={t('wash.operationsPlan')}>
         <div className="laundry-section-head">
           <div>
-            <h2>{t('wash.trolleyBoard.title')}</h2>
-            <span>{t('wash.trolleyBoard.summary', { free: freeTrolleyCount, occupied: activeTrolleyByNo.size, total: trolleyCount })}</span>
-            <p className="laundry-live-context">{t('wash.trolleyBoard.liveContext')}</p>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {trolleyTab === 'packages' && packageCycles.length > 0 && isAdmin && (
-              <button
-                type="button"
-                className="laundry-header-action is-danger"
-                onClick={handleClearOldPackages}
-                disabled={busyKey === 'clear-old-packages'}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 59, 48, 0.25)',
-                  background: 'rgba(255, 59, 48, 0.08)',
-                  color: 'var(--red-600, #dc2626)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                <Trash2 size={13} />
-                {busyKey === 'clear-old-packages' ? t('wash.trolleyBoard.clearing') : t('wash.trolleyBoard.clearPackages')}
-              </button>
-            )}
-            <button
-              type="button"
-              className="laundry-header-action"
-              onClick={() => {
-                setHistoryTrolley(null);
-                setTrolleysModalOpen(true);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              <Maximize2 size={13} />
-              {t('wash.trolleyBoard.manageFleet', { count: trolleyCount })}
-            </button>
+            <h2>{t('wash.operationsPlan')}</h2>
+            <span>{t('wash.operationsSubtitle')}</span>
           </div>
         </div>
 
-        <div className="segmented-control" style={{ maxWidth: '620px', marginTop: '6px', marginBottom: '14px' }}>
+        <div className="laundry-operations-overview" aria-label={t('wash.operationsPlan')}>
+          <div className="laundry-flow-metrics">
+            <FlowMetric
+              icon={WashingMachine}
+              label={t('wash.flowOverview.planned')}
+              value={metrics.plannedKg}
+              tone="planned"
+              subtitle={t('wash.flowOverview.plannedHint')}
+            />
+            <FlowMetric
+              icon={CheckCircle2}
+              label={t('wash.flowOverview.washed')}
+              value={metrics.washedKg}
+              tone="washed"
+              progress={washedProgress}
+              subtitle={t('wash.flowOverview.washedHint')}
+            />
+            <FlowMetric
+              icon={PackageCheck}
+              label={t('wash.flowOverview.packed')}
+              value={packedKg}
+              tone="packed"
+              progress={packedProgress}
+              subtitle={t('wash.flowOverview.packedHint')}
+            />
+            <FlowMetric
+              icon={Truck}
+              label={t('wash.flowOverview.departure')}
+              value={metrics.departureKg}
+              tone="departure"
+              subtitle={t('wash.flowOverview.departureHint')}
+            />
+          </div>
+
           <button
             type="button"
-            className={`seg-btn ${trolleyTab === 'active' ? 'active' : ''}`}
-            onClick={() => setTrolleyTab('active')}
+            className="laundry-fleet-summary"
+            onClick={() => setTrolleysModalOpen(true)}
           >
-            {t('wash.trolleyBoard.tabs.active', { count: activeTrolleyByNo.size })}
-          </button>
-          <button
-            type="button"
-            className={`seg-btn ${trolleyTab === 'fleet' ? 'active' : ''}`}
-            onClick={() => setTrolleyTab('fleet')}
-          >
-            {t('wash.trolleyBoard.tabs.fleet', { count: trolleyCount })}
-          </button>
-          <button
-            type="button"
-            className={`seg-btn ${trolleyTab === 'packages' ? 'active' : ''}`}
-            onClick={() => setTrolleyTab('packages')}
-          >
-            {t('wash.trolleyBoard.tabs.packages', { count: packageCycles.length })}
-          </button>
-          <button
-            type="button"
-            className={`seg-btn ${trolleyTab === 'history' ? 'active' : ''}`}
-            onClick={() => setTrolleyTab('history')}
-          >
-            {t('wash.trolleyBoard.tabs.history', { count: historyTrolleys.length })}
+            <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
+            <span className="laundry-fleet-summary-copy">
+              <strong>{t('wash.flowOverview.fleetTitle')}</strong>
+              <span>{t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
+            </span>
+            <strong className="laundry-fleet-summary-free tabular-nums">
+              {t('wash.flowOverview.fleetFree', { count: freeTrolleyCount })}
+            </strong>
+            <Maximize2 size={16} aria-hidden="true" />
           </button>
         </div>
-
-        {trolleyTab === 'active' && (
-          occupiedTrolleys.length === 0 ? (
-            <div className="laundry-empty-state apple-glass" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <CheckCircle2 size={36} color="var(--accent-green, #34C759)" />
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {t('wash.trolleyBoard.allFreeTitle')}
-              </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
-                {t('wash.trolleyBoard.allFreeDescription', { count: trolleyCount })}
-              </p>
-              <button
-                type="button"
-                className="laundry-return-btn"
-                style={{
-                  display: 'inline-flex',
-                  width: 'auto',
-                  marginTop: '8px',
-                  padding: '7px 16px',
-                  borderRadius: '10px',
-                  gap: '6px',
-                  alignItems: 'center',
-                  fontWeight: 700,
-                  fontSize: '13px'
-                }}
-                onClick={() => setTrolleyTab('fleet')}
-              >
-                {t('wash.trolleyBoard.showFleet')}
-              </button>
-            </div>
-          ) : (
-            <div className="laundry-trolley-board">
-              {occupiedTrolleys.map(occupied => (
-                occupied.occupancy_source === 'arrival'
-                  ? renderArrivalReservationCard(occupied)
-                  : renderTrolleyCardItem(occupied)
-              ))}
-            </div>
-          )
-        )}
-
-        {trolleyTab === 'fleet' && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-            gap: '10px',
-            marginTop: '4px'
-          }}>
-            {trolleyNumbers.map(tNo => {
-              const active = activeTrolleyByNo.get(tNo);
-              const isFree = !active;
-              const atClient = active?.status === 'at_client';
-              const dirtyInLaundry = active?.occupancy_source === 'arrival';
-              return (
-                <div
-                  key={tNo}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: isFree ? 'var(--bg-card)' : atClient ? 'rgba(255, 149, 0, 0.08)' : dirtyInLaundry ? 'rgba(175, 82, 222, 0.08)' : 'rgba(0, 122, 255, 0.08)',
-                    border: isFree ? '1px solid var(--border)' : atClient ? '1px solid rgba(255, 149, 0, 0.25)' : dirtyInLaundry ? '1px solid rgba(175, 82, 222, 0.25)' : '1px solid rgba(0, 122, 255, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <strong style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>#{tNo}</strong>
-                    <span style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: isFree ? 'var(--accent-green, #34C759)' : atClient ? 'var(--accent-orange, #FF9500)' : dirtyInLaundry ? '#AF52DE' : 'var(--accent, #007AFF)'
-                    }} />
-                  </div>
-                  <span style={{
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: isFree ? 'var(--accent-green, #34C759)' : 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {isFree ? t('wash.trolleyBoard.free') : active.client_name}
-                  </span>
-                  {!isFree && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase' }}>
-                      {atClient ? t('wash.trolleyBoard.atClient') : dirtyInLaundry ? t('wash.fleet.dirtyAtLaundry') : `${Number(active.total_kg || 0).toFixed(0)} kg`}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {trolleyTab === 'packages' && (
-          packageCycles.length === 0 ? (
-            <div className="laundry-empty-state" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)'
-            }}>
-              <Package size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{t('wash.trolleyBoard.noPackages')}</p>
-            </div>
-          ) : (
-            <div className="laundry-trolley-board">
-              {packageCycles.map(renderTrolleyCardItem)}
-            </div>
-          )
-        )}
-
-        {trolleyTab === 'history' && (
-          historyTrolleys.length === 0 ? (
-            <div className="laundry-empty-state" style={{
-              padding: '36px 20px',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)'
-            }}>
-              <Archive size={32} color="var(--text-tertiary)" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{t('wash.trolleyBoard.noHistory')}</p>
-            </div>
-          ) : (
-            <div className="laundry-trolley-board">
-              {historyTrolleys.map(renderTrolleyCardItem)}
-            </div>
-          )
-        )}
-      </section>
-
-      <section className="laundry-flow-note">
-        <Truck size={18} />
-        <span>{t('wash.flowNote')}</span>
       </section>
 
       {packingGroup && (
@@ -1540,6 +1140,8 @@ export default function WashView() {
           onClose={() => setPackingGroup(null)}
           onPack={handlePack}
           onPackMulti={handlePackMulti}
+          onFinishPacking={handleFinishPacking}
+          sessionToken={sessionToken}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}
         />
