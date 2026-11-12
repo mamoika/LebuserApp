@@ -18,6 +18,10 @@ export function laundryBatchKey({ clientName, routeId, washDate, departureDate }
   return [clientName || '—', routeId || 0, washDate || 'no-wash-date', departureDate || 'no-departure-date'].join('|');
 }
 
+export function effectiveLaundryWashDate(entry, getDerivedWashDate) {
+  return entry?.laundry_planned_date || getDerivedWashDate(entry);
+}
+
 export function calculateLaundryDayMetrics(entries, selectedDate, getWashDate, getDepartureDate) {
   // Metryki mają opisywać dokładnie ten sam aktywny plan, który operator widzi
   // na liście Pralni. Wpisy zakończone oraz miękko usunięte pozostają w historii,

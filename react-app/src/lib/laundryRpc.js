@@ -33,6 +33,25 @@ export function getTrolleyHistory(sessionToken, trolleyNo, limit = 200) {
   });
 }
 
+export function addLaundryPlanEntry(sessionToken, {
+  id,
+  plannedDate,
+  clientName,
+  type,
+  weight,
+  urgent = false,
+}) {
+  return callLaundryRpc('admin_add_laundry_plan_entry', {
+    p_session_token: sessionToken,
+    p_id: id,
+    p_planned_date: plannedDate,
+    p_client_name: clientName,
+    p_type: type,
+    p_weight: weight,
+    p_urgent: urgent,
+  });
+}
+
 export function forceReleaseTrolley(sessionToken, trolleyNo, action, by) {
   return callLaundryRpc('admin_force_release_trolley', {
     p_session_token: sessionToken,

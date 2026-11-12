@@ -83,6 +83,15 @@ function dayWeekToTime(day, weekKey) {
   return dt.getTime();
 }
 
+function plannedDateToSlot(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime()) || date.getDay() === 0) return null;
+  const day = date.getDay();
+  const monday = addDays(date, -(day - 1));
+  return `${formatWeekKey(monday)}|${day}`;
+}
+
 // Dzień prania danego wpisu — liczony od WYJAZDU (odbioru), nie przyjazdu:
 // - pierzemy w dzień operacyjny tuż PRZED wyjazdem (pn → sobota poprzedniego tygodnia),
 // - dla tras nie-codziennych nie pierzemy w dniu przyjazdu: jeśli „dzień przed
@@ -91,6 +100,9 @@ function dayWeekToTime(day, weekKey) {
 // - dla tras codziennych „dzień przed wyjazdem" zawsze == dzień przyjazdu, więc
 //   reguła automatycznie daje pranie tego samego dnia (np. miasto).
 function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
+  const manualSlot = plannedDateToSlot(entry?.laundry_planned_date);
+  if (manualSlot) return manualSlot;
+
   const arrDay = Number(entry.arr_day);
   const arrWeek = entry.week_key;
   const depDay = Number(entry.pick_day);

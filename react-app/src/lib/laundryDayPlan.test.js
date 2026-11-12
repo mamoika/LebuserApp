@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateLaundryDayMetrics, laundryBatchKey } from './laundryDayPlan.js';
+import { calculateLaundryDayMetrics, effectiveLaundryWashDate, laundryBatchKey } from './laundryDayPlan.js';
 
 test('separates batches for one client by wash and departure dates', () => {
   const yesterdayBatch = laundryBatchKey({
@@ -40,5 +40,19 @@ test('does not count completed entries that are hidden from the laundry work lis
   assert.deepEqual(
     calculateLaundryDayMetrics(entries, '2026-11-05', entry => entry.washDate, entry => entry.departureDate),
     { plannedKg: 0, washedKg: 0, departureKg: 0 },
+  );
+});
+
+test('manual laundry date overrides the date derived from logistics', () => {
+  assert.equal(
+    effectiveLaundryWashDate(
+      { laundry_planned_date: '2026-11-12', derivedDate: '2026-11-13' },
+      entry => entry.derivedDate,
+    ),
+    '2026-11-12',
+  );
+  assert.equal(
+    effectiveLaundryWashDate({ derivedDate: '2026-11-13' }, entry => entry.derivedDate),
+    '2026-11-13',
   );
 });
