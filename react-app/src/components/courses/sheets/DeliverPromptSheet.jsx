@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, Plus, ShoppingCart, X } from 'lucide-react';
+import { Check, CheckCircle2, Plus, Search, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { captureError } from '../../../lib/sentry';
 import { getLaundryWorkflow } from '../../../lib/laundryRpc';
@@ -21,6 +21,13 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   const [availableEmptyTrolleys, setAvailableEmptyTrolleys] = useState([]);
   const [trolleyPickerOpen, setTrolleyPickerOpen] = useState(false);
   const [trolleyPickerDraft, setTrolleyPickerDraft] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredEmptyTrolleys = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return availableEmptyTrolleys;
+    return availableEmptyTrolleys.filter(number => number.includes(q));
+  }, [availableEmptyTrolleys, searchQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +62,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
 
   const openTrolleyPicker = () => {
     setTrolleyPickerDraft(prompt.emptyTrolleys);
+    setSearchQuery('');
     setTrolleyPickerOpen(true);
   };
 
@@ -154,11 +162,70 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
 
       {trolleyPickerOpen && (
         <CourseSheet className="delivery-picker-sheet" titleId="empty-trolley-picker-title" title={t('course.sheets.delivery.pickerTitle')} onClose={() => setTrolleyPickerOpen(false)}>
+          <div className="delivery-picker-meta">
+            <span className="delivery-picker-client">{stop.client_name}</span>
+            <span className="delivery-picker-count">{t('course.sheets.delivery.freeCount', { count: availableEmptyTrolleys.length })}</span>
+          </div>
           <p className="live-sheet-copy">{t('course.sheets.delivery.pickerHint')}</p>
+
+          <div className="delivery-picker-search">
+            <Search size={15} aria-hidden="true" className="delivery-picker-search-icon" />
+            <input
+              type="text"
+              inputMode="numeric"
+              className="delivery-picker-search-input"
+              placeholder={t('course.sheets.delivery.searchPlaceholder')}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              aria-label={t('course.sheets.delivery.searchPlaceholder')}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="delivery-picker-search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label={t('course.sheets.delivery.clearSearch')}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          {trolleyPickerDraft.length > 0 && (
+            <div className="delivery-picker-selected-strip" aria-label={t('course.sheets.delivery.selectedEmptyTrolleys')}>
+              <div className="delivery-picker-selected-head">
+                <span className="delivery-picker-selected-title">
+                  {t('course.sheets.delivery.selectedBadge', { count: trolleyPickerDraft.length })}
+                </span>
+                <button
+                  type="button"
+                  className="delivery-picker-clear-btn"
+                  onClick={() => setTrolleyPickerDraft([])}
+                >
+                  {t('common.clear')}
+                </button>
+              </div>
+              <div className="delivery-picker-chips-row">
+                {trolleyPickerDraft.map(number => (
+                  <span key={number} className="delivery-picker-draft-chip">
+                    <span className="delivery-picker-draft-chip-num">{formatTrolleyCode(number)}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleEmptyTrolley(number)}
+                      aria-label={t('course.sheets.delivery.removeEmptyTrolley', { number })}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="delivery-picker-scroll">
-            {availableEmptyTrolleys.length > 0 ? (
+            {filteredEmptyTrolleys.length > 0 ? (
               <div className="delivery-empty-trolley-grid" role="group" aria-label={t('course.sheets.delivery.emptyTrolleys')}>
-                {availableEmptyTrolleys.map(number => {
+                {filteredEmptyTrolleys.map(number => {
                   const selected = trolleyPickerDraft.includes(number);
                   return (
                     <button
@@ -169,19 +236,28 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
                       aria-pressed={selected}
                       aria-label={t('course.sheets.delivery.toggleEmptyTrolley', { number })}
                     >
-                      <ShoppingCart size={16} aria-hidden="true" />
-                      <span>{number}</span>
+                      <span className="delivery-tile-num">{number}</span>
+                      {selected && <Check size={13} className="delivery-tile-check" aria-hidden="true" />}
                     </button>
                   );
                 })}
               </div>
-            ) : (
+            ) : availableEmptyTrolleys.length === 0 ? (
               <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noFreeTrolleys')}</div>
+            ) : (
+              <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noSearchResults')}</div>
             )}
           </div>
-          <div className="ap-btn-group delivery-picker-actions">
-            <button className="ap-btn ap-btn-secondary" onClick={() => setTrolleyPickerOpen(false)}>{t('common.cancel')}</button>
-            <button className="ap-btn ap-btn-primary" onClick={saveTrolleyPicker}>{t('course.sheets.delivery.confirmSelection')}</button>
+
+          <div className="delivery-picker-actions">
+            <button type="button" className="ap-btn ap-btn-secondary" onClick={() => setTrolleyPickerOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="button" className="ap-btn ap-btn-primary" onClick={saveTrolleyPicker}>
+              {trolleyPickerDraft.length > 0
+                ? t('course.sheets.delivery.confirmCount', { count: trolleyPickerDraft.length })
+                : t('course.sheets.delivery.confirmSelection')}
+            </button>
           </div>
         </CourseSheet>
       )}

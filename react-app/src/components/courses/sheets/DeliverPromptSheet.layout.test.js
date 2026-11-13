@@ -24,5 +24,10 @@ test('extra empty trolleys open in a dedicated tile picker', () => {
   assert.match(source, /className=\{`delivery-empty-trolley-tile \$\{selected \? 'is-selected' : ''\}`\}/);
   assert.match(source, /aria-pressed=\{selected\}/);
   assert.match(source, /toggleEmptyTrolley\(number\)/);
+  assert.match(source, /delivery-picker-search/);
+  assert.match(source, /course\.sheets\.delivery\.searchPlaceholder/);
+  assert.match(source, /delivery-picker-selected-strip/);
+  assert.match(source, /delivery-tile-num/);
+  assert.match(source, /course\.sheets\.delivery\.confirmCount/);
   assert.doesNotMatch(source, /<select/);
 });
