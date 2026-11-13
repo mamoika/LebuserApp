@@ -19,7 +19,6 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     emptyTrolleys: [],
   }));
   const [availableEmptyTrolleys, setAvailableEmptyTrolleys] = useState([]);
-  const [emptyTrolleyToAdd, setEmptyTrolleyToAdd] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +42,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           return { trolleys, emptyTrolleys: prev.emptyTrolleys.filter(number => free.includes(number)) };
         });
       } catch (error) {
-        captureError(error, { feature: 'DeliverPromptSheet.loadOldTrolleys' });
+        captureError(error, { feature: 'DeliverPromptSheet.loadTrolleys' });
       } finally {
         if (!cancelled) setLoadingTrolleys(false);
       }
@@ -52,13 +51,13 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     return () => { cancelled = true; };
   }, [pendingDelivery, sessionToken, stop.client_name]);
 
-  const addEmptyTrolley = () => {
-    if (!emptyTrolleyToAdd) return;
+  const toggleEmptyTrolley = trolleyNo => {
     setPrompt(prev => ({
       ...prev,
-      emptyTrolleys: [...new Set([...prev.emptyTrolleys, emptyTrolleyToAdd])],
+      emptyTrolleys: prev.emptyTrolleys.includes(trolleyNo)
+        ? prev.emptyTrolleys.filter(number => number !== trolleyNo)
+        : [...prev.emptyTrolleys, trolleyNo],
     }));
-    setEmptyTrolleyToAdd('');
   };
 
   const confirm = async () => {
@@ -112,23 +111,29 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       <p className="delivery-trolley-pickup-hint">{t('course.sheets.delivery.pickupHint')}</p>
       <div className="delivery-empty-trolley-section">
         <label className="delivery-sheet-label">{t('course.sheets.delivery.emptyTrolleys')}</label>
-        <div className="delivery-empty-trolley-row">
-          <select className="ap-input" value={emptyTrolleyToAdd} onChange={event => setEmptyTrolleyToAdd(event.target.value)}>
-            <option value="">{t('course.sheets.delivery.chooseFreeTrolley')}</option>
-            {availableEmptyTrolleys.filter(number => !prompt.emptyTrolleys.includes(number)).map(number => (
-              <option key={number} value={number}>{formatTrolleyCode(number)}</option>
-            ))}
-          </select>
-          <button type="button" className="driver-tool-btn" onClick={addEmptyTrolley} disabled={!emptyTrolleyToAdd}>{t('common.add')}</button>
-        </div>
-        {prompt.emptyTrolleys.length > 0 && (
-          <div className="delivery-empty-trolley-chips">
-            {prompt.emptyTrolleys.map(number => (
-              <button type="button" key={number} className="driver-tool-btn" onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))}>
-                {formatTrolleyCode(number)} ×
-              </button>
-            ))}
+        {loadingTrolleys ? (
+          <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.checkingTrolleys')}</div>
+        ) : availableEmptyTrolleys.length > 0 ? (
+          <div className="delivery-empty-trolley-grid" role="group" aria-label={t('course.sheets.delivery.emptyTrolleys')}>
+            {availableEmptyTrolleys.map(number => {
+              const selected = prompt.emptyTrolleys.includes(number);
+              return (
+                <button
+                  type="button"
+                  key={number}
+                  className={`delivery-empty-trolley-tile ${selected ? 'is-selected' : ''}`}
+                  onClick={() => toggleEmptyTrolley(number)}
+                  aria-pressed={selected}
+                  aria-label={t('course.sheets.delivery.toggleEmptyTrolley', { number })}
+                >
+                  <ShoppingCart size={16} aria-hidden="true" />
+                  <span>{number}</span>
+                </button>
+              );
+            })}
           </div>
+        ) : (
+          <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noFreeTrolleys')}</div>
         )}
         <div className="delivery-empty-trolley-hint">{t('course.sheets.delivery.emptyTrolleysHint')}</div>
       </div>

@@ -2131,6 +2131,8 @@
         "takeTrolley": "Zabieram wózek {{number}}",
         "emptyTrolleys": "Dodatkowy pusty wózek dla hotelu",
         "chooseFreeTrolley": "Wybierz wolny wózek…",
+        "toggleEmptyTrolley": "Wybierz pusty wózek {{number}}",
+        "noFreeTrolleys": "Brak wolnych wózków do wyboru",
         "emptyTrolleysHint": "Pusty wózek zostanie zapisany osobno i nie zmieni kilogramów dostawy.",
         "checkingTrolleys": "Sprawdzanie wózków…",
         "confirm": "Potwierdź dostawę"

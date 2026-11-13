@@ -2113,6 +2113,8 @@
         "takeTrolley": "Wagen {{number}} mitnehmen",
         "emptyTrolleys": "Zusätzlicher leerer Wagen für das Hotel",
         "chooseFreeTrolley": "Freien Wagen auswählen…",
+        "toggleEmptyTrolley": "Leeren Wagen {{number}} auswählen",
+        "noFreeTrolleys": "Keine freien Wagen verfügbar",
         "emptyTrolleysHint": "Der leere Wagen wird separat gespeichert und verändert das Liefergewicht nicht.",
         "checkingTrolleys": "Wagen werden geprüft…",
         "confirm": "Lieferung bestätigen"
