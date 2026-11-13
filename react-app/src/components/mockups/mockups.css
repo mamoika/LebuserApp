@@ -1779,7 +1779,24 @@
 .delivery-empty-trolley-tile.is-selected { border-color: var(--accent); background: var(--accent); color: #fff; }
 .delivery-empty-trolley-state { margin-top: 9px; padding: 13px; border-radius: 12px; background: var(--bg-secondary); color: var(--text-tertiary); font-size: 12px; text-align: center; }
 .delivery-empty-trolley-hint { margin-top: 4px; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; }
-.delivery-picker-actions { margin-top: 18px; }
+.delivery-picker-sheet { height: min(720px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); }
+.delivery-picker-sheet .ap-content { display: flex; flex-direction: column; height: 100%; max-height: none; overflow: hidden; padding-bottom: 16px; }
+.delivery-picker-sheet .ap-title,
+.delivery-picker-sheet .live-sheet-copy { flex: 0 0 auto; }
+.delivery-picker-sheet .live-sheet-copy { margin-bottom: 10px; }
+.delivery-picker-scroll { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 2px 4px 12px; margin: 0 -4px; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
+.delivery-picker-actions { flex: 0 0 auto; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border); background: #F2F2F7; }
+@media (max-width: 599px) {
+  .delivery-picker-sheet { height: calc(100dvh - 8px); max-height: calc(100dvh - 8px); }
+  .delivery-picker-sheet .ap-content { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
+  .delivery-picker-sheet .ap-title { font-size: 20px; }
+  .delivery-picker-sheet .live-sheet-copy { margin-bottom: 8px; }
+  .delivery-empty-trolley-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+  .delivery-empty-trolley-tile { min-height: 48px; padding: 6px 4px; font-size: 14px; }
+}
+@media (max-width: 380px) {
+  .delivery-empty-trolley-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .live-delete-btn { color: var(--accent-red) !important; border-color: rgba(255, 59, 48, .35) !important; }
 .live-route-chip { font-size: 10px; padding: 2px 7px; border-radius: 999px; }
 .live-stop-nav { padding: 4px 8px; min-height: auto; }

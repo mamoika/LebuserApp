@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function CourseSheet({ titleId, title, onClose, busy = false, children }) {
+export default function CourseSheet({ titleId, title, onClose, busy = false, className = '', children }) {
   const sheetRef = useRef(null);
   const onCloseRef = useRef(onClose);
 
@@ -34,7 +34,7 @@ export default function CourseSheet({ titleId, title, onClose, busy = false, chi
     <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
       <div
         ref={sheetRef}
-        className="ap-sheet"
+        className={`ap-sheet ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

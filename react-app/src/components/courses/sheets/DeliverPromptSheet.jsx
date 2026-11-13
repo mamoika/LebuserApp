@@ -153,30 +153,32 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       </div>
 
       {trolleyPickerOpen && (
-        <CourseSheet titleId="empty-trolley-picker-title" title={t('course.sheets.delivery.pickerTitle')} onClose={() => setTrolleyPickerOpen(false)}>
+        <CourseSheet className="delivery-picker-sheet" titleId="empty-trolley-picker-title" title={t('course.sheets.delivery.pickerTitle')} onClose={() => setTrolleyPickerOpen(false)}>
           <p className="live-sheet-copy">{t('course.sheets.delivery.pickerHint')}</p>
-          {availableEmptyTrolleys.length > 0 ? (
-            <div className="delivery-empty-trolley-grid" role="group" aria-label={t('course.sheets.delivery.emptyTrolleys')}>
-              {availableEmptyTrolleys.map(number => {
-                const selected = trolleyPickerDraft.includes(number);
-                return (
-                  <button
-                    type="button"
-                    key={number}
-                    className={`delivery-empty-trolley-tile ${selected ? 'is-selected' : ''}`}
-                    onClick={() => toggleEmptyTrolley(number)}
-                    aria-pressed={selected}
-                    aria-label={t('course.sheets.delivery.toggleEmptyTrolley', { number })}
-                  >
-                    <ShoppingCart size={16} aria-hidden="true" />
-                    <span>{number}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noFreeTrolleys')}</div>
-          )}
+          <div className="delivery-picker-scroll">
+            {availableEmptyTrolleys.length > 0 ? (
+              <div className="delivery-empty-trolley-grid" role="group" aria-label={t('course.sheets.delivery.emptyTrolleys')}>
+                {availableEmptyTrolleys.map(number => {
+                  const selected = trolleyPickerDraft.includes(number);
+                  return (
+                    <button
+                      type="button"
+                      key={number}
+                      className={`delivery-empty-trolley-tile ${selected ? 'is-selected' : ''}`}
+                      onClick={() => toggleEmptyTrolley(number)}
+                      aria-pressed={selected}
+                      aria-label={t('course.sheets.delivery.toggleEmptyTrolley', { number })}
+                    >
+                      <ShoppingCart size={16} aria-hidden="true" />
+                      <span>{number}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noFreeTrolleys')}</div>
+            )}
+          </div>
           <div className="ap-btn-group delivery-picker-actions">
             <button className="ap-btn ap-btn-secondary" onClick={() => setTrolleyPickerOpen(false)}>{t('common.cancel')}</button>
             <button className="ap-btn ap-btn-primary" onClick={saveTrolleyPicker}>{t('course.sheets.delivery.confirmSelection')}</button>
