@@ -16,7 +16,10 @@ test('delivery explains that dirty-return trolleys are selected separately', () 
   assert.match(source, /delivery-trolley-summary/);
 });
 
-test('extra empty trolleys are selected from accessible tiles instead of a list', () => {
+test('extra empty trolleys open in a dedicated tile picker', () => {
+  assert.match(source, /course\.sheets\.delivery\.addTrolley/);
+  assert.match(source, /trolleyPickerOpen &&/);
+  assert.match(source, /titleId="empty-trolley-picker-title"/);
   assert.match(source, /className=\{`delivery-empty-trolley-tile \$\{selected \? 'is-selected' : ''\}`\}/);
   assert.match(source, /aria-pressed=\{selected\}/);
   assert.match(source, /toggleEmptyTrolley\(number\)/);
