@@ -1752,24 +1752,31 @@
 .live-edit-finished-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .live-finished-edit-hint { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; padding: 11px 12px; border: 1px solid rgba(0, 122, 255, .18); border-radius: 12px; background: var(--accent-light); color: var(--text-secondary); font-size: 12px; font-weight: 650; line-height: 1.45; }
 .live-finished-edit-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
-.delivery-trolley-notice { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; border: 1px solid rgba(52, 199, 89, .22); border-radius: 12px; background: rgba(52, 199, 89, .08); color: var(--text-secondary); }
-.delivery-trolley-notice > svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent-green); }
-.delivery-trolley-notice div { display: flex; flex-direction: column; gap: 3px; }
-.delivery-trolley-notice strong { color: var(--text-primary); font-size: 13px; line-height: 1.3; }
-.delivery-trolley-notice span { font-size: 12px; line-height: 1.45; }
-.delivery-trolley-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.delivery-trolley-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; }
-.delivery-trolley-chip svg { color: var(--accent); }
-.delivery-trolley-pickup-hint { margin: 10px 0 0; color: var(--text-tertiary); font-size: 12px; line-height: 1.45; }
-.delivery-empty-trolley-section { margin: 14px 0; padding-top: 14px; border-top: 1px solid var(--border); }
-.delivery-sheet-label { display: block; color: var(--text-tertiary); font-size: 11px; font-weight: 700; }
-.delivery-empty-trolley-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.delivery-empty-trolley-head > div { min-width: 0; }
-.delivery-add-trolley-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; flex: 0 0 auto; color: var(--accent); }
-.delivery-selected-trolleys { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
-.delivery-selected-trolley { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 5px 5px 5px 10px; border: 1px solid rgba(0, 122, 255, .2); border-radius: 10px; background: var(--accent-light); color: var(--accent); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; }
-.delivery-selected-trolley > button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
-.delivery-selected-trolley > button:hover { background: rgba(0, 122, 255, .1); }
+.delivery-trolley-notice { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; border: 1px solid rgba(52, 199, 89, .22); border-radius: 14px; background: rgba(52, 199, 89, .08); color: var(--text-secondary); }
+.delivery-trolley-notice > svg { flex: 0 0 auto; margin-top: 2px; color: var(--accent-green); }
+.delivery-trolley-notice div { display: flex; flex-direction: column; gap: 2px; }
+.delivery-trolley-notice strong { color: var(--text-primary); font-size: 13px; font-weight: 700; line-height: 1.3; }
+.delivery-trolley-notice span { font-size: 12px; line-height: 1.4; color: var(--text-secondary); }
+.delivery-trolley-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+@media (max-width: 360px) {
+  .delivery-trolley-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.delivery-trolley-chip { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 7px 6px; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 11px; background: #FFFFFF; color: var(--text-primary); font-family: var(--font); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); }
+.delivery-trolley-chip svg { color: var(--accent); flex-shrink: 0; }
+.delivery-trolley-pickup-hint { margin: 10px 0 0; color: var(--text-tertiary); font-size: 12px; line-height: 1.4; text-align: center; }
+.delivery-empty-trolley-card { margin-top: 14px; padding: 13px 14px; border-radius: 14px; background: #FFFFFF; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); }
+.delivery-empty-trolley-head { display: flex; flex-direction: column; gap: 3px; }
+.delivery-empty-trolley-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 750; color: var(--text-primary); }
+.delivery-empty-trolley-title svg { color: var(--accent); flex-shrink: 0; }
+.delivery-empty-trolley-hint { margin: 0; color: var(--text-tertiary); font-size: 12px; line-height: 1.4; }
+.delivery-add-trolley-btn { width: 100% !important; margin-top: 10px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 11px; border: 1px solid rgba(0, 122, 255, 0.22); background: var(--accent-light); color: var(--accent); font-family: var(--font); font-size: 14px; font-weight: 750; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
+.delivery-add-trolley-btn:hover { background: rgba(0, 122, 255, 0.16); border-color: var(--accent); }
+.delivery-add-trolley-btn:active { transform: scale(0.97); }
+.delivery-add-trolley-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.delivery-selected-trolleys { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.delivery-selected-trolley { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 4px 6px 4px 9px; border: 1px solid rgba(0, 122, 255, 0.25); border-radius: 10px; background: var(--accent-light); color: var(--accent); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.delivery-selected-trolley > button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.delivery-selected-trolley > button:hover { background: rgba(0, 122, 255, 0.15); }
 .delivery-selected-trolley > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .delivery-picker-sheet { height: min(720px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); }
 .delivery-picker-sheet .ap-content { display: flex; flex-direction: column; height: 100%; max-height: none; overflow: hidden; padding: 16px 20px 0; }
@@ -1806,7 +1813,12 @@
 .delivery-tile-check { position: absolute; top: 5px; right: 5px; color: #FFFFFF; stroke-width: 3; }
 .delivery-empty-trolley-state { margin-top: 9px; padding: 16px; border-radius: 12px; background: var(--bg-secondary); color: var(--text-tertiary); font-size: 13px; text-align: center; }
 .delivery-empty-trolley-hint { margin-top: 4px; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; }
-.delivery-main-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 18px; }
+.delivery-main-actions { display: grid !important; grid-template-columns: 1fr 2fr !important; gap: 12px !important; margin-top: 18px !important; }
+.delivery-main-actions .ap-btn { min-height: 48px; padding: 12px 14px; border-radius: 14px; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.delivery-main-actions .ap-btn-secondary { background: #FFFFFF; color: var(--text-primary); border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.delivery-main-actions .ap-btn-secondary:hover { background: #F8F8FA; }
+.delivery-main-actions .ap-btn-primary { background: #007AFF; color: #FFFFFF; border: none; box-shadow: 0 4px 14px rgba(0, 122, 255, 0.25); }
+.delivery-main-actions .ap-btn-primary:hover { background: #0070F3; }
 .delivery-picker-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; flex: 0 0 auto; margin: 0 -20px; padding: 12px 20px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: #F2F2F7; }
 @media (max-width: 599px) {
   .delivery-picker-sheet { height: calc(100dvh - 8px); max-height: calc(100dvh - 8px); }
