@@ -100,7 +100,7 @@ export function describeTrolleyActions(deliverPrompt) {
   if (!deliverPrompt) return '';
   const leaving = deliverPrompt.trolleys.filter(t => t.choice === 'leave').map(t => t.trolleyNo);
   const returning = deliverPrompt.trolleys.filter(t => t.choice === 'return').map(t => t.trolleyNo);
-  const pickedUpOld = deliverPrompt.oldTrolleys.filter(t => t.take).map(t => t.trolleyNo);
+  const pickedUpOld = (deliverPrompt.oldTrolleys || []).filter(t => t.take).map(t => t.trolleyNo);
   const parts = [];
   if (returning.length) parts.push(i18n.t('common.helpers.trolleyReturns', { list: returning.join(', ') }));
   if (leaving.length) parts.push(i18n.t('common.helpers.trolleyStays', { list: leaving.join(', ') }));

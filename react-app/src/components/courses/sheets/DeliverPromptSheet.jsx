@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CheckCircle2, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { captureError } from '../../../lib/sentry';
 import { getLaundryWorkflow } from '../../../lib/laundryRpc';
-import { daysAtClientLabel, daysSinceDate, describeTrolleyActions } from '../../../lib/tripUiHelpers';
+import { describeTrolleyActions } from '../../../lib/tripUiHelpers';
 import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
 import { formatTrolleyCode } from '../../../lib/trolleyCodes';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';
-
-const pfLabel = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' };
 
 export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken, onClose, onDone }) {
   const { t } = useTranslation();
@@ -17,7 +16,6 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   const [loadingTrolleys, setLoadingTrolleys] = useState(true);
   const [prompt, setPrompt] = useState(() => ({
     trolleys: deliveryTrolleyChoices(pendingDelivery),
-    oldTrolleys: [],
     emptyTrolleys: [],
   }));
   const [availableEmptyTrolleys, setAvailableEmptyTrolleys] = useState([]);
@@ -41,17 +39,8 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           .filter(number => !occupied.has(number));
         setAvailableEmptyTrolleys(free);
         setPrompt(prev => {
-          const trolleys = deliveryTrolleyChoices(pendingDelivery, wf?.trolleys || [], prev.trolleys);
-          const currentCycleIds = new Set(trolleys.map(trolley => trolley.cycleId));
-          const oldTrolleys = (wf?.trolleys || [])
-            .filter(c => c.client_name === stop.client_name && c.status === 'at_client' && !currentCycleIds.has(c.id))
-            .map(c => ({
-              cycleId: c.id,
-              trolleyNo: c.trolley_no,
-              days: daysSinceDate(c.delivered_at || c.packed_at),
-              take: prev.oldTrolleys.some(old => old.cycleId === c.id && old.take),
-            }));
-          return { trolleys, oldTrolleys, emptyTrolleys: prev.emptyTrolleys.filter(number => free.includes(number)) };
+          const trolleys = deliveryTrolleyChoices(pendingDelivery, wf?.trolleys || []);
+          return { trolleys, emptyTrolleys: prev.emptyTrolleys.filter(number => free.includes(number)) };
         });
       } catch (error) {
         captureError(error, { feature: 'DeliverPromptSheet.loadOldTrolleys' });
@@ -62,20 +51,6 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
 
     return () => { cancelled = true; };
   }, [pendingDelivery, sessionToken, stop.client_name]);
-
-  const toggleChoice = (cycleId, choice) => {
-    setPrompt(prev => ({
-      ...prev,
-      trolleys: prev.trolleys.map(t => (t.cycleId === cycleId ? { ...t, choice } : t)),
-    }));
-  };
-
-  const toggleOldTake = cycleId => {
-    setPrompt(prev => ({
-      ...prev,
-      oldTrolleys: prev.oldTrolleys.map(t => (t.cycleId === cycleId ? { ...t, take: !t.take } : t)),
-    }));
-  };
 
   const addEmptyTrolley = () => {
     if (!emptyTrolleyToAdd) return;
@@ -89,10 +64,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   const confirm = async () => {
     if (loadingTrolleys) return;
     const ids = [...new Set(pendingDelivery.map(task => task.entry_id).filter(Boolean))];
-    const actions = [
-      ...prompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: t.choice })),
-      ...prompt.oldTrolleys.filter(t => t.take).map(t => ({ cycle_id: t.cycleId, action: 'return' })),
-    ];
+    const actions = prompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: 'leave' }));
     try {
       setBusy(true);
       const rpcName = prompt.emptyTrolleys.length > 0
@@ -122,30 +94,26 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   return (
     <CourseSheet titleId="deliver-prompt-title" title={t('course.sheets.delivery.title')} onClose={onClose} busy={busy}>
       <p className="live-sheet-copy">{stop.client_name}</p>
-      {prompt.trolleys.map(trolley => (
-        <div key={trolley.cycleId} style={{ marginBottom: '14px' }}>
-          <label style={pfLabel}>{t('course.sheets.delivery.trolley', { number: trolley.trolleyNo })}</label>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(trolley.cycleId, 'return')} style={{ flex: 1, border: trolley.choice === 'return' ? '2px solid var(--accent)' : undefined, background: trolley.choice === 'return' ? 'var(--accent)' : undefined, color: trolley.choice === 'return' ? '#fff' : undefined }}>{t('course.sheets.delivery.takeBack')}</button>
-            <button type="button" className="driver-tool-btn" onClick={() => toggleChoice(trolley.cycleId, 'leave')} style={{ flex: 1, border: trolley.choice === 'leave' ? '2px solid var(--accent-orange)' : undefined, background: trolley.choice === 'leave' ? 'var(--accent-orange)' : undefined, color: trolley.choice === 'leave' ? '#fff' : undefined }}>{t('course.sheets.delivery.leaveAtClient')}</button>
-          </div>
+      <div className="delivery-trolley-notice">
+        <CheckCircle2 size={18} aria-hidden="true" />
+        <div>
+          <strong>{t('course.sheets.delivery.allDeliveredTitle')}</strong>
+          <span>{t('course.sheets.delivery.allDeliveredHint')}</span>
         </div>
-      ))}
-      {prompt.oldTrolleys.length > 0 && (
-        <div style={{ marginTop: '4px', marginBottom: '10px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
-          <label style={pfLabel}>{t('course.sheets.delivery.oldTrolleys')}</label>
-          {prompt.oldTrolleys.map(trolley => (
-            <label key={trolley.cycleId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', fontSize: '13px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={trolley.take} onChange={() => toggleOldTake(trolley.cycleId)} style={{ width: '18px', height: '18px' }} />
-              <span>{t('course.sheets.delivery.takeTrolley', { number: trolley.trolleyNo })} <span style={{ color: 'var(--text-tertiary)' }}>({daysAtClientLabel(trolley.days)})</span></span>
-            </label>
-          ))}
-        </div>
-      )}
-      <div style={{ marginTop: '8px', marginBottom: '14px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
-        <label style={pfLabel}>{t('course.sheets.delivery.emptyTrolleys')}</label>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '7px' }}>
-          <select className="ap-input" value={emptyTrolleyToAdd} onChange={event => setEmptyTrolleyToAdd(event.target.value)} style={{ flex: 1 }}>
+      </div>
+      <div className="delivery-trolley-summary" aria-label={t('course.sheets.delivery.deliveredTrolleys')}>
+        {prompt.trolleys.map(trolley => (
+          <span className="delivery-trolley-chip" key={trolley.cycleId}>
+            <ShoppingCart size={15} aria-hidden="true" />
+            {formatTrolleyCode(trolley.trolleyNo)}
+          </span>
+        ))}
+      </div>
+      <p className="delivery-trolley-pickup-hint">{t('course.sheets.delivery.pickupHint')}</p>
+      <div className="delivery-empty-trolley-section">
+        <label className="delivery-sheet-label">{t('course.sheets.delivery.emptyTrolleys')}</label>
+        <div className="delivery-empty-trolley-row">
+          <select className="ap-input" value={emptyTrolleyToAdd} onChange={event => setEmptyTrolleyToAdd(event.target.value)}>
             <option value="">{t('course.sheets.delivery.chooseFreeTrolley')}</option>
             {availableEmptyTrolleys.filter(number => !prompt.emptyTrolleys.includes(number)).map(number => (
               <option key={number} value={number}>{formatTrolleyCode(number)}</option>
@@ -154,7 +122,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           <button type="button" className="driver-tool-btn" onClick={addEmptyTrolley} disabled={!emptyTrolleyToAdd}>{t('common.add')}</button>
         </div>
         {prompt.emptyTrolleys.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '9px' }}>
+          <div className="delivery-empty-trolley-chips">
             {prompt.emptyTrolleys.map(number => (
               <button type="button" key={number} className="driver-tool-btn" onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))}>
                 {formatTrolleyCode(number)} ×
@@ -162,7 +130,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
             ))}
           </div>
         )}
-        <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-tertiary)' }}>{t('course.sheets.delivery.emptyTrolleysHint')}</div>
+        <div className="delivery-empty-trolley-hint">{t('course.sheets.delivery.emptyTrolleysHint')}</div>
       </div>
       <div className="ap-btn-group">
         <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>

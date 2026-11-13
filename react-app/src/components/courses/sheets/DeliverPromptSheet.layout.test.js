@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const source = await readFile(new URL('./DeliverPromptSheet.jsx', import.meta.url), 'utf8');
+
+test('clean delivery leaves every delivered trolley at the client', () => {
+  assert.match(source, /prompt\.trolleys\.map\(t => \(\{ cycle_id: t\.cycleId, action: 'leave' \}\)\)/);
+  assert.doesNotMatch(source, /toggleChoice/);
+  assert.doesNotMatch(source, /course\.sheets\.delivery\.takeBack/);
+});
+
+test('delivery explains that dirty-return trolleys are selected separately', () => {
+  assert.match(source, /course\.sheets\.delivery\.allDeliveredTitle/);
+  assert.match(source, /course\.sheets\.delivery\.pickupHint/);
+  assert.match(source, /delivery-trolley-summary/);
+});
