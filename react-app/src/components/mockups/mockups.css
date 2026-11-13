@@ -1747,6 +1747,11 @@
 .live-admin-action.is-undo { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
 .live-admin-action:disabled { opacity: .45; cursor: not-allowed; }
 .live-trip-admin-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.live-edit-finished-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; }
+.live-edit-finished-btn.is-active { color: var(--accent); border-color: rgba(0, 122, 255, .28); background: var(--accent-light); }
+.live-edit-finished-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.live-finished-edit-hint { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; padding: 11px 12px; border: 1px solid rgba(0, 122, 255, .18); border-radius: 12px; background: var(--accent-light); color: var(--text-secondary); font-size: 12px; font-weight: 650; line-height: 1.45; }
+.live-finished-edit-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 .live-delete-btn { color: var(--accent-red) !important; border-color: rgba(255, 59, 48, .35) !important; }
 .live-route-chip { font-size: 10px; padding: 2px 7px; border-radius: 999px; }
 .live-stop-nav { padding: 4px 8px; min-height: auto; }
