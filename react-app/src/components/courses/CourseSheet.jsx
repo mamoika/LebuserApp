@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function CourseSheet({ titleId, title, onClose, busy = false, className = '', children }) {
   const sheetRef = useRef(null);
@@ -30,7 +31,7 @@ export default function CourseSheet({ titleId, title, onClose, busy = false, cla
     return () => { document.removeEventListener('keydown', keydown); };
   }, [busy]);
 
-  return (
+  const node = (
     <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={() => !busy && onClose()}>
       <div
         ref={sheetRef}
@@ -49,4 +50,7 @@ export default function CourseSheet({ titleId, title, onClose, busy = false, cla
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return node;
+  return createPortal(node, document.body);
 }

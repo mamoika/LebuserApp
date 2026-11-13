@@ -9,6 +9,7 @@ import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
 import { formatTrolleyCode } from '../../../lib/trolleyCodes';
 import { toastError, toastSuccess } from '../../../lib/toast';
 import CourseSheet from '../CourseSheet';
+import '../../mockups/mockups.css';
 
 export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken, onClose, onDone }) {
   const { t } = useTranslation();
@@ -110,55 +111,57 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   };
 
   return (
-    <CourseSheet titleId="deliver-prompt-title" title={t('course.sheets.delivery.title')} onClose={onClose} busy={busy || trolleyPickerOpen}>
-      <p className="live-sheet-copy">{stop.client_name}</p>
-      <div className="delivery-trolley-notice">
-        <CheckCircle2 size={18} aria-hidden="true" />
-        <div>
-          <strong>{t('course.sheets.delivery.allDeliveredTitle')}</strong>
-          <span>{t('course.sheets.delivery.allDeliveredHint')}</span>
-        </div>
-      </div>
-      <div className="delivery-trolley-summary" aria-label={t('course.sheets.delivery.deliveredTrolleys')}>
-        {prompt.trolleys.map(trolley => (
-          <span className="delivery-trolley-chip" key={trolley.cycleId}>
-            <ShoppingCart size={15} aria-hidden="true" />
-            {formatTrolleyCode(trolley.trolleyNo)}
-          </span>
-        ))}
-      </div>
-      <p className="delivery-trolley-pickup-hint">{t('course.sheets.delivery.pickupHint')}</p>
-      <div className="delivery-empty-trolley-section">
-        <div className="delivery-empty-trolley-head">
+    <>
+      <CourseSheet titleId="deliver-prompt-title" title={t('course.sheets.delivery.title')} onClose={onClose} busy={busy || trolleyPickerOpen}>
+        <p className="live-sheet-copy">{stop.client_name}</p>
+        <div className="delivery-trolley-notice">
+          <CheckCircle2 size={18} aria-hidden="true" />
           <div>
-            <div className="delivery-sheet-label">{t('course.sheets.delivery.emptyTrolleys')}</div>
-            <div className="delivery-empty-trolley-hint">{t('course.sheets.delivery.emptyTrolleysHint')}</div>
+            <strong>{t('course.sheets.delivery.allDeliveredTitle')}</strong>
+            <span>{t('course.sheets.delivery.allDeliveredHint')}</span>
           </div>
-          <button type="button" className="driver-tool-btn delivery-add-trolley-btn" onClick={openTrolleyPicker} disabled={loadingTrolleys || availableEmptyTrolleys.length === 0}>
-            <Plus size={16} aria-hidden="true" />
-            {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : t('course.sheets.delivery.addTrolley')}
+        </div>
+        <div className="delivery-trolley-summary" aria-label={t('course.sheets.delivery.deliveredTrolleys')}>
+          {prompt.trolleys.map(trolley => (
+            <span className="delivery-trolley-chip" key={trolley.cycleId}>
+              <ShoppingCart size={15} aria-hidden="true" />
+              {formatTrolleyCode(trolley.trolleyNo)}
+            </span>
+          ))}
+        </div>
+        <p className="delivery-trolley-pickup-hint">{t('course.sheets.delivery.pickupHint')}</p>
+        <div className="delivery-empty-trolley-section">
+          <div className="delivery-empty-trolley-head">
+            <div>
+              <div className="delivery-sheet-label">{t('course.sheets.delivery.emptyTrolleys')}</div>
+              <div className="delivery-empty-trolley-hint">{t('course.sheets.delivery.emptyTrolleysHint')}</div>
+            </div>
+            <button type="button" className="driver-tool-btn delivery-add-trolley-btn" onClick={openTrolleyPicker} disabled={loadingTrolleys || availableEmptyTrolleys.length === 0}>
+              <Plus size={16} aria-hidden="true" />
+              {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : t('course.sheets.delivery.addTrolley')}
+            </button>
+          </div>
+          {prompt.emptyTrolleys.length > 0 && (
+            <div className="delivery-selected-trolleys" aria-label={t('course.sheets.delivery.selectedEmptyTrolleys')}>
+              {prompt.emptyTrolleys.map(number => (
+                <span className="delivery-selected-trolley" key={number}>
+                  <ShoppingCart size={15} aria-hidden="true" />
+                  {formatTrolleyCode(number)}
+                  <button type="button" onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))} aria-label={t('course.sheets.delivery.removeEmptyTrolley', { number })}>
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="ap-btn-group delivery-main-actions">
+          <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+          <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>
+            {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : busy ? t('common.saving') : t('course.sheets.delivery.confirm')}
           </button>
         </div>
-        {prompt.emptyTrolleys.length > 0 && (
-          <div className="delivery-selected-trolleys" aria-label={t('course.sheets.delivery.selectedEmptyTrolleys')}>
-            {prompt.emptyTrolleys.map(number => (
-              <span className="delivery-selected-trolley" key={number}>
-                <ShoppingCart size={15} aria-hidden="true" />
-                {formatTrolleyCode(number)}
-                <button type="button" onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))} aria-label={t('course.sheets.delivery.removeEmptyTrolley', { number })}>
-                  <X size={14} aria-hidden="true" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="ap-btn-group">
-        <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-        <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>
-          {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : busy ? t('common.saving') : t('course.sheets.delivery.confirm')}
-        </button>
-      </div>
+      </CourseSheet>
 
       {trolleyPickerOpen && (
         <CourseSheet className="delivery-picker-sheet" titleId="empty-trolley-picker-title" title={t('course.sheets.delivery.pickerTitle')} onClose={() => setTrolleyPickerOpen(false)}>
@@ -261,6 +264,6 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           </div>
         </CourseSheet>
       )}
-    </CourseSheet>
+    </>
   );
 }
