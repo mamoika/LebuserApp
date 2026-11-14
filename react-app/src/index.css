@@ -10150,6 +10150,77 @@ select.ap-input {
 .driver-card-ddd-button:active { transform:scale(.98); }
 .driver-card-ddd-button:focus-visible { outline:3px solid rgba(0,122,255,.28); outline-offset:2px; }
 
+/* ── Apple Admin Dashboard UI ── */
+.admin-shell-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-segmented-control {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 12px;
+  padding: 3px;
+}
+.admin-segmented-control::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-apple-refresh-btn {
+  transition: all 0.15s ease;
+}
+.admin-apple-refresh-btn:hover:not(:disabled) {
+  background: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+}
+.admin-apple-refresh-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.admin-apple-kpi-card {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+}
+.admin-apple-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05), 0 16px 32px rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+}
+.admin-apple-kpi-card:active {
+  transform: scale(0.99);
+}
+
+.admin-apple-action-row {
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-apple-action-row:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.07) !important;
+  transform: translateX(2px);
+}
+.admin-apple-action-row:hover .admin-action-row-chevron {
+  color: var(--accent) !important;
+  transform: translateX(2px);
+}
+.admin-apple-action-row:active {
+  transform: scale(0.99);
+}
+
+.admin-user-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.admin-user-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04), 0 12px 28px rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+}
+
 @media(max-width:720px) {
   .costs-view-tabs {
     width:100%;

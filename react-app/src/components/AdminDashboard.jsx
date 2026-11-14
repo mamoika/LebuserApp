@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, AlertTriangle, Archive, ArrowRight, CheckCircle2, Clock3, CreditCard, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, CheckCircle2, ChevronRight, Clock3, CreditCard, KeyRound, Monitor, Pencil, RefreshCw, Route, ShieldCheck, ShieldOff, Trash2, UserRound, Users, WashingMachine, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../lib/supabaseClient';
@@ -45,78 +45,130 @@ const ACCESS_LEVELS = [0, 1, 2];
 
 const todayKey = () => operationalYmd();
 
-const panelBaseStyle = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border)',
-  borderRadius: '14px',
-  boxShadow: 'var(--shadow-sm)',
+const APPLE_THEME = {
+  cardBg: 'var(--bg-card-solid, #FFFFFF)',
+  border: 'rgba(0, 0, 0, 0.06)',
+  borderHover: 'rgba(0, 0, 0, 0.12)',
+  radiusCard: '18px',
+  radiusItem: '12px',
+  radiusPill: '999px',
+  shadowCard: '0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04)',
 };
 
-function AdminStatCard({ icon: Icon, label, value, detail, tone = 'neutral', urgent = false, urgentLabel = 'Pilne' }) {
+function AdminStatCard({ icon: Icon, label, value, detail, tone = 'neutral', urgent = false, urgentLabel = 'Pilne', to, onClick }) {
   const tones = {
-    neutral: { bg: 'rgba(10,132,255,0.09)', color: 'var(--accent)' },
-    good: { bg: 'rgba(52,199,89,0.12)', color: '#1F8F3A' },
-    warn: { bg: 'rgba(255,149,0,0.14)', color: '#B45309' },
-    danger: { bg: 'rgba(255,59,48,0.12)', color: '#C24135' },
+    neutral: { bg: 'rgba(0,122,255,0.09)', color: '#007AFF' },
+    good: { bg: 'rgba(52,199,89,0.12)', color: '#248A3D' },
+    warn: { bg: 'rgba(255,149,0,0.12)', color: '#B45309' },
+    danger: { bg: 'rgba(255,59,48,0.12)', color: '#D70015' },
   };
   const conf = tones[tone] || tones.neutral;
-  return (
-    <div style={{ ...panelBaseStyle, padding: '14px', minHeight: '112px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: conf.bg, color: conf.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon size={18} strokeWidth={2} />
+  const isInteractive = Boolean(to || onClick);
+
+  const inner = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' }}>
+        <div style={{ width: '38px', height: '38px', borderRadius: '11px', background: conf.bg, color: conf.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon size={19} strokeWidth={2.2} />
         </div>
-        {urgent && (
-          <span style={{ fontSize: '11px', fontWeight: 800, color: '#C24135', background: 'rgba(255,59,48,0.1)', borderRadius: '999px', padding: '4px 8px' }}>
-            {urgentLabel}
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {urgent && (
+            <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#D70015', background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.22)', borderRadius: '999px', padding: '2px 8px', fontVariantNumeric: 'tabular-nums' }}>
+              {urgentLabel}
+            </span>
+          )}
+          {isInteractive && !urgent && (
+            <ChevronRight size={15} style={{ color: 'rgba(60,60,67,0.3)', opacity: 0.8 }} />
+          )}
+        </div>
       </div>
-      <div style={{ fontSize: '26px', lineHeight: 1, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', marginBottom: '6px' }}>{value}</div>
-      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', textWrap: 'balance' }}>{label}</div>
-      {detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px', lineHeight: 1.35, textWrap: 'pretty' }}>{detail}</div>}
+      <div>
+        <div style={{ fontSize: '30px', lineHeight: 1.1, fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', marginBottom: '5px' }}>{value}</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '-0.01em', textWrap: 'balance' }}>{label}</div>
+        {detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '3px', lineHeight: 1.35, letterSpacing: '-0.005em', textWrap: 'pretty' }}>{detail}</div>}
+      </div>
+    </>
+  );
+
+  const cardStyle = {
+    background: APPLE_THEME.cardBg,
+    border: `1px solid ${APPLE_THEME.border}`,
+    borderRadius: APPLE_THEME.radiusCard,
+    boxShadow: APPLE_THEME.shadowCard,
+    padding: '16px 18px',
+    minHeight: '124px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    textDecoration: 'none',
+    color: 'inherit',
+    cursor: isInteractive ? 'pointer' : 'default',
+    width: '100%',
+    boxSizing: 'border-box',
+    fontFamily: 'var(--font)',
+    textAlign: 'left',
+  };
+
+  if (to) {
+    return (
+      <Link to={to} className="admin-apple-kpi-card" style={cardStyle}>
+        {inner}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="admin-apple-kpi-card" style={cardStyle}>
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <div className="admin-apple-kpi-card" style={cardStyle}>
+      {inner}
     </div>
   );
 }
 
 function AdminActionRow({ icon: Icon, title, detail, tone = 'neutral', to, onClick }) {
   const tones = {
-    neutral: { bg: 'rgba(10,132,255,0.09)', color: 'var(--accent)' },
-    good: { bg: 'rgba(52,199,89,0.12)', color: '#1F8F3A' },
-    warn: { bg: 'rgba(255,149,0,0.14)', color: '#B45309' },
-    danger: { bg: 'rgba(255,59,48,0.12)', color: '#C24135' },
+    neutral: { bg: 'rgba(0,122,255,0.09)', color: '#007AFF' },
+    good: { bg: 'rgba(52,199,89,0.12)', color: '#248A3D' },
+    warn: { bg: 'rgba(255,149,0,0.12)', color: '#B45309' },
+    danger: { bg: 'rgba(255,59,48,0.12)', color: '#D70015' },
   };
   const conf = tones[tone] || tones.neutral;
   const content = (
     <>
       <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: conf.bg, color: conf.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={18} />
+        <Icon size={18} strokeWidth={2.1} />
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', textWrap: 'balance' }}>{title}</div>
-        {detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '3px', lineHeight: 1.35, textWrap: 'pretty' }}>{detail}</div>}
+        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', textWrap: 'balance' }}>{title}</div>
+        {detail && <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.35, letterSpacing: '-0.005em', textWrap: 'pretty' }}>{detail}</div>}
       </div>
-      <ArrowRight size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+      <ChevronRight size={16} className="admin-action-row-chevron" style={{ color: 'rgba(60,60,67,0.32)', flexShrink: 0 }} />
     </>
   );
   const style = {
-    ...panelBaseStyle,
-    minHeight: '58px',
+    minHeight: '52px',
     width: '100%',
     padding: '10px 12px',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '12px',
     textDecoration: 'none',
     cursor: 'pointer',
-    background: 'var(--bg-card)',
+    background: 'rgba(0,0,0,0.015)',
+    border: '1px solid rgba(0,0,0,0.03)',
+    borderRadius: '12px',
     color: 'inherit',
-    transitionProperty: 'border-color, box-shadow, transform',
-    transitionDuration: '150ms',
-    transitionTimingFunction: 'ease-out',
+    boxSizing: 'border-box',
+    fontFamily: 'var(--font)',
+    textAlign: 'left',
   };
-  if (to) return <Link to={to} style={style}>{content}</Link>;
-  return <button type="button" onClick={onClick} style={{ ...style, border: '1px solid var(--border)', fontFamily: 'var(--font)', textAlign: 'left' }}>{content}</button>;
+  if (to) return <Link to={to} className="admin-apple-action-row" style={style}>{content}</Link>;
+  return <button type="button" onClick={onClick} className="admin-apple-action-row" style={style}>{content}</button>;
 }
 
 function AdminOverview({ users, driverCars, onOpenTab }) {
@@ -226,80 +278,159 @@ function AdminOverview({ users, driverCars, onOpenTab }) {
   ].filter(Boolean);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('admin.overviewTitle')}</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '3px' }}>{t('admin.overviewSubtitle')}</div>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>{t('admin.overviewTitle')}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '4px', letterSpacing: '-0.01em' }}>{t('admin.overviewSubtitle')}</div>
         </div>
         <button
           type="button"
           onClick={fetchOverview}
           disabled={loading}
+          className="admin-apple-refresh-btn"
           style={{
-            minHeight: '44px',
+            minHeight: '38px',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'var(--bg-card)',
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(12px)',
             color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: '11px',
-            padding: '9px 13px',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            borderRadius: '999px',
+            padding: '8px 16px',
             fontSize: '13px',
-            fontWeight: 700,
+            fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.65 : 1,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           }}
         >
-          <RefreshCw size={15} className={loading ? 'spin' : ''} />
+          <RefreshCw size={14} className={loading ? 'spin' : ''} />
           {t('common.refresh', 'Odśwież')}
         </button>
       </div>
 
       {issues.length > 0 && (
-        <div style={{ ...panelBaseStyle, padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start', borderColor: 'rgba(255,149,0,0.35)', background: 'rgba(255,149,0,0.08)' }}>
-          <AlertTriangle size={18} style={{ color: '#B45309', flexShrink: 0, marginTop: '1px' }} />
+        <div style={{
+          padding: '12px 16px',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start',
+          border: '1px solid rgba(255,149,0,0.28)',
+          background: 'rgba(255,149,0,0.08)',
+          borderRadius: '14px',
+        }}>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'rgba(255,149,0,0.18)',
+            color: '#B45309',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            marginTop: '1px',
+          }}>
+            <AlertTriangle size={16} />
+          </div>
           <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
             <strong style={{ color: 'var(--text-primary)' }}>{t('admin.overviewPartialData')}</strong> {issues.join(' · ')}
           </div>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-        <AdminStatCard icon={Route} label={t('admin.overviewLiveRoutes')} value={activeTrips.length} detail={t('admin.overviewRoutesDetail', { planned: plannedToday.length, finished: finishedToday.length })} tone={activeTrips.length ? 'neutral' : 'good'} />
-        <AdminStatCard icon={Clock3} label={t('admin.overviewPendingKm')} value={pendingKmTrips.length} detail={t('admin.overviewPendingKmDetail')} tone={pendingKmTrips.length ? 'warn' : 'good'} urgent={pendingKmTrips.length > 0} urgentLabel={t('admin.overviewUrgent')} />
-        <AdminStatCard icon={WashingMachine} label={t('admin.overviewTrolleys')} value={`${activeTrolleys.length}/${data.trolleyCount || '—'}`} detail={t('admin.overviewTrolleysDetail', { count: trolleysAtClient.length })} tone={activeTrolleys.length >= data.trolleyCount && data.trolleyCount > 0 ? 'warn' : 'neutral'} />
-        <AdminStatCard icon={Users} label={t('admin.overviewAccess')} value={data.sessionOverview?.active_total ?? '—'} detail={t('admin.overviewAccessDetail', { count: noPasswordUsers.length })} tone={noPasswordUsers.length ? 'danger' : 'good'} urgent={noPasswordUsers.length > 0} urgentLabel={t('admin.overviewUrgent')} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+        <AdminStatCard icon={Route} label={t('admin.overviewLiveRoutes')} value={activeTrips.length} detail={t('admin.overviewRoutesDetail', { planned: plannedToday.length, finished: finishedToday.length })} tone={activeTrips.length ? 'neutral' : 'good'} to="/routes" />
+        <AdminStatCard icon={Clock3} label={t('admin.overviewPendingKm')} value={pendingKmTrips.length} detail={t('admin.overviewPendingKmDetail')} tone={pendingKmTrips.length ? 'warn' : 'good'} urgent={pendingKmTrips.length > 0} urgentLabel={t('admin.overviewUrgent')} to="/routes" />
+        <AdminStatCard icon={WashingMachine} label={t('admin.overviewTrolleys')} value={`${activeTrolleys.length}/${data.trolleyCount || '—'}`} detail={t('admin.overviewTrolleysDetail', { count: trolleysAtClient.length })} tone={activeTrolleys.length >= data.trolleyCount && data.trolleyCount > 0 ? 'warn' : 'neutral'} to="/wash" />
+        <AdminStatCard icon={Users} label={t('admin.overviewAccess')} value={data.sessionOverview?.active_total ?? '—'} detail={t('admin.overviewAccessDetail', { count: noPasswordUsers.length })} tone={noPasswordUsers.length ? 'danger' : 'good'} urgent={noPasswordUsers.length > 0} urgentLabel={t('admin.overviewUrgent')} onClick={() => onOpenTab('sessions')} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: '14px' }}>
-        <section style={{ ...panelBaseStyle, padding: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('admin.overviewNextActions')}</div>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: actionRows.length ? '#B45309' : '#1F8F3A', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: '16px' }}>
+        <section style={{
+          background: APPLE_THEME.cardBg,
+          border: `1px solid ${APPLE_THEME.border}`,
+          borderRadius: APPLE_THEME.radiusCard,
+          boxShadow: APPLE_THEME.shadowCard,
+          padding: '18px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            marginBottom: '14px',
+            paddingBottom: '12px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{t('admin.overviewNextActions')}</div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: actionRows.length ? '#B45309' : '#248A3D',
+              background: actionRows.length ? 'rgba(255, 149, 0, 0.12)' : 'rgba(52, 199, 89, 0.12)',
+              border: `1px solid ${actionRows.length ? 'rgba(255, 149, 0, 0.22)' : 'rgba(52, 199, 89, 0.22)'}`,
+              borderRadius: '999px',
+              padding: '3px 10px',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {actionRows.length ? t('admin.overviewActionsCount', { count: actionRows.length }) : t('admin.overviewAllClear')}
             </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {actionRows.length ? actionRows.map((row, index) => (
               <AdminActionRow key={`${row.title}-${index}`} {...row} />
             )) : (
-              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
-                <CheckCircle2 size={24} style={{ color: '#1F8F3A', marginBottom: '8px' }} />
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.overviewNoActionsTitle')}</div>
-                <div style={{ marginTop: '3px' }}>{t('admin.overviewNoActionsDetail')}</div>
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'rgba(52, 199, 89, 0.12)',
+                  color: '#248A3D',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '10px',
+                }}>
+                  <CheckCircle2 size={24} />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{t('admin.overviewNoActionsTitle')}</div>
+                <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-secondary)' }}>{t('admin.overviewNoActionsDetail')}</div>
               </div>
             )}
           </div>
         </section>
 
-        <section style={{ ...panelBaseStyle, padding: '14px' }}>
-          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px' }}>{t('admin.overviewShortcuts')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <section style={{
+          background: APPLE_THEME.cardBg,
+          border: `1px solid ${APPLE_THEME.border}`,
+          borderRadius: APPLE_THEME.radiusCard,
+          boxShadow: APPLE_THEME.shadowCard,
+          padding: '18px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            marginBottom: '14px',
+            paddingBottom: '12px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{t('admin.overviewShortcuts')}</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <AdminActionRow icon={Activity} title={t('admin.overviewShortcutSessions')} detail={t('admin.overviewShortcutSessionsDetail')} onClick={() => onOpenTab('sessions')} />
             <AdminActionRow icon={Users} title={t('admin.overviewShortcutUsers')} detail={t('admin.overviewShortcutUsersDetail', { count: driversWithoutCar.length })} onClick={() => onOpenTab('users')} tone={driversWithoutCar.length ? 'warn' : 'neutral'} />
-            <AdminActionRow icon={Route} title={t('admin.overviewShortcutCosts')} detail={t('admin.overviewShortcutCostsDetail')} to="/costs" />
+            <AdminActionRow icon={CreditCard} title={t('admin.overviewShortcutCosts')} detail={t('admin.overviewShortcutCostsDetail')} to="/costs" />
           </div>
         </section>
       </div>
@@ -2533,8 +2664,8 @@ export default function AdminDashboard() {
   if (error) return <DataError onRetry={fetchUsers} error={error} />;
 
   return (
-    <div style={{ maxWidth: '980px' }}>
-      <div className="segmented-control" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
+    <div className="admin-shell-container">
+      <div className="segmented-control admin-segmented-control" style={{ marginBottom: 0 }}>
         <button type="button" className={`seg-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>{t('admin.overview')}</button>
         <button type="button" className={`seg-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>{t('admin.users')}</button>
         <button type="button" className={`seg-btn ${tab === 'permissions' ? 'active' : ''}`} onClick={() => setTab('permissions')}>{t('permissions.tab')}</button>
@@ -2554,8 +2685,8 @@ export default function AdminDashboard() {
       {tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '17px', fontWeight: 700 }}>{t('admin.users')}</div>
-          <div className="segmented-control" style={{ margin: 0 }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{t('admin.users')}</div>
+          <div className="segmented-control" style={{ margin: 0, borderRadius: '10px' }}>
             <button
               type="button"
               className={`seg-btn ${userFilter === 'active' ? 'active' : ''}`}
@@ -2575,10 +2706,12 @@ export default function AdminDashboard() {
         <button
           onClick={() => setAddUserOpen(true)}
           style={{
-            background: 'var(--accent)', color: '#fff',
-            border: 'none', borderRadius: '10px',
-            padding: '8px 14px', fontSize: '13px', fontWeight: 600,
+            background: 'var(--accent, #007AFF)', color: '#fff',
+            border: 'none', borderRadius: '999px',
+            padding: '8px 18px', fontSize: '13px', fontWeight: 600,
             cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 122, 255, 0.28)',
+            transition: 'all 0.15s ease',
           }}
         >
           {t('admin.newUserBtn')}
@@ -2586,7 +2719,7 @@ export default function AdminDashboard() {
       </div>
 
       <Link to="/rodo" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, marginBottom: '14px' }}>
-        <ShieldCheck size={13} /> {t('admin.rodoFullLink')}
+        <ShieldCheck size={14} /> {t('admin.rodoFullLink')}
       </Link>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2594,9 +2727,13 @@ export default function AdminDashboard() {
           <div
             key={u.id}
             onClick={() => setEditUser(u)}
+            className="admin-user-card"
             style={{
-              background: 'var(--bg-card)', border: '1px solid var(--border)',
-              borderRadius: '14px', padding: '14px 16px',
+              background: 'var(--bg-card-solid, #FFFFFF)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              borderRadius: '16px',
+              padding: '14px 18px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               cursor: 'pointer',
               opacity: u.is_archived ? 0.75 : 1,
