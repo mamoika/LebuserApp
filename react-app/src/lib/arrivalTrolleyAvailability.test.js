@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { visibleArrivalTrolleyNumbers } from './arrivalTrolleyAvailability.js';
+import { trolleysAtClient, visibleArrivalTrolleyNumbers } from './arrivalTrolleyAvailability.js';
+
+test('pickup suggestions contain only trolleys recorded at the current client', () => {
+  const active = new Map([
+    ['1', { trolley_no: '1', status: 'at_client', client_name: 'Radisson' }],
+    ['2', { trolley_no: '2', status: 'packed', client_name: 'Radisson' }],
+    ['3', { trolley_no: '3', status: 'at_client', client_name: 'Inny klient' }],
+  ]);
+
+  assert.deepEqual(trolleysAtClient(['1', '2', '3', '4'], active, 'Radisson'), ['1']);
+});
 
 test('occupied trolleys are hidden from the arrival picker', () => {
   const active = new Map([

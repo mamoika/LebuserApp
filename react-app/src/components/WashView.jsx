@@ -11,6 +11,8 @@ import {
   MoreHorizontal,
   Package,
   PackageCheck,
+  Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   Scale,
@@ -33,10 +35,11 @@ import {
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
 import PackingModal from './modals/PackingModal';
+import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
-import { calculateLaundryDayMetrics, laundryBatchKey } from '../lib/laundryDayPlan';
+import { calculateLaundryDayMetrics, effectiveLaundryWashDate, laundryBatchKey } from '../lib/laundryDayPlan';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -85,6 +88,14 @@ function addDays(dateStr, days) {
   const dt = new Date(`${dateStr}T00:00:00`);
   dt.setDate(dt.getDate() + days);
   return ymd(dt);
+}
+
+function dateToWeekSlot(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = ((date.getDay() + 6) % 7) + 1;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - (day - 1));
+  return { day, weekKey: ymd(monday) };
 }
 
 function parseMonday(weekKey) {
@@ -167,6 +178,13 @@ function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
   }
 
   return `${washWeek}|${washDay}`;
+}
+
+function plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient) {
+  return effectiveLaundryWashDate(
+    entry,
+    item => slotToDate(washSlotOf(item, scheduleByRoute, dailyServiceByClient)),
+  );
 }
 
 function hasWorkflowColumns(entry) {
@@ -325,6 +343,55 @@ function StagePill({ stage }) {
   );
 }
 
+function LaundryEntryPicker({ group, onSelect, onClose }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="ap-overlay" style={{ display: 'flex' }} onPointerDown={onClose}>
+      <section
+        className="ap-sheet laundry-entry-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="laundry-entry-picker-title"
+        onPointerDown={event => event.stopPropagation()}
+      >
+        <div className="ap-handle" />
+        <div className="ap-content">
+          <div className="laundry-entry-picker-head">
+            <span className="laundry-entry-picker-icon"><Pencil size={18} aria-hidden="true" /></span>
+            <div>
+              <span>{t('wash.editEntriesKicker')}</span>
+              <h2 id="laundry-entry-picker-title">{group.clientName}</h2>
+              <p>{t('wash.editEntriesDescription')}</p>
+            </div>
+          </div>
+
+          <div className="laundry-entry-picker-list">
+            {group.entries.map(entry => (
+              <button key={entry.id} type="button" onClick={() => onSelect(entry)}>
+                <span className="laundry-entry-type">{entry.type || '—'}</span>
+                <span className="laundry-entry-picker-copy">
+                  <strong>{entry.weight ? `${entry.weight} kg` : t('wash.unknownWeight')}</strong>
+                  <small>
+                    {t('entry.arrival')}: {formatDate(arrivalDateOf(entry))}
+                    {' · '}
+                    {t('entry.pickup')}: {formatDate(departureDateOf(entry))}
+                  </small>
+                </span>
+                <span className="laundry-entry-picker-action">{t('common.edit')}</span>
+              </button>
+            ))}
+          </div>
+
+          <button type="button" className="ap-btn ap-btn-secondary laundry-entry-picker-close" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function WashView() {
   const { t } = useTranslation();
   const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver, canEditModule } = useAuth();
@@ -340,11 +407,25 @@ export default function WashView() {
   const [historyTrolley, setHistoryTrolley] = useState(null);
   const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [workFilter, setWorkFilter] = useState('all');
+  const [entryPickerGroup, setEntryPickerGroup] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [manualPlanOpen, setManualPlanOpen] = useState(false);
+  const manualPlanSlot = useMemo(() => dateToWeekSlot(selectedDate), [selectedDate]);
+  const canAddOnSelectedDate = manualPlanSlot.day <= 6;
 
   const canEditWash = canEditModule('wash');
   const hasWashRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isTunnel || isPacker);
   const hasPackRole = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver' || isPacker);
   const isReadOnly = !canEditWash || (isDriver && !isAdmin && user?.role !== 'admin_viewer_driver');
+  const canEditEntryDetails = canEditWash && (isAdmin || user?.role === 'admin_viewer_driver');
+
+  const openEntryEditor = (group) => {
+    if (group.entries.length === 1) {
+      setEditingEntry(group.entries[0]);
+      return;
+    }
+    setEntryPickerGroup(group);
+  };
 
   const fetchWorkflow = useCallback(async () => {
     if (!sessionToken) {
@@ -414,7 +495,7 @@ export default function WashView() {
       // nie znaczy, że nie ma prania. Nie filtrujemy po wadze, inaczej hotel bez
       // wpisanego kg znika z Pralni i nikt się nim nie zajmie.
       if (!entry?.id || entry.deleted_at || entry.done) return;
-      const washDate = slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient));
+      const washDate = plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient);
       const departureDate = departureDateOf(entry);
       const touchedToday = [
         dateOnly(entry.washed_at),
@@ -547,7 +628,7 @@ export default function WashView() {
         dirty_received_at: entry?.dirty_received_at || null,
         picked_up_at: entry?.added_at || null,
         laundry_origin_date: arrivalDateOf(entry) || dateOnly(entry?.dirty_received_at) || dateOnly(entry?.added_at),
-        wash_date: entry ? slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient)) : null,
+        wash_date: entry ? plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient) : null,
         departure_date: entry ? departureDateOf(entry) : null,
       };
     });
@@ -560,7 +641,7 @@ export default function WashView() {
     ...calculateLaundryDayMetrics(
       entries,
       selectedDate,
-      entry => slotToDate(washSlotOf(entry, scheduleByRoute, dailyServiceByClient)),
+      entry => plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient),
       departureDateOf,
     ),
     activeTrolleys: activeTrolleyByNo.size,
@@ -830,6 +911,18 @@ export default function WashView() {
               <ChevronRight size={16} />
             </button>
           </div>
+          {isAdmin && (
+            <button
+              type="button"
+              className="laundry-add-plan-btn"
+              onClick={() => setManualPlanOpen(true)}
+              disabled={!canAddOnSelectedDate}
+              title={!canAddOnSelectedDate ? t('wash.manualPlan.sundayUnavailable') : undefined}
+            >
+              <Plus size={15} aria-hidden="true" />
+              <span>{t('wash.manualPlan.open')}</span>
+            </button>
+          )}
           {selectedDate !== operationalYmd() && (
             <button
               type="button"
@@ -1033,6 +1126,20 @@ export default function WashView() {
                     </div>
                   )}
 
+                  {canEditEntryDetails && (
+                    <button
+                      type="button"
+                      className="laundry-edit-details-btn"
+                      onClick={() => openEntryEditor(group)}
+                    >
+                      <Pencil size={14} aria-hidden="true" />
+                      <span>{t('wash.actions.editDetails')}</span>
+                      {group.entries.length > 1 && (
+                        <strong className="tabular-nums">{group.entries.length}</strong>
+                      )}
+                    </button>
+                  )}
+
                   {hasCorrections && (
                     <details className="laundry-correction-menu">
                       <summary title={t('wash.actions.correction')} aria-label={t('wash.actions.correction')}>
@@ -1144,6 +1251,47 @@ export default function WashView() {
           sessionToken={sessionToken}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}
+        />
+      )}
+
+      {entryPickerGroup && (
+        <LaundryEntryPicker
+          group={entryPickerGroup}
+          onClose={() => setEntryPickerGroup(null)}
+          onSelect={entry => {
+            setEntryPickerGroup(null);
+            setEditingEntry(entry);
+          }}
+        />
+      )}
+
+      {manualPlanOpen && (
+        <AddEntryModal
+          isOpen
+          defaultArrDay={manualPlanSlot.day}
+          weekKey={manualPlanSlot.weekKey}
+          laundryPlannedDate={selectedDate}
+          clients={clients.filter(client => client.route_id && !client.archived_at)}
+          routes={routes}
+          onAdded={refreshAll}
+          onClose={() => setManualPlanOpen(false)}
+        />
+      )}
+
+      {editingEntry && (
+        <ViewEditEntryModal
+          isOpen
+          entry={editingEntry}
+          clients={clients}
+          routes={routes}
+          contextMode="arr"
+          initiallyEditing
+          source="wash"
+          permissionModule="wash"
+          allowDeleteInEditor
+          onClose={() => setEditingEntry(null)}
+          onUpdated={refreshAll}
+          onDeleted={refreshAll}
         />
       )}
       

@@ -15,19 +15,19 @@ test('delivery uses every active cycle linked to the delivered entries', () => {
   ];
 
   assert.deepEqual(deliveryTrolleyChoices(tasks, workflow), [
-    { cycleId: 'cycle-1', trolleyNo: '1', choice: 'return' },
-    { cycleId: 'cycle-2', trolleyNo: '2', choice: 'return' },
+    { cycleId: 'cycle-1', trolleyNo: '1', choice: 'leave' },
+    { cycleId: 'cycle-2', trolleyNo: '2', choice: 'leave' },
   ]);
 });
 
-test('delivery keeps a previous per-trolley choice after workflow refresh', () => {
+test('delivery always leaves newly delivered trolleys at the client', () => {
   const tasks = [{ entry_id: 'entry-1' }];
   const workflow = [
     { id: 'cycle-1', trolley_no: '1', entry_ids: ['entry-1'], status: 'released', returned_at: null },
   ];
 
   assert.deepEqual(deliveryTrolleyChoices(tasks, workflow, [
-    { cycleId: 'cycle-1', trolleyNo: '1', choice: 'leave' },
+    { cycleId: 'cycle-1', trolleyNo: '1', choice: 'return' },
   ]), [
     { cycleId: 'cycle-1', trolleyNo: '1', choice: 'leave' },
   ]);

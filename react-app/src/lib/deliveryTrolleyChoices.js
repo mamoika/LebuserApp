@@ -9,30 +9,27 @@ function activeCycle(cycle) {
     && !['returned', 'canceled'].includes(cycle?.status);
 }
 
-export function deliveryTrolleyChoices(tasks = [], workflowTrolleys = [], previousChoices = []) {
+export function deliveryTrolleyChoices(tasks = [], workflowTrolleys = []) {
   const entryIds = new Set(tasks.map(task => task?.entry_id).filter(Boolean));
-  const previousByCycle = new Map(previousChoices.map(choice => [choice.cycleId, choice]));
   const choices = new Map();
 
   workflowTrolleys
     .filter(cycle => activeCycle(cycle) && (cycle.entry_ids || []).some(id => entryIds.has(id)))
     .forEach(cycle => {
-      const previous = previousByCycle.get(cycle.id);
       choices.set(cycle.id, {
         cycleId: cycle.id,
         trolleyNo: String(cycle.trolley_no).trim(),
-        choice: previous?.choice || 'return',
+        choice: 'leave',
       });
     });
 
   tasks.forEach(task => {
     if (!task?.laundry_trolley_cycle_id || !realTrolley(task?.laundry_trolley_no)) return;
     if (choices.has(task.laundry_trolley_cycle_id)) return;
-    const previous = previousByCycle.get(task.laundry_trolley_cycle_id);
     choices.set(task.laundry_trolley_cycle_id, {
       cycleId: task.laundry_trolley_cycle_id,
       trolleyNo: String(task.laundry_trolley_no).trim(),
-      choice: previous?.choice || 'return',
+      choice: 'leave',
     });
   });
 

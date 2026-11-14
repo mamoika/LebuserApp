@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, LoaderCircle, Navigation2, Package, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
+import { Check, CheckCircle2, LoaderCircle, Navigation2, Package, Pencil, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
@@ -65,6 +65,7 @@ export default function TripCourseStops({
   const [plannedStart, setPlannedStart] = useState('');
   const [printing, setPrinting] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
+  const [isCorrectionEditing, setIsCorrectionEditing] = useState(false);
   const { t, i18n } = useTranslation();
 
   const loadStops = useCallback(async () => {
@@ -91,12 +92,22 @@ export default function TripCourseStops({
 
   useEffect(() => { loadStops(); }, [loadStops]);
 
+  useEffect(() => {
+    setIsCorrectionEditing(false);
+  }, [trip.id, trip.status]);
+
   const stats = useMemo(
     () => statsFromCourseStops(stops, entries, trip.trip_date),
     [stops, entries, trip.trip_date],
   );
-  const canAdminAct = isAdmin && !trip.isVirtual && (trip.status === 'active' || trip.board_status === 'active');
-  const canAddStop = isAdmin && !trip.isVirtual && (trip.status === 'active' || trip.status === 'planned');
+  const isFinished = trip.status === 'finished';
+  const canCorrectFinished = isAdmin && !trip.isVirtual && isFinished && isCorrectionEditing;
+  const canAdminAct = isAdmin && !trip.isVirtual && (
+    trip.status === 'active' || trip.board_status === 'active' || canCorrectFinished
+  );
+  const canAddStop = isAdmin && !trip.isVirtual && (
+    trip.status === 'active' || trip.status === 'planned' || canCorrectFinished
+  );
   const canDelete = isAdmin && !trip.isVirtual;
   const canHandoff = isAdmin && !trip.isVirtual && (trip.status === 'active' || trip.board_status === 'active');
   const canPrint = !trip.isVirtual && (trip.status === 'finished' || trip.board_status === 'closed' || trip.board_status === 'settlement');
@@ -302,6 +313,18 @@ export default function TripCourseStops({
     <div className="live-trip-stops">
       {isAdmin && (
         <div className="live-trip-admin-bar">
+          {isFinished && (
+            <button
+              type="button"
+              className={`driver-tool-btn live-edit-finished-btn ${isCorrectionEditing ? 'is-active' : ''}`}
+              onClick={() => setIsCorrectionEditing(editing => !editing)}
+              disabled={busy}
+              aria-pressed={isCorrectionEditing}
+            >
+              {isCorrectionEditing ? <Check size={14} /> : <Pencil size={14} />}
+              {t(isCorrectionEditing ? 'course.stops.finishEditing' : 'course.stops.editFinished')}
+            </button>
+          )}
           {canHandoff && (
             <button className="driver-tool-btn" onClick={() => { setHandoffTarget(''); setHandoffOpen(true); }} disabled={busy}>
               <UserCheck size={14} /> {t('course.stops.handoffBtn')}
@@ -322,6 +345,13 @@ export default function TripCourseStops({
               <Trash2 size={14} /> {t('course.stops.deleteTrip')}
             </button>
           )}
+        </div>
+      )}
+
+      {canCorrectFinished && (
+        <div className="live-finished-edit-hint" role="status">
+          <Pencil size={15} aria-hidden="true" />
+          <span>{t('course.stops.finishedEditHint')}</span>
         </div>
       )}
 
