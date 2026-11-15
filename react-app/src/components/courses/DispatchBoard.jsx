@@ -683,27 +683,39 @@ export default function DispatchBoard() {
 
   return (
     <section className="dispatch-mock-root live-dispatch" aria-labelledby="dispatch-title">
-      <div className="live-board-toolbar">
-        <div>
-          <div className="mock-kicker">{t('course.board.kicker')}</div>
-          <h1 id="dispatch-title" className="mock-page-title">
-            {viewMode === 'day' ? t('course.board.titleDay') : t('course.board.titleArchive')}
-          </h1>
-          {viewMode === 'day' && <div className="live-board-date-label">{formatCourseDate(tripDate, locale)}</div>}
-        </div>
-        <div className="live-board-actions">
-          <div className="segmented-control live-view-toggle">
-            <button type="button" className={`seg-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>{t('course.board.viewDay')}</button>
-            <button type="button" className={`seg-btn ${viewMode === 'archive' ? 'active' : ''}`} onClick={() => setViewMode('archive')}>{t('course.board.viewArchive')}</button>
+      <div className="live-board-header">
+        <div className="live-board-toolbar">
+          <div className="live-board-heading">
+            <div className="mock-kicker">{t('course.board.kicker')}</div>
+            <h1 id="dispatch-title" className="mock-page-title">
+              {viewMode === 'day' ? t('course.board.titleDay') : t('course.board.titleArchive')}
+            </h1>
+            {viewMode === 'day' && <div className="live-board-date-label">{formatCourseDate(tripDate, locale)}</div>}
           </div>
-          {viewMode === 'day' && (
-            <label htmlFor="dispatch-date">{t('course.board.courseDate')}<input id="dispatch-date" type="date" value={tripDate} onChange={event => setTripDate(event.target.value)} /></label>
-          )}
-          <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>
-          {isAdmin && viewMode === 'day' && (
-            <button className="driver-tool-btn" onClick={() => setAssignTrip({ id: `new_${tripDate}`, trip_date: tripDate, routes: '' })}><Plus size={15} /> {t('course.board.newCourse')}</button>
-          )}
+          <div className="live-board-actions">
+            <div className="segmented-control live-view-toggle">
+              <button type="button" className={`seg-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>{t('course.board.viewDay')}</button>
+              <button type="button" className={`seg-btn ${viewMode === 'archive' ? 'active' : ''}`} onClick={() => setViewMode('archive')}>{t('course.board.viewArchive')}</button>
+            </div>
+            {viewMode === 'day' && (
+              <label htmlFor="dispatch-date">{t('course.board.courseDate')}<input id="dispatch-date" type="date" value={tripDate} onChange={event => setTripDate(event.target.value)} /></label>
+            )}
+            <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>
+            {isAdmin && viewMode === 'day' && (
+              <button className="driver-tool-btn is-primary" onClick={() => setAssignTrip({ id: `new_${tripDate}`, trip_date: tripDate, routes: '' })}><Plus size={15} /> {t('course.board.newCourse')}</button>
+            )}
+          </div>
         </div>
+
+        {viewMode === 'day' && (
+          <div className="dispatch-summary">
+            <span className="dispatch-chip"><CalendarDays size={13} /> {t('course.board.coursesCount', { count: trips.length })}</span>
+            {summary.missing > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.toPlan', { count: summary.missing })}</span>}
+            <span className="dispatch-chip is-active">{t('course.board.inRoute', { count: summary.active })}</span>
+            <span className="dispatch-chip">{t('course.board.settlement', { count: summary.settlement })}</span>
+            {summary.problems > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.problems', { count: summary.problems })}</span>}
+          </div>
+        )}
       </div>
 
       {viewMode === 'archive' ? (
@@ -724,36 +736,38 @@ export default function DispatchBoard() {
         />
       ) : (
         <>
-          <div className="dispatch-summary">
-            <span className="dispatch-chip"><CalendarDays size={13} /> {t('course.board.coursesCount', { count: trips.length })}</span>
-            {summary.missing > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.toPlan', { count: summary.missing })}</span>}
-            <span className="dispatch-chip is-active">{t('course.board.inRoute', { count: summary.active })}</span>
-            <span className="dispatch-chip">{t('course.board.settlement', { count: summary.settlement })}</span>
-            {summary.problems > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.problems', { count: summary.problems })}</span>}
-          </div>
-
           {loading ? <div className="live-board-loading"><LoaderCircle className="is-spinning" /> {t('course.board.loadingCourses')}</div> : (
             <DragDropContext onDragEnd={onDragEnd}>
-              <div className="dispatch-board">
-                {boardColumns.map(column => {
-                  const items = trips.filter(trip => trip.board_status === column.key);
-                  return (
-                    <div className="dispatch-col" key={column.key}>
-                      <div className="dispatch-col-header"><span className="dispatch-col-title">{column.label}</span><span className="dispatch-col-count">{items.length}</span></div>
-                      <Droppable droppableId={column.key} isDropDisabled={!isAdmin || column.key === 'closed'}>
-                        {(provided, snapshot) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} className={`dispatch-col-drop ${snapshot.isDraggingOver ? 'is-over' : ''}`}>
-                            {items.map((trip, index) => (
-                              <CourseCard key={trip.id} trip={trip} index={index} isAdmin={isAdmin} locale={locale} onOpen={setOpenTrip} onApprove={openKmApproval} onApproveHours={openHoursApproval} onAssign={setAssignTrip} />
-                            ))}
-                            {items.length === 0 && <div className="dispatch-empty">{t('course.board.noCourses')}</div>}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </div>
-                  );
-                })}
+              <div className="live-board-frame">
+                <div className="dispatch-board">
+                  {boardColumns.map(column => {
+                    const items = trips.filter(trip => trip.board_status === column.key);
+                    return (
+                      <div className={`dispatch-col is-${column.key}`} key={column.key}>
+                        <div className="dispatch-col-header">
+                          <span className="dispatch-col-title"><i aria-hidden="true" />{column.label}</span>
+                          <span className="dispatch-col-count">{items.length}</span>
+                        </div>
+                        <Droppable droppableId={column.key} isDropDisabled={!isAdmin || column.key === 'closed'}>
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className={`dispatch-col-drop ${snapshot.isDraggingOver ? 'is-over' : ''}`}>
+                              {items.map((trip, index) => (
+                                <CourseCard key={trip.id} trip={trip} index={index} isAdmin={isAdmin} locale={locale} onOpen={setOpenTrip} onApprove={openKmApproval} onApproveHours={openHoursApproval} onAssign={setAssignTrip} />
+                              ))}
+                              {items.length === 0 && (
+                                <div className="dispatch-empty">
+                                  <span aria-hidden="true"><CalendarDays size={16} /></span>
+                                  {t('course.board.noCourses')}
+                                </div>
+                              )}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </DragDropContext>
           )}

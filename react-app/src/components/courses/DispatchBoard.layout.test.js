@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+
+const source = readFileSync(new URL('./DispatchBoard.jsx', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../mockups/mockups.css', import.meta.url), 'utf8');
+
+test('dispatch controls and summary share one compact header surface', () => {
+  assert.match(
+    source,
+    /className="live-board-header"[\s\S]*?className="live-board-toolbar"[\s\S]*?className="dispatch-summary"/,
+    'the title, controls, and daily summary should form one visual region',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.live-board-header\s*\{[\s\S]*?border-radius:\s*18px;[\s\S]*?background:\s*var\(--bg-card-solid\);/,
+    'the header should use the shared raised Apple-style surface',
+  );
+});
+
+test('each workflow stage owns a full-height status surface', () => {
+  assert.match(
+    source,
+    /className=\{`dispatch-col is-\$\{column\.key\}`\}/,
+    'each column should expose its workflow status to the stylesheet',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.dispatch-board\s*\{[\s\S]*?height:\s*clamp\(520px, calc\(100dvh - 300px\), 840px\);/,
+    'the daily board should fill the useful viewport height',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.dispatch-col\s*\{[\s\S]*?display:\s*flex;[\s\S]*?overflow:\s*hidden;[\s\S]*?background:\s*#F9F9FB;/,
+    'columns should be bounded surfaces instead of floating content on white',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.dispatch-col-drop\s*\{[\s\S]*?flex:\s*1;[\s\S]*?overflow-y:\s*auto;/,
+    'long columns should scroll within the shared board height',
+  );
+});
+
+test('dispatch board keeps usable columns on narrow screens', () => {
+  assert.match(
+    styles,
+    /\.live-dispatch \.dispatch-board\s*\{[\s\S]*?min-width:\s*1120px;[\s\S]*?grid-template-columns:\s*repeat\(5, minmax\(216px, 1fr\)\);/,
+    'desktop stages should not collapse below their readable width',
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*?\.live-dispatch \.dispatch-board\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?flex-direction:\s*column;/,
+    'mobile should turn the workflow into a vertical list',
+  );
+});
