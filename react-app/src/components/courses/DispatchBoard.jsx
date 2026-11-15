@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gauge, GripVertical,
-  History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
+  History, LoaderCircle, MapPin, PlayCircle, Plus, RefreshCw, Truck, UserCheck, X, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
@@ -383,27 +383,41 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={`kurs-card is-clickable ${snapshot.isDragging ? 'is-dragging' : ''} ${trip.board_status === 'closed' ? 'kurs-closed' : ''}`}
-          style={provided.draggableProps.style}
+          style={{
+            ...provided.draggableProps.style,
+            '--course-route-color': routeColor,
+            '--course-route-soft': `${routeColor}1F`,
+          }}
           onClick={event => { if (!event.target.closest('button, a, input, select')) openCourse(); }}
         >
           <div className="kurs-card-top">
             <button className="kurs-title-button" onClick={openCourse}>
-              <span className="kurs-route-badge" style={{ background: `${routeColor}1F`, color: routeColor }}>T{trip.route_display || '—'}</span>
+              <span className="kurs-route-badge">T{trip.route_display || '—'}</span>
               <span className="kurs-route-name">{trip.route_name || t('course.dailyCourse')}</span>
             </button>
-            <div className="kurs-card-actions">
-              {trip.car && <span className="kurs-car-chip">{VEHICLE_LABELS[trip.car] || trip.car}</span>}
-              {isAdmin && <button className="kurs-drag-handle" {...provided.dragHandleProps}><GripVertical size={16} /></button>}
-            </div>
+            {isAdmin && (
+              <button
+                className="kurs-drag-handle"
+                aria-label={t('course.board.moveCourse')}
+                title={t('course.board.moveCourse')}
+                {...provided.dragHandleProps}
+              >
+                <GripVertical size={16} aria-hidden="true" />
+              </button>
+            )}
           </div>
 
           <div className="kurs-driver-row">
-            {trip.driver_name ? <><div className="kurs-avatar">{trip.driver_name.split(' ').map(part => part[0]).join('').slice(0, 2)}</div><span className="kurs-driver-name">{trip.driver_name}</span></> : <span className="kurs-no-driver"><AlertTriangle size={12} /> {t('course.noDriver')}</span>}
+            <div className="kurs-driver-identity">
+              {trip.driver_name ? <><div className="kurs-avatar">{trip.driver_name.split(' ').map(part => part[0]).join('').slice(0, 2)}</div><span className="kurs-driver-name">{trip.driver_name}</span></> : <span className="kurs-no-driver"><AlertTriangle size={12} /> {t('course.noDriver')}</span>}
+            </div>
+            {trip.car && <span className="kurs-car-chip"><Truck size={12} aria-hidden="true" />{VEHICLE_LABELS[trip.car] || trip.car}</span>}
           </div>
 
           {trip.board_status === 'ready' && (
-            <div className="kurs-progress-label">
-              <Clock3 size={12} /> {trip.planned_start ? t('course.board.startAt', { time: formatCourseTime(trip.planned_start, locale) }) : t('course.board.readyManualStart')} · {trip.stops_total} {t('course.board.stops')}
+            <div className="kurs-progress-label is-ready">
+              <span><Clock3 size={13} aria-hidden="true" />{trip.planned_start ? t('course.board.startAt', { time: formatCourseTime(trip.planned_start, locale) }) : t('course.board.readyManualStart')}</span>
+              {trip.stops_total > 0 && <span><MapPin size={13} aria-hidden="true" />{trip.stops_total} {t('course.board.stops')}</span>}
             </div>
           )}
           {trip.board_status === 'planning' && (

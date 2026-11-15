@@ -72,3 +72,26 @@ test('dispatch board keeps usable columns on narrow screens', () => {
     'mobile should turn the workflow into a vertical list',
   );
 });
+
+test('course cards preserve route, driver, vehicle, and ready metadata hierarchy', () => {
+  assert.match(
+    source,
+    /className="kurs-card-top"[\s\S]*?className="kurs-driver-row"[\s\S]*?className="kurs-car-chip"[\s\S]*?className="kurs-progress-label is-ready"/,
+    'vehicle information should sit with the driver while ready metadata forms a separate footer',
+  );
+  assert.match(
+    source,
+    /trip\.stops_total > 0 && <span><MapPin/,
+    'plan-only courses should not show a misleading zero-stop label',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.kurs-car-chip\s*\{[\s\S]*?max-width:\s*none;[\s\S]*?white-space:\s*nowrap;/,
+    'vehicle names should remain complete instead of being clipped',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.kurs-progress-label\s*\{[\s\S]*?background:\s*var\(--bg-secondary\);/,
+    'operational metadata should be grouped in a quiet inset surface',
+  );
+});
