@@ -799,7 +799,7 @@ export default function CostsView() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '2px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+    <div className={`costs-view costs-view--${activeTab}`} style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '2px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
       <style>{COSTS_CSS}</style>
 
       {/* HEADER */}
@@ -2116,11 +2116,11 @@ function EntryGrid({
     </td>
   );
   return (
-    <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+    <div className="costs-entry-card" style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
       <div style={{ padding: '12px 18px', borderBottom: `1px solid ${IOS_THEME.border}`, fontSize: '12.5px', color: IOS_THEME.textSecondary, background: '#F9F9FB' }}>
         💡 {t('costs.entryHintPrefix')} <b style={{ color: IOS_THEME.textPrimary }}>{t('costs.meterReading')}</b> {t('costs.entryHintSuffix')}
       </div>
-      <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
+      <div className="costs-entry-scroll">
         <table className="costs-table" style={{ width: '100%', minWidth: '1180px', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
@@ -3068,6 +3068,23 @@ function IntegrityReportModal({
 }
 
 const COSTS_CSS = `
+.costs-view {
+  width: 100%;
+  min-width: 0;
+}
+.costs-entry-card {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+.costs-entry-scroll {
+  min-width: 0;
+  overflow: auto;
+  max-height: calc(100dvh - 320px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 .costs-view-tabs {
   display: flex !important;
   gap: 3px !important;
@@ -3220,6 +3237,28 @@ const COSTS_CSS = `
 .costs-inp::-webkit-outer-spin-button,
 .costs-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .costs-inp { -moz-appearance: textfield; }
+@media (min-width: 901px) {
+  .app-main-content:has(> .costs-view--entry) {
+    height: 100dvh;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .costs-view--entry {
+    height: 100%;
+    min-height: 0;
+    gap: 12px !important;
+    overflow: hidden;
+  }
+  .costs-view--entry .costs-entry-card {
+    flex: 1 1 auto;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.025), 0 10px 28px rgba(0,0,0,0.035) !important;
+  }
+  .costs-view--entry .costs-entry-scroll {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+}
 @media (max-width: 1380px) {
   .performance-workspace {
     grid-template-columns: minmax(0, 1fr);
