@@ -11458,7 +11458,7 @@ select.ap-input {
 
   .app-navigation-logo {
     width: 100%;
-    height: 32px;
+    height: 34px;
     max-height: none;
     overflow: hidden;
     border: 0;
@@ -11472,13 +11472,13 @@ select.ap-input {
     flex: 0 0 auto;
     width: auto;
     max-width: none;
-    height: 32px;
+    height: 34px;
     max-height: none;
     border-radius: 0;
   }
 
-  .app-navigation.is-collapsed .app-navigation-brand { padding-inline: 20px; }
-  .app-navigation.is-collapsed .app-navigation-logo { width: 32px; }
+  .app-navigation.is-collapsed .app-navigation-brand { padding-inline: 19px; }
+  .app-navigation.is-collapsed .app-navigation-logo { width: 34px; }
 
   /* Etykiety znikają płynnie, a ikony stoją w miejscu */
   .app-navigation-link span,
