@@ -39,7 +39,8 @@ import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
-import { calculateLaundryDayMetrics, effectiveLaundryWashDate, laundryBatchKey } from '../lib/laundryDayPlan';
+import { calculateLaundryDayMetrics, laundryBatchKey } from '../lib/laundryDayPlan';
+import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -96,95 +97,6 @@ function dateToWeekSlot(dateStr) {
   const monday = new Date(date);
   monday.setDate(date.getDate() - (day - 1));
   return { day, weekKey: ymd(monday) };
-}
-
-function parseMonday(weekKey) {
-  const [y, m, d] = (weekKey || '').split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-function formatWeekKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function addDaysToWeekKey(weekKey, days) {
-  const dt = parseMonday(weekKey);
-  if (!dt) return weekKey;
-  dt.setDate(dt.getDate() + days);
-  return formatWeekKey(dt);
-}
-
-function dayWeekToTime(day, weekKey) {
-  const dt = parseMonday(weekKey);
-  if (!dt) return 0;
-  dt.setDate(dt.getDate() + (Number(day) - 1));
-  return dt.getTime();
-}
-
-function slotToDate(slot) {
-  if (!slot) return null;
-  const [weekKey, day] = slot.split('|');
-  const dt = parseMonday(weekKey);
-  if (!dt) return null;
-  dt.setDate(dt.getDate() + (Number(day) - 1));
-  return ymd(dt);
-}
-
-// Dzień wyjazdu (odbiór czystego przez kierowcę) — różny od dnia prania, który
-// wypada dzień wcześniej. Wyznacza górną granicę okna, w którym wpis ma sens
-// pokazywać się w Pralni na dany dzień.
-function departureDateOf(entry) {
-  if (!entry.pick_day || !entry.pick_week_key) return null;
-  return slotToDate(`${entry.pick_week_key}|${entry.pick_day}`);
-}
-
-function arrivalDateOf(entry) {
-  if (!entry?.arr_day || !entry?.week_key) return null;
-  return slotToDate(`${entry.week_key}|${entry.arr_day}`);
-}
-
-function washSlotOf(entry, scheduleByRoute, dailyServiceByClient) {
-  const arrDay = Number(entry.arr_day);
-  const arrWeek = entry.week_key;
-  const depDay = Number(entry.pick_day);
-  const depWeek = entry.pick_week_key;
-  const isDaily = dailyServiceByClient.has(entry.client_name)
-    ? dailyServiceByClient.get(entry.client_name)
-    : (scheduleByRoute.get(entry.route_id) || 'other') === 'daily';
-
-  if (!depDay || !depWeek) {
-    if (!arrDay || !arrWeek) return null;
-    if (isDaily) return `${arrWeek}|${arrDay}`;
-    if (arrDay < 5) return `${arrWeek}|${arrDay + 1}`;
-    return `${addDaysToWeekKey(arrWeek, 7)}|1`;
-  }
-
-  let washDay;
-  let washWeek;
-  if (depDay > 1) {
-    washDay = depDay - 1;
-    washWeek = depWeek;
-  } else {
-    washDay = 5;
-    washWeek = addDaysToWeekKey(depWeek, -7);
-  }
-
-  if (!isDaily && arrDay && arrWeek) {
-    if (dayWeekToTime(washDay, washWeek) <= dayWeekToTime(arrDay, arrWeek)) {
-      washDay = depDay;
-      washWeek = depWeek;
-    }
-  }
-
-  return `${washWeek}|${washDay}`;
-}
-
-function plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient) {
-  return effectiveLaundryWashDate(
-    entry,
-    item => slotToDate(washSlotOf(item, scheduleByRoute, dailyServiceByClient)),
-  );
 }
 
 function hasWorkflowColumns(entry) {

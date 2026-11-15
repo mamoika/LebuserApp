@@ -140,6 +140,7 @@
     "changeDriver": "Fahrer wechseln"
   },
   "nav": {
+    "controlPanel": "Steuerzentrale",
     "primary": "Hauptnavigation",
     "openMenu": "Hauptmenü öffnen",
     "closeMenu": "Hauptmenü schließen",
@@ -250,7 +251,8 @@
     "wash": { "title": "Wäscherei", "subtitle": "Waschen, Packen und Wagenumlauf" },
     "warehouse": { "title": "Lager", "subtitle": "Bestände, Kartons und Warenbewegungen" },
     "admin": { "title": "Admin-Panel", "subtitle": "Benutzer und Einstellungen" },
-    "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" }
+    "rodo": { "title": "Datenschutzhinweis", "subtitle": "Vollständige Datenschutzklausel" },
+    "panel": { "title": "Steuerzentrale", "subtitle": "Die wichtigsten Informationen aus dem ganzen Betrieb an einem Ort" }
   },
   "warehouse": {
     "kicker": "Visuelles Lager",
@@ -2889,5 +2891,72 @@
         ]
       }
     ]
+  },
+  "controlPanel": {
+    "greetingMorning": "Guten Morgen, {{name}}",
+    "greetingDay": "Guten Tag, {{name}}",
+    "greetingEvening": "Guten Abend, {{name}}",
+    "subtitle": "Wäscherei, Wagen, Touren, Team und offene Freigaben — live.",
+    "updatedAt": "Aktualisiert {{time}}",
+    "kpisLabel": "Die wichtigsten Zahlen des Tages",
+    "noDriverName": "Ohne Fahrer",
+    "issues": {
+      "title": "Einige Daten konnten nicht geladen werden:",
+      "laundry": "Wäscherei",
+      "routes": "Touren",
+      "schedule": "Dienstplan",
+      "driverCards": "Fahrerkarten",
+      "myHours": "meine Stunden"
+    },
+    "kpi": {
+      "laundry": "Heute zu waschen",
+      "laundryDetail": "gewaschen {{washed}} kg · offen {{remaining}} kg · Ausfahrt {{departure}} kg",
+      "trolleys": "Wagen belegt",
+      "trolleysDetail": "frei: {{free}} · beim Kunden: {{atClient}}",
+      "team": "Heute im Dienst",
+      "teamDetail": "abwesend: {{absent}} · frei: {{off}}",
+      "myHours": "Meine Stunden · {{month}}",
+      "myHoursDetail": "Soll {{norm}} h · Differenz {{diff}} h",
+      "myHoursMissing": "Dein Konto ist nicht mit dem Dienstplan verknüpft"
+    },
+    "approvals": {
+      "title": "Zur Freigabe",
+      "emptyTitle": "Alles freigegeben",
+      "emptyDetail": "Nichts wartet auf deine Entscheidung.",
+      "more": "…und {{count}} weitere",
+      "settlementTitle": "Tourabrechnung: {{driver}}",
+      "km": "km: {{km}}",
+      "hours": "Stunden: {{hours}}",
+      "workTimeTitle": "Gemeldete Stunden: {{name}}",
+      "noDriverTitle": "Kein Fahrer: {{route}}",
+      "noDriverDetail": "Die heutige Tour wartet auf eine Zuweisung",
+      "cardTitle": "Fahrerkarte: {{name}}",
+      "cardMissing": "Kein Datum des letzten Auslesens",
+      "cardOverdue_one": "Auslesen {{count}} Tag überfällig",
+      "cardOverdue_other": "Auslesen {{count}} Tage überfällig",
+      "cardDueSoon_one": "Auslesen in {{count}} Tag",
+      "cardDueSoon_other": "Auslesen in {{count}} Tagen"
+    },
+    "live": {
+      "title": "Fahrer unterwegs",
+      "open": "Disposition",
+      "nextStop": "Nächster: {{name}}",
+      "noNextStop": "Kein weiterer Stopp",
+      "emptyTitle": "Gerade ist niemand unterwegs",
+      "emptyDetail": "Aktive Touren erscheinen hier automatisch.",
+      "ready": "Startbereit",
+      "planning": "In Planung",
+      "settlement": "Abzurechnen",
+      "closed": "Abgeschlossen"
+    },
+    "team": {
+      "title": "Team heute",
+      "open": "Dienstplan",
+      "emptyTitle": "Keine Dienstplandaten für heute",
+      "absentToday": "Heute abwesend",
+      "nobodyAbsent": "Heute sind alle im Dienst oder haben frei.",
+      "upcoming": "Abwesenheiten in den nächsten Tagen",
+      "noUpcoming": "Keine geplanten Abwesenheiten in diesem Monat."
+    }
   }
 }

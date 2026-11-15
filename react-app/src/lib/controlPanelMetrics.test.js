@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  buildMyMonthHours,
+  buildTeamDay,
+  buildUpcomingAbsences,
+  classifyScheduleValue,
+  collectApprovals,
+  workingDaysInMonth,
+} from './controlPanelMetrics.js';
+
+const periods = [
+  { employee_id: 1, started_on: '2026-01-01', ended_on: null },
+  { employee_id: 2, started_on: '2026-01-01', ended_on: null },
+  { employee_id: 3, started_on: '2026-01-01', ended_on: null },
+  { employee_id: 4, started_on: '2026-12-01', ended_on: null },
+];
+
+const roster = [
+  { id: 1, name: 'Anna', group_name: 'Kierowcy' },
+  { id: 2, name: 'Bartek', group_name: 'Kierowcy' },
+  { id: 3, name: 'Celina', group_name: 'Pralnia' },
+  { id: 4, name: 'Darek', group_name: 'Pralnia' },
+];
+
+test('schedule values are classified like the work schedule grid', () => {
+  assert.equal(classifyScheduleValue('8'), 'working');
+  assert.equal(classifyScheduleValue('05:00-13:00'), 'working');
+  assert.equal(classifyScheduleValue('I'), 'working');
+  assert.equal(classifyScheduleValue('L4'), 'absent');
+  assert.equal(classifyScheduleValue('uw'), 'absent');
+  assert.equal(classifyScheduleValue('W'), 'off');
+  assert.equal(classifyScheduleValue(''), 'outside');
+});
+
+test('team day counts working, absent and skips people outside employment', () => {
+  // 2026-11-16 is a Monday.
+  const day = buildTeamDay({
+    roster,
+    employmentPeriods: periods,
+    scheduleEntries: [
+      { employee_id: 1, day: 16, value: '8' },
+      { employee_id: 2, day: 16, value: 'L4' },
+    ],
+    year: 2026,
+    month: 11,
+    day: 16,
+  });
+  assert.equal(day.total, 3);
+  assert.equal(day.working, 2);
+  assert.equal(day.absentCount, 1);
+  assert.deepEqual(day.absent.map(item => [item.name, item.value]), [['Bartek', 'L4']]);
+  assert.deepEqual(day.groups.find(group => group.name === 'Kierowcy'), { name: 'Kierowcy', working: 1, total: 2 });
+});
+
+test('weekend days default to off', () => {
+  // 2026-11-15 is a Sunday.
+  const day = buildTeamDay({ roster, employmentPeriods: periods, scheduleEntries: [], year: 2026, month: 11, day: 15 });
+  assert.equal(day.working, 0);
+  assert.equal(day.off, 3);
+});
+
+test('upcoming absences merge consecutive days across weekends', () => {
+  const list = buildUpcomingAbsences({
+    roster,
+    employmentPeriods: periods,
+    scheduleEntries: [
+      { employee_id: 3, day: 19, value: 'UW' },
+      { employee_id: 3, day: 20, value: 'UW' },
+      { employee_id: 3, day: 21, value: 'W' },
+      { employee_id: 3, day: 23, value: 'UW' },
+    ],
+    year: 2026,
+    month: 11,
+    fromDay: 17,
+    days: 7,
+  });
+  assert.deepEqual(list.map(item => [item.name, item.value, item.firstDay, item.lastDay]), [
+    ['Celina', 'UW', 19, 20],
+    ['Celina', 'UW', 23, 23],
+  ]);
+});
+
+test('my month hours match grid totals and UoP norm', () => {
+  const result = buildMyMonthHours({
+    employee: { id: 1, contract_type: 'UoP' },
+    scheduleEntries: [
+      { day: 2, value: '8' },
+      { day: 3, value: '7,5' },
+      { day: 4, value: 'UW' },
+    ],
+    year: 2026,
+    month: 11,
+  });
+  const baseNorm = workingDaysInMonth(2026, 11) * 8;
+  assert.equal(result.hours, 15.5);
+  assert.equal(result.norm, baseNorm - 8);
+  assert.equal(result.diff, Math.round((15.5 - (baseNorm - 8)) * 10) / 10);
+  assert.equal(buildMyMonthHours({ employee: null, year: 2026, month: 11 }), null);
+});
+
+test('approvals collect settlements, pending hours, missing drivers and driver cards', () => {
+  const items = collectApprovals({
+    boardTrips: [
+      { id: 1, board_status: 'settlement', end_km: 120, km_approval_status: 'pending', hours_status: 'approved', reported_hours: '8' },
+      { id: 2, board_status: 'settlement', end_km: 90, km_approval_status: 'approved', hours_status: 'approved', reported_hours: '8' },
+      { id: 3, board_status: 'planning', driver_id: null },
+      { id: 4, board_status: 'planning', driver_id: null, isVirtual: true },
+      { id: 5, board_status: 'active', driver_id: 7 },
+    ],
+    workTimeReports: [
+      { id: 10, status: 'pending' },
+      { id: 11, status: 'approved' },
+    ],
+    driverCardReminders: [
+      { employee_id: 1, state: 'overdue' },
+      { employee_id: 2, state: 'dueSoon' },
+      { employee_id: 3, state: 'ok' },
+    ],
+  });
+  assert.deepEqual(items.map(item => item.id), ['trip-1', 'report-10', 'card-1', 'nodriver-3', 'card-2']);
+  assert.equal(items[0].kmPending, true);
+  assert.equal(items[0].hoursPending, false);
+});

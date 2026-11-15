@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
   CalendarRange,
+  Gauge,
   ChartNoAxesCombined,
   ClipboardList,
   ContactRound,
@@ -74,6 +75,7 @@ export default function Navigation() {
   if (canViewModule('warehouse')) navItems.push({ to: '/warehouse', icon: PackageOpen, label: t('nav.warehouse'), group: 'laundry' });
 
   if (canViewModule('live_routes')) navItems.push({ to: '/routes', icon: RadioTower, label: t('nav.liveRoutes'), group: 'transport' });
+  if (canViewModule('admin')) navItems.push({ to: '/panel', icon: Gauge, label: t('nav.controlPanel'), group: 'management' });
   if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: WalletCards, label: t('nav.workSchedule'), group: 'management' });
   if (canViewModule('costs')) navItems.push({ to: '/costs', icon: ChartNoAxesCombined, label: t('nav.costs'), group: 'management' });
   if (canViewModule('history')) navItems.push({ to: '/history', icon: ClipboardList, label: t('nav.history'), group: 'management' });
@@ -210,11 +212,28 @@ export default function Navigation() {
               </Link>
             </div>
             <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
-              <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
-              <span className="app-navigation-account-copy">
-                <strong>{user?.name}</strong>
-                <small>@{user?.username}</small>
-              </span>
+              {canViewModule('admin') ? (
+                <Link
+                  to="/panel"
+                  className="app-navigation-profile-link"
+                  title={t('nav.controlPanel')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+                  <span className="app-navigation-account-copy">
+                    <strong>{user?.name}</strong>
+                    <small>@{user?.username}</small>
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+                  <span className="app-navigation-account-copy">
+                    <strong>{user?.name}</strong>
+                    <small>@{user?.username}</small>
+                  </span>
+                </>
+              )}
               <button
                 type="button"
                 className="app-navigation-icon-button app-navigation-signout"

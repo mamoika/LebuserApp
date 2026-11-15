@@ -140,6 +140,7 @@
     "changeDriver": "Zmień kierowcę"
   },
   "nav": {
+    "controlPanel": "Panel sterujący",
     "primary": "Główna nawigacja",
     "openMenu": "Otwórz menu główne",
     "closeMenu": "Zamknij menu główne",
@@ -250,7 +251,8 @@
     "wash": { "title": "Pralnia", "subtitle": "Pranie, pakowanie i obieg wózków" },
     "warehouse": { "title": "Magazyn", "subtitle": "Stany, kartony i ruchy asortymentu" },
     "admin": { "title": "Panel Admina", "subtitle": "Użytkownicy i ustawienia" },
-    "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" }
+    "rodo": { "title": "Informacja RODO", "subtitle": "Pełna klauzula informacyjna" },
+    "panel": { "title": "Panel sterujący", "subtitle": "Najważniejsze informacje z całej firmy w jednym miejscu" }
   },
   "warehouse": {
     "kicker": "Magazyn wizualny",
@@ -2907,5 +2909,76 @@
         ]
       }
     ]
+  },
+  "controlPanel": {
+    "greetingMorning": "Dzień dobry, {{name}}",
+    "greetingDay": "Dzień dobry, {{name}}",
+    "greetingEvening": "Dobry wieczór, {{name}}",
+    "subtitle": "Pralnia, wózki, trasy, zespół i sprawy do zatwierdzenia — na żywo.",
+    "updatedAt": "Odświeżono {{time}}",
+    "kpisLabel": "Najważniejsze liczby dnia",
+    "noDriverName": "Bez kierowcy",
+    "issues": {
+      "title": "Część danych się nie wczytała:",
+      "laundry": "pralnia",
+      "routes": "trasy",
+      "schedule": "grafik",
+      "driverCards": "karty kierowców",
+      "myHours": "moje godziny"
+    },
+    "kpi": {
+      "laundry": "Do prania dziś",
+      "laundryDetail": "wyprane {{washed}} kg · zostało {{remaining}} kg · wyjazd {{departure}} kg",
+      "trolleys": "Wózki zajęte",
+      "trolleysDetail": "wolne: {{free}} · u klientów: {{atClient}}",
+      "team": "W pracy dziś",
+      "teamDetail": "nieobecni: {{absent}} · wolne: {{off}}",
+      "myHours": "Moje godziny · {{month}}",
+      "myHoursDetail": "norma {{norm}} h · różnica {{diff}} h",
+      "myHoursMissing": "Twoje konto nie jest powiązane z grafikiem"
+    },
+    "approvals": {
+      "title": "Do zatwierdzenia",
+      "emptyTitle": "Wszystko zatwierdzone",
+      "emptyDetail": "Nic nie czeka na Twoją decyzję.",
+      "more": "…i jeszcze {{count}}",
+      "settlementTitle": "Rozliczenie kursu: {{driver}}",
+      "km": "km: {{km}}",
+      "hours": "godziny: {{hours}}",
+      "workTimeTitle": "Zgłoszone godziny: {{name}}",
+      "noDriverTitle": "Brak kierowcy: {{route}}",
+      "noDriverDetail": "Kurs na dziś czeka na przypisanie",
+      "cardTitle": "Karta kierowcy: {{name}}",
+      "cardMissing": "Brak daty ostatniego odczytu",
+      "cardOverdue_one": "Odczyt spóźniony o {{count}} dzień",
+      "cardOverdue_few": "Odczyt spóźniony o {{count}} dni",
+      "cardOverdue_many": "Odczyt spóźniony o {{count}} dni",
+      "cardOverdue_other": "Odczyt spóźniony o {{count}} dni",
+      "cardDueSoon_one": "Odczyt za {{count}} dzień",
+      "cardDueSoon_few": "Odczyt za {{count}} dni",
+      "cardDueSoon_many": "Odczyt za {{count}} dni",
+      "cardDueSoon_other": "Odczyt za {{count}} dni"
+    },
+    "live": {
+      "title": "Kierowcy w trasie",
+      "open": "Dyspozytornia",
+      "nextStop": "Następny: {{name}}",
+      "noNextStop": "Brak kolejnego przystanku",
+      "emptyTitle": "Nikt teraz nie jest w trasie",
+      "emptyDetail": "Aktywne kursy pojawią się tutaj automatycznie.",
+      "ready": "Gotowe do startu",
+      "planning": "W planowaniu",
+      "settlement": "Do rozliczenia",
+      "closed": "Zamknięte"
+    },
+    "team": {
+      "title": "Zespół dziś",
+      "open": "Grafik",
+      "emptyTitle": "Brak danych grafiku na dziś",
+      "absentToday": "Nieobecni dziś",
+      "nobodyAbsent": "Dziś wszyscy są w pracy albo mają wolne.",
+      "upcoming": "Nieobecności w najbliższych dniach",
+      "noUpcoming": "Brak zaplanowanych nieobecności w tym miesiącu."
+    }
   }
 }

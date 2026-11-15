@@ -18,6 +18,7 @@ const DispatchBoard = lazyView(() => import('../components/courses/DispatchBoard
 const ClientsRoutesView = lazyView(() => import('../components/ClientsRoutesView'));
 const WeeklyRoutePlanView = lazyView(() => import('../components/WeeklyRoutePlanView'));
 const AdminDashboard = lazyView(() => import('../components/AdminDashboard'));
+const ControlPanelView = lazyView(() => import('../components/ControlPanelView'));
 const MapView = lazyView(() => import('../components/MapView'));
 const HistoryView = lazyView(() => import('../components/HistoryView'));
 const WorkScheduleView = lazyView(() => import('../components/WorkScheduleView'));
@@ -45,6 +46,7 @@ const PAGE_KEYS = {
   '/wash': 'wash',
   '/warehouse': 'warehouse',
   '/admin': 'admin',
+  '/panel': 'panel',
   '/rodo': 'rodo',
   '/mock': 'routes',
   '/mock/dyspozytornia': 'routes',
@@ -210,6 +212,7 @@ export default function Dashboard() {
           <Route path="/clients" element={canViewModule('clients') ? <ClientsRoutesView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/route-plan" element={canViewModule('route_plan') ? <WeeklyRoutePlanView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/admin" element={canViewModule('admin') ? <AdminDashboard /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/panel" element={canViewModule('admin') ? <ControlPanelView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/history" element={canViewModule('history') ? <HistoryView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/grafik" element={canViewModule('work_schedule') ? <WorkScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/timeline" element={<Navigate to="/grafik#obsada" replace />} />
