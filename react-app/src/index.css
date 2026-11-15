@@ -12398,3 +12398,11 @@ select.ap-input {
     grid-template-columns: minmax(0, 1fr) 420px;
   }
 }
+
+/* Mobile: menu nad mapą (Leaflet ma warstwy do z-index 1000),
+   ale pod oknami dialogowymi (od 2200). */
+@media (max-width: 900px) {
+  .app-navigation {
+    z-index: 1100;
+  }
+}

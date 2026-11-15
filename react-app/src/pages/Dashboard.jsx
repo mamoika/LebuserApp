@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { AlertTriangle, Eye, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
-import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import RodoNotice from './RodoNotice';
 
 import ToastContainer from '../components/ToastContainer';
@@ -230,11 +230,6 @@ export default function Dashboard() {
             </Routes>
             </Suspense>
           </main>
-          <footer className="rodo-footer">
-            <Link to="/rodo" className="rodo-footer-link">
-              <ShieldCheck size={14} /> {t('pages.rodo.title')}
-            </Link>
-          </footer>
         </section>
       </div>
       {needsPrivacyNotice && <PrivacyNoticeModal />}
