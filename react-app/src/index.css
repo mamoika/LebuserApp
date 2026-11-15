@@ -6148,6 +6148,7 @@ select.ap-input {
 /* ── TIMELINE STYLES (iOS 18 Premium UI) ── */
 .tl-container {
   overflow-x: auto;
+  contain: paint;
   border-radius: 20px;
   border: 1px solid var(--border-strong);
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3) inset;
@@ -6192,9 +6193,10 @@ select.ap-input {
   padding: 8px 4px;
   white-space: nowrap;
   letter-spacing: -0.01em;
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  /* Bez position: sticky — kontener przewija się tylko w bok, więc przyklejenie
+     w pionie nigdy nie działało, a ~130 przyklejonych nagłówków spowalniało
+     przewijanie (szczególnie w Safari). */
+  position: relative;
   background: inherit;
 }
 .tl-th-hour {
@@ -6205,9 +6207,6 @@ select.ap-input {
   border-left: none;
   padding: 4px 0;
   color: var(--text-tertiary);
-  position: sticky;
-  top: 32px;
-  z-index: 4;
   background: var(--bg-card-solid);
 }
 
@@ -6343,9 +6342,9 @@ select.ap-input {
   left: 0; top: 0; bottom: 0;
   width: 25%;
   pointer-events: none;
-  background: repeating-linear-gradient(45deg,
-    rgba(255,255,255,0.5) 0 1.5px,
-    rgba(0,0,0,0.22) 1.5px 3px);
+  /* Kafelek SVG zamiast repeating-linear-gradient: ten sam ukośny wzór, ale
+     przeglądarka rysuje go raz, a nie przy każdym przewinięciu. */
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='rgba(255,255,255,0.5)'/%3E%3Cpath d='M-1 1l2-2M0 4l4-4M3 5l2-2' stroke='rgba(0,0,0,0.22)' stroke-width='1.5'/%3E%3C/svg%3E") 0 0 / 4px 4px repeat;
   border-right: 1px solid rgba(0,0,0,0.45);
   z-index: 1;
 }
