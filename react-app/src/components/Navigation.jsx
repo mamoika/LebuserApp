@@ -74,8 +74,8 @@ export default function Navigation() {
   if (canViewModule('warehouse')) navItems.push({ to: '/warehouse', icon: PackageOpen, label: t('nav.warehouse'), group: 'laundry' });
 
   if (canViewModule('live_routes')) navItems.push({ to: '/routes', icon: RadioTower, label: t('nav.liveRoutes'), group: 'transport' });
-  if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: ChartNoAxesCombined, label: t('nav.workSchedule'), group: 'management' });
-  if (canViewModule('costs')) navItems.push({ to: '/costs', icon: WalletCards, label: t('nav.costs'), group: 'management' });
+  if (canViewModule('work_schedule')) navItems.push({ to: '/grafik', icon: WalletCards, label: t('nav.workSchedule'), group: 'management' });
+  if (canViewModule('costs')) navItems.push({ to: '/costs', icon: ChartNoAxesCombined, label: t('nav.costs'), group: 'management' });
   if (canViewModule('history')) navItems.push({ to: '/history', icon: ClipboardList, label: t('nav.history'), group: 'management' });
 
   if (canViewModule('admin')) {
