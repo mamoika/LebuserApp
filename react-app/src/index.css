@@ -10593,7 +10593,7 @@ select.ap-input {
 .app-frame {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 58px);
   border: 1px solid var(--laundry-divider);
   border-radius: var(--laundry-radius-frame);
   background: var(--laundry-surface);
@@ -10613,7 +10613,7 @@ select.ap-input {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(100vh - 36px);
+  height: calc(100vh - 58px);
   margin: 0;
   border-inline-end: 1px solid var(--laundry-divider);
   border-radius: var(--laundry-radius-frame) 0 0 var(--laundry-radius-frame);
@@ -11036,7 +11036,7 @@ select.ap-input {
 @media (max-width: 900px) {
   .app-frame {
     display: block;
-    min-height: calc(100vh - 30px);
+    min-height: calc(100vh - 58px);
     border-radius: 22px;
   }
 
@@ -11193,7 +11193,7 @@ select.ap-input {
   }
 
   .app-frame {
-    min-height: calc(100vh - 16px);
+    min-height: calc(100vh - 32px);
     border-radius: var(--laundry-radius-card);
   }
 
