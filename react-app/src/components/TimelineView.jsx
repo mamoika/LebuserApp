@@ -663,29 +663,10 @@ export default function TimelineView() {
     return () => window.removeEventListener('mouseup', stop);
   }, []);
 
-  // Mysz: pionowe kółko przewija całą tabelę w bok (tabela rozciąga się w pionie,
-  // więc scroll pionowy strony działa, a kółko nad tabelą przesuwa w bok).
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onWheel = (e) => {
-      if (e.deltaY === 0) return;
-      // trackpad poziomy gest – zostaw natywne zachowanie
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      // brak poziomego przewijania – nie przejmuj kółka
-      if (el.scrollWidth <= el.clientWidth) return;
-      const atStart = el.scrollLeft <= 0;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
-      // na krańcach pozwól stronie przewijać się pionowo
-      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [loading]);
-
-
+  // Przewijanie zostawiamy przeglądarce: pionowe kółko/gładzik przewija stronę,
+  // poziomo tabelę przesuwa gest w bok, Shift + kółko albo pasek przewijania.
+  // (Wcześniej nasłuch `wheel` z passive:false zamieniał pionowe przewijanie nad
+  // tabelą na skokowy przesuw w bok i blokował płynne przewijanie strony.)
 
   const handleBrushCell = useCallback(async (empId, dateStr, hour, dayStatus, working, confirmed, isShiftHour) => {
     if (!canEditWorkSchedule || !brushRole || dayStatus || !working || !isShiftHour || !confirmed) return;
