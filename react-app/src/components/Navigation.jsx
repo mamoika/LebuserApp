@@ -129,6 +129,29 @@ export default function Navigation() {
           <span className="app-navigation-logo">
             <img src={logoImg} alt={t('common.appName')} />
           </span>
+          {canViewControlPanel ? (
+            <Link
+              to="/panel"
+              className="app-navigation-mobile-avatar"
+              title={`${user?.name || ''} · ${t('nav.controlPanel')}`}
+              aria-label={`${user?.name || ''} · ${t('nav.controlPanel')}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {initials}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="app-navigation-mobile-avatar"
+              title={user?.name || ''}
+              aria-label={`${user?.name || ''} · ${t('nav.openMenu')}`}
+              aria-controls={menuPanelId}
+              aria-expanded={isMenuOpen}
+              onClick={() => setIsMenuOpen(true)}
+            >
+              {initials}
+            </button>
+          )}
           <button
             type="button"
             className="app-navigation-toggle"
