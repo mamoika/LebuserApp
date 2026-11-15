@@ -531,9 +531,12 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                         >
                           {trip ? <>
                             {isAdminPlanView ? <strong>{trip.driver_name}</strong> : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
-                            <span>{trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}</span>
-                            {isAdminPlanView && formatTime(trip.planned_start) && <small>{formatTime(trip.planned_start)}</small>}
-                            {(isAdminPlanView || !scheduledForDate) && <em>{scheduledForDate ? t('weeklyPlan.scheduledShort') : t('weeklyPlan.exceptionShort')}</em>}
+                            <span>
+                              {trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}
+                              {isAdminPlanView && formatTime(trip.planned_start) ? ` · ${formatTime(trip.planned_start)}` : ''}
+                            </span>
+                            {/* Status pokazujemy tylko, gdy coś mówi: wyjątek poza harmonogramem. */}
+                            {!scheduledForDate && <em>{t('weeklyPlan.exceptionShort')}</em>}
                           </> : <span className="weekly-plan-empty">{canManagePlan ? t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException') : '—'}</span>}
                         </button>
                       </td>

@@ -12442,3 +12442,72 @@ select.ap-input {
     margin-inline-start: 0;
   }
 }
+
+/* ── PLAN TRAS: pełna szerokość, niższe wiersze, spokojniejsze puste dni ── */
+.weekly-route-plan {
+  max-width: none;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
+  height: 58px;
+  padding: 4px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
+  min-height: 50px;
+  padding: 6px 9px;
+  gap: 1px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell strong {
+  font-size: 12px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell span {
+  margin-top: 1px;
+  font-size: 11px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell em {
+  margin-top: 2px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-empty {
+  height: 48px;
+  font-size: 11px;
+}
+
+/* Dzień poza harmonogramem trasy: tylko jasne tło, przycisk widać po najechaniu */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule {
+  background: #f8f9fa;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty {
+  background: transparent;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty .weekly-plan-empty {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:hover .weekly-plan-empty,
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:focus-visible .weekly-plan-empty {
+  opacity: 1;
+}
+
+/* Dzień w harmonogramie bez kierowcy: to luka do obsadzenia — wyraźna ramka */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) {
+  border: 1px dashed #f0b45a;
+  background: #fffaf0;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) .weekly-plan-empty {
+  color: #b45309;
+  font-weight: 750;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule):not(:disabled):hover {
+  border-color: #d97706;
+  background: #fff3dd;
+}
