@@ -128,7 +128,9 @@ export default function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
+  // Admin zaczyna od Panelu sterującego; reszta od pierwszego dostępnego widoku.
   const firstAllowedPath = [
+    ['admin', '/panel'],
     ...(isDriver ? [['route', '/route']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
     ['map', '/map'],
