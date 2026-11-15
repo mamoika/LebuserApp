@@ -11580,6 +11580,18 @@ select.ap-input {
     flex-direction: column;
     gap: 8px;
   }
+
+  /* W układzie pionowym ukryty podpis nie może zostawiać pustej wysokości */
+  .app-navigation.is-collapsed .app-navigation-account-copy {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .app-navigation.is-collapsed .app-navigation-profile { gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
