@@ -4077,8 +4077,8 @@
   place-items: center;
   padding: 0 7px;
   border-radius: 8px;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
+  color: var(--course-route-color);
+  background: var(--course-route-soft);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -4115,8 +4115,8 @@
 .live-dispatch .kurs-avatar {
   width: 30px;
   height: 30px;
-  color: var(--text-tertiary);
-  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  background: rgba(118, 118, 128, 0.12);
   font-size: 11px;
 }
 .live-dispatch .kurs-driver-name {

@@ -96,11 +96,16 @@ test('course cards preserve route, driver, vehicle, and ready metadata hierarchy
   );
 });
 
-test('cards are ordered by start time and route colors stay neutral', () => {
+test('cards are ordered by start time and keep the route identity color', () => {
   assert.match(source, /sortTripsByStart\(trips\.filter\(trip => trip\.board_status === column\.key\)\)/);
   assert.match(
     styles,
-    /\.live-dispatch \.kurs-route-badge\s*\{[\s\S]*?color:\s*var\(--text-secondary\);[\s\S]*?background:\s*var\(--bg-secondary\);/,
-    'route badges should not compete with the status colors',
+    /\.live-dispatch \.kurs-route-badge\s*\{[\s\S]*?color:\s*var\(--course-route-color\);[\s\S]*?background:\s*var\(--course-route-soft\);/,
+    'route badges should use the shared per-route color',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.kurs-avatar\s*\{[\s\S]*?background:\s*rgba\(118, 118, 128, 0\.12\);/,
+    'driver avatars should stay neutral so only the route carries color',
   );
 });
