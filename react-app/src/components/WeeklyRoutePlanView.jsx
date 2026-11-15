@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Search, Settings2, Trash2, Truck, Users, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Plus, Search, Settings2, Trash2, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
 import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
@@ -53,6 +53,15 @@ function plannedStartIso(date, time) {
   if (!date || !time) return null;
   const plannedStart = new Date(`${date}T${time}:00`);
   return Number.isNaN(plannedStart.getTime()) ? null : plannedStart.toISOString();
+}
+
+function initialsOf(name) {
+  return String(name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('') || '?';
 }
 
 function formatTime(value) {
@@ -396,6 +405,13 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
     )).length
   ), 0);
 
+  // Obsada trasy w tygodniu: ile dni z harmonogramu ma przypisanego kierowcę.
+  const coverageByRoute = new Map(visibleRoutes.map(route => {
+    const scheduledDays = days.filter(date => isRouteScheduledOnDate(route, ymd(date)));
+    const assigned = scheduledDays.filter(date => assignmentFor(date, route.id)).length;
+    return [route.id, { assigned, scheduled: scheduledDays.length }];
+  }));
+
   const mutate = async (action, successMessage) => {
     try {
       setBusy(true);
@@ -508,7 +524,24 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                         <span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span>
                         <span>{route.name}</span>
                       </button>
-                    ) : <><span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span><span>{route.name}</span></>}
+                    ) : (() => {
+                      const coverage = coverageByRoute.get(route.id);
+                      const full = coverage && coverage.assigned >= coverage.scheduled;
+                      return (
+                        <div className="weekly-plan-route-head">
+                          <span className="weekly-plan-route-number">T{routeNumber.get(route.id)}</span>
+                          <span className="weekly-plan-route-copy">
+                            <span className="weekly-plan-route-name">{route.name}</span>
+                            {isAdminPlanView && coverage?.scheduled > 0 && (
+                              <small className={`weekly-plan-route-coverage ${full ? 'is-full' : 'is-partial'}`}>
+                                <i aria-hidden="true"><b style={{ width: `${Math.round((coverage.assigned / coverage.scheduled) * 100)}%` }} /></i>
+                                {t('weeklyPlan.coverage', { assigned: coverage.assigned, scheduled: coverage.scheduled })}
+                              </small>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </th>
                   {days.map(date => {
                     const trip = assignmentFor(date, route.id);
@@ -530,14 +563,19 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                             : `${route.name}: ${scheduledForDate ? t('weeklyPlan.unassignedShort' ) : t('weeklyPlan.outsideSchedule')}`}
                         >
                           {trip ? <>
-                            {isAdminPlanView ? <strong>{trip.driver_name}</strong> : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
-                            <span>
+                            {isAdminPlanView ? (
+                              <span className="weekly-plan-card-head">
+                                <span className="weekly-plan-avatar" aria-hidden="true">{initialsOf(trip.driver_name)}</span>
+                                <strong>{trip.driver_name}</strong>
+                              </span>
+                            ) : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
+                            <span className="weekly-plan-card-meta">
                               {trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}
                               {isAdminPlanView && formatTime(trip.planned_start) ? ` · ${formatTime(trip.planned_start)}` : ''}
                             </span>
                             {/* Status pokazujemy tylko, gdy coś mówi: wyjątek poza harmonogramem. */}
                             {!scheduledForDate && <em>{t('weeklyPlan.exceptionShort')}</em>}
-                          </> : <span className="weekly-plan-empty">{canManagePlan ? t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException') : '—'}</span>}
+                          </> : <span className="weekly-plan-empty">{canManagePlan ? <>{scheduledForDate && <Plus size={13} aria-hidden="true" />}{t(scheduledForDate ? 'weeklyPlan.assign' : 'weeklyPlan.assignException')}</> : '—'}</span>}
                         </button>
                       </td>
                     );
@@ -551,7 +589,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                     const assignedIds = new Set(plan.trips.filter(trip => trip.trip_date === ymd(date)).map(trip => trip.driver_id));
                     const available = availableDriversByDate.get(ymd(date)) || new Set(plan.drivers.map(driver => driver.id));
                     const free = plan.drivers.filter(driver => !driver.is_archived && available.has(driver.id) && !assignedIds.has(driver.id));
-                    return <td key={ymd(date)}>{free.length ? free.map(driver => <span key={driver.id} className="weekly-plan-free-chip">{driver.name}</span>) : '—'}</td>;
+                    return <td key={ymd(date)}>{free.length ? free.map(driver => <span key={driver.id} className="weekly-plan-free-chip"><i aria-hidden="true">{initialsOf(driver.name)}</i>{driver.name}</span>) : '—'}</td>;
                   })}
                 </tr>
               )}

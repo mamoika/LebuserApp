@@ -168,6 +168,7 @@
     "adminPanel": "Admin-Panel"
   },
   "weeklyPlan": {
+    "coverage": "besetzt {{assigned}}/{{scheduled}}",
     "adminKicker": "Vorausschauende Planung",
     "driverKicker": "Ihr Wochenplan",
     "adminTitle": "Wöchentlicher Routenplan",

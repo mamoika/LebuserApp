@@ -168,6 +168,7 @@
     "adminPanel": "Panel Admina"
   },
   "weeklyPlan": {
+    "coverage": "obsada {{assigned}}/{{scheduled}}",
     "adminKicker": "Planowanie z wyprzedzeniem",
     "driverKicker": "Twój plan tygodniowy",
     "adminTitle": "Plan tras na tydzień",
