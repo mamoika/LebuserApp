@@ -140,6 +140,12 @@
     "changeDriver": "Fahrer wechseln"
   },
   "nav": {
+    "primary": "Hauptnavigation",
+    "groups": {
+      "transport": "Transport und Routen",
+      "laundry": "Wäscherei und Lager",
+      "management": "Verwaltung"
+    },
     "myRoute": "Meine Route",
     "weeklyRoutePlan": "Routenplan",
     "schedule": "Wochenplan",

@@ -5,7 +5,6 @@ import Navigation from "../components/Navigation";
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AlertTriangle, Eye, LogOut, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import logoImg from '../assets/logo-icon.png';
 import RodoNotice from './RodoNotice';
 
 import ToastContainer from '../components/ToastContainer';
@@ -180,39 +179,39 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header */}
-      <header className="app-header">
-        <div className="app-header-top" style={{ alignItems: 'center', gap: '16px' }}>
-          <img src={logoImg} alt="Logo LEBUSER" className="app-brand-logo" />
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div className="app-title" style={{ fontSize: '22px' }}>{t(`pages.${pageKey}.title`)}</div>
-            <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
-          </div>
-        </div>
-        <div className="app-header-actions">
-          <div className={`app-header-user ${isImpersonating ? 'is-impersonating' : ''}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-            <span style={{ fontSize: '13px', fontWeight: 700 }}>
-              {user?.name}
-            </span>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>@{user?.username}</span>
-          </div>
-          <Link to="/rodo" className="driver-btn rodo-link-header" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
-            <ShieldCheck size={14} /> {t('header.rodo')}
-          </Link>
-          <LanguageSwitcher size="sm" />
-          <button onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut} className="driver-btn">
-            <LogOut size={14} /> {user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
-          </button>
-        </div>
-      </header>
+      <div className="app-frame">
+        <Navigation />
 
-      {/* Nawigacja */}
-      <Navigation />
+        <section className="app-workspace">
+          {/* Header */}
+          <header className="app-header">
+            <div className="app-header-top">
+              <div className="app-page-context">
+                <div className="app-title">{t(`pages.${pageKey}.title`)}</div>
+                <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
+              </div>
+            </div>
+            <div className="app-header-actions">
+              <div className={`app-header-user ${isImpersonating ? 'is-impersonating' : ''}`}>
+                <span className="app-header-user-name">
+                  {user?.name}
+                </span>
+                <span className="app-header-username">@{user?.username}</span>
+              </div>
+              <Link to="/rodo" className="driver-btn rodo-link-header" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
+                <ShieldCheck size={14} /> {t('header.rodo')}
+              </Link>
+              <LanguageSwitcher size="sm" />
+              <button onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut} className="driver-btn">
+                <LogOut size={14} /> {user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
+              </button>
+            </div>
+          </header>
 
-      {/* Kontent główny */}
-      <main id="main-content" tabIndex={-1}>
-        <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading', 'Ładowanie…')}</div>}>
-        <Routes>
+          {/* Kontent główny */}
+          <main id="main-content" className="app-main-content" tabIndex={-1}>
+            <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading')}</div>}>
+            <Routes>
           <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
           <Route path="/schedule" element={canViewModule('schedule') ? <ScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/route" element={canViewModule('route') ? <DriverCourse /> : <Navigate to={firstAllowedPath} replace />} />
@@ -234,14 +233,16 @@ export default function Dashboard() {
           <Route path="/mock/dyspozytornia" element={canViewModule('live_routes') ? <DispatchBoardMock /> : <Navigate to="/mock/kierowca" replace />} />
           <Route path="/mock/kierowca" element={<DriverRouteCardMock />} />
           <Route path="*" element={<Navigate to={firstAllowedPath} replace />} />
-        </Routes>
-        </Suspense>
-      </main>
-      <footer className="rodo-footer">
-        <Link to="/rodo" className="rodo-footer-link">
-          <ShieldCheck size={14} /> {t('pages.rodo.title')}
-        </Link>
-      </footer>
+            </Routes>
+            </Suspense>
+          </main>
+          <footer className="rodo-footer">
+            <Link to="/rodo" className="rodo-footer-link">
+              <ShieldCheck size={14} /> {t('pages.rodo.title')}
+            </Link>
+          </footer>
+        </section>
+      </div>
       {needsPrivacyNotice && <PrivacyNoticeModal />}
       <ToastContainer />
     </div>

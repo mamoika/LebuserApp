@@ -14,3 +14,10 @@ test('admin route plan appears directly after clients in navigation', () => {
   assert.ok(mapIndex > routePlanIndex);
   assert.match(source.slice(clientsIndex, routePlanIndex), /if \(canViewModule\('route_plan'\)\)/);
 });
+
+test('navigation uses grouped CRM sidebar semantics and lucide icons', () => {
+  assert.match(source, /<aside className="app-navigation" aria-label=\{t\('nav\.primary'\)\}>/);
+  assert.match(source, /const NAV_GROUPS = \['transport', 'laundry', 'management'\]/);
+  assert.match(source, /icon: WashingMachine/);
+  assert.doesNotMatch(source, /icon: '[^']*[\u{1F300}-\u{1FAFF}]/u);
+});
