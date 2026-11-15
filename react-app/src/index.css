@@ -12512,140 +12512,228 @@ select.ap-input {
   background: #fff3dd;
 }
 
-/* ── PLAN TRAS: wygląd v2 — kolor trasy w kartach, inicjały, obsada tygodnia ── */
+/* ── PLAN TRAS: styl Figma / Apple Floating Cards (His Schedule inspiration) ── */
 .weekly-plan-table-wrap:not(.is-driver-view) {
-  border-color: var(--laundry-divider-strong);
-  border-radius: 18px;
-  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.03), 0 12px 32px rgba(29, 29, 31, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02), 0 12px 32px rgba(0, 0, 0, 0.04);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table {
+  background: #ffffff;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th {
-  height: 50px;
-  background: #fafafb;
-  border-bottom-color: var(--laundry-divider-strong);
+  height: 56px;
+  padding: 8px 4px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-right: 1px solid rgba(0, 0, 0, 0.045);
+  vertical-align: middle;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th:first-child {
-  background: #fafafb;
+  width: 172px;
+  padding-left: 14px;
+  background: #ffffff;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th span {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #86868b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th strong {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d1d1f;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Today header pill (Figma "Th 15" badge style) */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th.is-today {
+  position: relative;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th.is-today span {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th.is-today strong {
+  color: #ffffff;
+  background: var(--accent);
+  padding: 1px 7px;
+  border-radius: 7px;
+  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.25);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table th,
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
-  border-color: rgba(29, 29, 31, 0.06);
+  border-right: 1px solid rgba(0, 0, 0, 0.045);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.045);
 }
 
+/* Komórki siatki — czysta biel w stylu Apple / Figma */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
-  height: 66px;
+  height: 68px;
   padding: 4px 3px;
-  background: #fbfbfc;
+  background: #ffffff;
   vertical-align: middle;
-  transition: background-color 140ms ease;
 }
 
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.has-assignment {
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 13%, #fff);
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule {
+  background: #fafafc;
 }
 
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.has-assignment:hover {
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fff);
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-today {
+  background: rgba(0, 113, 227, 0.015);
+  box-shadow: none;
 }
 
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule.has-assignment {
-  background: #fff3d6;
+/* Kolumna trasy po lewej stronie — czysta i czytelna */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table tbody th {
+  padding: 10px 12px;
+  background: #ffffff;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.015);
 }
 
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule.has-assignment:hover {
-  background: #ffebbd;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-today:not(.has-assignment) {
-  background: #f3f7fc;
-}
-
-/* Kolumna trasy: numer + nazwa + obsada tygodnia */
-.weekly-plan-route-head {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-head {
   display: flex;
   align-items: center;
   min-width: 0;
 }
 
-.weekly-plan-route-copy {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
-.weekly-plan-route-name {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-number {
+  min-width: 29px;
+  height: 22px;
+  padding: 0 6px;
+  margin-right: 8px;
+  border: 1px solid color-mix(in srgb, var(--route-color, var(--accent)) 24%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 10%, #ffffff);
+  color: color-mix(in srgb, var(--route-color, var(--accent)) 80%, #1d1d1f);
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-name {
   overflow: hidden;
-  color: color-mix(in srgb, var(--route-color, var(--accent)) 78%, var(--text-primary));
+  color: #1d1d1f;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.weekly-plan-route-coverage {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-tertiary);
+  color: #86868b;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.weekly-plan-route-coverage i {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage i {
   position: relative;
   display: block;
-  width: 34px;
+  width: 32px;
   height: 4px;
   overflow: hidden;
   border-radius: 99px;
-  background: rgba(29, 29, 31, 0.08);
+  background: rgba(0, 0, 0, 0.06);
 }
 
-.weekly-plan-route-coverage b {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage b {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
   background: #34c759;
 }
 
-.weekly-plan-route-coverage.is-partial { color: #b45309; }
-.weekly-plan-route-coverage.is-partial b { background: #f59e0b; }
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage.is-partial { color: #b45309; }
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage.is-partial b { background: #f59e0b; }
 
-/* Karta przydziału w kolorze trasy */
+/* Karta przydziału — elegancki, unoszący się kafelek w stylu Figmy */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
-  min-height: 54px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 56px;
   padding: 7px 8px;
-  border-radius: 11px;
-  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 160ms ease,
+              border-color 160ms ease,
+              box-shadow 160ms ease;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment {
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 26%, transparent);
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 13%, #fff);
-  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.04);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 11%, #ffffff);
+  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 20%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment:not(:disabled):hover {
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 44%, transparent);
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fff);
-  box-shadow: 0 4px 14px rgba(29, 29, 31, 0.08);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 16%, #ffffff);
+  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 34%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
 }
 
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Wyjątek poza harmonogramem (ciepły pastelowy bursztyn) */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.has-assignment {
-  border-color: #e5c178;
-  background: #fff3d6;
-  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.04);
+  background: #fff8e8;
+  border-color: rgba(217, 119, 6, 0.22);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.has-assignment:not(:disabled):hover {
+  background: #fff2d1;
+  border-color: rgba(217, 119, 6, 0.38);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.10);
+  transform: translateY(-1px);
 }
 
 .weekly-plan-card-head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
   max-width: 100%;
   margin: 0 !important;
@@ -12653,135 +12741,160 @@ select.ap-input {
 
 .weekly-plan-avatar {
   display: grid;
-  flex: 0 0 auto;
+  flex: 0 0 20px;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   margin: 0 !important;
   border-radius: 50%;
-  background: #fff;
-  color: color-mix(in srgb, var(--route-color, var(--accent)) 85%, #111) !important;
-  font-size: 9px !important;
+  background: #ffffff;
+  color: color-mix(in srgb, var(--route-color, var(--accent)) 85%, #1d1d1f) !important;
+  font-size: 8.5px !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head strong {
   min-width: 0;
-  font-size: 12.5px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 650;
+  color: #1d1d1f;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-meta {
-  margin-top: 3px !important;
-  padding-left: 29px;
-  color: var(--text-secondary);
-  font-size: 11px !important;
+  margin-top: 2px !important;
+  padding-left: 26px;
+  color: #6e6e73;
+  font-size: 10.5px !important;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell em {
-  padding-left: 29px;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 3px;
+  margin-left: 26px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
 }
 
-/* Luka w harmonogramie: lekka pigułka "+ Przypisz" zamiast dużego bloku */
+/* Puste komórki w harmonogramie (+ Przypisz) — dyskretne, niekrzyczące jak w Figmie */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) {
   align-items: center;
-  border: 1px solid transparent;
+  justify-content: center;
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  border-radius: 11px;
   background: transparent;
+  transition: all 140ms ease;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) .weekly-plan-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
   width: auto;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px dashed #f0b45a;
-  border-radius: 999px;
-  background: #fffaf0;
-  color: #b45309;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: #86868b;
   font-size: 11px;
-  font-weight: 750;
-  transition: background-color 140ms ease, border-color 140ms ease;
+  font-weight: 600;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule):not(:disabled):hover {
-  border-color: transparent;
-  background: transparent;
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-light);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule):not(:disabled):hover .weekly-plan-empty {
-  border-style: solid;
-  border-color: #d97706;
-  background: #fff1d6;
+  color: var(--accent);
 }
 
-/* Dzień poza harmonogramem: neutralne tło, "Dodaj wyjątek" dopiero po najechaniu */
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule {
-  background: #fbfbfc;
+/* Dzień poza harmonogramem: neutralne tło, "Dodaj wyjątek" po najechaniu */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty {
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
 }
 
-/* Wolni kierowcy: chipy z inicjałami */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty .weekly-plan-empty {
+  opacity: 0;
+  font-size: 10px;
+  color: #86868b;
+  transition: opacity 120ms ease;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:hover {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:hover .weekly-plan-empty {
+  opacity: 1;
+}
+
+/* Wolni kierowcy na dole */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-free-row th {
+  padding: 10px 14px;
+  background: #fafafb;
+  color: #86868b;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-free-row td {
   padding: 8px 6px;
-  vertical-align: top;
+  background: #fafafb;
+  vertical-align: middle;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-free-chip {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   margin: 2px 4px 2px 0;
   padding: 2px 8px 2px 2px;
-  border: 1px solid rgba(29, 29, 31, 0.07);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 999px;
-  background: #fff;
-  color: var(--text-secondary);
-  font-size: 10.5px;
+  background: #ffffff;
+  color: #1d1d1f;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.weekly-plan-free-chip i {
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-free-chip i {
   display: grid;
   place-items: center;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background: #f0f0f3;
+  color: #6e6e73;
   font-size: 8px;
   font-style: normal;
   font-weight: 800;
-}
-
-/* 7 dni (z niedzielą): węższa kolumna tras i ciaśniejsze karty, żeby nazwiska się mieściły */
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th:first-child {
-  width: 172px;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
-  padding: 4px 3px;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
-  padding: 7px 8px;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head {
-  gap: 6px;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-avatar {
-  width: 20px;
-  height: 20px;
-  font-size: 8.5px !important;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head strong {
-  font-size: 12px;
-  letter-spacing: -0.01em;
-}
-
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-meta,
-.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell em {
-  padding-left: 26px;
 }

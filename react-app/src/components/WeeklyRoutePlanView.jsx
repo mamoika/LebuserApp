@@ -547,7 +547,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                     const trip = assignmentFor(date, route.id);
                     const scheduledForDate = isRouteScheduledOnDate(route, ymd(date));
                     return (
-                      <td key={ymd(date)} className={`${ymd(date) === today ? 'is-today' : ''} ${!scheduledForDate ? 'is-off-schedule' : ''} ${trip ? 'has-assignment' : 'is-empty'}`}>
+                      <td key={ymd(date)} className={`${ymd(date) === today ? 'is-today' : ''} ${!scheduledForDate ? 'is-off-schedule' : ''}`}>
                         <button
                           type="button"
                           className={`weekly-plan-cell ${trip ? 'has-assignment' : 'is-empty'} ${!scheduledForDate ? 'is-off-schedule' : ''} ${!canManagePlan && trip && onRouteSelect ? 'is-route-link' : ''}`}
