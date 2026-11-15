@@ -11601,3 +11601,25 @@ select.ap-input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Sidebar: kolumna na całą wysokość strony, przyklejona jest tylko jej zawartość */
+.app-navigation-inner { display: contents; }
+
+@media (min-width: 901px) {
+  .app-navigation {
+    position: static;
+    align-self: stretch;
+    height: auto;
+    overflow: visible;
+  }
+
+  .app-navigation-inner {
+    position: sticky;
+    top: 18px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 58px);
+    overflow: hidden;
+    border-radius: var(--laundry-radius-frame) 0 0 var(--laundry-radius-frame);
+  }
+}

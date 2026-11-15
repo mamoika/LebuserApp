@@ -122,107 +122,109 @@ export default function Navigation() {
 
   return (
     <aside className={`app-navigation${isMenuOpen ? ' is-menu-open' : ''}${isCollapsed ? ' is-collapsed' : ''}`} aria-label={t('nav.primary')}>
-      <div className="app-navigation-brand">
-        <span className="app-navigation-logo">
-          <img src={logoImg} alt={t('common.appName')} />
-        </span>
-        <button
-          type="button"
-          className="app-navigation-toggle"
-          aria-controls={menuPanelId}
-          aria-expanded={isMenuOpen}
-          aria-label={t(isMenuOpen ? 'nav.closeMenu' : 'nav.openMenu')}
-          onClick={() => setIsMenuOpen(open => !open)}
-        >
-          {isMenuOpen
-            ? <X size={20} strokeWidth={1.9} aria-hidden="true" />
-            : <Menu size={20} strokeWidth={1.9} aria-hidden="true" />}
-        </button>
-      </div>
-
-      <button
-        type="button"
-        className="app-navigation-backdrop"
-        aria-label={t('nav.closeMenu')}
-        tabIndex={-1}
-        onClick={() => setIsMenuOpen(false)}
-      />
-
-      <div className="app-navigation-panel" id={menuPanelId}>
-        <nav className="app-navigation-scroller">
-          {visibleGroups.map(({ group, items }) => (
-            <section className="app-navigation-group" key={group} aria-labelledby={`nav-group-${group}`}>
-              <h2 id={`nav-group-${group}`}>{t(`nav.groups.${group}`)}</h2>
-              <div className="app-navigation-items">
-                {items.map(({ to, icon: Icon, label }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/schedule'}
-                    className={({ isActive }) => `app-navigation-link${isActive ? ' is-active' : ''}`}
-                    title={isCollapsed ? label : undefined}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                    <span>{label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </section>
-          ))}
-        </nav>
-
-        <div className="app-navigation-account">
+      <div className="app-navigation-inner">
+        <div className="app-navigation-brand">
+          <span className="app-navigation-logo">
+            <img src={logoImg} alt={t('common.appName')} />
+          </span>
           <button
             type="button"
-            className="app-navigation-collapse"
-            onClick={toggleCollapsed}
-            aria-pressed={isCollapsed}
-            title={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
-            aria-label={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
+            className="app-navigation-toggle"
+            aria-controls={menuPanelId}
+            aria-expanded={isMenuOpen}
+            aria-label={t(isMenuOpen ? 'nav.closeMenu' : 'nav.openMenu')}
+            onClick={() => setIsMenuOpen(open => !open)}
           >
-            {isCollapsed
-              ? <PanelLeftOpen size={16} aria-hidden="true" />
-              : <PanelLeftClose size={16} aria-hidden="true" />}
-            <span>{t('nav.collapse')}</span>
+            {isMenuOpen
+              ? <X size={20} strokeWidth={1.9} aria-hidden="true" />
+              : <Menu size={20} strokeWidth={1.9} aria-hidden="true" />}
           </button>
-          <div className="app-navigation-actions">
-            <LanguageSwitcher size="sm" />
+        </div>
+
+        <button
+          type="button"
+          className="app-navigation-backdrop"
+          aria-label={t('nav.closeMenu')}
+          tabIndex={-1}
+          onClick={() => setIsMenuOpen(false)}
+        />
+
+        <div className="app-navigation-panel" id={menuPanelId}>
+          <nav className="app-navigation-scroller">
+            {visibleGroups.map(({ group, items }) => (
+              <section className="app-navigation-group" key={group} aria-labelledby={`nav-group-${group}`}>
+                <h2 id={`nav-group-${group}`}>{t(`nav.groups.${group}`)}</h2>
+                <div className="app-navigation-items">
+                  {items.map(({ to, icon: Icon, label }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/schedule'}
+                      className={({ isActive }) => `app-navigation-link${isActive ? ' is-active' : ''}`}
+                      title={isCollapsed ? label : undefined}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+                      <span>{label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </nav>
+
+          <div className="app-navigation-account">
             <button
               type="button"
-              className="app-navigation-icon-button app-navigation-lang-compact"
-              onClick={() => setLanguage(nextLanguage)}
-              title={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
-              aria-label={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
+              className="app-navigation-collapse"
+              onClick={toggleCollapsed}
+              aria-pressed={isCollapsed}
+              title={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
+              aria-label={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
             >
-              {currentLanguage.toUpperCase()}
+              {isCollapsed
+                ? <PanelLeftOpen size={16} aria-hidden="true" />
+                : <PanelLeftClose size={16} aria-hidden="true" />}
+              <span>{t('nav.collapse')}</span>
             </button>
-            <Link
-              to="/rodo"
-              className="app-navigation-icon-button app-navigation-rodo"
-              title={t('pages.rodo.title')}
-              aria-label={t('pages.rodo.title')}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <ShieldCheck size={16} aria-hidden="true" />
-              <span>{t('nav.rodo')}</span>
-            </Link>
-          </div>
-          <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
-            <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
-            <span className="app-navigation-account-copy">
-              <strong>{user?.name}</strong>
-              <small>@{user?.username}</small>
-            </span>
-            <button
-              type="button"
-              className="app-navigation-icon-button app-navigation-signout"
-              onClick={handleSignOut}
-              title={signOutLabel}
-              aria-label={signOutLabel}
-            >
-              <LogOut size={16} aria-hidden="true" />
-            </button>
+            <div className="app-navigation-actions">
+              <LanguageSwitcher size="sm" />
+              <button
+                type="button"
+                className="app-navigation-icon-button app-navigation-lang-compact"
+                onClick={() => setLanguage(nextLanguage)}
+                title={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
+                aria-label={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
+              >
+                {currentLanguage.toUpperCase()}
+              </button>
+              <Link
+                to="/rodo"
+                className="app-navigation-icon-button app-navigation-rodo"
+                title={t('pages.rodo.title')}
+                aria-label={t('pages.rodo.title')}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span>{t('nav.rodo')}</span>
+              </Link>
+            </div>
+            <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
+              <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+              <span className="app-navigation-account-copy">
+                <strong>{user?.name}</strong>
+                <small>@{user?.username}</small>
+              </span>
+              <button
+                type="button"
+                className="app-navigation-icon-button app-navigation-signout"
+                onClick={handleSignOut}
+                title={signOutLabel}
+                aria-label={signOutLabel}
+              >
+                <LogOut size={16} aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
