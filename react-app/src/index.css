@@ -12588,16 +12588,16 @@ select.ap-input {
   border-bottom: 1px solid rgba(0, 0, 0, 0.045);
 }
 
-/* Komórki siatki — czysta biel w stylu Apple / Figma */
+/* Komórki siatki — neutralne płótno bez białych szczelin wokół przydziałów */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
   height: 68px;
-  padding: 4px 3px;
-  background: #ffffff;
+  padding: 0;
+  background: #fbfbfd;
   vertical-align: middle;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule {
-  background: #fafafc;
+  background: #f5f5f7;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-today {
@@ -12679,7 +12679,7 @@ select.ap-input {
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage.is-partial { color: #b45309; }
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-route-coverage.is-partial b { background: #f59e0b; }
 
-/* Karta przydziału — elegancki, unoszący się kafelek w stylu Figmy */
+/* Pełnokomórkowa powierzchnia dyspozytorska — kolor opisuje stan, nie osobny badge */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
   position: relative;
   display: flex;
@@ -12687,47 +12687,44 @@ select.ap-input {
   justify-content: center;
   align-items: flex-start;
   width: 100%;
-  min-height: 56px;
-  padding: 7px 8px;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  min-height: 68px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   text-align: left;
-  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
-              background-color 160ms ease,
-              border-color 160ms ease,
-              box-shadow 160ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment {
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 11%, #ffffff);
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 20%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 10%, #fbfbfd);
+  box-shadow: none;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment:not(:disabled):hover {
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 16%, #ffffff);
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 34%, transparent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 15%, #fbfbfd);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 28%, transparent);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment:active {
-  transform: translateY(0) scale(0.99);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fbfbfd);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell:focus-visible {
+  z-index: 1;
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* Wyjątek poza harmonogramem (ciepły pastelowy bursztyn) */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.has-assignment {
   background: #fff8e8;
-  border-color: rgba(217, 119, 6, 0.22);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.has-assignment:not(:disabled):hover {
   background: #fff2d1;
-  border-color: rgba(217, 119, 6, 0.38);
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.10);
-  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.30);
 }
 
 .weekly-plan-card-head {
@@ -12794,14 +12791,13 @@ select.ap-input {
   text-transform: uppercase;
 }
 
-/* Puste komórki w harmonogramie (+ Przypisz) — dyskretne, niekrzyczące jak w Figmie */
+/* Puste zaplanowane dni — cała komórka komunikuje lukę w obsadzie */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) {
   align-items: center;
   justify-content: center;
-  border: 1px dashed rgba(0, 0, 0, 0.12);
-  border-radius: 11px;
-  background: transparent;
-  transition: all 140ms ease;
+  border: 0;
+  border-radius: 0;
+  background: #fffaf0;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule) .weekly-plan-empty {
@@ -12820,21 +12816,20 @@ select.ap-input {
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule):not(:disabled):hover {
-  border-style: solid;
-  border-color: var(--accent);
-  background: var(--accent-light);
+  background: #fff3dd;
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.28);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-empty:not(.is-off-schedule):not(:disabled):hover .weekly-plan-empty {
-  color: var(--accent);
+  color: #9a4b07;
 }
 
 /* Dzień poza harmonogramem: neutralne tło, "Dodaj wyjątek" po najechaniu */
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty {
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 11px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
 }
 
@@ -12846,8 +12841,8 @@ select.ap-input {
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:hover {
-  border-color: rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.025);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.07);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.is-empty:hover .weekly-plan-empty {

@@ -110,6 +110,25 @@ test('route schedule greys out non-service days but keeps them available as exce
   assert.match(stylesSource, /\.weekly-plan-table td\.is-off-schedule/);
 });
 
+test('admin route plan uses full-cell assignment and vacancy surfaces', () => {
+  assert.match(
+    stylesSource,
+    /\.weekly-plan-table-wrap:not\(\.is-driver-view\) \.weekly-plan-table td \{\s*height: 68px;\s*padding: 0;\s*background: #fbfbfd;/,
+  );
+  assert.match(
+    stylesSource,
+    /\.weekly-plan-table-wrap:not\(\.is-driver-view\) \.weekly-plan-cell \{[^}]*min-height: 68px;[^}]*border: 0;[^}]*border-radius: 0;/,
+  );
+  assert.match(
+    stylesSource,
+    /\.weekly-plan-cell\.has-assignment \{[^}]*background: color-mix\([^}]*10%[^}]*#fbfbfd\);[^}]*box-shadow: none;/,
+  );
+  assert.match(
+    stylesSource,
+    /\.weekly-plan-cell\.is-empty:not\(\.is-off-schedule\) \{[^}]*border: 0;[^}]*border-radius: 0;[^}]*background: #fffaf0;/,
+  );
+});
+
 test('driver keeps the weekly route table with a compact touch-friendly mobile layout', () => {
   assert.doesNotMatch(weeklyPlanSource, /DriverWeeklyAgenda/);
   assert.match(weeklyPlanSource, /weekly-plan-table-wrap \$\{!canManagePlan \? 'is-driver-view'/);
