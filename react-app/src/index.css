@@ -11813,7 +11813,7 @@ select.ap-input {
 /* KPI */
 .cp-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -11879,6 +11879,8 @@ select.ap-input {
 .cp-kpi-chevron { flex: 0 0 auto; color: var(--laundry-ink-muted); opacity: 0.6; }
 
 .cp-kpi-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 30px;
   font-weight: 750;
   line-height: 1.05;

@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
+  Coins,
   CreditCard,
   Gauge,
   Package,
   RefreshCw,
+  Scale,
   Timer,
   Truck,
   UserX,
@@ -20,7 +22,8 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { getDispatchBoard } from '../lib/courseRpc';
-import { getDriverCardReminders, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
+import { getCostsMonth, getDriverCardReminders, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
+import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
 import { departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
@@ -49,6 +52,7 @@ const EMPTY_REMOTE = {
   schedule: null,
   driverCards: [],
   myWork: null,
+  costsMonth: null,
 };
 
 function formatNumber(value, digits = 1) {
@@ -56,6 +60,14 @@ function formatNumber(value, digits = 1) {
     minimumFractionDigits: 0,
     maximumFractionDigits: digits,
   });
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat(currentLocale(), { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(value || 0);
+}
+
+function formatMoneyPrecise(value) {
+  return new Intl.NumberFormat(currentLocale(), { style: 'currency', currency: 'PLN', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0);
 }
 
 function percent(part, total) {
@@ -224,12 +236,14 @@ export default function ControlPanelView() {
   const load = useCallback(async () => {
     if (!sessionToken) return;
     setLoading(true);
-    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes] = await Promise.allSettled([
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes] = await Promise.allSettled([
       getLaundryWorkflow(sessionToken),
       getDispatchBoard(sessionToken, todayKey),
       getWorkScheduleMonth(sessionToken, year, month),
       getDriverCardReminders(sessionToken),
       getMyWorkTime(sessionToken, year, month),
+      getCostsMonth(sessionToken, monthKey),
     ]);
 
     const nextIssues = [];
@@ -238,6 +252,7 @@ export default function ControlPanelView() {
     if (scheduleRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.schedule'));
     if (cardsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.driverCards'));
     if (myWorkRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.myHours'));
+    if (costsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.costs'));
 
     const laundry = laundryRes.status === 'fulfilled' ? laundryRes.value : null;
     setRemote({
@@ -248,6 +263,7 @@ export default function ControlPanelView() {
       schedule: scheduleRes.status === 'fulfilled' ? scheduleRes.value : null,
       driverCards: cardsRes.status === 'fulfilled' ? (cardsRes.value?.cards || []) : [],
       myWork: myWorkRes.status === 'fulfilled' ? myWorkRes.value : null,
+      costsMonth: costsRes.status === 'fulfilled' ? costsRes.value : null,
     });
     setIssues(nextIssues);
     setUpdatedAt(new Date());
@@ -305,6 +321,10 @@ export default function ControlPanelView() {
     year,
     month,
   }), [month, remote.myWork, year]);
+
+  const costs = useMemo(() => (remote.costsMonth
+    ? summarizeCostsMonth({ monthData: remote.costsMonth, year, month, todayKey: calendarKey })
+    : null), [calendarKey, month, remote.costsMonth, year]);
 
   const approvals = useMemo(() => collectApprovals({
     workTimeReports: remote.schedule?.work_time_reports || [],
@@ -367,6 +387,39 @@ export default function ControlPanelView() {
 
       <section className="cp-kpis" aria-label={t('controlPanel.kpisLabel')}>
         <KpiCard
+          icon={Timer}
+          tone={myHours && myHours.diff < 0 ? 'amber' : 'violet'}
+          label={t('controlPanel.kpi.myHours', { month: monthLabel })}
+          value={myHours ? formatNumber(myHours.hours) : '—'}
+          unit={myHours ? 'h' : undefined}
+          progress={myHours ? percent(myHours.hours, myHours.norm) : undefined}
+          detail={myHours
+            ? t('controlPanel.kpi.myHoursDetail', { norm: formatNumber(myHours.norm), diff: signed(myHours.diff) })
+            : t('controlPanel.kpi.myHoursMissing')}
+          to="/grafik"
+        />
+        <KpiCard
+          icon={Coins}
+          tone={costs?.targetCostPerKg && costs.plnPerKg > costs.targetCostPerKg ? 'amber' : 'blue'}
+          label={t('controlPanel.kpi.costs', { month: monthLabel })}
+          value={costs ? formatMoney(costs.total) : '—'}
+          detail={costs
+            ? t('controlPanel.kpi.costsDetail', { perKg: formatMoneyPrecise(costs.plnPerKg), perDay: formatMoney(costs.avgPerDay) })
+            : t('controlPanel.kpi.costsMissing')}
+          to="/costs"
+        />
+        <KpiCard
+          icon={Scale}
+          tone="teal"
+          label={t('controlPanel.kpi.tonnage', { month: monthLabel })}
+          value={costs ? formatNumber(costs.kg / 1000, 1) : '—'}
+          unit={costs ? 't' : undefined}
+          detail={costs
+            ? t('controlPanel.kpi.tonnageDetail', { kg: formatNumber(costs.kg, 0), perDay: formatNumber(costs.accruedDays ? costs.kg / costs.accruedDays : 0, 0) })
+            : t('controlPanel.kpi.costsMissing')}
+          to="/costs"
+        />
+        <KpiCard
           icon={WashingMachine}
           tone="blue"
           label={t('controlPanel.kpi.laundry')}
@@ -396,18 +449,6 @@ export default function ControlPanelView() {
           value={`${team.today.working}/${team.today.total}`}
           progress={percent(team.today.working, team.today.total)}
           detail={t('controlPanel.kpi.teamDetail', { absent: team.today.absentCount, off: team.today.off })}
-          to="/grafik"
-        />
-        <KpiCard
-          icon={Timer}
-          tone={myHours && myHours.diff < 0 ? 'amber' : 'violet'}
-          label={t('controlPanel.kpi.myHours', { month: monthLabel })}
-          value={myHours ? formatNumber(myHours.hours) : '—'}
-          unit={myHours ? 'h' : undefined}
-          progress={myHours ? percent(myHours.hours, myHours.norm) : undefined}
-          detail={myHours
-            ? t('controlPanel.kpi.myHoursDetail', { norm: formatNumber(myHours.norm), diff: signed(myHours.diff) })
-            : t('controlPanel.kpi.myHoursMissing')}
           to="/grafik"
         />
       </section>

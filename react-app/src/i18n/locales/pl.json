@@ -2920,6 +2920,7 @@
     "kpisLabel": "Najważniejsze liczby dnia",
     "noDriverName": "Bez kierowcy",
     "issues": {
+      "costs": "koszty",
       "title": "Część danych się nie wczytała:",
       "laundry": "pralnia",
       "routes": "trasy",
@@ -2928,6 +2929,11 @@
       "myHours": "moje godziny"
     },
     "kpi": {
+      "tonnageDetail": "{{kg}} kg · średnio {{perDay}} kg dziennie",
+      "tonnage": "Tonaż · {{month}}",
+      "costsMissing": "Brak danych kosztów",
+      "costsDetail": "{{perKg}} / kg · średnio {{perDay}} dziennie",
+      "costs": "Koszty · {{month}}",
       "laundry": "Do prania dziś",
       "laundryDetail": "wyprane {{washed}} kg · zostało {{remaining}} kg · wyjazd {{departure}} kg",
       "trolleys": "Wózki zajęte",

@@ -2902,6 +2902,7 @@
     "kpisLabel": "Die wichtigsten Zahlen des Tages",
     "noDriverName": "Ohne Fahrer",
     "issues": {
+      "costs": "Kosten",
       "title": "Einige Daten konnten nicht geladen werden:",
       "laundry": "Wäscherei",
       "routes": "Touren",
@@ -2910,6 +2911,11 @@
       "myHours": "meine Stunden"
     },
     "kpi": {
+      "tonnageDetail": "{{kg}} kg · im Schnitt {{perDay}} kg pro Tag",
+      "tonnage": "Tonnage · {{month}}",
+      "costsMissing": "Keine Kostendaten",
+      "costsDetail": "{{perKg}} / kg · im Schnitt {{perDay}} pro Tag",
+      "costs": "Kosten · {{month}}",
       "laundry": "Heute zu waschen",
       "laundryDetail": "gewaschen {{washed}} kg · offen {{remaining}} kg · Ausfahrt {{departure}} kg",
       "trolleys": "Wagen belegt",

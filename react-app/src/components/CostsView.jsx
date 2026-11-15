@@ -18,20 +18,23 @@ import {
   COST_METER_FIELDS,
   dailyPerformanceMetrics,
   electricityMonthlyCost,
-  electricityMonthlyFees,
   electricityReconciliation,
-  gasProductionDailyCost,
-  gasProductionKwh,
   gasProductionMonthlyCost,
   gasProductionReconciliation,
-  DEFAULT_GAS_PROD_KWH_PER_M3,
-  DEFAULT_GAS_PROD_PRICE_KWH,
   invalidCostSettingFields,
   meterUsageSeries,
   parseMeterReading,
   plantThroughputDayExtremes,
   productionThroughput,
 } from '../lib/costEngine';
+import {
+  compositePreviousReadings,
+  costDay,
+  decimalValue,
+  DEFAULT_COST_SETTINGS as DEFAULT_SETTINGS,
+  parseDecimalInput,
+  resolveMonthCostSettings,
+} from '../lib/costsMonthSummary';
 import DataError from './DataError';
 
 function toDateStr(d) {
@@ -79,26 +82,6 @@ const FMT = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleStri
 const FMT0 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 0 }) : '---';
 const FMT1 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { maximumFractionDigits: 1 }) : '---';
 const FMT3 = (num) => typeof num === 'number' && isFinite(num) ? num.toLocaleString(currentLocale(), { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '---';
-
-function parseDecimalInput(value) {
-  if (value == null || value === '') return null;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  let s = String(value).trim();
-  if (!s) return null;
-  s = s.replace(/\s/g, '').replace(/[^\d,.-]/g, '');
-  if (s.includes(',')) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    const dotParts = s.split('.');
-    if (dotParts.length > 2) {
-      s = `${dotParts.slice(0, -1).join('')}.${dotParts.at(-1)}`;
-    }
-  }
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-const decimalValue = (value) => parseDecimalInput(value) ?? 0;
 
 function normalizeDailyCostRow(row) {
   const numericFields = ['other_costs', 'ton_zd1', 'ton_zd2', 'ton_pralki'];
@@ -206,23 +189,6 @@ const PERF_BANDS = [
   { id: 'dobra',   labelKey: 'costs.bandGood',     c: EFF_COLORS.dobra,   from: 'srednia', to: 'dobra'   },
   { id: 'bdb',     labelKey: 'costs.bandVeryGood', c: EFF_COLORS.bdb,     from: 'dobra',   to: null      },
 ];
-
-const DEFAULT_SETTINGS = {
-  fiat_l_100km: 9.01, isuzu_l_100km: 10.88, merc_l_100km: 13.04, iveco_l_100km: 12.25,
-  fuel_price: 4.85,
-  elec_multiplier: 80, elec_fixed_monthly: 3562.12, elec_price_kwh: 0.6823,
-  elec_power_fee_monthly: 0, elec_reactive_monthly: 0,
-  elec_invoice_kwh: null, elec_invoice_net: null,
-  gas_prod_price_m3: 1.95, gas_prod_fixed_daily: 173.51,
-  gas_prod_kwh_per_m3: DEFAULT_GAS_PROD_KWH_PER_M3,
-  gas_prod_price_kwh: DEFAULT_GAS_PROD_PRICE_KWH,
-  gas_prod_fixed_monthly: 5205.24,
-  gas_prod_invoice_kwh: null, gas_prod_invoice_net: null,
-  gas_heat_price_m3: 6.15, gas_heat_fixed_monthly: 49.78,
-  water_price_m3: 16.25, water_fixed_monthly: 20.10,
-  worker_hourly_rate: 45.82,
-  target_cost_per_kg: null,
-};
 
 /* ───────────── HISTORIA MIESIĘCZNA (silnik dla Przeglądu) ───────────── */
 // Stawki dla danego miesiąca: własne, inaczej z ostatniego wcześniejszego (jak w fetchData)
@@ -362,8 +328,6 @@ export default function CostsView() {
       ]);
       if (sequence !== fetchSequence.current) return;
       setIntegrityReport(report);
-      const sets = monthData?.settings || null;
-      const prevSet = monthData?.previous_settings || null;
       const costs = monthData?.daily_costs || [];
       const prevRows = monthData?.previous_daily_costs || [];
       const emps = monthRoster || [];
@@ -371,38 +335,9 @@ export default function CostsView() {
       const timeline = monthData?.timeline_entries || [];
 
     // Stawki: jeśli miesiąc nie ma własnych, dziedzicz z ostatniego ZAPISANEGO wcześniejszego miesiąca.
-    // Domyślne z kodu tylko gdy nie ma żadnej historii.
-    if (sets) {
-      setSettings({ ...DEFAULT_SETTINGS, ...sets });
-    } else {
-      if (prevSet) {
-        // odrzucamy id (i znacznik czasu), żeby zapis utworzył NOWY wiersz dla tego miesiąca, nie nadpisał poprzedni
-        const rates = { ...prevSet };
-        ['id', 'updated_at', 'elec_invoice_kwh', 'elec_invoice_net', 'gas_prod_invoice_kwh', 'gas_prod_invoice_net']
-          .forEach(field => delete rates[field]);
-        setSettings({
-          ...rates,
-          month_key: monthKey,
-          elec_invoice_kwh: null,
-          elec_invoice_net: null,
-          gas_prod_invoice_kwh: null,
-          gas_prod_invoice_net: null,
-        });
-      } else {
-        setSettings({ month_key: monthKey, ...DEFAULT_SETTINGS });
-      }
-    }
-    let compositePrev = {};
-    if (prevRows && prevRows.length > 0) {
-      prevRows.forEach(row => {
-        ['fiat_end', 'isuzu_end', 'merc_end', 'iveco_end', 'elec_end', 'gas_prod_end', 'gas_heat_end', 'water_end'].forEach(k => {
-          if (compositePrev[k] === undefined && row[k] != null && row[k] !== '') {
-            compositePrev[k] = row[k];
-          }
-        });
-      });
-    }
-    setPrevReadings(compositePrev);
+    // Domyślne z kodu tylko gdy nie ma żadnej historii (wspólna logika z Panelem sterującym).
+    setSettings(resolveMonthCostSettings(monthData, monthKey));
+    setPrevReadings(compositePreviousReadings(prevRows));
 
     const costMap = {};
     (costs || []).forEach(c => costMap[c.entry_date] = c);
@@ -696,36 +631,19 @@ export default function CostsView() {
   const gasProdUsageForMonth = meterSeries.gas_prod.reduce((sum, reading) => sum + (reading.usage || 0), 0);
 
   const calcDay = (dStr, idx, { includeFuture = false } = {}) => {
-    const d = dailyData[dStr] || {};
     const suppressed = isFutureCalendarDate(dStr, currentDateStr) && !includeFuture;
-    const fiat_km = suppressed ? 0 : consumptionAt(idx, 'fiat');
-    const isuzu_km = suppressed ? 0 : consumptionAt(idx, 'isuzu');
-    const merc_km = suppressed ? 0 : consumptionAt(idx, 'merc');
-    const iveco_km = suppressed ? 0 : consumptionAt(idx, 'iveco');
-    const total_km = fiat_km + isuzu_km + merc_km + iveco_km;
-
-    const transportCost = suppressed ? 0 : ((fiat_km * settings.fiat_l_100km) + (isuzu_km * settings.isuzu_l_100km) + (merc_km * settings.merc_l_100km) + (iveco_km * settings.iveco_l_100km)) / 100 * settings.fuel_price;
-    const elec_usage = suppressed ? 0 : consumptionAt(idx, 'elec') * settings.elec_multiplier;
-    const elecMonthlyFees = electricityMonthlyFees(settings);
-    const elec_cost = elec_usage * settings.elec_price_kwh + (suppressed ? 0 : (elecMonthlyFees / daysInMonth));
-    const gas_prod_usage = suppressed ? 0 : consumptionAt(idx, 'gas_prod');
-    const gas_prod_kwh = suppressed ? 0 : gasProductionKwh(gas_prod_usage, settings);
-    const gas_prod_cost = suppressed
-      ? 0
-      : gasProductionDailyCost(gas_prod_usage, gasProdUsageForMonth, settings, daysInMonth);
-    const gas_heat_usage = suppressed ? 0 : consumptionAt(idx, 'gas_heat');
-    const gas_heat_cost = gas_heat_usage * settings.gas_heat_price_m3 + (suppressed ? 0 : (settings.gas_heat_fixed_monthly / daysInMonth));
-    const water_usage = suppressed ? 0 : consumptionAt(idx, 'water');
-    const water_cost = water_usage * settings.water_price_m3 + (suppressed ? 0 : (settings.water_fixed_monthly / daysInMonth));
-    const hrs = laborHours[dStr] || 0; // łączne godziny z Grafiku pracy
-    const worker_cost = suppressed ? 0 : hrs * settings.worker_hourly_rate;
-    const other_cost = suppressed ? 0 : decimalValue(d.other_costs);
-    const total_cost = transportCost + elec_cost + gas_prod_cost + gas_heat_cost + water_cost + worker_cost + other_cost;
-    const ton = suppressed ? 0 : decimalValue(d.ton_zd1) + decimalValue(d.ton_zd2) + decimalValue(d.ton_pralki);
-    const pln_kg = ton > 0 ? total_cost / ton : 0;
+    // Wzory kosztu dnia są wspólne z Panelem sterującym (lib/costsMonthSummary).
+    const result = costDay({
+      day: dailyData[dStr] || {},
+      usageOf: base => consumptionAt(idx, base),
+      settings,
+      daysInMonth,
+      gasProdUsageForMonth,
+      laborHours: laborHours[dStr] || 0, // łączne godziny z Grafiku pracy
+      suppressed,
+    });
     const meterIssues = Object.fromEntries(meterBases.map(base => [base, meterIssueAt(idx, base)]));
-
-    return { fiat_km, isuzu_km, merc_km, iveco_km, total_km, elec_usage, gas_prod_usage, gas_prod_kwh, gas_heat_usage, water_usage, transportCost, elec_cost, gas_prod_cost, gas_heat_cost, water_cost, worker_cost, total_cost, other_cost, ton, pln_kg, meterIssues };
+    return { ...result, meterIssues };
   };
 
   // Monthly totals
