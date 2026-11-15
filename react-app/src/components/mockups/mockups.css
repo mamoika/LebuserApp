@@ -3808,9 +3808,17 @@
   font-weight: 760;
   letter-spacing: -0.035em;
 }
+.live-dispatch .live-board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 2px;
+}
 .live-dispatch .live-board-date-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
+  text-transform: none;
 }
 .live-dispatch .live-board-actions {
   --dispatch-control-height: 44px;
@@ -3884,7 +3892,6 @@
   font-size: 13px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
-  text-transform: capitalize;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -3919,17 +3926,17 @@
   background: #006EE6;
 }
 .live-dispatch .dispatch-summary {
-  gap: 7px;
+  gap: 6px;
   margin: 0;
-  padding: 11px 20px 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.055);
-  background: rgba(247, 247, 249, 0.72);
+  padding: 0;
+  border: 0;
+  background: none;
 }
 .live-dispatch .dispatch-chip {
-  min-height: 28px;
-  padding: 5px 10px;
+  min-height: 24px;
+  padding: 3px 9px;
   border-color: rgba(0, 0, 0, 0.06);
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-secondary);
   box-shadow: none;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -3937,17 +3944,19 @@
 .live-board-frame {
   max-width: 100%;
   overflow-x: auto;
-  padding: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 18px;
-  background: #F2F2F5;
-  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.055);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
 }
 .live-dispatch .dispatch-board {
   min-width: 1120px;
-  height: clamp(520px, calc(100dvh - 300px), 840px);
+  height: auto;
+  min-height: 280px;
+  max-height: clamp(520px, calc(100dvh - 240px), 900px);
   grid-template-columns: repeat(5, minmax(216px, 1fr));
-  gap: 6px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
   overflow: visible;
   padding: 0;
   align-items: stretch;
@@ -3961,8 +3970,8 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.055);
-  border-radius: 13px;
-  background: #F9F9FB;
+  border-radius: 14px;
+  background: #F7F7F9;
 }
 .live-dispatch .dispatch-col.is-planning { --dispatch-status: #C76B00; --dispatch-status-soft: rgba(255, 149, 0, 0.09); }
 .live-dispatch .dispatch-col.is-ready { --dispatch-status: #006FCC; --dispatch-status-soft: rgba(0, 122, 255, 0.085); }
@@ -4019,28 +4028,20 @@
   outline-offset: -5px;
 }
 .live-dispatch .dispatch-empty {
-  min-height: 150px;
-  flex: 1;
+  min-height: 64px;
+  flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 22px 12px;
+  padding: 12px;
+  border: 1.5px dashed rgba(0, 0, 0, 0.09);
+  border-radius: 12px;
   color: var(--text-quaternary);
   font-size: 11.5px;
   font-weight: 650;
   text-align: center;
 }
-.live-dispatch .dispatch-empty > span {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  color: var(--dispatch-status);
-  background: var(--dispatch-status-soft);
-}
+.live-dispatch .dispatch-col-drop.is-over .dispatch-empty { border-color: transparent; }
 .live-dispatch .kurs-card {
   flex: 0 0 auto;
   padding: 12px;
@@ -4077,8 +4078,8 @@
   place-items: center;
   padding: 0 7px;
   border-radius: 8px;
-  color: var(--course-route-color);
-  background: var(--course-route-soft);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -4115,8 +4116,8 @@
 .live-dispatch .kurs-avatar {
   width: 30px;
   height: 30px;
-  color: var(--course-route-color);
-  background: var(--course-route-soft);
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
   font-size: 11px;
 }
 .live-dispatch .kurs-driver-name {
@@ -4188,18 +4189,17 @@
   .live-dispatch .live-view-toggle .seg-btn { flex: 1; }
   .live-date-control { width: 100%; min-width: 0; flex: 1 1 100%; }
   .live-dispatch .live-board-actions .driver-tool-btn { flex: 1 1 auto; justify-content: center; }
-  .live-dispatch .dispatch-summary { padding: 10px 16px; }
-  .live-board-frame { overflow: visible; padding: 5px; border-radius: 15px; }
+  .live-board-frame { overflow: visible; }
   .live-dispatch .dispatch-board {
     min-width: 0;
     height: auto;
+    max-height: none;
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
-  .live-dispatch .dispatch-board .dispatch-col { width: 100%; min-height: 148px; }
-  .live-dispatch .dispatch-col-drop { max-height: none; min-height: 96px; overflow: visible; }
-  .live-dispatch .dispatch-empty { min-height: 88px; }
+  .live-dispatch .dispatch-board .dispatch-col { width: 100%; }
+  .live-dispatch .dispatch-col-drop { max-height: none; overflow: visible; }
 }
 
 @media (prefers-reduced-motion: reduce) {

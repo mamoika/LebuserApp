@@ -29,6 +29,23 @@ import '../mockups/mockups.css';
 
 const BOARD_COLUMN_KEYS = ['planning', 'ready', 'active', 'settlement', 'closed'];
 
+function capitalizeFirst(value) {
+  const text = String(value || '');
+  return text ? text.charAt(0).toLocaleUpperCase() + text.slice(1) : text;
+}
+
+function tripStartSortKey(trip) {
+  const time = trip.planned_start ? new Date(trip.planned_start).getTime() : NaN;
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
+}
+
+function sortTripsByStart(items) {
+  return [...items].sort((a, b) => (
+    tripStartSortKey(a) - tripStartSortKey(b)
+    || (Number(a.route_display) || 0) - (Number(b.route_display) || 0)
+  ));
+}
+
 function shiftYmd(value, days) {
   const [year, month, day] = String(value).split('-').map(Number);
   const date = new Date(year, month - 1, day);
@@ -714,7 +731,16 @@ export default function DispatchBoard() {
             <h1 id="dispatch-title" className="mock-page-title">
               {viewMode === 'day' ? t('course.board.titleDay') : t('course.board.titleArchive')}
             </h1>
-            {viewMode === 'day' && <div className="live-board-date-label">{formatCourseDate(tripDate, locale)}</div>}
+            {viewMode === 'day' && (
+              <div className="live-board-meta">
+                <span className="live-board-date-label">{capitalizeFirst(formatCourseDate(tripDate, locale, { day: 'numeric' }))}</span>
+                <div className="dispatch-summary">
+                  <span className="dispatch-chip"><CalendarDays size={13} aria-hidden="true" /> {t('course.board.coursesCount', { count: trips.length })}</span>
+                  {summary.missing > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} aria-hidden="true" /> {t('course.board.toPlan', { count: summary.missing })}</span>}
+                  {summary.problems > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} aria-hidden="true" /> {t('course.board.problems', { count: summary.problems })}</span>}
+                </div>
+              </div>
+            )}
           </div>
           <div className="live-board-actions">
             <div className="segmented-control live-view-toggle">
@@ -728,7 +754,7 @@ export default function DispatchBoard() {
                 </button>
                 <label className="live-date-picker" title={t('course.board.chooseDate')}>
                   <CalendarDays size={16} aria-hidden="true" />
-                  <span>{new Date(`${tripDate}T00:00:00`).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })}</span>
+                  <span>{capitalizeFirst(new Date(`${tripDate}T00:00:00`).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
                   <input id="dispatch-date" type="date" aria-label={t('course.board.courseDate')} value={tripDate} onChange={event => setTripDate(event.target.value || operationalYmd())} />
                 </label>
                 <button type="button" className="live-date-step" aria-label={t('course.board.nextDay')} title={t('course.board.nextDay')} onClick={() => setTripDate(value => shiftYmd(value, 1))}>
@@ -742,16 +768,6 @@ export default function DispatchBoard() {
             )}
           </div>
         </div>
-
-        {viewMode === 'day' && (
-          <div className="dispatch-summary">
-            <span className="dispatch-chip"><CalendarDays size={13} /> {t('course.board.coursesCount', { count: trips.length })}</span>
-            {summary.missing > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.toPlan', { count: summary.missing })}</span>}
-            <span className="dispatch-chip is-active">{t('course.board.inRoute', { count: summary.active })}</span>
-            <span className="dispatch-chip">{t('course.board.settlement', { count: summary.settlement })}</span>
-            {summary.problems > 0 && <span className="dispatch-chip is-warning"><AlertTriangle size={12} /> {t('course.board.problems', { count: summary.problems })}</span>}
-          </div>
-        )}
       </div>
 
       {viewMode === 'archive' ? (
@@ -777,7 +793,7 @@ export default function DispatchBoard() {
               <div className="live-board-frame">
                 <div className="dispatch-board">
                   {boardColumns.map(column => {
-                    const items = trips.filter(trip => trip.board_status === column.key);
+                    const items = sortTripsByStart(trips.filter(trip => trip.board_status === column.key));
                     return (
                       <div className={`dispatch-col is-${column.key}`} key={column.key}>
                         <div className="dispatch-col-header">
@@ -791,10 +807,7 @@ export default function DispatchBoard() {
                                 <CourseCard key={trip.id} trip={trip} index={index} isAdmin={isAdmin} locale={locale} onOpen={setOpenTrip} onApprove={openKmApproval} onApproveHours={openHoursApproval} onAssign={setAssignTrip} />
                               ))}
                               {items.length === 0 && (
-                                <div className="dispatch-empty">
-                                  <span aria-hidden="true"><CalendarDays size={16} /></span>
-                                  {t('course.board.noCourses')}
-                                </div>
+                                <div className="dispatch-empty">{t('course.board.noCourses')}</div>
                               )}
                               {provided.placeholder}
                             </div>

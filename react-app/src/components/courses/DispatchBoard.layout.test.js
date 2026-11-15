@@ -8,8 +8,8 @@ const styles = readFileSync(new URL('../mockups/mockups.css', import.meta.url), 
 test('dispatch controls and summary share one compact header surface', () => {
   assert.match(
     source,
-    /className="live-board-header"[\s\S]*?className="live-board-toolbar"[\s\S]*?className="dispatch-summary"/,
-    'the title, controls, and daily summary should form one visual region',
+    /className="live-board-header"[\s\S]*?className="live-board-toolbar"[\s\S]*?className="live-board-meta"[\s\S]*?className="dispatch-summary"/,
+    'the date and daily summary should sit directly under the title instead of in a separate band',
   );
   assert.match(
     styles,
@@ -21,7 +21,7 @@ test('dispatch controls and summary share one compact header surface', () => {
 test('daily toolbar aligns controls and offers one-click date navigation', () => {
   assert.match(
     source,
-    /className="live-date-control"[\s\S]*?shiftYmd\(value, -1\)[\s\S]*?weekday: 'long'[\s\S]*?id="dispatch-date"[\s\S]*?shiftYmd\(value, 1\)/,
+    /className="live-date-control"[\s\S]*?shiftYmd\(value, -1\)[\s\S]*?weekday: 'short'[\s\S]*?id="dispatch-date"[\s\S]*?shiftYmd\(value, 1\)/,
     'the date control should expose previous, direct-pick, and next navigation in one group',
   );
   assert.doesNotMatch(source, /className="live-date-today"/, 'date navigation should stay within one compact control');
@@ -37,7 +37,7 @@ test('daily toolbar aligns controls and offers one-click date navigation', () =>
   );
 });
 
-test('each workflow stage owns a full-height status surface', () => {
+test('each workflow stage grows with its content instead of a fixed tall surface', () => {
   assert.match(
     source,
     /className=\{`dispatch-col is-\$\{column\.key\}`\}/,
@@ -45,12 +45,12 @@ test('each workflow stage owns a full-height status surface', () => {
   );
   assert.match(
     styles,
-    /\.live-dispatch \.dispatch-board\s*\{[\s\S]*?height:\s*clamp\(520px, calc\(100dvh - 300px\), 840px\);/,
-    'the daily board should fill the useful viewport height',
+    /\.live-dispatch \.dispatch-board\s*\{[\s\S]*?height:\s*auto;[\s\S]*?max-height:\s*clamp\(/,
+    'the daily board should size to its cards and only cap at the viewport height',
   );
   assert.match(
     styles,
-    /\.live-dispatch \.dispatch-col\s*\{[\s\S]*?display:\s*flex;[\s\S]*?overflow:\s*hidden;[\s\S]*?background:\s*#F9F9FB;/,
+    /\.live-dispatch \.dispatch-col\s*\{[\s\S]*?display:\s*flex;[\s\S]*?overflow:\s*hidden;[\s\S]*?background:\s*#F7F7F9;/,
     'columns should be bounded surfaces instead of floating content on white',
   );
   assert.match(
@@ -93,5 +93,14 @@ test('course cards preserve route, driver, vehicle, and ready metadata hierarchy
     styles,
     /\.live-dispatch \.kurs-progress-label\s*\{[\s\S]*?background:\s*var\(--bg-secondary\);/,
     'operational metadata should be grouped in a quiet inset surface',
+  );
+});
+
+test('cards are ordered by start time and route colors stay neutral', () => {
+  assert.match(source, /sortTripsByStart\(trips\.filter\(trip => trip\.board_status === column\.key\)\)/);
+  assert.match(
+    styles,
+    /\.live-dispatch \.kurs-route-badge\s*\{[\s\S]*?color:\s*var\(--text-secondary\);[\s\S]*?background:\s*var\(--bg-secondary\);/,
+    'route badges should not compete with the status colors',
   );
 });
