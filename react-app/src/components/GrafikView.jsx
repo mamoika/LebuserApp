@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { memo, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +40,16 @@ const SUMMARY_TOTAL_WIDTH = SUMMARY_COLUMN_WIDTHS.reduce((sum, width) => sum + w
 const SUMMARY_RIGHT_OFFSETS = SUMMARY_COLUMN_WIDTHS.map((_, index) => (
   SUMMARY_COLUMN_WIDTHS.slice(index + 1).reduce((sum, width) => sum + width, 0)
 ));
+
+const stickySummaryStyle = (index, background, zIndex = 4) => ({
+  position: 'sticky',
+  right: `${SUMMARY_RIGHT_OFFSETS[index]}px`,
+  zIndex,
+  width: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+  minWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+  maxWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
+  background,
+});
 
 function getCellStyle(value, isWeekendOrHoliday) {
   const v = String(value || '').trim().toUpperCase();
@@ -481,6 +491,174 @@ function WorkTimeDecisionHistory({ events, open, onClose }) {
   );
 }
 
+// Wiersz pracownika jako osobny, zapamiętany komponent: kliknięcie komórki
+// przerysowuje tylko wiersz poprzednio i obecnie zaznaczony, a nie całą tabelę.
+const GrafikEmployeeRow = memo(function GrafikEmployeeRow({
+  emp,
+  empIdx,
+  rowBg,
+  values,
+  employed,
+  stats,
+  dayMeta,
+  norm,
+  todayDay,
+  todayYmd,
+  selectedDay,
+  canEditWorkSchedule,
+  onSelectCell,
+  driverCardsByEmployeeDueDay,
+  driverCardHistoryByEmployeeDay,
+  t,
+  locale,
+}) {
+  const { totalHours, empNorm, diff, l4Count, uwCount, nuCount, nnCount } = stats;
+  return (
+    <tr key={emp.id} className="grafik-modern-row" style={{ height: '32px' }}>
+      <td className="grafik-name-td" style={{ width: `${NAME_COLUMN_WIDTH}px`, position: 'sticky', left: 0, zIndex: 5, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
+          <span
+            style={{
+              fontSize: '9px',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: '4px',
+              marginRight: '6px',
+              flexShrink: 0,
+              letterSpacing: '0.3px',
+              background: emp.contract_type === 'UoP' ? 'rgba(52, 199, 89, 0.14)' : 'rgba(0, 122, 255, 0.14)',
+              color: emp.contract_type === 'UoP' ? '#248A3D' : '#0055CC',
+            }}
+            title={emp.contract_type === 'UoP'
+              ? t('grafik.contractRules.employmentTitle')
+              : t('grafik.contractRules.contractTitle')}
+          >
+            {emp.contract_type || 'UoP'}
+          </span>
+          <span className="grafik-employee-name" title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
+          <span className="grafik-employee-hours" style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
+        </div>
+      </td>
+      {dayMeta.map(({ d, isWeOrHol }) => {
+        const isToday = d === todayDay;
+        const isOutsideEmployment = !employed?.[d];
+        const val = isOutsideEmployment ? '' : (values?.[d] ?? '');
+        const cs = getCellStyle(val, isWeOrHol);
+        const isSelected = selectedDay === d;
+        const driverCardDue = driverCardsByEmployeeDueDay.get(`${emp.id}_${d}`);
+        const driverCardRead = driverCardHistoryByEmployeeDay.get(`${emp.id}_${d}`);
+        const isDriverCardPastDue = Boolean(driverCardDue?.dueOn && driverCardDue.dueOn < todayYmd);
+        const driverCardCellTitle = driverCardRead
+          ? t('grafik.driverCard.readOnCell', { date: new Date(`${driverCardRead.downloaded_on}T00:00:00`).toLocaleDateString(locale) })
+          : driverCardDue
+            ? t('grafik.driverCard.dueOnCell', { name: emp.name })
+            : undefined;
+
+        const hasVal = val && String(val).trim();
+        const isPattern = hasVal && cs.pattern;
+        const cellBg = isOutsideEmployment
+          ? 'repeating-linear-gradient(-45deg,rgba(148,163,184,0.08),rgba(148,163,184,0.08) 3px,rgba(248,250,252,0.75) 3px,rgba(248,250,252,0.75) 8px)'
+          : isPattern
+          ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
+          : hasVal ? cs.bg
+          : isToday ? '#eff6ff'
+          : isWeOrHol ? '#f0f0f2'
+          : rowBg;
+
+        return (
+          <td key={d}
+            className={`grafik-day-cell${hasVal || isOutsideEmployment ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule && !isOutsideEmployment ? ' grafik-editable-cell' : ''}`}
+            data-cell={`${empIdx}-${d}`}
+            title={isOutsideEmployment ? t('grafik.outsideEmploymentPeriod') : driverCardCellTitle}
+            aria-disabled={isOutsideEmployment || undefined}
+            onClick={canEditWorkSchedule && !isOutsideEmployment ? () => onSelectCell(empIdx, d) : undefined}
+            onDoubleClick={() => {}}
+            style={{
+              background: cellBg,
+              color: cs.color,
+              textAlign: 'center',
+              fontWeight: 700,
+              fontSize: '10px',
+              borderBottom: '1px solid rgba(0,0,0,0.04)',
+              borderRight: '1px solid rgba(0,0,0,0.04)',
+              boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
+              cursor: isOutsideEmployment ? 'not-allowed' : canEditWorkSchedule ? 'pointer' : 'default',
+              padding: 0, width: `${DAY_COLUMN_WIDTH}px`,
+              boxSizing: 'border-box',
+              position: 'relative',
+              verticalAlign: 'middle', overflow: 'hidden'
+            }}>
+            {isOutsideEmployment ? (
+              <span aria-hidden="true" style={{ color: 'rgba(100,116,139,0.28)', fontSize: '10px', fontWeight: 600 }}>—</span>
+            ) : val ? (
+              <div style={{ fontSize: `${cellFontSize(val)}px`, lineHeight: 1.05, wordBreak: 'break-word', padding: '0 1px' }}>
+                {renderCellValue(val)}
+              </div>
+            ) : null}
+            {!isOutsideEmployment && (driverCardRead || driverCardDue) && (
+              <span
+                className={`grafik-driver-card-cell-marker${driverCardRead ? ' read' : isDriverCardPastDue ? ' overdue' : ' due'}`}
+                role="img"
+                aria-label={driverCardCellTitle}
+              >
+                {driverCardRead ? <CheckCircle2 size={8} strokeWidth={3} aria-hidden="true" /> : <CreditCard size={8} strokeWidth={2.6} aria-hidden="true" />}
+              </span>
+            )}
+          </td>
+        );
+      })}
+      {/* Σ godzin */}
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(0, rowBg), textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#248A3D' : 'rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)', borderBottom: '1px solid rgba(0,0,0,0.04)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', padding: '0 3px' }}>
+        {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
+      </td>
+      {/* Norma */}
+      <td
+        className="grafik-summary-td"
+        style={{
+          textAlign: 'center',
+          fontWeight: emp.contract_type === 'UoP' && empNorm !== norm ? 600 : 500,
+          fontSize: '10px',
+          color: emp.contract_type === 'UoP' && empNorm !== norm ? '#007AFF' : '#8e8e93',
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          ...stickySummaryStyle(1, rowBg),
+        }}
+        title={emp.contract_type === 'UoP' && empNorm !== norm ? `Norma bazowa: ${norm}h, skorygowana o urlop/L4/NU: ${empNorm}h` : undefined}
+      >
+        {empNorm}
+      </td>
+      {/* Różnica */}
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(2, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 2px' }}>
+        {totalHours === 0 ? (
+          <span style={{ color: 'rgba(0,0,0,0.12)' }}>—</span>
+        ) : diff > 0 ? (
+          <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(52, 199, 89, 0.12)', color: '#248A3D', fontWeight: 700, fontSize: '10px' }}>
+            {formatDiff(diff)}
+          </span>
+        ) : diff < 0 ? (
+          <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255, 59, 48, 0.08)', color: '#FF3B30', fontWeight: 700, fontSize: '10px' }}>
+            {formatDiff(diff)}
+          </span>
+        ) : (
+          <span style={{ color: '#8e8e93', fontWeight: 500, fontSize: '10px' }}>0</span>
+        )}
+      </td>
+      {/* L4, UW, NU, NN */}
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(3, rowBg), textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        {l4Count > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{l4Count}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
+      </td>
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(4, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        {uwCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(0,122,255,0.1)', color: '#007AFF', fontWeight: 700, fontSize: '9px' }}>{uwCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
+      </td>
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(5, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        {nuCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontWeight: 700, fontSize: '9px' }}>{nuCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
+      </td>
+      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(6, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        {nnCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{nnCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
+      </td>
+    </tr>
+  );
+});
+
 export default function GrafikView({ historyOpen = false, onHistoryClose = () => {} }) {
   const { t, i18n } = useTranslation();
   const { user, isAdmin, canViewAdminData, canViewModule, canEditModule, sessionToken } = useAuth();
@@ -510,16 +688,18 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
 
+  // Metadane dni miesiąca liczone raz: dzień tygodnia, weekend, święto, klucz daty.
+  // Wcześniej każda komórka liczyła to od nowa przy każdym renderze.
+  const dayMeta = useMemo(() => days.map(d => {
+    const dateObj = new Date(year, month - 1, d);
+    const dw = dateObj.getDay();
+    const isWe = dw === 0 || dw === 6;
+    const hol = isHoliday(dateObj) || null;
+    return { d, dw, isWe, hol, isWeOrHol: isWe || Boolean(hol), dateKey: toLocalYmd(dateObj) };
+  }), [days, year, month]);
+
   // Obliczanie dni roboczych (bez weekendów i świąt)
-  const workingDays = useMemo(() => {
-    return days.filter(d => {
-      const dateObj = new Date(year, month - 1, d);
-      const dw = dateObj.getDay();
-      const isWe = dw === 0 || dw === 6;
-      const isHol = isHoliday(dateObj);
-      return !isWe && !isHol;
-    }).length;
-  }, [days, year, month]);
+  const workingDays = useMemo(() => dayMeta.filter(meta => !meta.isWeOrHol).length, [dayMeta]);
 
   const norm = workingDays * 8;
 
@@ -612,6 +792,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
   }, [employees, groupData]);
 
   const allEmps = useMemo(() => groups.flatMap(({ members }) => members), [groups]);
+  const empIndexById = useMemo(() => new Map(allEmps.map((emp, index) => [emp.id, index])), [allEmps]);
 
   const driverCardSchedule = useMemo(() => driverCards
     .map(card => getDriverCardReminder(card, today))
@@ -655,27 +836,90 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     return grouped;
   }, [employmentPeriods]);
 
+  // Dni zatrudnienia per pracownik jako tablica [dzień] → true/false, liczona raz na miesiąc.
+  const employmentByEmployee = useMemo(() => {
+    const result = new Map();
+    employees.forEach(emp => {
+      const periods = employmentPeriodsByEmployee.get(emp.id) || [];
+      const flags = [false];
+      dayMeta.forEach(({ dateKey }) => {
+        flags.push(periods.some(period => period.started_on <= dateKey && (!period.ended_on || period.ended_on >= dateKey)));
+      });
+      result.set(emp.id, flags);
+    });
+    return result;
+  }, [dayMeta, employees, employmentPeriodsByEmployee]);
+
   const isEmploymentDay = useCallback((employeeId, day) => {
+    const flags = employmentByEmployee.get(employeeId);
+    if (flags) return Boolean(flags[day]);
     const dateKey = toLocalYmd(new Date(year, month - 1, day));
     return (employmentPeriodsByEmployee.get(employeeId) || []).some(period => (
       period.started_on <= dateKey && (!period.ended_on || period.ended_on >= dateKey)
     ));
-  }, [employmentPeriodsByEmployee, year, month]);
+  }, [employmentByEmployee, employmentPeriodsByEmployee, year, month]);
 
   const getDefaultValue = useCallback((emp, day) => {
     if (!emp || !isEmploymentDay(emp.id, day)) return '';
-    const dateObj = new Date(year, month - 1, day);
-    const dw = dateObj.getDay();
-    const isWe = dw === 0 || dw === 6;
-    const isHol = isHoliday(dateObj);
-    return (isWe || isHol) ? 'W' : 'I';
-  }, [year, month, isEmploymentDay]);
+    const meta = dayMeta[day - 1];
+    return meta?.isWeOrHol ? 'W' : 'I';
+  }, [dayMeta, isEmploymentDay]);
+
+  // Macierz wartości grafiku [pracownik][dzień], liczona tylko gdy zmienią się dane.
+  const valuesByEmployee = useMemo(() => {
+    const result = new Map();
+    employees.forEach(emp => {
+      const employed = employmentByEmployee.get(emp.id) || [];
+      const row = [''];
+      days.forEach(d => {
+        if (!employed[d]) { row.push(''); return; }
+        const key = `${emp.id}_${d}`;
+        row.push(entries[key] !== undefined ? entries[key] : (dayMeta[d - 1].isWeOrHol ? 'W' : 'I'));
+      });
+      result.set(emp.id, row);
+    });
+    return result;
+  }, [days, dayMeta, employees, employmentByEmployee, entries]);
 
   const getValue = useCallback((emp, day) => {
-    if (!emp || !isEmploymentDay(emp.id, day)) return '';
+    if (!emp) return '';
+    const row = valuesByEmployee.get(emp.id);
+    if (row) return row[day] ?? '';
+    if (!isEmploymentDay(emp.id, day)) return '';
     const key = `${emp.id}_${day}`;
     return entries[key] !== undefined ? entries[key] : getDefaultValue(emp, day);
-  }, [entries, getDefaultValue, isEmploymentDay]);
+  }, [entries, getDefaultValue, isEmploymentDay, valuesByEmployee]);
+
+  // Sumy wiersza (Σh, norma, różnica, L4/UW/NU/NN) — raz na zmianę danych, nie na każde kliknięcie.
+  const rowStatsByEmployee = useMemo(() => {
+    const result = new Map();
+    employees.forEach(emp => {
+      const totalHours = days.reduce((sum, d) => sum + parseHours(getValue(emp, d)), 0);
+      const empNorm = getEmployeeMonthNorm(emp, norm, days, year, month, getValue);
+      result.set(emp.id, {
+        totalHours,
+        empNorm,
+        diff: totalHours - empNorm,
+        l4Count: countSymbolForEmployee(emp, days, getValue, 'L4'),
+        uwCount: countSymbolForEmployee(emp, days, getValue, 'UW'),
+        nuCount: countSymbolForEmployee(emp, days, getValue, 'NU'),
+        nnCount: countSymbolForEmployee(emp, days, getValue, 'NN'),
+      });
+    });
+    return result;
+  }, [days, employees, getValue, month, norm, year]);
+
+  // Wiersze podsumowania (Obecni / Nieobecni / Godz. łącznie) per dzień.
+  const footerStats = useMemo(() => days.map(d => ({
+    present: employees.filter(e => isPresent(getValue(e, d))).length,
+    absent: employees.filter(e => isAbsent(getValue(e, d))).length,
+    hours: employees.reduce((sum, e) => sum + parseHours(getValue(e, d)), 0),
+  })), [days, employees, getValue]);
+
+  const handleSelectCell = useCallback((empIdx, day) => {
+    setSelectedCell({ empIdx, day });
+    containerRef.current?.focus();
+  }, []);
 
   const saveCell = async (empId, day, raw) => {
     if (!isEmploymentDay(empId, day)) {
@@ -854,17 +1098,8 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     top: 0,
     zIndex: 10
   };
-  const stickySummaryStyle = (index, background, zIndex = 4) => ({
-    position: 'sticky',
-    right: `${SUMMARY_RIGHT_OFFSETS[index]}px`,
-    zIndex,
-    width: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
-    minWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
-    maxWidth: `${SUMMARY_COLUMN_WIDTHS[index]}px`,
-    background,
-  });
-
   const todayDay = today.getFullYear() === year && today.getMonth() + 1 === month ? today.getDate() : null;
+  const todayYmd = toLocalYmd(today);
   const selectedEmployee = selectedCell ? allEmps[selectedCell.empIdx] : null;
   const selectedDate = selectedCell ? new Date(year, month - 1, selectedCell.day) : null;
   const selectedDriverCard = selectedEmployee
@@ -1106,11 +1341,7 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
               }}>
                 {t('grafik.employee')}
               </th>
-              {days.map(d => {
-                const dateObj = new Date(year, month - 1, d);
-                const dw = dateObj.getDay();
-                const isWe = dw === 0 || dw === 6;
-                const hol = isHoliday(dateObj);
+              {dayMeta.map(({ d, dw, isWe, hol }) => {
                 const isToday = d === todayDay;
                 // Sticky headers must be fully opaque; translucent fills allow
                 // scrolled row values to show through and visually overlap text.
@@ -1203,163 +1434,28 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
                   }} />
                 </tr>,
                 ...members.map((emp) => {
-                  const empIdx = allEmps.indexOf(emp);
-                  const totalHours = days.reduce((sum, d) => sum + parseHours(getValue(emp, d)), 0);
-                  const empNorm = getEmployeeMonthNorm(emp, norm, days, year, month, getValue);
-                  const diff = totalHours - empNorm;
-                  const l4Count = countSymbolForEmployee(emp, days, getValue, 'L4');
-                  const uwCount = countSymbolForEmployee(emp, days, getValue, 'UW');
-                  const nuCount = countSymbolForEmployee(emp, days, getValue, 'NU');
-                  const nnCount = countSymbolForEmployee(emp, days, getValue, 'NN');
-
-                  const rowBg = empIdx % 2 === 0 ? '#ffffff' : '#f8f9fb';
-
+                  const empIdx = empIndexById.get(emp.id) ?? -1;
                   return (
-                    <tr key={emp.id} className="grafik-modern-row" style={{ height: '32px' }}>
-                      <td className="grafik-name-td" style={{ width: `${NAME_COLUMN_WIDTH}px`, position: 'sticky', left: 0, zIndex: 5, background: rowBg, padding: '0 8px 0 14px', borderRight: '1px solid rgba(0,0,0,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', overflow: 'hidden' }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontWeight: 700,
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              marginRight: '6px',
-                              flexShrink: 0,
-                              letterSpacing: '0.3px',
-                              background: emp.contract_type === 'UoP' ? 'rgba(52, 199, 89, 0.14)' : 'rgba(0, 122, 255, 0.14)',
-                              color: emp.contract_type === 'UoP' ? '#248A3D' : '#0055CC',
-                            }}
-                            title={emp.contract_type === 'UoP'
-                              ? t('grafik.contractRules.employmentTitle')
-                              : t('grafik.contractRules.contractTitle')}
-                          >
-                            {emp.contract_type || 'UoP'}
-                          </span>
-                          <span className="grafik-employee-name" title={emp.name} style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</span>
-                          <span className="grafik-employee-hours" style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', fontWeight: 500, flexShrink: 0, marginLeft: '4px' }}>{emp.default_start}–{emp.default_end}</span>
-                        </div>
-                      </td>
-                      {days.map(d => {
-                        const dateObj = new Date(year, month - 1, d);
-                        const dw = dateObj.getDay();
-                        const isWeOrHol = dw === 0 || dw === 6 || !!isHoliday(dateObj);
-                        const isToday = d === todayDay;
-                        const isOutsideEmployment = !isEmploymentDay(emp.id, d);
-                        const val = isOutsideEmployment ? '' : getValue(emp, d);
-                        const cs = getCellStyle(val, isWeOrHol);
-                        const isSelected = selectedCell?.empIdx === empIdx && selectedCell?.day === d;
-                        const driverCardDue = driverCardsByEmployeeDueDay.get(`${emp.id}_${d}`);
-                        const driverCardRead = driverCardHistoryByEmployeeDay.get(`${emp.id}_${d}`);
-                        const isDriverCardPastDue = Boolean(driverCardDue?.dueOn && driverCardDue.dueOn < toLocalYmd(today));
-                        const driverCardCellTitle = driverCardRead
-                          ? t('grafik.driverCard.readOnCell', { date: new Date(`${driverCardRead.downloaded_on}T00:00:00`).toLocaleDateString(i18n.language) })
-                          : driverCardDue
-                            ? t('grafik.driverCard.dueOnCell', { name: emp.name })
-                            : undefined;
-
-                        const hasVal = val && String(val).trim();
-                        const isPattern = hasVal && cs.pattern;
-                        const cellBg = isOutsideEmployment
-                          ? 'repeating-linear-gradient(-45deg,rgba(148,163,184,0.08),rgba(148,163,184,0.08) 3px,rgba(248,250,252,0.75) 3px,rgba(248,250,252,0.75) 8px)'
-                          : isPattern
-                          ? 'repeating-linear-gradient(-45deg,#ede9fe,#ede9fe 2px,#f5f3ff 2px,#f5f3ff 7px)'
-                          : hasVal ? cs.bg
-                          : isToday ? '#eff6ff'
-                          : isWeOrHol ? '#f0f0f2'
-                          : rowBg;
-
-                        return (
-                          <td key={d}
-                            className={`grafik-day-cell${hasVal || isOutsideEmployment ? '' : ' grafik-cell-hoverable'}${canEditWorkSchedule && !isOutsideEmployment ? ' grafik-editable-cell' : ''}`}
-                            data-cell={`${empIdx}-${d}`}
-                            title={isOutsideEmployment ? t('grafik.outsideEmploymentPeriod') : driverCardCellTitle}
-                            aria-disabled={isOutsideEmployment || undefined}
-                            onClick={canEditWorkSchedule && !isOutsideEmployment ? () => { setSelectedCell({ empIdx, day: d }); containerRef.current?.focus(); } : undefined}
-                            onDoubleClick={() => {}}
-                            style={{
-                              background: cellBg,
-                              color: cs.color,
-                              textAlign: 'center',
-                              fontWeight: 700,
-                              fontSize: '10px',
-                              borderBottom: '1px solid rgba(0,0,0,0.04)',
-                              borderRight: '1px solid rgba(0,0,0,0.04)',
-                              boxShadow: isSelected ? 'inset 0 0 0 2px var(--accent)' : 'none',
-                              cursor: isOutsideEmployment ? 'not-allowed' : canEditWorkSchedule ? 'pointer' : 'default',
-                              padding: 0, width: `${DAY_COLUMN_WIDTH}px`,
-                              boxSizing: 'border-box',
-                              position: 'relative',
-                              verticalAlign: 'middle', overflow: 'hidden'
-                            }}>
-                            {isOutsideEmployment ? (
-                              <span aria-hidden="true" style={{ color: 'rgba(100,116,139,0.28)', fontSize: '10px', fontWeight: 600 }}>—</span>
-                            ) : val ? (
-                              <div style={{ fontSize: `${cellFontSize(val)}px`, lineHeight: 1.05, wordBreak: 'break-word', padding: '0 1px' }}>
-                                {renderCellValue(val)}
-                              </div>
-                            ) : null}
-                            {!isOutsideEmployment && (driverCardRead || driverCardDue) && (
-                              <span
-                                className={`grafik-driver-card-cell-marker${driverCardRead ? ' read' : isDriverCardPastDue ? ' overdue' : ' due'}`}
-                                role="img"
-                                aria-label={driverCardCellTitle}
-                              >
-                                {driverCardRead ? <CheckCircle2 size={8} strokeWidth={3} aria-hidden="true" /> : <CreditCard size={8} strokeWidth={2.6} aria-hidden="true" />}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {/* Σ godzin */}
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(0, rowBg), textAlign: 'center', fontWeight: 700, fontSize: '11px', color: totalHours > 0 ? '#248A3D' : 'rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)', borderBottom: '1px solid rgba(0,0,0,0.04)', boxShadow: '-8px 0 12px -12px rgba(0,0,0,.45)', padding: '0 3px' }}>
-                        {totalHours > 0 ? formatTotalHours(totalHours) : '—'}
-                      </td>
-                      {/* Norma */}
-                      <td
-                        className="grafik-summary-td"
-                        style={{
-                          textAlign: 'center',
-                          fontWeight: emp.contract_type === 'UoP' && empNorm !== norm ? 600 : 500,
-                          fontSize: '10px',
-                          color: emp.contract_type === 'UoP' && empNorm !== norm ? '#007AFF' : '#8e8e93',
-                          borderBottom: '1px solid rgba(0,0,0,0.04)',
-                          ...stickySummaryStyle(1, rowBg),
-                        }}
-                        title={emp.contract_type === 'UoP' && empNorm !== norm ? `Norma bazowa: ${norm}h, skorygowana o urlop/L4/NU: ${empNorm}h` : undefined}
-                      >
-                        {empNorm}
-                      </td>
-                      {/* Różnica */}
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(2, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)', padding: '0 2px' }}>
-                        {totalHours === 0 ? (
-                          <span style={{ color: 'rgba(0,0,0,0.12)' }}>—</span>
-                        ) : diff > 0 ? (
-                          <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(52, 199, 89, 0.12)', color: '#248A3D', fontWeight: 700, fontSize: '10px' }}>
-                            {formatDiff(diff)}
-                          </span>
-                        ) : diff < 0 ? (
-                          <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255, 59, 48, 0.08)', color: '#FF3B30', fontWeight: 700, fontSize: '10px' }}>
-                            {formatDiff(diff)}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#8e8e93', fontWeight: 500, fontSize: '10px' }}>0</span>
-                        )}
-                      </td>
-                      {/* L4, UW, NU, NN */}
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(3, rowBg), textAlign: 'center', borderLeft: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                        {l4Count > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{l4Count}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
-                      </td>
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(4, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                        {uwCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(0,122,255,0.1)', color: '#007AFF', fontWeight: 700, fontSize: '9px' }}>{uwCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
-                      </td>
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(5, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                        {nuCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontWeight: 700, fontSize: '9px' }}>{nuCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
-                      </td>
-                      <td className="grafik-summary-td" style={{ ...stickySummaryStyle(6, rowBg), textAlign: 'center', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                        {nnCount > 0 ? <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '6px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontWeight: 700, fontSize: '9px' }}>{nnCount}</span> : <span style={{ color: 'rgba(0,0,0,0.1)' }}>—</span>}
-                      </td>
-                    </tr>
+                    <GrafikEmployeeRow
+                      key={emp.id}
+                      emp={emp}
+                      empIdx={empIdx}
+                      rowBg={empIdx % 2 === 0 ? '#ffffff' : '#f8f9fb'}
+                      values={valuesByEmployee.get(emp.id)}
+                      employed={employmentByEmployee.get(emp.id)}
+                      stats={rowStatsByEmployee.get(emp.id)}
+                      dayMeta={dayMeta}
+                      norm={norm}
+                      todayDay={todayDay}
+                      todayYmd={todayYmd}
+                      selectedDay={selectedCell?.empIdx === empIdx ? selectedCell.day : null}
+                      canEditWorkSchedule={canEditWorkSchedule}
+                      onSelectCell={handleSelectCell}
+                      driverCardsByEmployeeDueDay={driverCardsByEmployeeDueDay}
+                      driverCardHistoryByEmployeeDay={driverCardHistoryByEmployeeDay}
+                      t={t}
+                      locale={i18n.language}
+                    />
                   );
                 }),
               ];
@@ -1369,22 +1465,19 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
             {[
               { label: t('grafik.present'), labelColor: '#fff', nameBg: '#1c1c1e', cellBgBase: '#1c1c1e', cellBgWe: '#2c2c2e', cellBgToday: '#007AFF', color: '#fff' },
               { label: t('grafik.absent'), labelColor: '#B42318', nameBg: '#FFF1F0', cellBgBase: '#FFF7F6', cellBgWe: '#F7ECEB', cellBgToday: '#FFE4E1', color: '#D92D20',
-                fn: (d) => employees.filter(e => isAbsent(getValue(e, d))).length
+                fn: (d) => footerStats[d - 1].absent
               },
               { label: t('grafik.totalHours'), labelColor: '#248A3D', nameBg: '#f2f2f7', cellBgBase: '#f2f2f7', cellBgWe: '#e8e8ed', cellBgToday: '#e7f8ec', color: '#248A3D',
-                fn: (d) => { const t = employees.reduce((s, e) => s + parseHours(getValue(e, d)), 0); return formatTotalHours(t); }
+                fn: (d) => formatTotalHours(footerStats[d - 1].hours)
               }
             ].map(({ label, labelColor, nameBg, cellBgBase, cellBgWe, cellBgToday, color, fn }) => {
-              const sumFn = fn || ((d) => employees.filter(e => isPresent(getValue(e, d))).length);
+              const sumFn = fn || ((d) => footerStats[d - 1].present);
               return (
                 <tr key={label} style={{ height: '32px' }}>
                   <td className="grafik-footer-name" style={{ position: 'sticky', left: 0, zIndex: 3, background: nameBg, color: labelColor, fontWeight: 700, fontSize: '11px', padding: '0 8px 0 14px', borderRight: '1px solid rgba(255,255,255,0.08)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.08)', letterSpacing: '0.01em' }}>
                     {label}
                   </td>
-                  {days.map(d => {
-                    const dateObj = new Date(year, month - 1, d);
-                    const dw = dateObj.getDay();
-                    const isWe = dw === 0 || dw === 6;
+                  {dayMeta.map(({ d, isWe }) => {
                     const isToday = d === todayDay;
                     const cnt = sumFn(d);
                     const bg = isToday ? cellBgToday : isWe ? cellBgWe : cellBgBase;

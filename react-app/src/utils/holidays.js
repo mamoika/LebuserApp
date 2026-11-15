@@ -41,12 +41,23 @@ export function getHolidays(year) {
   return holidays;
 }
 
-export function isHoliday(dateObj) {
-  const year = dateObj.getFullYear();
-  const holidays = getHolidays(year);
+// Święta liczymy raz na rok i język. isHoliday jest wołane tysiące razy na render
+// (Grafik, Koszty, normy), a budowanie listy od zera kosztuje ~14 µs na wywołanie.
+const holidayCache = new Map();
 
-  return holidays.find(h =>
-    h.date.getDate() === dateObj.getDate() &&
-    h.date.getMonth() === dateObj.getMonth()
-  );
+function holidaysByDay(year) {
+  const key = `${year}|${i18n.language || ''}`;
+  let byDay = holidayCache.get(key);
+  if (!byDay) {
+    byDay = new Map(getHolidays(year).map(holiday => [
+      `${holiday.date.getMonth()}-${holiday.date.getDate()}`,
+      holiday,
+    ]));
+    holidayCache.set(key, byDay);
+  }
+  return byDay;
+}
+
+export function isHoliday(dateObj) {
+  return holidaysByDay(dateObj.getFullYear()).get(`${dateObj.getMonth()}-${dateObj.getDate()}`);
 }
