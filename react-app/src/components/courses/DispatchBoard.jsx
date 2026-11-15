@@ -12,6 +12,7 @@ import { approveWorkTime, rejectWorkTime } from '../../lib/adminRpc';
 import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
 import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripCourse, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
+import { getWeeklyRoutePlan } from '../../lib/weeklyRoutePlanRpc';
 import { dispatchCourseMode } from '../../lib/dispatchCourseMode';
 import { upsertCourseStop } from '../../lib/courseStopState';
 import { buildVirtualPlannedTrips } from '../../lib/tripUiHelpers';
@@ -366,7 +367,7 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
   const { t } = useTranslation();
   const progress = trip.stops_total ? Math.round((trip.stops_completed / trip.stops_total) * 100) : 0;
   const routeColor = getRouteColorByDisplay(trip.route_display || 1);
-  const canAssign = isAdmin && (trip.isVirtual || (trip.board_status === 'planning' && !trip.driver_id));
+  const canAssign = isAdmin && !trip.driver_id && (trip.isVirtual || trip.board_status === 'planning');
   const isVirtual = !!trip.isVirtual;
   const kmApproved = trip.km_approval_status === 'approved';
   const hoursApproved = trip.hours_status === 'approved';
@@ -503,9 +504,10 @@ export default function DispatchBoard() {
   const loadBoard = useCallback(async () => {
     if (!sessionToken) return;
     try {
-      const [data, tripsData] = await Promise.all([
+      const [data, tripsData, routePlanData] = await Promise.all([
         getDispatchBoard(sessionToken, tripDate),
         getDriverTripsData(sessionToken),
+        getWeeklyRoutePlan(sessionToken, tripDate),
       ]);
       const boardTrips = data.trips || [];
       const storedTrips = tripsData?.trips || [];
@@ -514,6 +516,7 @@ export default function DispatchBoard() {
       const virtualTrips = buildVirtualPlannedTrips({
         entries,
         allTrips: storedTrips,
+        routePlanTrips: routePlanData?.trips || [],
         tripDate,
       }).map(trip => ({
         ...trip,

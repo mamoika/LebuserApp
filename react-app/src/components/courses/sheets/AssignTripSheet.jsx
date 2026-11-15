@@ -14,12 +14,20 @@ function fmtDate(dateStr) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function localDateTimeInput(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, routes = [], drivers = [], onClose, onAssigned }) {
   const { t } = useTranslation();
-  const [driverId, setDriverId] = useState('');
-  const [car, setCar] = useState(VEHICLES[0].key);
+  const [driverId, setDriverId] = useState(trip?.driver_id || '');
+  const [car, setCar] = useState(trip?.car || VEHICLES[0].key);
   const [routeId, setRouteId] = useState(String(trip?.routes || '').split(',').find(Boolean) || '');
-  const [plannedStart, setPlannedStart] = useState('');
+  const [plannedStart, setPlannedStart] = useState(localDateTimeInput(trip?.planned_start));
   const [busy, setBusy] = useState(false);
   const isNewCourse = !trip?.routes;
   const sortedRoutes = useMemo(
@@ -28,10 +36,10 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
   );
 
   useEffect(() => {
-    setDriverId('');
-    setCar(VEHICLES[0].key);
+    setDriverId(trip?.driver_id || '');
+    setCar(trip?.car || VEHICLES[0].key);
     setRouteId(String(trip?.routes || '').split(',').find(Boolean) || '');
-    setPlannedStart('');
+    setPlannedStart(localDateTimeInput(trip?.planned_start));
   }, [trip]);
 
   const assign = async () => {

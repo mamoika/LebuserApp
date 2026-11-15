@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildCourseStopComparator } from './courseStopOrder.js';
+import { buildVirtualPlannedTrips } from './tripUiHelpers.js';
 
 test('course stops follow client order even when dirty-only stop was appended later', () => {
   const routes = [{ id: 8, sort_order: 8 }];
@@ -37,4 +38,85 @@ test('course stops follow route order before client order', () => {
     [...stops].sort(buildCourseStopComparator(clients, routes)).map(stop => stop.client_name),
     ['Route one second client', 'Route two first client'],
   );
+});
+
+test('weekly route assignment enriches a virtual dispatch course', () => {
+  const trips = buildVirtualPlannedTrips({
+    entries: [{
+      route_id: 5,
+      week_key: '2026-11-16',
+      arr_day: 1,
+      pick_week_key: '2026-11-16',
+      pick_day: 1,
+    }],
+    allTrips: [],
+    routePlanTrips: [{
+      id: 'assignment-1',
+      trip_date: '2026-11-16',
+      routes: '5',
+      driver_id: 'driver-1',
+      driver_name: 'Henryk Ulatowski',
+      car: 'fiat',
+      planned_start: '2026-11-16T08:00:00+00:00',
+    }],
+    tripDate: '2026-11-16',
+    horizonDays: 30,
+  });
+
+  assert.equal(trips.length, 1);
+  assert.deepEqual(trips[0], {
+    id: 'virtual_2026-11-16_5',
+    status: 'planned',
+    trip_date: '2026-11-16',
+    driver_name: 'Henryk Ulatowski',
+    driver_id: 'driver-1',
+    car: 'fiat',
+    routes: '5',
+    planned_start: '2026-11-16T08:00:00+00:00',
+    plan_assignment_id: 'assignment-1',
+    isVirtual: true,
+    board_status: 'ready',
+    stops_total: 0,
+    stops_completed: 0,
+  });
+});
+
+test('weekly route assignment creates a dispatch course without laundry entries', () => {
+  const trips = buildVirtualPlannedTrips({
+    entries: [],
+    allTrips: [],
+    routePlanTrips: [{
+      id: 'assignment-2',
+      trip_date: '2026-11-16',
+      routes: '6',
+      driver_id: 'driver-2',
+      driver_name: 'Paweł Tałajczyk',
+      car: 'isuzu',
+    }],
+    tripDate: '2026-11-16',
+    horizonDays: 30,
+  });
+
+  assert.equal(trips.length, 1);
+  assert.equal(trips[0].routes, '6');
+  assert.equal(trips[0].driver_name, 'Paweł Tałajczyk');
+  assert.equal(trips[0].board_status, 'ready');
+});
+
+test('operational course replaces the weekly-plan virtual course', () => {
+  const trips = buildVirtualPlannedTrips({
+    entries: [{
+      route_id: 5,
+      week_key: '2026-11-16',
+      arr_day: 1,
+      pick_week_key: '2026-11-16',
+      pick_day: 1,
+    }],
+    allTrips: [{ trip_date: '2026-11-16', routes: '5' }],
+    routePlanTrips: [{ trip_date: '2026-11-16', routes: '5', driver_id: 'driver-1' }],
+    tripDate: '2026-11-16',
+    horizonDays: 30,
+  });
+
+  assert.deepEqual(trips, []);
 });

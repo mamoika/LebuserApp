@@ -1,6 +1,6 @@
 import i18n from '../i18n/index.js';
-import { currentLocale, formatWeekKey, operationalDate, operationalYmd } from './dateUtils';
-import { parseRouteIds } from './routeIds';
+import { currentLocale, formatWeekKey, operationalDate, operationalYmd } from './dateUtils.js';
+import { parseRouteIds } from './routeIds.js';
 
 export { parseRouteIds };
 
@@ -145,7 +145,13 @@ export function routeNamesForTrip(sourceTrip, routeMap = {}) {
   }).join(', ');
 }
 
-export function buildVirtualPlannedTrips({ entries, allTrips, horizonDays = 14, tripDate = null }) {
+export function buildVirtualPlannedTrips({
+  entries,
+  allTrips,
+  routePlanTrips = [],
+  horizonDays = 14,
+  tripDate = null,
+}) {
   const horizonSet = new Set();
   const anchor = operationalDate();
   for (let i = 0; i < horizonDays; i += 1) {
@@ -166,6 +172,13 @@ export function buildVirtualPlannedTrips({ entries, allTrips, horizonDays = 14, 
     });
   });
 
+  routePlanTrips.forEach(assignment => {
+    const ds = assignment?.trip_date;
+    if (!ds || !horizonSet.has(ds) || (tripDate && ds !== tripDate)) return;
+    if (!plannedByDate.has(ds)) plannedByDate.set(ds, new Set());
+    parseRouteIds(assignment.routes).forEach(routeId => plannedByDate.get(ds).add(routeId));
+  });
+
   const coveredByDate = new Map();
   allTrips.forEach(trip => {
     if (!trip.trip_date) return;
@@ -173,21 +186,33 @@ export function buildVirtualPlannedTrips({ entries, allTrips, horizonDays = 14, 
     parseRouteIds(trip.routes).forEach(id => coveredByDate.get(trip.trip_date).add(id));
   });
 
+  const routePlanByDateAndRoute = new Map();
+  routePlanTrips.forEach(assignment => {
+    if (!assignment?.trip_date) return;
+    parseRouteIds(assignment.routes).forEach(routeId => {
+      routePlanByDateAndRoute.set(`${assignment.trip_date}:${routeId}`, assignment);
+    });
+  });
+
   const virtualPlannedTrips = [];
   [...plannedByDate.keys()].sort().forEach(ds => {
     const covered = coveredByDate.get(ds) || new Set();
     [...plannedByDate.get(ds)].sort((a, b) => a - b).forEach(routeId => {
       if (covered.has(routeId)) return;
+      const routePlanAssignment = routePlanByDateAndRoute.get(`${ds}:${routeId}`);
+      const hasDriver = Boolean(routePlanAssignment?.driver_id);
       virtualPlannedTrips.push({
         id: `virtual_${ds}_${routeId}`,
         status: 'planned',
         trip_date: ds,
-        driver_name: null,
-        driver_id: null,
-        car: null,
+        driver_name: routePlanAssignment?.driver_name || null,
+        driver_id: routePlanAssignment?.driver_id || null,
+        car: routePlanAssignment?.car || null,
         routes: String(routeId),
+        planned_start: routePlanAssignment?.planned_start || null,
+        plan_assignment_id: routePlanAssignment?.id || null,
         isVirtual: true,
-        board_status: 'planning',
+        board_status: hasDriver ? 'ready' : 'planning',
         stops_total: 0,
         stops_completed: 0,
       });
