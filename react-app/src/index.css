@@ -12536,8 +12536,30 @@ select.ap-input {
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
   height: 66px;
-  padding: 5px;
+  padding: 4px 3px;
+  background: #fbfbfc;
   vertical-align: middle;
+  transition: background-color 140ms ease;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.has-assignment {
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 13%, #fff);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.has-assignment:hover {
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fff);
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule.has-assignment {
+  background: #fff3d6;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-off-schedule.has-assignment:hover {
+  background: #ffebbd;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td.is-today:not(.has-assignment) {
+  background: #f3f7fc;
 }
 
 /* Kolumna trasy: numer + nazwa + obsada tygodnia */
