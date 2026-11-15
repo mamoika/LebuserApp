@@ -12597,27 +12597,27 @@ select.ap-input {
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
   min-height: 54px;
   justify-content: center;
-  padding: 7px 10px 7px 11px;
+  padding: 7px 8px;
   border-radius: 11px;
   transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment {
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 22%, transparent);
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 6%, #fff);
-  box-shadow: inset 3px 0 0 var(--route-color, var(--accent));
+  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 26%, transparent);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 13%, #fff);
+  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.04);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.has-assignment:not(:disabled):hover {
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 40%, transparent);
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 11%, #fff);
-  box-shadow: inset 3px 0 0 var(--route-color, var(--accent)), 0 4px 12px rgba(29, 29, 31, 0.06);
+  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 44%, transparent);
+  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fff);
+  box-shadow: 0 4px 14px rgba(29, 29, 31, 0.08);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell.is-off-schedule.has-assignment {
-  border-color: #ead5a6;
-  background: #fff8e8;
-  box-shadow: inset 3px 0 0 #e0a100;
+  border-color: #e5c178;
+  background: #fff3d6;
+  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.04);
 }
 
 .weekly-plan-card-head {
@@ -12637,11 +12637,12 @@ select.ap-input {
   height: 22px;
   margin: 0 !important;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--route-color, var(--accent)) 18%, #fff);
-  color: color-mix(in srgb, var(--route-color, var(--accent)) 72%, #111) !important;
+  background: #fff;
+  color: color-mix(in srgb, var(--route-color, var(--accent)) 85%, #111) !important;
   font-size: 9px !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head strong {
@@ -12740,7 +12741,7 @@ select.ap-input {
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
-  padding: 7px 7px 7px 9px;
+  padding: 7px 8px;
 }
 
 .weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head {
