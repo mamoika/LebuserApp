@@ -12307,3 +12307,29 @@ select.ap-input {
   .cp-trip,
   .cp-progress > span { transition: none; }
 }
+
+/* Zwijanie sidebara bez przeliczania strony w każdej klatce:
+   kolumna ramki zmienia szerokość raz (od razu), a animuje się tylko panel.
+   Wcześniej animacja grid-template-columns kazała co klatkę przeliczać i
+   przerysowywać całą treść obok — przy dużych tabelach (Grafik, Obsada) lagowało. */
+@media (min-width: 901px) {
+  .app-frame {
+    transition: none;
+  }
+
+  .app-navigation {
+    position: relative;
+    z-index: 40;
+  }
+
+  .app-navigation-inner {
+    width: 223px;
+    background: var(--laundry-surface);
+    box-shadow: 1px 0 0 var(--laundry-divider);
+    transition: width 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .app-navigation.is-collapsed .app-navigation-inner {
+    width: 71px;
+  }
+}
