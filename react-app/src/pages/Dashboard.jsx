@@ -122,7 +122,7 @@ function PrivacyNoticeModal() {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user, adminBackup, switchKioskUser, stopImpersonating, isDriver, canViewModule } = useAuth();
+  const { user, adminBackup, switchKioskUser, stopImpersonating, isDriver, canViewModule, canViewControlPanel } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
@@ -130,12 +130,12 @@ export default function Dashboard() {
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
   // Admin zaczyna od Panelu sterującego; reszta od pierwszego dostępnego widoku.
   const firstAllowedPath = [
-    ['admin', '/panel'],
+    ...(canViewControlPanel ? [['panel', '/panel']] : []),
     ...(isDriver ? [['route', '/route']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
     ['map', '/map'],
     ['wash', '/wash'], ['warehouse', '/warehouse'], ['history', '/history'],
-  ].find(([module]) => canViewModule(module) || (module === 'map' && isDriver))?.[1] || '/rodo';
+  ].find(([module]) => module === 'panel' || canViewModule(module) || (module === 'map' && isDriver))?.[1] || '/rodo';
 
   const handleStopImpersonating = async () => {
     const result = await stopImpersonating();
@@ -214,7 +214,7 @@ export default function Dashboard() {
           <Route path="/clients" element={canViewModule('clients') ? <ClientsRoutesView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/route-plan" element={canViewModule('route_plan') ? <WeeklyRoutePlanView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/admin" element={canViewModule('admin') ? <AdminDashboard /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/panel" element={canViewModule('admin') ? <ControlPanelView /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/panel" element={canViewControlPanel ? <ControlPanelView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/history" element={canViewModule('history') ? <HistoryView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/grafik" element={canViewModule('work_schedule') ? <WorkScheduleView /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/timeline" element={<Navigate to="/grafik#obsada" replace />} />

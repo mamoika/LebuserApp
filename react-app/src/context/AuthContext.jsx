@@ -421,6 +421,8 @@ export const AuthProvider = ({ children }) => {
   // Zgodność ze starszymi komponentami; nowe widoki używają canViewModule/canEditModule.
   const canViewLaundry = canViewModule('wash');
   const canViewAdminData = ['live_routes', 'work_schedule', 'costs'].some(canViewModule);
+  // Panel sterujący widzi każda rola administracyjna (admin i podglądy admina).
+  const canViewControlPanel = isAdmin || isAdminViewer;
 
   return (
     <AuthContext.Provider value={{
@@ -443,6 +445,7 @@ export const AuthProvider = ({ children }) => {
       signOut,
       isAdmin,
       isAdminViewer,
+      canViewControlPanel,
       isDriver,
       isViewer,
       moduleAccess,
