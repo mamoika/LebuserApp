@@ -2900,22 +2900,64 @@
     ]
   },
   "controlPanel": {
-    "previousWorkdayNote": "Wäscherei und Touren: Daten vom {{day}}",
     "greetingMorning": "Guten Morgen, {{name}}",
     "greetingDay": "Guten Tag, {{name}}",
     "greetingEvening": "Guten Abend, {{name}}",
-    "subtitle": "Wäscherei, Wagen, Touren, Team und offene Freigaben — live.",
+    "subtitle": "Wäscherei, Wagen, Touren, Team und offene Freigaben an einem Ort.",
+    "offDaySubtitle": "Heute frei · nächste Schicht: {{date}}",
     "updatedAt": "Aktualisiert {{time}}",
     "kpisLabel": "Die wichtigsten Zahlen des Tages",
     "noDriverName": "Ohne Fahrer",
     "issues": {
       "costs": "Kosten",
+      "nextShift": "nächste Schicht",
       "title": "Einige Daten konnten nicht geladen werden:",
       "laundry": "Wäscherei",
       "routes": "Touren",
       "schedule": "Dienstplan",
       "driverCards": "Fahrerkarten",
       "myHours": "meine Stunden"
+    },
+    "attention": {
+      "title": "Braucht Aufmerksamkeit",
+      "allClear": "Alles freigegeben — nichts wartet auf deine Entscheidung.",
+      "lowTrolleysTitle": "Wenige freie Wagen",
+      "lowTrolleysDetail": "frei: {{free}} von {{total}}",
+      "nextNoDriverTitle_one": "{{count}} Kurs ohne Fahrer",
+      "nextNoDriverTitle_other": "{{count}} Kurse ohne Fahrer",
+      "nextNoDriverDetail": "Nächste Schicht · {{date}}"
+    },
+    "next": {
+      "title": "Nächste Schicht",
+      "courses_one": "{{count}} Kurs",
+      "courses_other": "{{count}} Kurse",
+      "noDriver_one": "{{count}} ohne Fahrer",
+      "noDriver_other": "{{count}} ohne Fahrer",
+      "team": "{{working}}/{{total}} im Dienst",
+      "absent_one": "{{count}} abwesend",
+      "absent_other": "{{count}} abwesend"
+    },
+    "today": {
+      "title": "Heute",
+      "lastWorkday": "Letzter Arbeitstag",
+      "laundry": "Wäsche",
+      "trolleys": "Wagen belegt",
+      "trolleysDetail": "frei: {{free}} · bei Kunden: {{atClient}} · in der Wäscherei: {{inLaundry}}",
+      "trolleysReserved": "reserviert: {{count}}",
+      "team": "Team im Dienst",
+      "courses": "Kurse",
+      "coursesDetail": "unterwegs: {{active}} · abgeschlossen: {{closed}}"
+    },
+    "month": {
+      "title": "{{month}} — bis heute",
+      "note": "Vergleich mit dem gleichen Zeitraum: {{month}}",
+      "costs": "Kosten",
+      "tonnage": "Tonnage",
+      "tonnageDetail": "durchschnittlich {{perDay}} kg pro Tag",
+      "myHours": "Meine Stunden",
+      "myHoursDetail": "bis heute {{hours}} von {{norm}} h Soll ({{diff}} h) · ganzer Monat {{monthNorm}} h",
+      "perKgVs": "zł/kg vs. {{month}}",
+      "vs": "vs. {{month}}"
     },
     "kpi": {
       "tonnageDetail": "{{kg}} kg · im Schnitt {{perDay}} kg pro Tag",
@@ -2952,7 +2994,7 @@
       "cardDueSoon_other": "Auslesen in {{count}} Tagen"
     },
     "live": {
-      "title": "Fahrer unterwegs",
+      "title": "Kurse",
       "open": "Disposition",
       "nextStop": "Nächster: {{name}}",
       "noNextStop": "Kein weiterer Stopp",
@@ -2965,6 +3007,8 @@
     },
     "team": {
       "title": "Team heute",
+      "titleOn": "Team · {{date}}",
+      "absentOn": "Abwesend · {{date}}",
       "open": "Dienstplan",
       "emptyTitle": "Keine Dienstplandaten für heute",
       "absentToday": "Heute abwesend",

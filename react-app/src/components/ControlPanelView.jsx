@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -22,7 +25,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { getDispatchBoard } from '../lib/courseRpc';
-import { getCostsMonth, getDriverCardReminders, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
+import { getCostsMonth, getDriverCardReminders, getDriverTripsData, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
+import { getWeeklyRoutePlan } from '../lib/weeklyRoutePlanRpc';
+import { buildVirtualPlannedTrips } from '../lib/tripUiHelpers';
 import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
@@ -38,11 +43,18 @@ import {
   buildTeamDay,
   buildUpcomingAbsences,
   collectApprovals,
+  nextShiftYmd,
+  percentChange,
+  prettyGroupName,
+  previousMonthSameDay,
 } from '../lib/controlPanelMetrics';
 
 const REFRESH_MS = 60000;
 const DEFAULT_TROLLEY_COUNT = 25;
 const APPROVALS_VISIBLE = 8;
+const LOW_TROLLEYS = 3;
+const NEXT_SHIFT_FROM_HOUR = 15;
+const COURSE_STAGES = ['planning', 'ready', 'active', 'settlement', 'closed'];
 
 const EMPTY_REMOTE = {
   trolleys: [],
@@ -53,7 +65,19 @@ const EMPTY_REMOTE = {
   driverCards: [],
   myWork: null,
   costsMonth: null,
+  prevCostsMonth: null,
+  next: null,
 };
+
+function ymdParts(value) {
+  const [year, month, day] = String(value).split('-').map(Number);
+  return { year, month, day };
+}
+
+function capitalizeFirst(text) {
+  const value = String(text || '');
+  return value ? value.charAt(0).toLocaleUpperCase() + value.slice(1) : value;
+}
 
 function formatNumber(value, digits = 1) {
   return Number(value || 0).toLocaleString(currentLocale(), {
@@ -87,9 +111,24 @@ function greetingKey(date) {
   return 'controlPanel.greetingEvening';
 }
 
-function KpiCard({ icon: Icon, tone = 'blue', label, value, unit, detail, progress, to }) {
+function TrendChip({ value, goodWhenUp, label }) {
+  if (value == null) return null;
+  const up = value > 0;
+  const flat = value === 0;
+  const good = flat ? null : (up === goodWhenUp);
+  const Icon = up ? ArrowUpRight : ArrowDownRight;
   return (
-    <Link to={to} className={`cp-kpi tone-${tone}`}>
+    <span className={`cp-trend ${good === null ? 'is-flat' : good ? 'is-good' : 'is-bad'}`}>
+      {!flat && <Icon size={13} aria-hidden="true" />}
+      {`${up ? '+' : flat ? '±' : '−'}${Math.abs(value)}%`}
+      <small>{label}</small>
+    </span>
+  );
+}
+
+function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit, detail, progress, trend, to }) {
+  return (
+    <Link to={to} className={`cp-kpi tone-${tone} ${alert ? 'is-alert' : ''}`}>
       <span className="cp-kpi-head">
         <span className="cp-kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={2} /></span>
         <span className="cp-kpi-label">{label}</span>
@@ -105,6 +144,7 @@ function KpiCard({ icon: Icon, tone = 'blue', label, value, unit, detail, progre
         </span>
       )}
       {detail && <span className="cp-kpi-detail">{detail}</span>}
+      {trend}
     </Link>
   );
 }
@@ -124,16 +164,6 @@ function CardHeader({ icon: Icon, title, count, tone = 'neutral', to, linkLabel 
         </Link>
       )}
     </header>
-  );
-}
-
-function EmptyState({ icon: Icon, title, detail }) {
-  return (
-    <div className="cp-empty">
-      <span className="cp-empty-icon" aria-hidden="true"><Icon size={20} /></span>
-      <strong>{title}</strong>
-      {detail && <span>{detail}</span>}
-    </div>
   );
 }
 
@@ -229,21 +259,35 @@ export default function ControlPanelView() {
   // w Pralni i Dyspozytorni. Nagłówek, zespół i moje godziny — dla prawdziwej daty.
   const todayKey = operationalYmd();
   const calendarKey = calendarTodayYmd();
-  const [year, month, day] = calendarKey.split('-').map(Number);
-  const showsPreviousWorkday = todayKey !== calendarKey;
-  const operationalLabel = new Date(`${todayKey}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
+  const { year, month, day } = ymdParts(calendarKey);
+  const isOffDay = todayKey !== calendarKey;
+  const nextKey = nextShiftYmd(calendarKey);
+  const showNextShift = isOffDay || new Date().getHours() >= NEXT_SHIFT_FROM_HOUR;
+  const prev = previousMonthSameDay(year, month, day);
 
   const load = useCallback(async () => {
     if (!sessionToken) return;
     setLoading(true);
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes] = await Promise.allSettled([
+    const prevMonthKey = `${prev.year}-${String(prev.month).padStart(2, '0')}`;
+    const nextParts = ymdParts(nextKey);
+    const nextOtherMonth = nextParts.month !== month || nextParts.year !== year;
+    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes, prevCostsRes, nextRes] = await Promise.allSettled([
       getLaundryWorkflow(sessionToken),
       getDispatchBoard(sessionToken, todayKey),
       getWorkScheduleMonth(sessionToken, year, month),
       getDriverCardReminders(sessionToken),
       getMyWorkTime(sessionToken, year, month),
       getCostsMonth(sessionToken, monthKey),
+      getCostsMonth(sessionToken, prevMonthKey),
+      showNextShift
+        ? Promise.all([
+          getDispatchBoard(sessionToken, nextKey),
+          getWeeklyRoutePlan(sessionToken, nextKey),
+          getDriverTripsData(sessionToken),
+          nextOtherMonth ? getWorkScheduleMonth(sessionToken, nextParts.year, nextParts.month) : Promise.resolve(null),
+        ])
+        : Promise.resolve(null),
     ]);
 
     const nextIssues = [];
@@ -253,8 +297,10 @@ export default function ControlPanelView() {
     if (cardsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.driverCards'));
     if (myWorkRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.myHours'));
     if (costsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.costs'));
+    if (nextRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.nextShift'));
 
     const laundry = laundryRes.status === 'fulfilled' ? laundryRes.value : null;
+    const nextValue = nextRes.status === 'fulfilled' ? nextRes.value : null;
     setRemote({
       trolleys: laundry?.trolleys || [],
       arrivalReservations: laundry?.arrival_reservations || [],
@@ -264,11 +310,20 @@ export default function ControlPanelView() {
       driverCards: cardsRes.status === 'fulfilled' ? (cardsRes.value?.cards || []) : [],
       myWork: myWorkRes.status === 'fulfilled' ? myWorkRes.value : null,
       costsMonth: costsRes.status === 'fulfilled' ? costsRes.value : null,
+      prevCostsMonth: prevCostsRes.status === 'fulfilled' ? prevCostsRes.value : null,
+      next: nextValue
+        ? {
+          boardTrips: nextValue[0]?.trips || [],
+          routePlanTrips: nextValue[1]?.trips || [],
+          storedTrips: nextValue[2]?.trips || [],
+          schedule: nextValue[3],
+        }
+        : null,
     });
     setIssues(nextIssues);
     setUpdatedAt(new Date());
     setLoading(false);
-  }, [month, sessionToken, t, todayKey, year]);
+  }, [month, nextKey, prev.month, prev.year, sessionToken, showNextShift, t, todayKey, year]);
 
   useEffect(() => {
     load();
@@ -296,35 +351,51 @@ export default function ControlPanelView() {
       remainingKg: Math.max(0, Number((metrics.plannedKg - metrics.washedKg).toFixed(1))),
       occupied,
       atClient,
+      inLaundry: Math.max(0, activeCycles.length - atClient),
+      reserved: Math.max(0, occupied - activeCycles.length),
       free: Math.max(0, remote.trolleyCount - occupied),
     };
   }, [clients, entries, remote.arrivalReservations, remote.trolleyCount, remote.trolleys, routes, todayKey]);
 
-  const team = useMemo(() => {
-    const schedule = remote.schedule;
+  // Grafik dla dowolnego dnia z bieżącego lub (dla następnej zmiany) kolejnego miesiąca.
+  const teamFor = useCallback((ymd, withUpcoming = false) => {
+    const parts = ymdParts(ymd);
+    const sameMonth = parts.year === year && parts.month === month;
+    const schedule = sameMonth ? remote.schedule : remote.next?.schedule;
+    if (!schedule) return null;
     const input = {
-      roster: schedule?.roster || [],
-      scheduleEntries: schedule?.schedule_entries || [],
-      employmentPeriods: schedule?.employment_periods || [],
-      year,
-      month,
+      roster: schedule.roster || [],
+      scheduleEntries: schedule.schedule_entries || [],
+      employmentPeriods: schedule.employment_periods || [],
+      year: parts.year,
+      month: parts.month,
     };
     return {
-      today: buildTeamDay({ ...input, day }),
-      upcoming: buildUpcomingAbsences({ ...input, fromDay: day + 1, days: 7 }),
+      day: buildTeamDay({ ...input, day: parts.day }),
+      upcoming: withUpcoming ? buildUpcomingAbsences({ ...input, fromDay: parts.day + 1, days: 7 }) : [],
+      parts,
     };
-  }, [day, month, remote.schedule, year]);
+  }, [month, remote.next, remote.schedule, year]);
+
+  const teamDayKey = isOffDay ? nextKey : calendarKey;
+  const team = useMemo(() => teamFor(teamDayKey, true), [teamDayKey, teamFor]);
+  const operationalTeam = useMemo(() => teamFor(todayKey), [teamFor, todayKey]);
 
   const myHours = useMemo(() => buildMyMonthHours({
     employee: remote.myWork?.employee || null,
     scheduleEntries: remote.myWork?.schedule_entries || [],
     year,
     month,
-  }), [month, remote.myWork, year]);
+    uptoDay: day,
+  }), [day, month, remote.myWork, year]);
 
   const costs = useMemo(() => (remote.costsMonth
     ? summarizeCostsMonth({ monthData: remote.costsMonth, year, month, todayKey: calendarKey })
     : null), [calendarKey, month, remote.costsMonth, year]);
+
+  const prevCosts = useMemo(() => (remote.prevCostsMonth
+    ? summarizeCostsMonth({ monthData: remote.prevCostsMonth, year: prev.year, month: prev.month, todayKey: prev.ymd })
+    : null), [prev.month, prev.year, prev.ymd, remote.prevCostsMonth]);
 
   const approvals = useMemo(() => collectApprovals({
     workTimeReports: remote.schedule?.work_time_reports || [],
@@ -333,40 +404,61 @@ export default function ControlPanelView() {
   }), [remote.boardTrips, remote.driverCards, remote.schedule]);
 
   const trips = useMemo(() => {
-    const byStatus = status => remote.boardTrips.filter(trip => !trip.isVirtual && trip.board_status === status);
-    return {
-      active: byStatus('active'),
-      ready: byStatus('ready'),
-      planning: byStatus('planning'),
-      settlement: byStatus('settlement'),
-      closed: byStatus('closed'),
-    };
+    const real = remote.boardTrips.filter(trip => !trip.isVirtual);
+    const byStatus = Object.fromEntries(COURSE_STAGES.map(stage => [stage, real.filter(trip => trip.board_status === stage)]));
+    return { ...byStatus, total: real.length };
   }, [remote.boardTrips]);
+
+  const nextShift = useMemo(() => {
+    if (!showNextShift || !remote.next) return null;
+    const virtual = buildVirtualPlannedTrips({
+      entries,
+      allTrips: remote.next.storedTrips,
+      routePlanTrips: remote.next.routePlanTrips,
+      tripDate: nextKey,
+    });
+    const real = remote.next.boardTrips.filter(trip => !trip.isVirtual);
+    const nextTeam = teamFor(nextKey);
+    return {
+      courses: real.length + virtual.length,
+      noDriver: virtual.length + real.filter(trip => !trip.driver_id).length,
+      team: nextTeam?.day || null,
+    };
+  }, [entries, nextKey, remote.next, showNextShift, teamFor]);
 
   const now = new Date();
   const firstName = String(user?.name || '').split(/\s+/)[0] || user?.username || '';
-  const rawDateLabel = new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
-  const dateLabel = rawDateLabel.charAt(0).toUpperCase() + rawDateLabel.slice(1);
+  const dateLabel = capitalizeFirst(new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }));
+  const shortDate = ymd => capitalizeFirst(new Date(`${ymd}T00:00:00`).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }));
+  const longDate = ymd => capitalizeFirst(new Date(`${ymd}T00:00:00`).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }));
   const monthLabel = monthNames()[month - 1] || '';
+  const prevMonthLabel = monthNames()[prev.month - 1] || '';
   const visibleApprovals = approvals.slice(0, APPROVALS_VISIBLE);
   const hiddenApprovals = approvals.length - visibleApprovals.length;
   const formatDayRange = (item) => {
-    const toLabel = dayNumber => new Date(year, month - 1, dayNumber).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+    const { year: y, month: m } = team?.parts || { year, month };
+    const toLabel = dayNumber => new Date(y, m - 1, dayNumber).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
     return item.firstDay === item.lastDay ? toLabel(item.firstDay) : `${toLabel(item.firstDay)} – ${toLabel(item.lastDay)}`;
   };
+
+  const lowTrolleys = !loading && laundry.free <= LOW_TROLLEYS;
+  const nextNoDriver = nextShift?.noDriver || 0;
+  const attentionCount = approvals.length + (lowTrolleys ? 1 : 0) + (nextNoDriver ? 1 : 0);
+
+  const costsTrend = costs && prevCosts ? percentChange(costs.plnPerKg, prevCosts.plnPerKg) : null;
+  const tonnageTrend = costs && prevCosts ? percentChange(costs.kg, prevCosts.kg) : null;
 
   return (
     <div className="cp">
       <header className="cp-head">
         <div>
-          <p className="cp-eyebrow">
-            {dateLabel}
-            {showsPreviousWorkday && (
-              <span className="cp-eyebrow-note">{t('controlPanel.previousWorkdayNote', { day: operationalLabel })}</span>
-            )}
-          </p>
+          <p className="cp-eyebrow">{dateLabel}</p>
           <h2>{t(greetingKey(now), { name: firstName })}</h2>
-          <p className="cp-subtitle">{t('controlPanel.subtitle')}</p>
+          <p className="cp-subtitle">
+            {isOffDay
+              ? t('controlPanel.offDaySubtitle', { date: longDate(nextKey) })
+              : t('controlPanel.subtitle')}
+          </p>
         </div>
         <button type="button" className="cp-refresh" onClick={load} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'spin' : ''} aria-hidden="true" />
@@ -385,98 +477,127 @@ export default function ControlPanelView() {
         </div>
       )}
 
-      <section className="cp-kpis" aria-label={t('controlPanel.kpisLabel')}>
-        <KpiCard
-          icon={Timer}
-          tone={myHours && myHours.diff < 0 ? 'amber' : 'violet'}
-          label={t('controlPanel.kpi.myHours', { month: monthLabel })}
-          value={myHours ? formatNumber(myHours.hours) : '—'}
-          unit={myHours ? 'h' : undefined}
-          progress={myHours ? percent(myHours.hours, myHours.norm) : undefined}
-          detail={myHours
-            ? t('controlPanel.kpi.myHoursDetail', { norm: formatNumber(myHours.norm), diff: signed(myHours.diff) })
-            : t('controlPanel.kpi.myHoursMissing')}
-          to="/grafik"
-        />
-        <KpiCard
-          icon={Coins}
-          tone={costs?.targetCostPerKg && costs.plnPerKg > costs.targetCostPerKg ? 'amber' : 'blue'}
-          label={t('controlPanel.kpi.costs', { month: monthLabel })}
-          value={costs ? formatMoney(costs.total) : '—'}
-          detail={costs
-            ? t('controlPanel.kpi.costsDetail', { perKg: formatMoneyPrecise(costs.plnPerKg), perDay: formatMoney(costs.avgPerDay) })
-            : t('controlPanel.kpi.costsMissing')}
-          to="/costs"
-        />
-        <KpiCard
-          icon={Scale}
-          tone="teal"
-          label={t('controlPanel.kpi.tonnage', { month: monthLabel })}
-          value={costs ? formatNumber(costs.kg / 1000, 1) : '—'}
-          unit={costs ? 't' : undefined}
-          detail={costs
-            ? t('controlPanel.kpi.tonnageDetail', { kg: formatNumber(costs.kg, 0), perDay: formatNumber(costs.accruedDays ? costs.kg / costs.accruedDays : 0, 0) })
-            : t('controlPanel.kpi.costsMissing')}
-          to="/costs"
-        />
-        <KpiCard
-          icon={WashingMachine}
-          tone="blue"
-          label={t('controlPanel.kpi.laundry')}
-          value={formatNumber(laundry.plannedKg)}
-          unit="kg"
-          progress={percent(laundry.washedKg, laundry.plannedKg)}
-          detail={t('controlPanel.kpi.laundryDetail', {
-            washed: formatNumber(laundry.washedKg),
-            remaining: formatNumber(laundry.remainingKg),
-            departure: formatNumber(laundry.departureKg),
-          })}
-          to="/wash"
-        />
-        <KpiCard
-          icon={Package}
-          tone={laundry.free === 0 ? 'red' : laundry.free <= 3 ? 'amber' : 'teal'}
-          label={t('controlPanel.kpi.trolleys')}
-          value={`${laundry.occupied}/${remote.trolleyCount}`}
-          progress={percent(laundry.occupied, remote.trolleyCount)}
-          detail={t('controlPanel.kpi.trolleysDetail', { free: laundry.free, atClient: laundry.atClient })}
-          to="/wash"
-        />
-        <KpiCard
-          icon={Users}
-          tone="green"
-          label={t('controlPanel.kpi.team')}
-          value={`${team.today.working}/${team.today.total}`}
-          progress={percent(team.today.working, team.today.total)}
-          detail={t('controlPanel.kpi.teamDetail', { absent: team.today.absentCount, off: team.today.off })}
-          to="/grafik"
-        />
+      {attentionCount > 0 ? (
+        <section className="cp-card cp-attention" aria-labelledby="cp-attention-title">
+          <header className="cp-card-head">
+            <span className="cp-card-title">
+              <AlertTriangle size={17} aria-hidden="true" />
+              <h3 id="cp-attention-title">{t('controlPanel.attention.title')}</h3>
+              <span className="cp-count tone-amber">{attentionCount}</span>
+            </span>
+          </header>
+          <div className="cp-attention-rows">
+            {nextNoDriver > 0 && (
+              <Link to="/routes" className="cp-row">
+                <span className="cp-row-icon tone-red" aria-hidden="true"><UserX size={16} /></span>
+                <span className="cp-row-body">
+                  <strong>{t('controlPanel.attention.nextNoDriverTitle', { count: nextNoDriver })}</strong>
+                  <small>{t('controlPanel.attention.nextNoDriverDetail', { date: shortDate(nextKey) })}</small>
+                </span>
+                <ChevronRight size={15} className="cp-row-chevron" aria-hidden="true" />
+              </Link>
+            )}
+            {lowTrolleys && (
+              <Link to="/wash" className="cp-row">
+                <span className={`cp-row-icon ${laundry.free === 0 ? 'tone-red' : 'tone-amber'}`} aria-hidden="true"><Package size={16} /></span>
+                <span className="cp-row-body">
+                  <strong>{t('controlPanel.attention.lowTrolleysTitle')}</strong>
+                  <small>{t('controlPanel.attention.lowTrolleysDetail', { free: laundry.free, total: remote.trolleyCount })}</small>
+                </span>
+                <ChevronRight size={15} className="cp-row-chevron" aria-hidden="true" />
+              </Link>
+            )}
+            {visibleApprovals.map(item => <ApprovalRow key={item.id} item={item} t={t} locale={locale} />)}
+          </div>
+          {hiddenApprovals > 0 && <p className="cp-more">{t('controlPanel.approvals.more', { count: hiddenApprovals })}</p>}
+        </section>
+      ) : (
+        <div className="cp-all-clear" role="status">
+          <CheckCircle2 size={16} aria-hidden="true" />
+          <span>{t('controlPanel.attention.allClear')}</span>
+        </div>
+      )}
+
+      {nextShift && (
+        <Link to="/routes" className="cp-next">
+          <span className="cp-next-icon" aria-hidden="true"><CalendarClock size={18} /></span>
+          <span className="cp-next-body">
+            <small>{t('controlPanel.next.title')}</small>
+            <strong>{longDate(nextKey)}</strong>
+          </span>
+          <span className="cp-next-facts">
+            <span className="cp-next-fact"><Truck size={14} aria-hidden="true" />{t('controlPanel.next.courses', { count: nextShift.courses })}</span>
+            {nextShift.noDriver > 0 && (
+              <span className="cp-next-fact is-warning"><UserX size={14} aria-hidden="true" />{t('controlPanel.next.noDriver', { count: nextShift.noDriver })}</span>
+            )}
+            {nextShift.team && (
+              <span className="cp-next-fact"><Users size={14} aria-hidden="true" />{t('controlPanel.next.team', { working: nextShift.team.working, total: nextShift.team.total })}</span>
+            )}
+            {nextShift.team?.absentCount > 0 && (
+              <span className="cp-next-fact is-warning">{t('controlPanel.next.absent', { count: nextShift.team.absentCount })}</span>
+            )}
+          </span>
+          <ChevronRight size={16} className="cp-row-chevron" aria-hidden="true" />
+        </Link>
+      )}
+
+      <section className={`cp-section ${isOffDay ? 'is-past' : ''}`} aria-labelledby="cp-today-title">
+        <div className="cp-section-head">
+          <h3 id="cp-today-title">{isOffDay ? t('controlPanel.today.lastWorkday') : t('controlPanel.today.title')}</h3>
+          {isOffDay && <span className="cp-section-note">{longDate(todayKey)}</span>}
+        </div>
+        <div className="cp-kpis cp-today">
+          <KpiCard
+            icon={WashingMachine}
+            tone="blue"
+            label={t('controlPanel.today.laundry')}
+            value={formatNumber(laundry.plannedKg)}
+            unit="kg"
+            progress={percent(laundry.washedKg, laundry.plannedKg)}
+            detail={t('controlPanel.kpi.laundryDetail', {
+              washed: formatNumber(laundry.washedKg),
+              remaining: formatNumber(laundry.remainingKg),
+              departure: formatNumber(laundry.departureKg),
+            })}
+            to="/wash"
+          />
+          <KpiCard
+            icon={Package}
+            tone={laundry.free === 0 ? 'red' : laundry.free <= LOW_TROLLEYS ? 'amber' : 'teal'}
+            alert={laundry.free <= LOW_TROLLEYS}
+            label={t('controlPanel.today.trolleys')}
+            value={`${laundry.occupied}/${remote.trolleyCount}`}
+            progress={percent(laundry.occupied, remote.trolleyCount)}
+            detail={[
+              t('controlPanel.today.trolleysDetail', { free: laundry.free, atClient: laundry.atClient, inLaundry: laundry.inLaundry }),
+              laundry.reserved > 0 ? t('controlPanel.today.trolleysReserved', { count: laundry.reserved }) : null,
+            ].filter(Boolean).join(' · ')}
+            to="/wash"
+          />
+          <KpiCard
+            icon={Users}
+            tone="green"
+            label={t('controlPanel.today.team')}
+            value={operationalTeam ? `${operationalTeam.day.working}/${operationalTeam.day.total}` : '—'}
+            progress={operationalTeam ? percent(operationalTeam.day.working, operationalTeam.day.total) : undefined}
+            detail={operationalTeam
+              ? t('controlPanel.kpi.teamDetail', { absent: operationalTeam.day.absentCount, off: operationalTeam.day.off })
+              : t('controlPanel.team.emptyTitle')}
+            to="/grafik"
+          />
+          <KpiCard
+            icon={Truck}
+            tone="blue"
+            label={t('controlPanel.today.courses')}
+            value={String(trips.total)}
+            progress={trips.total ? percent(trips.closed.length, trips.total) : undefined}
+            detail={t('controlPanel.today.coursesDetail', { active: trips.active.length, closed: trips.closed.length })}
+            to="/routes"
+          />
+        </div>
       </section>
 
       <div className="cp-grid">
-        <section className="cp-card cp-approvals">
-          <CardHeader
-            icon={CheckCircle2}
-            title={t('controlPanel.approvals.title')}
-            count={approvals.length}
-            tone={approvals.length ? 'amber' : 'green'}
-          />
-          {approvals.length ? (
-            <div className="cp-rows">
-              {visibleApprovals.map(item => <ApprovalRow key={item.id} item={item} t={t} locale={locale} />)}
-              {hiddenApprovals > 0 && (
-                <p className="cp-more">{t('controlPanel.approvals.more', { count: hiddenApprovals })}</p>
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              icon={CheckCircle2}
-              title={t('controlPanel.approvals.emptyTitle')}
-              detail={t('controlPanel.approvals.emptyDetail')}
-            />
-          )}
-        </section>
-
         <section className="cp-card cp-live">
           <CardHeader
             icon={Truck}
@@ -510,41 +631,43 @@ export default function ControlPanelView() {
               })}
             </div>
           ) : (
-            <EmptyState icon={Truck} title={t('controlPanel.live.emptyTitle')} detail={t('controlPanel.live.emptyDetail')} />
+            <p className="cp-inline-empty"><Truck size={15} aria-hidden="true" />{t('controlPanel.live.emptyTitle')}</p>
           )}
           <dl className="cp-stats">
-            <div><dt>{t('controlPanel.live.ready')}</dt><dd>{trips.ready.length}</dd></div>
-            <div><dt>{t('controlPanel.live.planning')}</dt><dd>{trips.planning.length}</dd></div>
-            <div><dt>{t('controlPanel.live.settlement')}</dt><dd>{trips.settlement.length}</dd></div>
-            <div><dt>{t('controlPanel.live.closed')}</dt><dd>{trips.closed.length}</dd></div>
+            {COURSE_STAGES.map(stage => (
+              <div key={stage} className={`is-${stage}`}>
+                <dt>{t(`course.board.columns.${stage}`)}</dt>
+                <dd>{trips[stage].length}</dd>
+              </div>
+            ))}
           </dl>
         </section>
 
         <section className="cp-card cp-team">
           <CardHeader
             icon={Users}
-            title={t('controlPanel.team.title')}
+            title={isOffDay ? t('controlPanel.team.titleOn', { date: shortDate(teamDayKey) }) : t('controlPanel.team.title')}
             to="/grafik"
             linkLabel={t('controlPanel.team.open')}
           />
-          {team.today.groups.length > 0 ? (
+          {team?.day.groups.length ? (
             <div className="cp-groups">
-              {team.today.groups.map(group => (
+              {team.day.groups.map(group => (
                 <div className="cp-group" key={group.name}>
-                  <span className="cp-group-name">{group.name}</span>
+                  <span className="cp-group-name">{prettyGroupName(group.name)}</span>
                   <span className="cp-group-value">{group.working}/{group.total}</span>
                   <span className="cp-progress" aria-hidden="true"><span style={{ width: `${percent(group.working, group.total)}%` }} /></span>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState icon={Users} title={t('controlPanel.team.emptyTitle')} />
+            <p className="cp-inline-empty"><Users size={15} aria-hidden="true" />{t('controlPanel.team.emptyTitle')}</p>
           )}
 
-          <h4 className="cp-subhead">{t('controlPanel.team.absentToday')}</h4>
-          {team.today.absent.length ? (
+          <h4 className="cp-subhead">{isOffDay ? t('controlPanel.team.absentOn', { date: shortDate(teamDayKey) }) : t('controlPanel.team.absentToday')}</h4>
+          {team?.day.absent.length ? (
             <ul className="cp-people">
-              {team.today.absent.map(person => (
+              {team.day.absent.map(person => (
                 <li key={person.id}>
                   <span>{person.name}</span>
                   <span className={`cp-status status-${person.value.toLowerCase()}`}>{person.value}</span>
@@ -556,7 +679,7 @@ export default function ControlPanelView() {
           )}
 
           <h4 className="cp-subhead">{t('controlPanel.team.upcoming')}</h4>
-          {team.upcoming.length ? (
+          {team?.upcoming.length ? (
             <ul className="cp-people">
               {team.upcoming.map(item => (
                 <li key={item.id}>
@@ -570,6 +693,56 @@ export default function ControlPanelView() {
           )}
         </section>
       </div>
+
+      <section className="cp-section" aria-labelledby="cp-month-title">
+        <div className="cp-section-head">
+          <h3 id="cp-month-title">{t('controlPanel.month.title', { month: capitalizeFirst(monthLabel) })}</h3>
+          <span className="cp-section-note">{t('controlPanel.month.note', { month: prevMonthLabel })}</span>
+        </div>
+        <div className="cp-kpis cp-month">
+          <KpiCard
+            icon={Coins}
+            tone={costs?.targetCostPerKg && costs.plnPerKg > costs.targetCostPerKg ? 'amber' : 'blue'}
+            alert={Boolean(costs?.targetCostPerKg && costs.plnPerKg > costs.targetCostPerKg)}
+            label={t('controlPanel.month.costs')}
+            value={costs ? formatMoney(costs.total) : '—'}
+            detail={costs
+              ? t('controlPanel.kpi.costsDetail', { perKg: formatMoneyPrecise(costs.plnPerKg), perDay: formatMoney(costs.avgPerDay) })
+              : t('controlPanel.kpi.costsMissing')}
+            trend={<TrendChip value={costsTrend} goodWhenUp={false} label={t('controlPanel.month.perKgVs', { month: prevMonthLabel })} />}
+            to="/costs"
+          />
+          <KpiCard
+            icon={Scale}
+            tone="teal"
+            label={t('controlPanel.month.tonnage')}
+            value={costs ? formatNumber(costs.kg / 1000, 1) : '—'}
+            unit={costs ? 't' : undefined}
+            detail={costs
+              ? t('controlPanel.month.tonnageDetail', { perDay: formatNumber(costs.accruedDays ? costs.kg / costs.accruedDays : 0, 0) })
+              : t('controlPanel.kpi.costsMissing')}
+            trend={<TrendChip value={tonnageTrend} goodWhenUp label={t('controlPanel.month.vs', { month: prevMonthLabel })} />}
+            to="/costs"
+          />
+          <KpiCard
+            icon={Timer}
+            tone={myHours && myHours.diffToDate < 0 ? 'amber' : 'violet'}
+            label={t('controlPanel.month.myHours')}
+            value={myHours ? formatNumber(myHours.hours) : '—'}
+            unit={myHours ? 'h' : undefined}
+            progress={myHours ? percent(myHours.hours, myHours.norm) : undefined}
+            detail={myHours
+              ? t('controlPanel.month.myHoursDetail', {
+                hours: formatNumber(myHours.hoursToDate),
+                norm: formatNumber(myHours.normToDate),
+                diff: signed(myHours.diffToDate),
+                monthNorm: formatNumber(myHours.norm),
+              })
+              : t('controlPanel.kpi.myHoursMissing')}
+            to="/grafik"
+          />
+        </div>
+      </section>
     </div>
   );
 }

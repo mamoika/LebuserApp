@@ -6,7 +6,12 @@ import {
   buildUpcomingAbsences,
   classifyScheduleValue,
   collectApprovals,
+  nextShiftYmd,
+  percentChange,
+  prettyGroupName,
+  previousMonthSameDay,
   workingDaysInMonth,
+  workingDaysUpTo,
 } from './controlPanelMetrics.js';
 
 const periods = [
@@ -121,4 +126,39 @@ test('approvals collect settlements, pending hours, missing drivers and driver c
   assert.deepEqual(items.map(item => item.id), ['trip-1', 'report-10', 'card-1', 'nodriver-3', 'card-2']);
   assert.equal(items[0].kmPending, true);
   assert.equal(items[0].hoursPending, false);
+});
+
+test('hours to date are compared with a pro-rata norm', () => {
+  const result = buildMyMonthHours({
+    employee: { id: 1, contract_type: 'UoP' },
+    scheduleEntries: [{ day: 2, value: '8' }, { day: 3, value: '8' }, { day: 20, value: '8' }],
+    year: 2026,
+    month: 11,
+    uptoDay: 3,
+  });
+  assert.equal(result.hoursToDate, 16);
+  const expected = Math.round(result.norm * (workingDaysUpTo(2026, 11, 3) / workingDaysInMonth(2026, 11)) * 10) / 10;
+  assert.equal(result.normToDate, expected);
+  assert.equal(result.diffToDate, Math.round((16 - expected) * 10) / 10);
+});
+
+test('next shift skips Sundays and holidays', () => {
+  assert.equal(nextShiftYmd('2026-11-14'), '2026-11-16');
+  assert.equal(nextShiftYmd('2026-11-15'), '2026-11-16');
+  assert.equal(nextShiftYmd('2026-11-16'), '2026-11-17');
+  assert.equal(nextShiftYmd('2026-11-10'), '2026-11-12');
+});
+
+test('month comparison helpers', () => {
+  assert.deepEqual(previousMonthSameDay(2026, 3, 31), { year: 2026, month: 2, day: 28, ymd: '2026-02-28' });
+  assert.deepEqual(previousMonthSameDay(2026, 1, 15).ymd, '2025-12-15');
+  assert.equal(percentChange(110, 100), 10);
+  assert.equal(percentChange(5, 0), null);
+});
+
+test('group names are normalized only when shouted', () => {
+  assert.equal(prettyGroupName('KIEROWCY'), 'Kierowcy');
+  assert.equal(prettyGroupName('ZD 2'), 'ZD 2');
+  assert.equal(prettyGroupName('Biuro'), 'Biuro');
+  assert.equal(prettyGroupName('TECHNICZNY'), 'Techniczny');
 });

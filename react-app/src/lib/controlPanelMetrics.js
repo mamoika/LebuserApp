@@ -138,8 +138,21 @@ export function buildUpcomingAbsences({ roster = [], scheduleEntries = [], emplo
   return result.sort((a, b) => a.firstDay - b.firstDay || String(a.name).localeCompare(String(b.name), 'pl'));
 }
 
+export function workingDaysUpTo(year, month, uptoDay) {
+  const last = Math.min(new Date(year, month, 0).getDate(), Math.max(0, uptoDay));
+  let count = 0;
+  for (let day = 1; day <= last; day += 1) {
+    if (isWorkingCalendarDay(year, month, day)) count += 1;
+  }
+  return count;
+}
+
+const round1 = value => Math.round(value * 10) / 10;
+
 // Godziny zalogowanej osoby w miesiącu, liczone jak kolumny Σh / Norm. / Różn. w Grafiku.
-export function buildMyMonthHours({ employee, scheduleEntries = [], year, month }) {
+// `uptoDay` dodaje porównanie „do dziś”: godziny do tego dnia vs proporcjonalna norma,
+// żeby w połowie miesiąca nie straszyć różnicą liczoną od pełnej normy.
+export function buildMyMonthHours({ employee, scheduleEntries = [], year, month, uptoDay = null }) {
   if (!employee) return null;
   const totalDays = new Date(year, month, 0).getDate();
   const days = Array.from({ length: totalDays }, (_, index) => index + 1);
@@ -147,11 +160,65 @@ export function buildMyMonthHours({ employee, scheduleEntries = [], year, month 
   const getValue = (_emp, day) => (byDay.has(day) ? byDay.get(day) : defaultScheduleValue(year, month, day));
   const hours = days.reduce((sum, day) => sum + parseHours(getValue(employee, day)), 0);
   const norm = getEmployeeMonthNorm(employee, workingDaysInMonth(year, month) * 8, days, year, month, getValue);
+  const limit = uptoDay == null ? totalDays : Math.min(totalDays, uptoDay);
+  const hoursToDate = days.filter(day => day <= limit).reduce((sum, day) => sum + parseHours(getValue(employee, day)), 0);
+  const totalWorkdays = workingDaysInMonth(year, month);
+  const normToDate = totalWorkdays ? norm * (workingDaysUpTo(year, month, limit) / totalWorkdays) : 0;
   return {
-    hours: Math.round(hours * 10) / 10,
+    hours: round1(hours),
     norm,
-    diff: Math.round((hours - norm) * 10) / 10,
+    diff: round1(hours - norm),
+    hoursToDate: round1(hoursToDate),
+    normToDate: round1(normToDate),
+    diffToDate: round1(hoursToDate - normToDate),
   };
+}
+
+function parseYmd(value) {
+  const [year, month, day] = String(value).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toYmd(date) {
+  return monthDayKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+// Najbliższy dzień pracy pralni po danej dacie: pon.–sob., bez świąt.
+export function nextShiftYmd(fromYmd) {
+  const date = parseYmd(fromYmd);
+  for (let i = 0; i < 14; i += 1) {
+    date.setDate(date.getDate() + 1);
+    if (date.getDay() !== 0 && !isHoliday(date)) return toYmd(date);
+  }
+  return toYmd(date);
+}
+
+// Ten sam dzień poprzedniego miesiąca (przycięty do jego długości) — do porównań „do dziś”.
+export function previousMonthSameDay(year, month, day) {
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevDay = Math.min(day, new Date(prevYear, prevMonth, 0).getDate());
+  return { year: prevYear, month: prevMonth, day: prevDay, ymd: monthDayKey(prevYear, prevMonth, prevDay) };
+}
+
+// Zmiana procentowa; null, gdy nie ma z czym porównać.
+export function percentChange(current, previous) {
+  const cur = Number(current);
+  const prev = Number(previous);
+  if (!Number.isFinite(cur) || !Number.isFinite(prev) || prev === 0) return null;
+  return Math.round(((cur - prev) / prev) * 100);
+}
+
+// Nazwy grup z grafiku bywają pisane WIELKIMI literami; skróty typu „ZD 2” zostają bez zmian.
+export function prettyGroupName(name) {
+  const text = String(name || '').trim();
+  if (!text || text !== text.toLocaleUpperCase('pl')) return text;
+  return text
+    .split(/(\s+)/)
+    .map(part => (part.length >= 4 && /\p{L}/u.test(part)
+      ? part.charAt(0) + part.slice(1).toLocaleLowerCase('pl')
+      : part))
+    .join('');
 }
 
 // Wszystko, co czeka na decyzję admina, w jednej liście ułożonej od najpilniejszego.

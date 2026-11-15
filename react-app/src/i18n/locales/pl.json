@@ -2922,22 +2922,72 @@
     ]
   },
   "controlPanel": {
-    "previousWorkdayNote": "pralnia i trasy: dane z {{day}}",
     "greetingMorning": "Dzień dobry, {{name}}",
     "greetingDay": "Dzień dobry, {{name}}",
     "greetingEvening": "Dobry wieczór, {{name}}",
-    "subtitle": "Pralnia, wózki, trasy, zespół i sprawy do zatwierdzenia — na żywo.",
+    "subtitle": "Pralnia, wózki, trasy, zespół i sprawy do zatwierdzenia w jednym miejscu.",
+    "offDaySubtitle": "Dziś wolne · następna zmiana: {{date}}",
     "updatedAt": "Odświeżono {{time}}",
     "kpisLabel": "Najważniejsze liczby dnia",
     "noDriverName": "Bez kierowcy",
     "issues": {
       "costs": "koszty",
+      "nextShift": "następna zmiana",
       "title": "Część danych się nie wczytała:",
       "laundry": "pralnia",
       "routes": "trasy",
       "schedule": "grafik",
       "driverCards": "karty kierowców",
       "myHours": "moje godziny"
+    },
+    "attention": {
+      "title": "Wymaga uwagi",
+      "allClear": "Wszystko zatwierdzone — nic nie czeka na Twoją decyzję.",
+      "lowTrolleysTitle": "Mało wolnych wózków",
+      "lowTrolleysDetail": "wolne: {{free}} z {{total}}",
+      "nextNoDriverTitle_one": "{{count}} kurs bez kierowcy",
+      "nextNoDriverTitle_few": "{{count}} kursy bez kierowcy",
+      "nextNoDriverTitle_many": "{{count}} kursów bez kierowcy",
+      "nextNoDriverTitle_other": "{{count}} kursu bez kierowcy",
+      "nextNoDriverDetail": "Następna zmiana · {{date}}"
+    },
+    "next": {
+      "title": "Następna zmiana",
+      "courses_one": "{{count}} kurs",
+      "courses_few": "{{count}} kursy",
+      "courses_many": "{{count}} kursów",
+      "courses_other": "{{count}} kursu",
+      "noDriver_one": "{{count}} bez kierowcy",
+      "noDriver_few": "{{count}} bez kierowcy",
+      "noDriver_many": "{{count}} bez kierowcy",
+      "noDriver_other": "{{count}} bez kierowcy",
+      "team": "{{working}}/{{total}} w pracy",
+      "absent_one": "{{count}} nieobecny",
+      "absent_few": "{{count}} nieobecnych",
+      "absent_many": "{{count}} nieobecnych",
+      "absent_other": "{{count}} nieobecnego"
+    },
+    "today": {
+      "title": "Dziś",
+      "lastWorkday": "Ostatni dzień pracy",
+      "laundry": "Pranie",
+      "trolleys": "Wózki zajęte",
+      "trolleysDetail": "wolne: {{free}} · u klientów: {{atClient}} · w pralni: {{inLaundry}}",
+      "trolleysReserved": "zarezerwowane: {{count}}",
+      "team": "Zespół w pracy",
+      "courses": "Kursy",
+      "coursesDetail": "w trasie: {{active}} · zamknięte: {{closed}}"
+    },
+    "month": {
+      "title": "{{month}} — do dziś",
+      "note": "porównanie z tym samym okresem: {{month}}",
+      "costs": "Koszty",
+      "tonnage": "Tonaż",
+      "tonnageDetail": "średnio {{perDay}} kg dziennie",
+      "myHours": "Moje godziny",
+      "myHoursDetail": "do dziś {{hours}} z {{norm}} h normy ({{diff}} h) · cały miesiąc {{monthNorm}} h",
+      "perKgVs": "zł/kg vs {{month}}",
+      "vs": "vs {{month}}"
     },
     "kpi": {
       "tonnageDetail": "{{kg}} kg · średnio {{perDay}} kg dziennie",
@@ -2978,7 +3028,7 @@
       "cardDueSoon_other": "Odczyt za {{count}} dni"
     },
     "live": {
-      "title": "Kierowcy w trasie",
+      "title": "Kursy",
       "open": "Dyspozytornia",
       "nextStop": "Następny: {{name}}",
       "noNextStop": "Brak kolejnego przystanku",
@@ -2991,6 +3041,8 @@
     },
     "team": {
       "title": "Zespół dziś",
+      "titleOn": "Zespół · {{date}}",
+      "absentOn": "Nieobecni · {{date}}",
       "open": "Grafik",
       "emptyTitle": "Brak danych grafiku na dziś",
       "absentToday": "Nieobecni dziś",
