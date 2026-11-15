@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import { SUPPORTED_LANGUAGES } from '../i18n/index.js';
 import logoImg from '../assets/logo-icon.png';
 
 const NAV_GROUPS = ['transport', 'laundry', 'management'];
@@ -37,8 +38,8 @@ function readCollapsed() {
 }
 
 export default function Navigation() {
-  const { t } = useTranslation();
-  const { canViewModule, user, signOut, switchKioskUser, adminBackup } = useAuth();
+  const { t, i18n } = useTranslation();
+  const { canViewModule, user, signOut, switchKioskUser, adminBackup, setLanguage } = useAuth();
   const navigate = useNavigate();
   const menuPanelId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -101,6 +102,11 @@ export default function Navigation() {
     }
     signOut();
   };
+
+  const currentLanguage = SUPPORTED_LANGUAGES.includes(i18n.resolvedLanguage)
+    ? i18n.resolvedLanguage
+    : i18n.language?.split('-')[0] || SUPPORTED_LANGUAGES[0];
+  const nextLanguage = SUPPORTED_LANGUAGES[(SUPPORTED_LANGUAGES.indexOf(currentLanguage) + 1) % SUPPORTED_LANGUAGES.length];
 
   const signOutLabel = user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut');
 
@@ -183,14 +189,24 @@ export default function Navigation() {
           </button>
           <div className="app-navigation-actions">
             <LanguageSwitcher size="sm" />
+            <button
+              type="button"
+              className="app-navigation-icon-button app-navigation-lang-compact"
+              onClick={() => setLanguage(nextLanguage)}
+              title={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
+              aria-label={`${t('language.select')}: ${nextLanguage.toUpperCase()}`}
+            >
+              {currentLanguage.toUpperCase()}
+            </button>
             <Link
               to="/rodo"
-              className="app-navigation-icon-button"
+              className="app-navigation-icon-button app-navigation-rodo"
               title={t('pages.rodo.title')}
               aria-label={t('pages.rodo.title')}
               onClick={() => setIsMenuOpen(false)}
             >
               <ShieldCheck size={16} aria-hidden="true" />
+              <span>{t('nav.rodo')}</span>
             </Link>
           </div>
           <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
