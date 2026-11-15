@@ -2911,6 +2911,7 @@
     ]
   },
   "controlPanel": {
+    "previousWorkdayNote": "pralnia i trasy: dane z {{day}}",
     "greetingMorning": "Dzień dobry, {{name}}",
     "greetingDay": "Dzień dobry, {{name}}",
     "greetingEvening": "Dobry wieczór, {{name}}",

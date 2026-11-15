@@ -2893,6 +2893,7 @@
     ]
   },
   "controlPanel": {
+    "previousWorkdayNote": "Wäscherei und Touren: Daten vom {{day}}",
     "greetingMorning": "Guten Morgen, {{name}}",
     "greetingDay": "Guten Tag, {{name}}",
     "greetingEvening": "Guten Abend, {{name}}",

@@ -27,7 +27,7 @@ import { departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { currentLocale, monthNames, operationalYmd } from '../lib/dateUtils';
-import { formatWorkDuration } from '../lib/workTime';
+import { calendarTodayYmd, formatWorkDuration } from '../lib/workTime';
 import { VEHICLE_LABELS } from '../lib/vehicles';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 import {
@@ -211,10 +211,15 @@ export default function ControlPanelView() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState(null);
-
-  const todayKey = operationalYmd();
-  const [year, month, day] = todayKey.split('-').map(Number);
   const locale = currentLocale();
+
+  // Pralnia i trasy liczą się dla dnia operacyjnego (w niedzielę: sobota), tak jak
+  // w Pralni i Dyspozytorni. Nagłówek, zespół i moje godziny — dla prawdziwej daty.
+  const todayKey = operationalYmd();
+  const calendarKey = calendarTodayYmd();
+  const [year, month, day] = calendarKey.split('-').map(Number);
+  const showsPreviousWorkday = todayKey !== calendarKey;
+  const operationalLabel = new Date(`${todayKey}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
 
   const load = useCallback(async () => {
     if (!sessionToken) return;
@@ -320,7 +325,6 @@ export default function ControlPanelView() {
 
   const now = new Date();
   const firstName = String(user?.name || '').split(/\s+/)[0] || user?.username || '';
-  // Liczby dotyczą dnia operacyjnego (w niedzielę: sobota), tak jak w Pralni i Dyspozytorni.
   const rawDateLabel = new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   const dateLabel = rawDateLabel.charAt(0).toUpperCase() + rawDateLabel.slice(1);
   const monthLabel = monthNames()[month - 1] || '';
@@ -335,7 +339,12 @@ export default function ControlPanelView() {
     <div className="cp">
       <header className="cp-head">
         <div>
-          <p className="cp-eyebrow">{dateLabel}</p>
+          <p className="cp-eyebrow">
+            {dateLabel}
+            {showsPreviousWorkday && (
+              <span className="cp-eyebrow-note">{t('controlPanel.previousWorkdayNote', { day: operationalLabel })}</span>
+            )}
+          </p>
           <h2>{t(greetingKey(now), { name: firstName })}</h2>
           <p className="cp-subtitle">{t('controlPanel.subtitle')}</p>
         </div>
