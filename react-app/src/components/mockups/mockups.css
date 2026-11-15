@@ -4020,7 +4020,6 @@
   overflow-y: auto;
   padding: 8px;
   border-radius: 0;
-  scrollbar-gutter: stable;
 }
 .live-dispatch .dispatch-col-drop.is-over {
   background: var(--dispatch-status-soft);
