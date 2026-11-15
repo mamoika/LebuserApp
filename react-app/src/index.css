@@ -12317,12 +12317,11 @@ select.ap-input {
     transition: none;
   }
 
-  .app-navigation {
-    position: relative;
-    z-index: 40;
-  }
-
+  /* z-index na samym panelu (jest sticky, więc pozycjonowany): w trakcie
+     zwijania leży nad treścią. Nie dajemy position: relative na <aside> —
+     wtedy panel wystawał poza ramkę i pod aplikacją pojawiał się szary pas. */
   .app-navigation-inner {
+    z-index: 40;
     width: 223px;
     background: var(--laundry-surface);
     box-shadow: 1px 0 0 var(--laundry-divider);
