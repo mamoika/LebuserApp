@@ -34,7 +34,7 @@
   --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   --shadow-hover: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-  --font: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 /* ── WSPOLNE STANOWISKO KIEROWCOW ── */
@@ -10561,16 +10561,27 @@ select.ap-input {
   --laundry-surface-active: #EFEFF2;
   --laundry-ink: #1D1D1F;
   --laundry-ink-secondary: #5F5F64;
-  --laundry-ink-muted: #85858B;
+  --laundry-ink-muted: #6E6E73;
   --laundry-divider: rgba(29, 29, 31, 0.075);
   --laundry-divider-strong: rgba(29, 29, 31, 0.13);
+  --laundry-divider-emphasis: rgba(29, 29, 31, 0.18);
   --laundry-wash-blue: #007AFF;
+  --laundry-wash-blue-ink: #0066CC;
   --laundry-wash-blue-soft: rgba(0, 122, 255, 0.1);
   --laundry-focus: rgba(0, 122, 255, 0.38);
+  --laundry-shadow-menu: 0 16px 42px rgba(29, 29, 31, 0.12), 0 2px 8px rgba(29, 29, 31, 0.06);
   --laundry-radius-frame: 26px;
   --laundry-radius-card: 18px;
   --laundry-radius-control: 12px;
+  --laundry-space-1: 4px;
+  --laundry-space-2: 8px;
+  --laundry-space-3: 12px;
+  --laundry-space-4: 16px;
+  --laundry-space-5: 20px;
+  --laundry-space-6: 24px;
+  --laundry-space-8: 32px;
   --laundry-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --laundry-ease-enter: cubic-bezier(0, 0, 0.2, 1);
 }
 
 .app-shell {
@@ -10581,7 +10592,7 @@ select.ap-input {
 
 .app-frame {
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: 252px minmax(0, 1fr);
   min-height: calc(100vh - 36px);
   border: 1px solid var(--laundry-divider);
   border-radius: var(--laundry-radius-frame);
@@ -10590,6 +10601,7 @@ select.ap-input {
 
 .app-workspace {
   min-width: 0;
+  min-height: 100%;
   border-radius: 0 var(--laundry-radius-frame) var(--laundry-radius-frame) 0;
   background: var(--laundry-surface);
 }
@@ -10598,8 +10610,8 @@ select.ap-input {
   position: sticky;
   top: 18px;
   align-self: start;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: calc(100vh - 36px);
   margin: 0;
@@ -10609,7 +10621,21 @@ select.ap-input {
   overflow: hidden;
 }
 
+.app-navigation-panel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.app-navigation-toggle,
+.app-navigation-backdrop {
+  display: none;
+}
+
 .app-navigation-brand {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -10765,7 +10791,7 @@ select.ap-input {
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--laundry-wash-blue-soft);
-  color: var(--laundry-wash-blue);
+  color: var(--laundry-wash-blue-ink);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.015em;
@@ -10792,6 +10818,9 @@ select.ap-input {
 }
 
 .app-frame .app-header {
+  position: sticky;
+  top: 18px;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10817,10 +10846,23 @@ select.ap-input {
   min-width: 0;
 }
 
+.app-page-eyebrow {
+  overflow: hidden;
+  margin-block-end: 4px;
+  color: var(--laundry-wash-blue-ink);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .app-frame .app-title {
   overflow: hidden;
   color: var(--laundry-ink);
-  font-size: clamp(20px, 1.65vw, 27px);
+  font-size: clamp(20px, 1.5vw, 26px);
   font-weight: 720;
   letter-spacing: -0.025em;
   line-height: 1.12;
@@ -10849,11 +10891,35 @@ select.ap-input {
 .app-frame .app-header-user {
   display: flex;
   min-width: 0;
-  max-width: 160px;
-  flex-direction: column;
-  align-items: flex-end;
-  padding-inline-end: 4px;
+  max-width: 210px;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid var(--laundry-divider);
+  border-radius: var(--laundry-radius-control);
+  background: var(--laundry-surface-soft);
   line-height: 1.2;
+}
+
+.app-header-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: var(--laundry-wash-blue-soft);
+  color: var(--laundry-wash-blue-ink);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.015em;
+}
+
+.app-header-user-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .app-header-user-name,
@@ -10878,8 +10944,8 @@ select.ap-input {
 }
 
 .app-frame .app-header .driver-btn {
-  min-height: 36px;
-  padding: 8px 11px;
+  min-height: 40px;
+  padding: 8px 12px;
   border-color: var(--laundry-divider-strong);
   border-radius: 10px;
   background: var(--laundry-surface);
@@ -10887,12 +10953,27 @@ select.ap-input {
   box-shadow: none;
   font-size: 12px;
   font-weight: 650;
+  text-decoration: none;
+  transition:
+    background-color 150ms var(--laundry-ease),
+    border-color 150ms var(--laundry-ease),
+    color 150ms var(--laundry-ease),
+    transform 100ms var(--laundry-ease);
 }
 
 .app-frame .app-header .driver-btn:hover {
   border-color: var(--laundry-divider-strong);
   background: var(--laundry-surface-soft);
   color: var(--laundry-ink);
+}
+
+.app-frame .app-header .driver-btn:active {
+  transform: scale(0.98);
+}
+
+.app-frame .app-header .app-header-icon-button {
+  width: 40px;
+  padding: 0;
 }
 
 .app-frame .app-header .driver-btn:focus-visible,
@@ -10910,7 +10991,49 @@ select.ap-input {
   padding: clamp(18px, 2.2vw, 32px);
 }
 
-@media (max-width: 1100px) {
+.app-view-loading {
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--laundry-ink-muted);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.app-view-loading-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 24px;
+}
+
+.app-view-loading-bars i {
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--laundry-wash-blue);
+  animation: laundry-loading-bars 900ms ease-in-out infinite alternate;
+}
+
+.app-view-loading-bars i:nth-child(2) {
+  height: 20px;
+  animation-delay: 140ms;
+}
+
+.app-view-loading-bars i:nth-child(3) {
+  height: 16px;
+  animation-delay: 280ms;
+}
+
+@keyframes laundry-loading-bars {
+  from { opacity: 0.32; transform: scaleY(0.62); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+@media (max-width: 900px) {
   .app-frame {
     display: block;
     min-height: calc(100vh - 30px);
@@ -10920,9 +11043,10 @@ select.ap-input {
   .app-navigation {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 50;
     display: block;
     height: auto;
+    overflow: visible;
     border-inline-end: 0;
     border-block-end: 1px solid var(--laundry-divider);
     border-radius: 22px 22px 0 0;
@@ -10932,8 +11056,11 @@ select.ap-input {
   }
 
   .app-navigation-brand {
-    min-height: 58px;
-    padding: 9px 14px;
+    min-height: 64px;
+    padding: 10px 12px 10px 14px;
+    border-block-end: 0;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.96);
   }
 
   .app-navigation-logo {
@@ -10946,51 +11073,106 @@ select.ap-input {
     height: 24px;
   }
 
+  .app-navigation-toggle {
+    position: relative;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    border: 1px solid var(--laundry-divider-strong);
+    border-radius: var(--laundry-radius-control);
+    background: var(--laundry-surface-soft);
+    color: var(--laundry-ink-secondary);
+    cursor: pointer;
+    opacity: 1;
+    visibility: visible;
+    transition:
+      background-color 150ms var(--laundry-ease),
+      color 150ms var(--laundry-ease),
+      transform 100ms var(--laundry-ease);
+  }
+
+  .app-navigation-toggle:hover {
+    background: var(--laundry-surface-active);
+    color: var(--laundry-ink);
+  }
+
+  .app-navigation-toggle:active {
+    transform: scale(0.97);
+  }
+
+  .app-navigation-toggle:focus-visible {
+    outline: 3px solid var(--laundry-focus);
+    outline-offset: 2px;
+  }
+
+  .app-navigation-backdrop {
+    position: fixed;
+    z-index: 1;
+    display: block;
+    inset: 0;
+    border: 0;
+    background: rgba(29, 29, 31, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms var(--laundry-ease);
+  }
+
+  .app-navigation-panel {
+    position: absolute;
+    z-index: 2;
+    inset-block-start: calc(100% + 8px);
+    inset-inline-end: 8px;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    width: min(380px, calc(100vw - 32px));
+    max-height: min(680px, calc(100vh - 92px));
+    overflow: hidden;
+    border: 1px solid var(--laundry-divider-strong);
+    border-radius: var(--laundry-radius-card);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: var(--laundry-shadow-menu);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px) scale(0.985);
+    transform-origin: top right;
+    visibility: hidden;
+    transition:
+      opacity 180ms var(--laundry-ease-enter),
+      transform 180ms var(--laundry-ease-enter),
+      visibility 180ms;
+  }
+
+  .app-navigation.is-menu-open .app-navigation-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .app-navigation.is-menu-open .app-navigation-panel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+  }
+
   .app-navigation-scroller {
-    display: flex;
-    gap: 5px;
-    padding: 7px 10px 10px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
+    padding: 14px 12px;
   }
 
-  .app-navigation-scroller::-webkit-scrollbar {
-    display: none;
-  }
-
-  .app-navigation-group,
   .app-navigation-group + .app-navigation-group {
-    display: contents;
-    margin: 0;
-  }
-
-  .app-navigation-group h2,
-  .app-navigation-account {
-    display: none;
-  }
-
-  .app-navigation-items {
-    display: contents;
+    margin-block-start: 17px;
   }
 
   .app-navigation-link {
     min-height: 44px;
-    flex: 0 0 auto;
-    padding: 8px 12px;
-    border: 1px solid transparent;
-    border-radius: 11px;
-    white-space: nowrap;
   }
 
-  .app-navigation-link.is-active {
-    border-color: rgba(0, 122, 255, 0.14);
-    background: var(--laundry-wash-blue-soft);
-    color: var(--laundry-wash-blue);
-  }
-
-  .app-navigation-link.is-active::before {
-    display: none;
+  .app-navigation-account {
+    padding: 13px 16px;
+    background: var(--laundry-surface-soft);
   }
 
   .app-workspace {
@@ -10998,6 +11180,7 @@ select.ap-input {
   }
 
   .app-frame .app-header {
+    position: static;
     min-height: 76px;
     border-radius: 0;
   }
@@ -11046,7 +11229,7 @@ select.ap-input {
 
   .app-frame .app-header-user {
     margin-inline-end: auto;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .app-frame .app-title {
@@ -11075,14 +11258,47 @@ select.ap-input {
   .app-frame .app-header .driver-btn {
     min-height: 44px;
   }
+
+  .app-frame .app-header .app-header-sign-out {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .app-header-sign-out span {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-navigation-link {
+  .app-navigation-link,
+  .app-navigation-toggle,
+  .app-navigation-backdrop,
+  .app-navigation-panel,
+  .app-frame .app-header .driver-btn {
     transition: none;
   }
 
-  .app-navigation-link:active {
+  .app-navigation-link:active,
+  .app-navigation-toggle:active,
+  .app-frame .app-header .driver-btn:active {
     transform: none;
+  }
+
+  .app-view-loading-bars i {
+    animation: none;
+    opacity: 0.72;
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-frame,
+  .app-navigation,
+  .app-navigation-link,
+  .app-frame .app-header,
+  .app-frame .app-header-user,
+  .app-frame .app-header .driver-btn {
+    border-color: var(--laundry-divider-emphasis);
   }
 }

@@ -52,6 +52,36 @@ const PAGE_KEYS = {
   '/mock/kierowca': 'route',
 };
 
+const PAGE_GROUP_KEYS = {
+  home: 'transport',
+  route: 'transport',
+  routes: 'transport',
+  clients: 'transport',
+  routePlan: 'transport',
+  map: 'transport',
+  wash: 'laundry',
+  warehouse: 'laundry',
+  history: 'management',
+  grafik: 'management',
+  timeline: 'management',
+  costs: 'management',
+  admin: 'management',
+  rodo: 'management',
+};
+
+function ViewLoading({ label }) {
+  return (
+    <div className="app-view-loading" role="status" aria-live="polite">
+      <span className="app-view-loading-bars" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 function PrivacyNoticeModal() {
   const { t } = useTranslation();
   const { acknowledgePrivacyNotice, signOut } = useAuth();
@@ -114,6 +144,13 @@ export default function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
+  const pageGroupKey = PAGE_GROUP_KEYS[pageKey] || 'transport';
+  const userInitials = (user?.name || user?.username || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('') || t('common.appName').slice(0, 1);
   const firstAllowedPath = [
     ...(isDriver ? [['route', '/route']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
@@ -187,30 +224,43 @@ export default function Dashboard() {
           <header className="app-header">
             <div className="app-header-top">
               <div className="app-page-context">
+                <div className="app-page-eyebrow">{t(`nav.groups.${pageGroupKey}`)}</div>
                 <div className="app-title">{t(`pages.${pageKey}.title`)}</div>
                 <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
               </div>
             </div>
             <div className="app-header-actions">
               <div className={`app-header-user ${isImpersonating ? 'is-impersonating' : ''}`}>
-                <span className="app-header-user-name">
-                  {user?.name}
+                <span className="app-header-avatar" aria-hidden="true">{userInitials}</span>
+                <span className="app-header-user-copy">
+                  <span className="app-header-user-name">{user?.name}</span>
+                  <span className="app-header-username">@{user?.username}</span>
                 </span>
-                <span className="app-header-username">@{user?.username}</span>
               </div>
-              <Link to="/rodo" className="driver-btn rodo-link-header" title={t('pages.rodo.title')} style={{ textDecoration: 'none' }}>
-                <ShieldCheck size={14} /> {t('header.rodo')}
+              <Link
+                to="/rodo"
+                className="driver-btn app-header-icon-button rodo-link-header"
+                title={t('pages.rodo.title')}
+                aria-label={t('pages.rodo.title')}
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
               </Link>
               <LanguageSwitcher size="sm" />
-              <button onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut} className="driver-btn">
-                <LogOut size={14} /> {user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
+              <button
+                type="button"
+                onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut}
+                className="driver-btn app-header-sign-out"
+                aria-label={user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
+              >
+                <LogOut size={15} aria-hidden="true" />
+                <span>{user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}</span>
               </button>
             </div>
           </header>
 
           {/* Kontent główny */}
           <main id="main-content" className="app-main-content" tabIndex={-1}>
-            <Suspense fallback={<div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-tertiary)' }}>{t('common.loading')}</div>}>
+            <Suspense fallback={<ViewLoading label={t('common.loading')} />}>
             <Routes>
           <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
           <Route path="/schedule" element={canViewModule('schedule') ? <ScheduleView /> : <Navigate to={firstAllowedPath} replace />} />

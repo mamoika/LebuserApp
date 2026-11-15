@@ -1,3 +1,4 @@
+import { useEffect, useId, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,12 +8,14 @@ import {
   ClipboardList,
   ContactRound,
   Map,
+  Menu,
   PackageOpen,
   RadioTower,
   Settings2,
   Truck,
   WalletCards,
   WashingMachine,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/logo-icon.png';
@@ -22,6 +25,8 @@ const NAV_GROUPS = ['transport', 'laundry', 'management'];
 export default function Navigation() {
   const { t } = useTranslation();
   const { canViewModule, user } = useAuth();
+  const menuPanelId = useId();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [];
 
@@ -58,10 +63,21 @@ export default function Navigation() {
     .filter(Boolean)
     .slice(0, 2)
     .map(part => part[0]?.toUpperCase())
-    .join('');
+    .join('') || t('common.appName').slice(0, 1);
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMenuOpen]);
 
   return (
-    <aside className="app-navigation" aria-label={t('nav.primary')}>
+    <aside className={`app-navigation${isMenuOpen ? ' is-menu-open' : ''}`} aria-label={t('nav.primary')}>
       <div className="app-navigation-brand">
         <span className="app-navigation-logo" aria-hidden="true">
           <img src={logoImg} alt="" />
@@ -70,35 +86,58 @@ export default function Navigation() {
           <strong>{t('common.appName')}</strong>
           <small>{t('common.appSubtitle')}</small>
         </span>
+        <button
+          type="button"
+          className="app-navigation-toggle"
+          aria-controls={menuPanelId}
+          aria-expanded={isMenuOpen}
+          aria-label={t(isMenuOpen ? 'nav.closeMenu' : 'nav.openMenu')}
+          onClick={() => setIsMenuOpen(open => !open)}
+        >
+          {isMenuOpen
+            ? <X size={20} strokeWidth={1.9} aria-hidden="true" />
+            : <Menu size={20} strokeWidth={1.9} aria-hidden="true" />}
+        </button>
       </div>
 
-      <nav className="app-navigation-scroller">
-        {visibleGroups.map(({ group, items }) => (
-          <section className="app-navigation-group" key={group} aria-labelledby={`nav-group-${group}`}>
-            <h2 id={`nav-group-${group}`}>{t(`nav.groups.${group}`)}</h2>
-            <div className="app-navigation-items">
-              {items.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/schedule'}
-                  className={({ isActive }) => `app-navigation-link${isActive ? ' is-active' : ''}`}
-                >
-                  <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
-            </div>
-          </section>
-        ))}
-      </nav>
+      <button
+        type="button"
+        className="app-navigation-backdrop"
+        aria-label={t('nav.closeMenu')}
+        tabIndex={-1}
+        onClick={() => setIsMenuOpen(false)}
+      />
 
-      <div className="app-navigation-account">
-        <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
-        <span className="app-navigation-account-copy">
-          <strong>{user?.name}</strong>
-          <small>@{user?.username}</small>
-        </span>
+      <div className="app-navigation-panel" id={menuPanelId}>
+        <nav className="app-navigation-scroller">
+          {visibleGroups.map(({ group, items }) => (
+            <section className="app-navigation-group" key={group} aria-labelledby={`nav-group-${group}`}>
+              <h2 id={`nav-group-${group}`}>{t(`nav.groups.${group}`)}</h2>
+              <div className="app-navigation-items">
+                {items.map(({ to, icon: Icon, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/schedule'}
+                    className={({ isActive }) => `app-navigation-link${isActive ? ' is-active' : ''}`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </section>
+          ))}
+        </nav>
+
+        <div className="app-navigation-account">
+          <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+          <span className="app-navigation-account-copy">
+            <strong>{user?.name}</strong>
+            <small>@{user?.username}</small>
+          </span>
+        </div>
       </div>
     </aside>
   );

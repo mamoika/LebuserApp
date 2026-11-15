@@ -16,8 +16,16 @@ test('admin route plan appears directly after clients in navigation', () => {
 });
 
 test('navigation uses grouped CRM sidebar semantics and lucide icons', () => {
-  assert.match(source, /<aside className="app-navigation" aria-label=\{t\('nav\.primary'\)\}>/);
+  assert.match(source, /<aside className=\{`app-navigation\$\{isMenuOpen \? ' is-menu-open' : ''\}`\} aria-label=\{t\('nav\.primary'\)\}>/);
   assert.match(source, /const NAV_GROUPS = \['transport', 'laundry', 'management'\]/);
   assert.match(source, /icon: WashingMachine/);
   assert.doesNotMatch(source, /icon: '[^']*[\u{1F300}-\u{1FAFF}]/u);
+});
+
+test('navigation exposes an accessible responsive menu', () => {
+  assert.match(source, /aria-controls=\{menuPanelId\}/);
+  assert.match(source, /aria-expanded=\{isMenuOpen\}/);
+  assert.match(source, /'nav\.closeMenu' : 'nav\.openMenu'/);
+  assert.match(source, /event\.key === 'Escape'/);
+  assert.match(source, /className="app-navigation-panel" id=\{menuPanelId\}/);
 });

@@ -141,6 +141,8 @@
   },
   "nav": {
     "primary": "Hauptnavigation",
+    "openMenu": "Hauptmenü öffnen",
+    "closeMenu": "Hauptmenü schließen",
     "groups": {
       "transport": "Transport und Routen",
       "laundry": "Wäscherei und Lager",
