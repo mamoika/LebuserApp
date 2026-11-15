@@ -11623,3 +11623,37 @@ select.ap-input {
     border-radius: var(--laundry-radius-frame) 0 0 var(--laundry-radius-frame);
   }
 }
+
+/* Mobile: logo nie może wypychać przycisku menu poza ekran */
+@media (max-width: 900px) {
+  .app-navigation-brand {
+    gap: 12px;
+  }
+
+  .app-navigation-logo {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    height: 32px;
+    max-height: 32px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    justify-content: flex-start;
+  }
+
+  .app-navigation-logo img {
+    width: auto;
+    max-width: 100%;
+    height: 32px;
+    max-height: 32px;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .app-navigation-toggle {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+  }
+}
