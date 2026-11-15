@@ -21,14 +21,10 @@ test('dispatch controls and summary share one compact header surface', () => {
 test('daily toolbar aligns controls and offers one-click date navigation', () => {
   assert.match(
     source,
-    /className="live-date-control"[\s\S]*?shiftYmd\(value, -1\)[\s\S]*?id="dispatch-date"[\s\S]*?shiftYmd\(value, 1\)/,
+    /className="live-date-control"[\s\S]*?shiftYmd\(value, -1\)[\s\S]*?weekday: 'long'[\s\S]*?id="dispatch-date"[\s\S]*?shiftYmd\(value, 1\)/,
     'the date control should expose previous, direct-pick, and next navigation in one group',
   );
-  assert.match(
-    source,
-    /className="live-date-today"[\s\S]*?disabled=\{tripDate === operationalYmd\(\)\}[\s\S]*?t\('common\.today'\)/,
-    'the stable toolbar should expose a quick return to today and disable it on the current day',
-  );
+  assert.doesNotMatch(source, /className="live-date-today"/, 'date navigation should stay within one compact control');
   assert.match(
     styles,
     /\.live-dispatch \.live-board-actions\s*\{[\s\S]*?--dispatch-control-height:\s*44px;/,

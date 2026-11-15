@@ -705,21 +705,18 @@ export default function DispatchBoard() {
               <button type="button" className={`seg-btn ${viewMode === 'archive' ? 'active' : ''}`} onClick={() => setViewMode('archive')}>{t('course.board.viewArchive')}</button>
             </div>
             {viewMode === 'day' && (
-              <div className="live-date-switcher">
-                <div className="live-date-control">
-                  <button type="button" className="live-date-step" aria-label={t('course.board.previousDay')} title={t('course.board.previousDay')} onClick={() => setTripDate(value => shiftYmd(value, -1))}>
-                    <ChevronLeft size={17} aria-hidden="true" />
-                  </button>
-                  <label className="live-date-picker" title={t('course.board.chooseDate')}>
-                    <CalendarDays size={15} aria-hidden="true" />
-                    <span>{new Date(`${tripDate}T00:00:00`).toLocaleDateString(locale)}</span>
-                    <input id="dispatch-date" type="date" aria-label={t('course.board.courseDate')} value={tripDate} onChange={event => setTripDate(event.target.value || operationalYmd())} />
-                  </label>
-                  <button type="button" className="live-date-step" aria-label={t('course.board.nextDay')} title={t('course.board.nextDay')} onClick={() => setTripDate(value => shiftYmd(value, 1))}>
-                    <ChevronRight size={17} aria-hidden="true" />
-                  </button>
-                </div>
-                <button type="button" className="live-date-today" disabled={tripDate === operationalYmd()} onClick={() => setTripDate(operationalYmd())}>{t('common.today')}</button>
+              <div className="live-date-control">
+                <button type="button" className="live-date-step" aria-label={t('course.board.previousDay')} title={t('course.board.previousDay')} onClick={() => setTripDate(value => shiftYmd(value, -1))}>
+                  <ChevronLeft size={18} aria-hidden="true" />
+                </button>
+                <label className="live-date-picker" title={t('course.board.chooseDate')}>
+                  <CalendarDays size={16} aria-hidden="true" />
+                  <span>{new Date(`${tripDate}T00:00:00`).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })}</span>
+                  <input id="dispatch-date" type="date" aria-label={t('course.board.courseDate')} value={tripDate} onChange={event => setTripDate(event.target.value || operationalYmd())} />
+                </label>
+                <button type="button" className="live-date-step" aria-label={t('course.board.nextDay')} title={t('course.board.nextDay')} onClick={() => setTripDate(value => shiftYmd(value, 1))}>
+                  <ChevronRight size={18} aria-hidden="true" />
+                </button>
               </div>
             )}
             <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>

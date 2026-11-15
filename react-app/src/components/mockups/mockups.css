@@ -3843,23 +3843,18 @@
   background: var(--bg-card-solid);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
-.live-date-switcher {
-  height: var(--dispatch-control-height);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .live-date-control {
+  width: 260px;
   height: var(--dispatch-control-height);
   display: grid;
-  grid-template-columns: 42px minmax(118px, 1fr) 42px;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.075);
   border-radius: 12px;
-  background: var(--bg-tertiary);
+  background: var(--bg-card-solid);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.045);
 }
-.live-date-step,
-.live-date-today {
+.live-date-step {
   min-height: var(--dispatch-control-height);
   display: inline-flex;
   align-items: center;
@@ -3873,11 +3868,8 @@
   cursor: pointer;
   transition: color 150ms ease, background 150ms ease, transform 100ms ease;
 }
-.live-date-step:first-child { border-right: 1px solid rgba(0, 0, 0, 0.055); }
-.live-date-step:last-child { border-left: 1px solid rgba(0, 0, 0, 0.055); }
-.live-date-step:hover { color: var(--accent); background: rgba(255, 255, 255, 0.78); }
-.live-date-step:active,
-.live-date-today:active { transform: scale(0.96); }
+.live-date-step:hover { color: var(--accent); background: var(--accent-light); }
+.live-date-step:active { transform: scale(0.92); }
 .live-date-picker {
   position: relative;
   min-width: 0;
@@ -3888,14 +3880,15 @@
   gap: 7px;
   padding: 0 11px;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.66);
-  font-size: 12px;
+  background: transparent;
+  font-size: 13px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
+  text-transform: capitalize;
   white-space: nowrap;
   cursor: pointer;
 }
-.live-date-picker > svg { flex: 0 0 auto; color: var(--text-tertiary); }
+.live-date-picker > svg { flex: 0 0 auto; color: var(--accent); }
 .live-date-picker > span { overflow: hidden; text-overflow: ellipsis; }
 .live-date-picker input {
   position: absolute;
@@ -3909,25 +3902,7 @@
   opacity: 0;
   cursor: pointer;
 }
-.live-date-today {
-  height: var(--dispatch-control-height);
-  padding: 0 12px;
-  border: 1px solid var(--accent-border);
-  border-radius: 11px;
-  color: var(--accent);
-  background: var(--accent-light);
-  white-space: nowrap;
-}
-.live-date-today:hover { background: rgba(0, 122, 255, 0.15); }
-.live-date-today:disabled {
-  border-color: rgba(0, 0, 0, 0.055);
-  color: var(--text-quaternary);
-  background: var(--bg-tertiary);
-  cursor: default;
-  opacity: 0.72;
-}
 .live-date-step:focus-visible,
-.live-date-today:focus-visible,
 .live-date-picker:focus-within {
   position: relative;
   z-index: 1;
@@ -4112,8 +4087,7 @@
   .live-dispatch .live-board-actions { align-items: stretch; flex-wrap: wrap; }
   .live-dispatch .live-view-toggle { width: 100%; margin: 0; }
   .live-dispatch .live-view-toggle .seg-btn { flex: 1; }
-  .live-date-switcher { width: 100%; flex: 1 1 100%; }
-  .live-date-control { min-width: 0; flex: 1; }
+  .live-date-control { width: 100%; min-width: 0; flex: 1 1 100%; }
   .live-dispatch .live-board-actions .driver-tool-btn { flex: 1 1 auto; justify-content: center; }
   .live-dispatch .dispatch-summary { padding: 10px 16px; }
   .live-board-frame { overflow: visible; padding: 5px; border-radius: 15px; }
