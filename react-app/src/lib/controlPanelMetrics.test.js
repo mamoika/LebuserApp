@@ -6,7 +6,6 @@ import {
   buildUpcomingAbsences,
   classifyScheduleValue,
   collectApprovals,
-  nextShiftYmd,
   percentChange,
   prettyGroupName,
   previousMonthSameDay,
@@ -140,13 +139,6 @@ test('hours to date are compared with a pro-rata norm', () => {
   const expected = Math.round(result.norm * (workingDaysUpTo(2026, 11, 3) / workingDaysInMonth(2026, 11)) * 10) / 10;
   assert.equal(result.normToDate, expected);
   assert.equal(result.diffToDate, Math.round((16 - expected) * 10) / 10);
-});
-
-test('next shift skips Sundays and holidays', () => {
-  assert.equal(nextShiftYmd('2026-11-14'), '2026-11-16');
-  assert.equal(nextShiftYmd('2026-11-15'), '2026-11-16');
-  assert.equal(nextShiftYmd('2026-11-16'), '2026-11-17');
-  assert.equal(nextShiftYmd('2026-11-10'), '2026-11-12');
 });
 
 test('month comparison helpers', () => {

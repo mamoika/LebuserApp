@@ -174,25 +174,6 @@ export function buildMyMonthHours({ employee, scheduleEntries = [], year, month,
   };
 }
 
-function parseYmd(value) {
-  const [year, month, day] = String(value).split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function toYmd(date) {
-  return monthDayKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
-}
-
-// Najbliższy dzień pracy pralni po danej dacie: pon.–sob., bez świąt.
-export function nextShiftYmd(fromYmd) {
-  const date = parseYmd(fromYmd);
-  for (let i = 0; i < 14; i += 1) {
-    date.setDate(date.getDate() + 1);
-    if (date.getDay() !== 0 && !isHoliday(date)) return toYmd(date);
-  }
-  return toYmd(date);
-}
-
 // Ten sam dzień poprzedniego miesiąca (przycięty do jego długości) — do porównań „do dziś”.
 export function previousMonthSameDay(year, month, day) {
   const prevYear = month === 1 ? year - 1 : year;

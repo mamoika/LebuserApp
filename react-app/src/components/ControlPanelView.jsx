@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  CalendarClock,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -25,16 +24,14 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { getDispatchBoard } from '../lib/courseRpc';
-import { getCostsMonth, getDriverCardReminders, getDriverTripsData, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
-import { getWeeklyRoutePlan } from '../lib/weeklyRoutePlanRpc';
-import { buildVirtualPlannedTrips } from '../lib/tripUiHelpers';
+import { getCostsMonth, getDriverCardReminders, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
 import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
 import { departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
-import { currentLocale, monthNames, operationalYmd } from '../lib/dateUtils';
+import { currentLocale, monthNames } from '../lib/dateUtils';
 import { calendarTodayYmd, formatWorkDuration } from '../lib/workTime';
 import { VEHICLE_LABELS } from '../lib/vehicles';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
@@ -43,7 +40,6 @@ import {
   buildTeamDay,
   buildUpcomingAbsences,
   collectApprovals,
-  nextShiftYmd,
   percentChange,
   prettyGroupName,
   previousMonthSameDay,
@@ -53,7 +49,6 @@ const REFRESH_MS = 60000;
 const DEFAULT_TROLLEY_COUNT = 25;
 const APPROVALS_VISIBLE = 8;
 const LOW_TROLLEYS = 3;
-const NEXT_SHIFT_FROM_HOUR = 15;
 const COURSE_STAGES = ['planning', 'ready', 'active', 'settlement', 'closed'];
 
 const EMPTY_REMOTE = {
@@ -66,7 +61,6 @@ const EMPTY_REMOTE = {
   myWork: null,
   costsMonth: null,
   prevCostsMonth: null,
-  next: null,
 };
 
 function ymdParts(value) {
@@ -255,14 +249,9 @@ export default function ControlPanelView() {
   const [updatedAt, setUpdatedAt] = useState(null);
   const locale = currentLocale();
 
-  // Pralnia i trasy liczą się dla dnia operacyjnego (w niedzielę: sobota), tak jak
-  // w Pralni i Dyspozytorni. Nagłówek, zespół i moje godziny — dla prawdziwej daty.
-  const todayKey = operationalYmd();
-  const calendarKey = calendarTodayYmd();
-  const { year, month, day } = ymdParts(calendarKey);
-  const isOffDay = todayKey !== calendarKey;
-  const nextKey = nextShiftYmd(calendarKey);
-  const showNextShift = isOffDay || new Date().getHours() >= NEXT_SHIFT_FROM_HOUR;
+  // Cały panel pokazuje bieżący dzień kalendarzowy — bez podmiany na poprzedni dzień pracy.
+  const todayKey = calendarTodayYmd();
+  const { year, month, day } = ymdParts(todayKey);
   const prev = previousMonthSameDay(year, month, day);
 
   const load = useCallback(async () => {
@@ -270,9 +259,7 @@ export default function ControlPanelView() {
     setLoading(true);
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
     const prevMonthKey = `${prev.year}-${String(prev.month).padStart(2, '0')}`;
-    const nextParts = ymdParts(nextKey);
-    const nextOtherMonth = nextParts.month !== month || nextParts.year !== year;
-    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes, prevCostsRes, nextRes] = await Promise.allSettled([
+    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes, prevCostsRes] = await Promise.allSettled([
       getLaundryWorkflow(sessionToken),
       getDispatchBoard(sessionToken, todayKey),
       getWorkScheduleMonth(sessionToken, year, month),
@@ -280,14 +267,6 @@ export default function ControlPanelView() {
       getMyWorkTime(sessionToken, year, month),
       getCostsMonth(sessionToken, monthKey),
       getCostsMonth(sessionToken, prevMonthKey),
-      showNextShift
-        ? Promise.all([
-          getDispatchBoard(sessionToken, nextKey),
-          getWeeklyRoutePlan(sessionToken, nextKey),
-          getDriverTripsData(sessionToken),
-          nextOtherMonth ? getWorkScheduleMonth(sessionToken, nextParts.year, nextParts.month) : Promise.resolve(null),
-        ])
-        : Promise.resolve(null),
     ]);
 
     const nextIssues = [];
@@ -297,10 +276,8 @@ export default function ControlPanelView() {
     if (cardsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.driverCards'));
     if (myWorkRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.myHours'));
     if (costsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.costs'));
-    if (nextRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.nextShift'));
 
     const laundry = laundryRes.status === 'fulfilled' ? laundryRes.value : null;
-    const nextValue = nextRes.status === 'fulfilled' ? nextRes.value : null;
     setRemote({
       trolleys: laundry?.trolleys || [],
       arrivalReservations: laundry?.arrival_reservations || [],
@@ -311,19 +288,11 @@ export default function ControlPanelView() {
       myWork: myWorkRes.status === 'fulfilled' ? myWorkRes.value : null,
       costsMonth: costsRes.status === 'fulfilled' ? costsRes.value : null,
       prevCostsMonth: prevCostsRes.status === 'fulfilled' ? prevCostsRes.value : null,
-      next: nextValue
-        ? {
-          boardTrips: nextValue[0]?.trips || [],
-          routePlanTrips: nextValue[1]?.trips || [],
-          storedTrips: nextValue[2]?.trips || [],
-          schedule: nextValue[3],
-        }
-        : null,
     });
     setIssues(nextIssues);
     setUpdatedAt(new Date());
     setLoading(false);
-  }, [month, nextKey, prev.month, prev.year, sessionToken, showNextShift, t, todayKey, year]);
+  }, [month, prev.month, prev.year, sessionToken, t, todayKey, year]);
 
   useEffect(() => {
     load();
@@ -357,29 +326,21 @@ export default function ControlPanelView() {
     };
   }, [clients, entries, remote.arrivalReservations, remote.trolleyCount, remote.trolleys, routes, todayKey]);
 
-  // Grafik dla dowolnego dnia z bieżącego lub (dla następnej zmiany) kolejnego miesiąca.
-  const teamFor = useCallback((ymd, withUpcoming = false) => {
-    const parts = ymdParts(ymd);
-    const sameMonth = parts.year === year && parts.month === month;
-    const schedule = sameMonth ? remote.schedule : remote.next?.schedule;
+  const team = useMemo(() => {
+    const schedule = remote.schedule;
     if (!schedule) return null;
     const input = {
       roster: schedule.roster || [],
       scheduleEntries: schedule.schedule_entries || [],
       employmentPeriods: schedule.employment_periods || [],
-      year: parts.year,
-      month: parts.month,
+      year,
+      month,
     };
     return {
-      day: buildTeamDay({ ...input, day: parts.day }),
-      upcoming: withUpcoming ? buildUpcomingAbsences({ ...input, fromDay: parts.day + 1, days: 7 }) : [],
-      parts,
+      day: buildTeamDay({ ...input, day }),
+      upcoming: buildUpcomingAbsences({ ...input, fromDay: day + 1, days: 7 }),
     };
-  }, [month, remote.next, remote.schedule, year]);
-
-  const teamDayKey = isOffDay ? nextKey : calendarKey;
-  const team = useMemo(() => teamFor(teamDayKey, true), [teamDayKey, teamFor]);
-  const operationalTeam = useMemo(() => teamFor(todayKey), [teamFor, todayKey]);
+  }, [day, month, remote.schedule, year]);
 
   const myHours = useMemo(() => buildMyMonthHours({
     employee: remote.myWork?.employee || null,
@@ -390,8 +351,8 @@ export default function ControlPanelView() {
   }), [day, month, remote.myWork, year]);
 
   const costs = useMemo(() => (remote.costsMonth
-    ? summarizeCostsMonth({ monthData: remote.costsMonth, year, month, todayKey: calendarKey })
-    : null), [calendarKey, month, remote.costsMonth, year]);
+    ? summarizeCostsMonth({ monthData: remote.costsMonth, year, month, todayKey })
+    : null), [month, remote.costsMonth, todayKey, year]);
 
   const prevCosts = useMemo(() => (remote.prevCostsMonth
     ? summarizeCostsMonth({ monthData: remote.prevCostsMonth, year: prev.year, month: prev.month, todayKey: prev.ymd })
@@ -409,41 +370,20 @@ export default function ControlPanelView() {
     return { ...byStatus, total: real.length };
   }, [remote.boardTrips]);
 
-  const nextShift = useMemo(() => {
-    if (!showNextShift || !remote.next) return null;
-    const virtual = buildVirtualPlannedTrips({
-      entries,
-      allTrips: remote.next.storedTrips,
-      routePlanTrips: remote.next.routePlanTrips,
-      tripDate: nextKey,
-    });
-    const real = remote.next.boardTrips.filter(trip => !trip.isVirtual);
-    const nextTeam = teamFor(nextKey);
-    return {
-      courses: real.length + virtual.length,
-      noDriver: virtual.length + real.filter(trip => !trip.driver_id).length,
-      team: nextTeam?.day || null,
-    };
-  }, [entries, nextKey, remote.next, showNextShift, teamFor]);
-
   const now = new Date();
   const firstName = String(user?.name || '').split(/\s+/)[0] || user?.username || '';
   const dateLabel = capitalizeFirst(new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }));
-  const shortDate = ymd => capitalizeFirst(new Date(`${ymd}T00:00:00`).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }));
-  const longDate = ymd => capitalizeFirst(new Date(`${ymd}T00:00:00`).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }));
   const monthLabel = monthNames()[month - 1] || '';
   const prevMonthLabel = monthNames()[prev.month - 1] || '';
   const visibleApprovals = approvals.slice(0, APPROVALS_VISIBLE);
   const hiddenApprovals = approvals.length - visibleApprovals.length;
   const formatDayRange = (item) => {
-    const { year: y, month: m } = team?.parts || { year, month };
-    const toLabel = dayNumber => new Date(y, m - 1, dayNumber).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+    const toLabel = dayNumber => new Date(year, month - 1, dayNumber).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
     return item.firstDay === item.lastDay ? toLabel(item.firstDay) : `${toLabel(item.firstDay)} – ${toLabel(item.lastDay)}`;
   };
 
   const lowTrolleys = !loading && laundry.free <= LOW_TROLLEYS;
-  const nextNoDriver = nextShift?.noDriver || 0;
-  const attentionCount = approvals.length + (lowTrolleys ? 1 : 0) + (nextNoDriver ? 1 : 0);
+  const attentionCount = approvals.length + (lowTrolleys ? 1 : 0);
 
   const costsTrend = costs && prevCosts ? percentChange(costs.plnPerKg, prevCosts.plnPerKg) : null;
   const tonnageTrend = costs && prevCosts ? percentChange(costs.kg, prevCosts.kg) : null;
@@ -454,11 +394,7 @@ export default function ControlPanelView() {
         <div>
           <p className="cp-eyebrow">{dateLabel}</p>
           <h2>{t(greetingKey(now), { name: firstName })}</h2>
-          <p className="cp-subtitle">
-            {isOffDay
-              ? t('controlPanel.offDaySubtitle', { date: longDate(nextKey) })
-              : t('controlPanel.subtitle')}
-          </p>
+          <p className="cp-subtitle">{t('controlPanel.subtitle')}</p>
         </div>
         <button type="button" className="cp-refresh" onClick={load} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'spin' : ''} aria-hidden="true" />
@@ -487,16 +423,6 @@ export default function ControlPanelView() {
             </span>
           </header>
           <div className="cp-attention-rows">
-            {nextNoDriver > 0 && (
-              <Link to="/routes" className="cp-row">
-                <span className="cp-row-icon tone-red" aria-hidden="true"><UserX size={16} /></span>
-                <span className="cp-row-body">
-                  <strong>{t('controlPanel.attention.nextNoDriverTitle', { count: nextNoDriver })}</strong>
-                  <small>{t('controlPanel.attention.nextNoDriverDetail', { date: shortDate(nextKey) })}</small>
-                </span>
-                <ChevronRight size={15} className="cp-row-chevron" aria-hidden="true" />
-              </Link>
-            )}
             {lowTrolleys && (
               <Link to="/wash" className="cp-row">
                 <span className={`cp-row-icon ${laundry.free === 0 ? 'tone-red' : 'tone-amber'}`} aria-hidden="true"><Package size={16} /></span>
@@ -518,33 +444,9 @@ export default function ControlPanelView() {
         </div>
       )}
 
-      {nextShift && (
-        <Link to="/routes" className="cp-next">
-          <span className="cp-next-icon" aria-hidden="true"><CalendarClock size={18} /></span>
-          <span className="cp-next-body">
-            <small>{t('controlPanel.next.title')}</small>
-            <strong>{longDate(nextKey)}</strong>
-          </span>
-          <span className="cp-next-facts">
-            <span className="cp-next-fact"><Truck size={14} aria-hidden="true" />{t('controlPanel.next.courses', { count: nextShift.courses })}</span>
-            {nextShift.noDriver > 0 && (
-              <span className="cp-next-fact is-warning"><UserX size={14} aria-hidden="true" />{t('controlPanel.next.noDriver', { count: nextShift.noDriver })}</span>
-            )}
-            {nextShift.team && (
-              <span className="cp-next-fact"><Users size={14} aria-hidden="true" />{t('controlPanel.next.team', { working: nextShift.team.working, total: nextShift.team.total })}</span>
-            )}
-            {nextShift.team?.absentCount > 0 && (
-              <span className="cp-next-fact is-warning">{t('controlPanel.next.absent', { count: nextShift.team.absentCount })}</span>
-            )}
-          </span>
-          <ChevronRight size={16} className="cp-row-chevron" aria-hidden="true" />
-        </Link>
-      )}
-
-      <section className={`cp-section ${isOffDay ? 'is-past' : ''}`} aria-labelledby="cp-today-title">
+      <section className="cp-section" aria-labelledby="cp-today-title">
         <div className="cp-section-head">
-          <h3 id="cp-today-title">{isOffDay ? t('controlPanel.today.lastWorkday') : t('controlPanel.today.title')}</h3>
-          {isOffDay && <span className="cp-section-note">{longDate(todayKey)}</span>}
+          <h3 id="cp-today-title">{t('controlPanel.today.title')}</h3>
         </div>
         <div className="cp-kpis cp-today">
           <KpiCard
@@ -578,10 +480,10 @@ export default function ControlPanelView() {
             icon={Users}
             tone="green"
             label={t('controlPanel.today.team')}
-            value={operationalTeam ? `${operationalTeam.day.working}/${operationalTeam.day.total}` : '—'}
-            progress={operationalTeam ? percent(operationalTeam.day.working, operationalTeam.day.total) : undefined}
-            detail={operationalTeam
-              ? t('controlPanel.kpi.teamDetail', { absent: operationalTeam.day.absentCount, off: operationalTeam.day.off })
+            value={team ? `${team.day.working}/${team.day.total}` : '—'}
+            progress={team ? percent(team.day.working, team.day.total) : undefined}
+            detail={team
+              ? t('controlPanel.kpi.teamDetail', { absent: team.day.absentCount, off: team.day.off })
               : t('controlPanel.team.emptyTitle')}
             to="/grafik"
           />
@@ -646,7 +548,7 @@ export default function ControlPanelView() {
         <section className="cp-card cp-team">
           <CardHeader
             icon={Users}
-            title={isOffDay ? t('controlPanel.team.titleOn', { date: shortDate(teamDayKey) }) : t('controlPanel.team.title')}
+            title={t('controlPanel.team.title')}
             to="/grafik"
             linkLabel={t('controlPanel.team.open')}
           />
@@ -664,7 +566,7 @@ export default function ControlPanelView() {
             <p className="cp-inline-empty"><Users size={15} aria-hidden="true" />{t('controlPanel.team.emptyTitle')}</p>
           )}
 
-          <h4 className="cp-subhead">{isOffDay ? t('controlPanel.team.absentOn', { date: shortDate(teamDayKey) }) : t('controlPanel.team.absentToday')}</h4>
+          <h4 className="cp-subhead">{t('controlPanel.team.absentToday')}</h4>
           {team?.day.absent.length ? (
             <ul className="cp-people">
               {team.day.absent.map(person => (
