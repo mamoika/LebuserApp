@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
-  AlertTriangle, CalendarDays, CheckCircle2, ChevronRight, Clock3, Gauge, GripVertical,
+  AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gauge, GripVertical,
   History, LoaderCircle, PlayCircle, Plus, RefreshCw, UserCheck, X, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +27,13 @@ import TripCourseStops from './TripCourseStops';
 import '../mockups/mockups.css';
 
 const BOARD_COLUMN_KEYS = ['planning', 'ready', 'active', 'settlement', 'closed'];
+
+function shiftYmd(value, days) {
+  const [year, month, day] = String(value).split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 const EVENT_ICONS = {
   course_started: PlayCircle,
@@ -698,7 +705,22 @@ export default function DispatchBoard() {
               <button type="button" className={`seg-btn ${viewMode === 'archive' ? 'active' : ''}`} onClick={() => setViewMode('archive')}>{t('course.board.viewArchive')}</button>
             </div>
             {viewMode === 'day' && (
-              <label htmlFor="dispatch-date">{t('course.board.courseDate')}<input id="dispatch-date" type="date" value={tripDate} onChange={event => setTripDate(event.target.value)} /></label>
+              <div className="live-date-switcher">
+                <div className="live-date-control">
+                  <button type="button" className="live-date-step" aria-label={t('course.board.previousDay')} title={t('course.board.previousDay')} onClick={() => setTripDate(value => shiftYmd(value, -1))}>
+                    <ChevronLeft size={17} aria-hidden="true" />
+                  </button>
+                  <label className="live-date-picker" title={t('course.board.chooseDate')}>
+                    <CalendarDays size={15} aria-hidden="true" />
+                    <span>{new Date(`${tripDate}T00:00:00`).toLocaleDateString(locale)}</span>
+                    <input id="dispatch-date" type="date" aria-label={t('course.board.courseDate')} value={tripDate} onChange={event => setTripDate(event.target.value || operationalYmd())} />
+                  </label>
+                  <button type="button" className="live-date-step" aria-label={t('course.board.nextDay')} title={t('course.board.nextDay')} onClick={() => setTripDate(value => shiftYmd(value, 1))}>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </button>
+                </div>
+                <button type="button" className="live-date-today" disabled={tripDate === operationalYmd()} onClick={() => setTripDate(operationalYmd())}>{t('common.today')}</button>
+              </div>
             )}
             <button className="driver-tool-btn" onClick={loadBoard} disabled={loading || busy}><RefreshCw size={15} /> {t('course.board.refresh')}</button>
             {isAdmin && viewMode === 'day' && (

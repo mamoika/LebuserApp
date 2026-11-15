@@ -3813,24 +3813,12 @@
   font-weight: 650;
 }
 .live-dispatch .live-board-actions {
+  --dispatch-control-height: 44px;
   align-items: center;
   flex-wrap: nowrap;
 }
-.live-dispatch .live-board-actions > label {
-  gap: 4px;
-  font-size: 9.5px;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-}
-.live-dispatch .live-board-actions input {
-  min-width: 148px;
-  min-height: 42px;
-  border-color: rgba(0, 0, 0, 0.075);
-  background: var(--bg-tertiary);
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
-}
 .live-dispatch .live-view-toggle {
+  height: var(--dispatch-control-height);
   flex: 0 0 auto;
   margin: 0 4px 0 0;
   padding: 3px;
@@ -3849,10 +3837,102 @@
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
 }
 .live-dispatch .live-board-actions .driver-tool-btn {
-  min-height: 42px;
+  height: var(--dispatch-control-height);
+  min-height: var(--dispatch-control-height);
   border-color: rgba(0, 0, 0, 0.075);
   background: var(--bg-card-solid);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.live-date-switcher {
+  height: var(--dispatch-control-height);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.live-date-control {
+  height: var(--dispatch-control-height);
+  display: grid;
+  grid-template-columns: 42px minmax(118px, 1fr) 42px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.075);
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+}
+.live-date-step,
+.live-date-today {
+  min-height: var(--dispatch-control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, transform 100ms ease;
+}
+.live-date-step:first-child { border-right: 1px solid rgba(0, 0, 0, 0.055); }
+.live-date-step:last-child { border-left: 1px solid rgba(0, 0, 0, 0.055); }
+.live-date-step:hover { color: var(--accent); background: rgba(255, 255, 255, 0.78); }
+.live-date-step:active,
+.live-date-today:active { transform: scale(0.96); }
+.live-date-picker {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.66);
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.live-date-picker > svg { flex: 0 0 auto; color: var(--text-tertiary); }
+.live-date-picker > span { overflow: hidden; text-overflow: ellipsis; }
+.live-date-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.live-date-today {
+  height: var(--dispatch-control-height);
+  padding: 0 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 11px;
+  color: var(--accent);
+  background: var(--accent-light);
+  white-space: nowrap;
+}
+.live-date-today:hover { background: rgba(0, 122, 255, 0.15); }
+.live-date-today:disabled {
+  border-color: rgba(0, 0, 0, 0.055);
+  color: var(--text-quaternary);
+  background: var(--bg-tertiary);
+  cursor: default;
+  opacity: 0.72;
+}
+.live-date-step:focus-visible,
+.live-date-today:focus-visible,
+.live-date-picker:focus-within {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(0, 122, 255, 0.24);
+  outline-offset: -3px;
 }
 .live-dispatch .live-board-actions .driver-tool-btn.is-primary {
   border-color: var(--accent);
@@ -4032,7 +4112,8 @@
   .live-dispatch .live-board-actions { align-items: stretch; flex-wrap: wrap; }
   .live-dispatch .live-view-toggle { width: 100%; margin: 0; }
   .live-dispatch .live-view-toggle .seg-btn { flex: 1; }
-  .live-dispatch .live-board-actions > label { flex: 1 1 160px; }
+  .live-date-switcher { width: 100%; flex: 1 1 100%; }
+  .live-date-control { min-width: 0; flex: 1; }
   .live-dispatch .live-board-actions .driver-tool-btn { flex: 1 1 auto; justify-content: center; }
   .live-dispatch .dispatch-summary { padding: 10px 16px; }
   .live-board-frame { overflow: visible; padding: 5px; border-radius: 15px; }

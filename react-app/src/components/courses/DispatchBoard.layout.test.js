@@ -18,6 +18,29 @@ test('dispatch controls and summary share one compact header surface', () => {
   );
 });
 
+test('daily toolbar aligns controls and offers one-click date navigation', () => {
+  assert.match(
+    source,
+    /className="live-date-control"[\s\S]*?shiftYmd\(value, -1\)[\s\S]*?id="dispatch-date"[\s\S]*?shiftYmd\(value, 1\)/,
+    'the date control should expose previous, direct-pick, and next navigation in one group',
+  );
+  assert.match(
+    source,
+    /className="live-date-today"[\s\S]*?disabled=\{tripDate === operationalYmd\(\)\}[\s\S]*?t\('common\.today'\)/,
+    'the stable toolbar should expose a quick return to today and disable it on the current day',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.live-board-actions\s*\{[\s\S]*?--dispatch-control-height:\s*44px;/,
+    'the toolbar should own one shared control height',
+  );
+  assert.match(
+    styles,
+    /\.live-dispatch \.live-view-toggle\s*\{[\s\S]*?height:\s*var\(--dispatch-control-height\);[\s\S]*?\.live-dispatch \.live-board-actions \.driver-tool-btn\s*\{[\s\S]*?height:\s*var\(--dispatch-control-height\);/,
+    'view and action controls should align to the same height',
+  );
+});
+
 test('each workflow stage owns a full-height status surface', () => {
   assert.match(
     source,
