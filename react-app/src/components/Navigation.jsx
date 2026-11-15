@@ -11,6 +11,8 @@ import {
   Map,
   Menu,
   PackageOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   RadioTower,
   Settings2,
   ShieldCheck,
@@ -24,6 +26,15 @@ import LanguageSwitcher from './LanguageSwitcher';
 import logoImg from '../assets/logo-icon.png';
 
 const NAV_GROUPS = ['transport', 'laundry', 'management'];
+const COLLAPSE_KEY = 'lebuser.nav.collapsed';
+
+function readCollapsed() {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export default function Navigation() {
   const { t } = useTranslation();
@@ -31,6 +42,19 @@ export default function Navigation() {
   const navigate = useNavigate();
   const menuPanelId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed(value => {
+      const next = !value;
+      try {
+        window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
+      } catch {
+        // zapis preferencji jest opcjonalny
+      }
+      return next;
+    });
+  };
 
   const navItems = [];
 
@@ -92,7 +116,7 @@ export default function Navigation() {
   }, [isMenuOpen]);
 
   return (
-    <aside className={`app-navigation${isMenuOpen ? ' is-menu-open' : ''}`} aria-label={t('nav.primary')}>
+    <aside className={`app-navigation${isMenuOpen ? ' is-menu-open' : ''}${isCollapsed ? ' is-collapsed' : ''}`} aria-label={t('nav.primary')}>
       <div className="app-navigation-brand">
         <span className="app-navigation-logo">
           <img src={logoImg} alt={t('common.appName')} />
@@ -131,6 +155,7 @@ export default function Navigation() {
                     to={to}
                     end={to === '/schedule'}
                     className={({ isActive }) => `app-navigation-link${isActive ? ' is-active' : ''}`}
+                    title={isCollapsed ? label : undefined}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
@@ -143,6 +168,19 @@ export default function Navigation() {
         </nav>
 
         <div className="app-navigation-account">
+          <button
+            type="button"
+            className="app-navigation-collapse"
+            onClick={toggleCollapsed}
+            aria-pressed={isCollapsed}
+            title={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
+            aria-label={t(isCollapsed ? 'nav.expand' : 'nav.collapse')}
+          >
+            {isCollapsed
+              ? <PanelLeftOpen size={16} aria-hidden="true" />
+              : <PanelLeftClose size={16} aria-hidden="true" />}
+            <span>{t('nav.collapse')}</span>
+          </button>
           <div className="app-navigation-actions">
             <LanguageSwitcher size="sm" />
             <Link

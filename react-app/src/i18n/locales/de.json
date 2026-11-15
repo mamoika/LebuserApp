@@ -143,6 +143,8 @@
     "primary": "Hauptnavigation",
     "openMenu": "Hauptmenü öffnen",
     "closeMenu": "Hauptmenü schließen",
+    "collapse": "Menü einklappen",
+    "expand": "Menü ausklappen",
     "groups": {
       "transport": "Transport und Routen",
       "laundry": "Wäscherei und Lager",

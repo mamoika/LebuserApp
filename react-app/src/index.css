@@ -10592,7 +10592,7 @@ select.ap-input {
 
 .app-frame {
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: 224px minmax(0, 1fr);
   min-height: calc(100vh - 36px);
   border: 1px solid var(--laundry-divider);
   border-radius: var(--laundry-radius-frame);
@@ -11405,4 +11405,106 @@ select.ap-input {
   flex: 0 0 auto;
   width: 34px;
   padding: 0;
+}
+
+/* Zwijany sidebar (desktop) */
+.app-navigation-collapse {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--laundry-radius-control);
+  background: transparent;
+  color: var(--laundry-ink-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-navigation-collapse:hover {
+  background: var(--laundry-surface-soft);
+  color: var(--laundry-ink);
+}
+
+.app-navigation-collapse:focus-visible {
+  outline: 3px solid var(--laundry-focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .app-navigation-collapse { display: none; }
+}
+
+@media (min-width: 901px) {
+  .app-frame {
+    transition: grid-template-columns 200ms var(--laundry-ease);
+  }
+
+  .app-frame:has(.app-navigation.is-collapsed) {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .app-navigation-brand { padding: 18px 16px 14px; }
+
+  .app-navigation.is-collapsed .app-navigation-brand {
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-logo {
+    width: 34px;
+    height: 34px;
+    overflow: hidden;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-logo img {
+    max-width: none;
+    height: 34px;
+    max-height: none;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-scroller { padding-inline: 10px; }
+
+  .app-navigation.is-collapsed .app-navigation-group h2 {
+    height: 1px;
+    margin: 6px 8px 10px;
+    overflow: hidden;
+    background: var(--laundry-divider);
+    font-size: 0;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-group + .app-navigation-group { margin-block-start: 6px; }
+
+  .app-navigation.is-collapsed .app-navigation-link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-link span,
+  .app-navigation.is-collapsed .app-navigation-collapse span,
+  .app-navigation.is-collapsed .app-navigation-account-copy,
+  .app-navigation.is-collapsed .app-navigation-actions .lang-selector {
+    display: none;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-link.is-active::before { inset-block: 9px; }
+
+  .app-navigation.is-collapsed .app-navigation-account {
+    align-items: center;
+    padding-inline: 8px;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-collapse {
+    justify-content: center;
+    width: 34px;
+    padding: 0;
+  }
+
+  .app-navigation.is-collapsed .app-navigation-profile {
+    flex-direction: column;
+    gap: 8px;
+  }
 }

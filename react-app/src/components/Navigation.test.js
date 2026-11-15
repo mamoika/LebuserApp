@@ -16,7 +16,7 @@ test('admin route plan appears directly after clients in navigation', () => {
 });
 
 test('navigation uses grouped CRM sidebar semantics and lucide icons', () => {
-  assert.match(source, /<aside className=\{`app-navigation\$\{isMenuOpen \? ' is-menu-open' : ''\}`\} aria-label=\{t\('nav\.primary'\)\}>/);
+  assert.match(source, /<aside className=\{`app-navigation\$\{isMenuOpen \? ' is-menu-open' : ''\}\$\{isCollapsed \? ' is-collapsed' : ''\}`\} aria-label=\{t\('nav\.primary'\)\}>/);
   assert.match(source, /const NAV_GROUPS = \['transport', 'laundry', 'management'\]/);
   assert.match(source, /icon: WashingMachine/);
   assert.doesNotMatch(source, /icon: '[^']*[\u{1F300}-\u{1FAFF}]/u);
@@ -28,4 +28,11 @@ test('navigation exposes an accessible responsive menu', () => {
   assert.match(source, /'nav\.closeMenu' : 'nav\.openMenu'/);
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /className="app-navigation-panel" id=\{menuPanelId\}/);
+});
+
+test('desktop sidebar can be collapsed to icons and remembers the choice', () => {
+  assert.match(source, /COLLAPSE_KEY/);
+  assert.match(source, /aria-pressed=\{isCollapsed\}/);
+  assert.match(source, /title=\{isCollapsed \? label : undefined\}/);
+  assert.match(source, /'nav\.expand' : 'nav\.collapse'/);
 });
