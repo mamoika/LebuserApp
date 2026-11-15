@@ -11381,3 +11381,28 @@ select.ap-input {
 @media (max-width: 1100px) {
   .app-navigation-logo { height: 40px; }
 }
+
+/* Korekta: mniejsze logo, wylogowanie jako ikona w rzędzie z nazwiskiem */
+.app-navigation-logo {
+  width: 100%;
+  height: auto;
+  max-height: 36px;
+  justify-content: start;
+}
+
+.app-navigation-logo img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 36px;
+}
+
+.app-navigation-profile .app-navigation-account-copy {
+  flex: 1;
+}
+
+.app-navigation-signout {
+  flex: 0 0 auto;
+  width: 34px;
+  padding: 0;
+}

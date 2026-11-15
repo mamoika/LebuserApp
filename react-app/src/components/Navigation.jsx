@@ -143,13 +143,6 @@ export default function Navigation() {
         </nav>
 
         <div className="app-navigation-account">
-          <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
-            <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
-            <span className="app-navigation-account-copy">
-              <strong>{user?.name}</strong>
-              <small>@{user?.username}</small>
-            </span>
-          </div>
           <div className="app-navigation-actions">
             <LanguageSwitcher size="sm" />
             <Link
@@ -161,9 +154,21 @@ export default function Navigation() {
             >
               <ShieldCheck size={16} aria-hidden="true" />
             </Link>
-            <button type="button" className="app-navigation-signout" onClick={handleSignOut}>
-              <LogOut size={15} aria-hidden="true" />
-              <span>{signOutLabel}</span>
+          </div>
+          <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
+            <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+            <span className="app-navigation-account-copy">
+              <strong>{user?.name}</strong>
+              <small>@{user?.username}</small>
+            </span>
+            <button
+              type="button"
+              className="app-navigation-icon-button app-navigation-signout"
+              onClick={handleSignOut}
+              title={signOutLabel}
+              aria-label={signOutLabel}
+            >
+              <LogOut size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
