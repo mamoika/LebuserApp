@@ -16,7 +16,7 @@ import {
   saveWeeklyRoutePlanVisibility,
 } from '../lib/weeklyRoutePlanRpc';
 
-const DAYS = 6;
+const DAYS = 7; // poniedziałek–niedziela (niedziela na wypadek wyjątkowego kursu)
 
 function mondayOf(date = new Date()) {
   const result = new Date(date);

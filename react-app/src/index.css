@@ -12729,3 +12729,36 @@ select.ap-input {
   font-style: normal;
   font-weight: 800;
 }
+
+/* 7 dni (z niedzielą): węższa kolumna tras i ciaśniejsze karty, żeby nazwiska się mieściły */
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table thead th:first-child {
+  width: 172px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-table td {
+  padding: 4px 3px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell {
+  padding: 7px 7px 7px 9px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head {
+  gap: 6px;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 8.5px !important;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-head strong {
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-card-meta,
+.weekly-plan-table-wrap:not(.is-driver-view) .weekly-plan-cell em {
+  padding-left: 26px;
+}
