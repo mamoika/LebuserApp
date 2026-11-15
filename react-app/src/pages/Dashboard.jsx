@@ -2,8 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
-import LanguageSwitcher from '../components/LanguageSwitcher';
-import { AlertTriangle, Eye, LogOut, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
+import { AlertTriangle, Eye, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import RodoNotice from './RodoNotice';
 
@@ -50,23 +49,6 @@ const PAGE_KEYS = {
   '/mock': 'routes',
   '/mock/dyspozytornia': 'routes',
   '/mock/kierowca': 'route',
-};
-
-const PAGE_GROUP_KEYS = {
-  home: 'transport',
-  route: 'transport',
-  routes: 'transport',
-  clients: 'transport',
-  routePlan: 'transport',
-  map: 'transport',
-  wash: 'laundry',
-  warehouse: 'laundry',
-  history: 'management',
-  grafik: 'management',
-  timeline: 'management',
-  costs: 'management',
-  admin: 'management',
-  rodo: 'management',
 };
 
 function ViewLoading({ label }) {
@@ -138,19 +120,12 @@ function PrivacyNoticeModal() {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user, adminBackup, signOut, switchKioskUser, stopImpersonating, isDriver, canViewModule } = useAuth();
+  const { user, adminBackup, switchKioskUser, stopImpersonating, isDriver, canViewModule } = useAuth();
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
   const navigate = useNavigate();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
-  const pageGroupKey = PAGE_GROUP_KEYS[pageKey] || 'transport';
-  const userInitials = (user?.name || user?.username || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0]?.toUpperCase())
-    .join('') || t('common.appName').slice(0, 1);
   const firstAllowedPath = [
     ...(isDriver ? [['route', '/route']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
@@ -220,43 +195,7 @@ export default function Dashboard() {
         <Navigation />
 
         <section className="app-workspace">
-          {/* Header */}
-          <header className="app-header">
-            <div className="app-header-top">
-              <div className="app-page-context">
-                <div className="app-page-eyebrow">{t(`nav.groups.${pageGroupKey}`)}</div>
-                <div className="app-title">{t(`pages.${pageKey}.title`)}</div>
-                <div className="app-subtitle">{t(`pages.${pageKey}.subtitle`)}</div>
-              </div>
-            </div>
-            <div className="app-header-actions">
-              <div className={`app-header-user ${isImpersonating ? 'is-impersonating' : ''}`}>
-                <span className="app-header-avatar" aria-hidden="true">{userInitials}</span>
-                <span className="app-header-user-copy">
-                  <span className="app-header-user-name">{user?.name}</span>
-                  <span className="app-header-username">@{user?.username}</span>
-                </span>
-              </div>
-              <Link
-                to="/rodo"
-                className="driver-btn app-header-icon-button rodo-link-header"
-                title={t('pages.rodo.title')}
-                aria-label={t('pages.rodo.title')}
-              >
-                <ShieldCheck size={16} aria-hidden="true" />
-              </Link>
-              <LanguageSwitcher size="sm" />
-              <button
-                type="button"
-                onClick={user?.kiosk_mode ? handleSwitchKioskUser : signOut}
-                className="driver-btn app-header-sign-out"
-                aria-label={user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}
-              >
-                <LogOut size={15} aria-hidden="true" />
-                <span>{user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut')}</span>
-              </button>
-            </div>
-          </header>
+          <h1 className="sr-only">{t(`pages.${pageKey}.title`)}</h1>
 
           {/* Kontent główny */}
           <main id="main-content" className="app-main-content" tabIndex={-1}>

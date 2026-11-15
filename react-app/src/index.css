@@ -11302,3 +11302,82 @@ select.ap-input {
     border-color: var(--laundry-divider-emphasis);
   }
 }
+
+/* Sidebar: samo logo + konto z akcjami na dole */
+.app-navigation-logo {
+  width: auto;
+  height: 52px;
+  border: 0;
+  background: transparent;
+}
+
+.app-navigation-logo img {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+}
+
+.app-navigation-account {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.app-navigation-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-navigation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-navigation-icon-button,
+.app-navigation-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 1px solid var(--laundry-divider);
+  border-radius: var(--laundry-radius-control);
+  background: var(--laundry-surface);
+  color: var(--laundry-ink-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.app-navigation-icon-button {
+  width: 34px;
+  flex: 0 0 auto;
+}
+
+.app-navigation-signout {
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.app-navigation-icon-button:hover,
+.app-navigation-signout:hover {
+  background: var(--laundry-surface-soft);
+  color: var(--laundry-ink);
+}
+
+.app-navigation-icon-button:focus-visible,
+.app-navigation-signout:focus-visible {
+  outline: 3px solid var(--laundry-focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1100px) {
+  .app-navigation-logo { height: 40px; }
+}

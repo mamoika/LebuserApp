@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
@@ -7,24 +7,28 @@ import {
   ChartNoAxesCombined,
   ClipboardList,
   ContactRound,
+  LogOut,
   Map,
   Menu,
   PackageOpen,
   RadioTower,
   Settings2,
+  ShieldCheck,
   Truck,
   WalletCards,
   WashingMachine,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import LanguageSwitcher from './LanguageSwitcher';
 import logoImg from '../assets/logo-icon.png';
 
 const NAV_GROUPS = ['transport', 'laundry', 'management'];
 
 export default function Navigation() {
   const { t } = useTranslation();
-  const { canViewModule, user } = useAuth();
+  const { canViewModule, user, signOut, switchKioskUser, adminBackup } = useAuth();
+  const navigate = useNavigate();
   const menuPanelId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -65,6 +69,17 @@ export default function Navigation() {
     .map(part => part[0]?.toUpperCase())
     .join('') || t('common.appName').slice(0, 1);
 
+  const handleSignOut = () => {
+    if (user?.kiosk_mode) {
+      switchKioskUser();
+      navigate('/kiosk', { replace: true });
+      return;
+    }
+    signOut();
+  };
+
+  const signOutLabel = user?.kiosk_mode ? t('kiosk.changeDriver') : t('header.signOut');
+
   useEffect(() => {
     if (!isMenuOpen) return undefined;
 
@@ -79,12 +94,8 @@ export default function Navigation() {
   return (
     <aside className={`app-navigation${isMenuOpen ? ' is-menu-open' : ''}`} aria-label={t('nav.primary')}>
       <div className="app-navigation-brand">
-        <span className="app-navigation-logo" aria-hidden="true">
-          <img src={logoImg} alt="" />
-        </span>
-        <span className="app-navigation-brand-copy">
-          <strong>{t('common.appName')}</strong>
-          <small>{t('common.appSubtitle')}</small>
+        <span className="app-navigation-logo">
+          <img src={logoImg} alt={t('common.appName')} />
         </span>
         <button
           type="button"
@@ -132,11 +143,29 @@ export default function Navigation() {
         </nav>
 
         <div className="app-navigation-account">
-          <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
-          <span className="app-navigation-account-copy">
-            <strong>{user?.name}</strong>
-            <small>@{user?.username}</small>
-          </span>
+          <div className={`app-navigation-profile${adminBackup ? ' is-impersonating' : ''}`}>
+            <span className="app-navigation-avatar" aria-hidden="true">{initials}</span>
+            <span className="app-navigation-account-copy">
+              <strong>{user?.name}</strong>
+              <small>@{user?.username}</small>
+            </span>
+          </div>
+          <div className="app-navigation-actions">
+            <LanguageSwitcher size="sm" />
+            <Link
+              to="/rodo"
+              className="app-navigation-icon-button"
+              title={t('pages.rodo.title')}
+              aria-label={t('pages.rodo.title')}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <ShieldCheck size={16} aria-hidden="true" />
+            </Link>
+            <button type="button" className="app-navigation-signout" onClick={handleSignOut}>
+              <LogOut size={15} aria-hidden="true" />
+              <span>{signOutLabel}</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
