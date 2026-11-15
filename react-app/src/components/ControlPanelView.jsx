@@ -38,7 +38,6 @@ import { getRouteColorByDisplay } from '../lib/visualSystem';
 import {
   buildMyMonthHours,
   buildTeamDay,
-  buildUpcomingAbsences,
   collectApprovals,
   percentChange,
   prettyGroupName,
@@ -336,10 +335,7 @@ export default function ControlPanelView() {
       year,
       month,
     };
-    return {
-      day: buildTeamDay({ ...input, day }),
-      upcoming: buildUpcomingAbsences({ ...input, fromDay: day + 1, days: 7 }),
-    };
+    return { day: buildTeamDay({ ...input, day }) };
   }, [day, month, remote.schedule, year]);
 
   const myHours = useMemo(() => buildMyMonthHours({
@@ -377,10 +373,6 @@ export default function ControlPanelView() {
   const prevMonthLabel = monthNames()[prev.month - 1] || '';
   const visibleApprovals = approvals.slice(0, APPROVALS_VISIBLE);
   const hiddenApprovals = approvals.length - visibleApprovals.length;
-  const formatDayRange = (item) => {
-    const toLabel = dayNumber => new Date(year, month - 1, dayNumber).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
-    return item.firstDay === item.lastDay ? toLabel(item.firstDay) : `${toLabel(item.firstDay)} – ${toLabel(item.lastDay)}`;
-  };
 
   const lowTrolleys = !loading && laundry.free <= LOW_TROLLEYS;
   const attentionCount = approvals.length + (lowTrolleys ? 1 : 0);
@@ -566,32 +558,21 @@ export default function ControlPanelView() {
             <p className="cp-inline-empty"><Users size={15} aria-hidden="true" />{t('controlPanel.team.emptyTitle')}</p>
           )}
 
-          <h4 className="cp-subhead">{t('controlPanel.team.absentToday')}</h4>
+          <h4 className="cp-subhead">
+            {t('controlPanel.team.absentToday')}
+            {team?.day.absent.length > 0 && <span className="cp-count tone-amber">{team.day.absent.length}</span>}
+          </h4>
           {team?.day.absent.length ? (
             <ul className="cp-people">
               {team.day.absent.map(person => (
                 <li key={person.id}>
-                  <span>{person.name}</span>
+                  <span>{person.name}<small>{prettyGroupName(person.group)}</small></span>
                   <span className={`cp-status status-${person.value.toLowerCase()}`}>{person.value}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="cp-muted">{t('controlPanel.team.nobodyAbsent')}</p>
-          )}
-
-          <h4 className="cp-subhead">{t('controlPanel.team.upcoming')}</h4>
-          {team?.upcoming.length ? (
-            <ul className="cp-people">
-              {team.upcoming.map(item => (
-                <li key={item.id}>
-                  <span>{item.name}<small>{formatDayRange(item)}</small></span>
-                  <span className={`cp-status status-${item.value.toLowerCase()}`}>{item.value}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="cp-muted">{t('controlPanel.team.noUpcoming')}</p>
+            <p className="cp-inline-empty is-ok"><CheckCircle2 size={15} aria-hidden="true" />{t('controlPanel.team.nobodyAbsent')}</p>
           )}
         </section>
       </div>

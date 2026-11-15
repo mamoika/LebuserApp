@@ -2994,9 +2994,7 @@
       "open": "Dienstplan",
       "emptyTitle": "Keine Dienstplandaten für heute",
       "absentToday": "Heute abwesend",
-      "nobodyAbsent": "Heute sind alle im Dienst oder haben frei.",
-      "upcoming": "Abwesenheiten in den nächsten Tagen",
-      "noUpcoming": "Keine geplanten Abwesenheiten in diesem Monat."
+      "nobodyAbsent": "Heute ist niemand abwesend."
     }
   }
 }

@@ -12016,6 +12016,8 @@ select.ap-input {
   font-weight: 600;
 }
 
+.cp-inline-empty.is-ok svg { color: var(--cp-green); }
+
 .cp-card {
   display: flex;
   flex-direction: column;
@@ -12280,6 +12282,9 @@ select.ap-input {
 }
 
 .cp-subhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 6px 0 0;
   color: var(--laundry-ink-muted);
   font-size: 11px;
