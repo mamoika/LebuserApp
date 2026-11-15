@@ -12332,3 +12332,69 @@ select.ap-input {
     width: 71px;
   }
 }
+
+/* ── PRALNIA NA CAŁY EKRAN ────────────────────────────────────────────────
+   Szeroki ekran: lista prania po lewej na całą dostępną szerokość, a "Plan
+   operacyjny" (wagi + wózki) jako przyklejony panel po prawej, zawsze na widoku.
+   Kolejność w kodzie zostaje (lista przed planem), układ robi tylko CSS. */
+.laundry-shell {
+  max-width: none;
+}
+
+@media (min-width: 1280px) {
+  .laundry-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 400px);
+    gap: 22px 24px;
+    align-items: start;
+  }
+
+  .laundry-shell > * {
+    grid-column: 1 / -1;
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-work-list) {
+    grid-column: 1;
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) {
+    grid-column: 2;
+    position: sticky;
+    top: 16px;
+  }
+
+  /* Plan operacyjny w wąskiej kolumnie: kafelki 2 × 2 */
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-flow-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-flow-metric {
+    min-height: 0;
+    padding: 16px 16px 14px;
+    border-block-end: 1px solid rgba(29, 29, 31, 0.06);
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-flow-metric:nth-child(2n) {
+    border-inline-end: 0;
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-fleet-summary {
+    margin-block-start: 12px;
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-flow-metric-meta {
+    align-items: flex-start;
+  }
+
+  .laundry-shell > .laundry-section:has(.laundry-operations-overview) .laundry-flow-metric-meta > span {
+    overflow: visible;
+    white-space: normal;
+    line-height: 1.3;
+  }
+}
+
+@media (min-width: 1800px) {
+  .laundry-shell {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+}
