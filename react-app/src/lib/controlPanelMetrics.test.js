@@ -30,7 +30,7 @@ const roster = [
 test('schedule values are classified like the work schedule grid', () => {
   assert.equal(classifyScheduleValue('8'), 'working');
   assert.equal(classifyScheduleValue('05:00-13:00'), 'working');
-  assert.equal(classifyScheduleValue('I'), 'working');
+  assert.equal(classifyScheduleValue('I'), 'planned');
   assert.equal(classifyScheduleValue('L4'), 'absent');
   assert.equal(classifyScheduleValue('uw'), 'absent');
   assert.equal(classifyScheduleValue('W'), 'off');
@@ -51,16 +51,23 @@ test('team day counts working, absent and skips people outside employment', () =
     day: 16,
   });
   assert.equal(day.total, 3);
-  assert.equal(day.working, 2);
+  assert.equal(day.working, 1);
+  assert.equal(day.planned, 1);
   assert.equal(day.absentCount, 1);
   assert.deepEqual(day.absent.map(item => [item.name, item.value]), [['Bartek', 'L4']]);
-  assert.deepEqual(day.groups.find(group => group.name === 'Kierowcy'), { name: 'Kierowcy', working: 1, total: 2 });
+  assert.deepEqual(day.groups.find(group => group.name === 'Kierowcy'), {
+    name: 'Kierowcy', working: 1, planned: 0, total: 2,
+  });
+  assert.deepEqual(day.groups.find(group => group.name === 'Pralnia'), {
+    name: 'Pralnia', working: 0, planned: 1, total: 1,
+  });
 });
 
 test('weekend days default to off', () => {
   // 2026-11-15 is a Sunday.
   const day = buildTeamDay({ roster, employmentPeriods: periods, scheduleEntries: [], year: 2026, month: 11, day: 15 });
   assert.equal(day.working, 0);
+  assert.equal(day.planned, 0);
   assert.equal(day.off, 3);
 });
 

@@ -11922,6 +11922,10 @@ select.ap-input {
   transition: width 400ms var(--laundry-ease);
 }
 
+.cp-progress > .cp-progress-planned {
+  background: var(--cp-violet);
+}
+
 /* Sekcje: Dziś / Miesiąc */
 .cp-section {
   display: flex;
@@ -12279,6 +12283,7 @@ select.ap-input {
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .cp-subhead {

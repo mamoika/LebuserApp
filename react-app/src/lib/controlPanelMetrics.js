@@ -55,13 +55,14 @@ function buildScheduleLookup(scheduleEntries = []) {
   return map;
 }
 
-// Status jednego pracownika w danym dniu: working / absent / off / outside.
+// Status jednego pracownika w danym dniu: working / planned / absent / off / outside.
 export function classifyScheduleValue(value) {
   const raw = String(value ?? '').trim().toUpperCase();
   if (!raw) return 'outside';
   if (isAbsent(raw)) return 'absent';
   if (OFF_VALUES.has(raw)) return 'off';
-  if (raw === 'I' || parseHours(raw) > 0) return 'working';
+  if (raw === 'I') return 'planned';
+  if (parseHours(raw) > 0) return 'working';
   return 'off';
 }
 
@@ -72,6 +73,7 @@ export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeri
   const groups = new Map();
   const absent = [];
   let working = 0;
+  let planned = 0;
   let off = 0;
   let total = 0;
 
@@ -84,12 +86,15 @@ export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeri
 
     total += 1;
     const groupName = employee.group_name || '—';
-    const group = groups.get(groupName) || { name: groupName, working: 0, total: 0 };
+    const group = groups.get(groupName) || { name: groupName, working: 0, planned: 0, total: 0 };
     group.total += 1;
 
     if (status === 'working') {
       working += 1;
       group.working += 1;
+    } else if (status === 'planned') {
+      planned += 1;
+      group.planned += 1;
     } else if (status === 'absent') {
       absent.push({ id: employee.id, name: employee.name, value: String(value).trim().toUpperCase(), group: groupName });
     } else {
@@ -102,6 +107,7 @@ export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeri
   return {
     total,
     working,
+    planned,
     absentCount: absent.length,
     off,
     absent,

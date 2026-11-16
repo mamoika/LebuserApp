@@ -2954,7 +2954,7 @@
       "trolleys": "Wagen belegt",
       "trolleysDetail": "frei: {{free}} · beim Kunden: {{atClient}}",
       "team": "Heute im Dienst",
-      "teamDetail": "abwesend: {{absent}} · frei: {{off}}",
+      "teamDetail": "geplant: {{planned}} · abwesend: {{absent}} · frei: {{off}}",
       "myHours": "Meine Stunden · {{month}}",
       "myHoursDetail": "Soll {{norm}} h · Differenz {{diff}} h",
       "myHoursMissing": "Dein Konto ist nicht mit dem Dienstplan verknüpft"
@@ -2995,8 +2995,7 @@
       "emptyTitle": "Keine Dienstplandaten für heute",
       "absentToday": "Heute abwesend",
       "nobodyAbsent": "Heute ist niemand abwesend.",
-      "planned": "Geplant",
-      "noPlanned": "Keine geplanten Abwesenheiten in den nächsten Tagen."
+      "groupSummary": "{{working}} im Dienst · {{planned}} geplant · {{total}} gesamt"
     }
   }
 }

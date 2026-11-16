@@ -6,19 +6,19 @@ const viewSource = await readFile(new URL('./ControlPanelView.jsx', import.meta.
 const pl = JSON.parse(await readFile(new URL('../i18n/locales/pl.json', import.meta.url), 'utf8'));
 const de = JSON.parse(await readFile(new URL('../i18n/locales/de.json', import.meta.url), 'utf8'));
 
-test('team card shows planned absences after today\'s absences', () => {
+test('team cards distinguish planned employees from employees in work', () => {
   assert.match(
     viewSource,
-    /buildUpcomingAbsences\(\{ \.\.\.input, fromDay: day \+ 1, days: 7 \}\)/,
-    'the control panel should load planned absences from the next seven days',
+    /plannedProgress=\{team \? percent\(team\.day\.planned, team\.day\.total\) : undefined\}/,
+    'the KPI should render planned employees separately from working employees',
   );
   assert.match(
     viewSource,
-    /controlPanel\.team\.absentToday[\s\S]*controlPanel\.team\.planned[\s\S]*team\?\.upcoming\.length/,
-    'planned absences should follow the current-day absence section',
+    /controlPanel\.team\.groupSummary[\s\S]*planned=\{percent\(group\.planned, group\.total\)\}/,
+    'every team group should expose its planned count and planned progress segment',
   );
-  assert.equal(pl.controlPanel.team.planned, 'Zaplanowane');
-  assert.equal(de.controlPanel.team.planned, 'Geplant');
-  assert.ok(pl.controlPanel.team.noPlanned);
-  assert.ok(de.controlPanel.team.noPlanned);
+  assert.match(pl.controlPanel.kpi.teamDetail, /zaplanowani: \{\{planned\}\}/);
+  assert.match(de.controlPanel.kpi.teamDetail, /geplant: \{\{planned\}\}/);
+  assert.ok(pl.controlPanel.team.groupSummary);
+  assert.ok(de.controlPanel.team.groupSummary);
 });

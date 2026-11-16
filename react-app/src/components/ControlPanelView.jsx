@@ -38,7 +38,6 @@ import { getRouteColorByDisplay } from '../lib/visualSystem';
 import {
   buildMyMonthHours,
   buildTeamDay,
-  buildUpcomingAbsences,
   collectApprovals,
   percentChange,
   prettyGroupName,
@@ -98,6 +97,19 @@ function signed(value) {
   return `${value > 0 ? '+' : '−'}${formatNumber(Math.abs(value))}`;
 }
 
+function ProgressBar({ value = 0, planned = 0 }) {
+  const workingWidth = Math.max(0, Math.min(100, Number(value) || 0));
+  const plannedWidth = Math.max(0, Math.min(100 - workingWidth, Number(planned) || 0));
+  return (
+    <span className="cp-progress" aria-hidden="true">
+      <span style={{ width: `${workingWidth}%` }} />
+      {plannedWidth > 0 && (
+        <span className="cp-progress-planned" style={{ left: `${workingWidth}%`, width: `${plannedWidth}%` }} />
+      )}
+    </span>
+  );
+}
+
 function greetingKey(date) {
   const hour = date.getHours();
   if (hour < 11) return 'controlPanel.greetingMorning';
@@ -120,7 +132,7 @@ function TrendChip({ value, goodWhenUp, label }) {
   );
 }
 
-function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit, detail, progress, trend, to }) {
+function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit, detail, progress, plannedProgress, trend, to }) {
   return (
     <Link to={to} className={`cp-kpi tone-${tone} ${alert ? 'is-alert' : ''}`}>
       <span className="cp-kpi-head">
@@ -132,10 +144,8 @@ function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit,
         {value}
         {unit && <small>{unit}</small>}
       </span>
-      {typeof progress === 'number' && (
-        <span className="cp-progress" aria-hidden="true">
-          <span style={{ width: `${progress}%` }} />
-        </span>
+      {(typeof progress === 'number' || typeof plannedProgress === 'number') && (
+        <ProgressBar value={progress} planned={plannedProgress} />
       )}
       {detail && <span className="cp-kpi-detail">{detail}</span>}
       {trend}
@@ -336,10 +346,7 @@ export default function ControlPanelView() {
       year,
       month,
     };
-    return {
-      day: buildTeamDay({ ...input, day }),
-      upcoming: buildUpcomingAbsences({ ...input, fromDay: day + 1, days: 7 }),
-    };
+    return { day: buildTeamDay({ ...input, day }) };
   }, [day, month, remote.schedule, year]);
 
   const myHours = useMemo(() => buildMyMonthHours({
@@ -377,14 +384,6 @@ export default function ControlPanelView() {
   const prevMonthLabel = monthNames()[prev.month - 1] || '';
   const visibleApprovals = approvals.slice(0, APPROVALS_VISIBLE);
   const hiddenApprovals = approvals.length - visibleApprovals.length;
-  const formatDayRange = (item) => {
-    const toLabel = dayNumber => new Date(year, month - 1, dayNumber)
-      .toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
-    return item.firstDay === item.lastDay
-      ? toLabel(item.firstDay)
-      : `${toLabel(item.firstDay)} – ${toLabel(item.lastDay)}`;
-  };
-
   const lowTrolleys = !loading && laundry.free <= LOW_TROLLEYS;
   const attentionCount = approvals.length + (lowTrolleys ? 1 : 0);
 
@@ -485,8 +484,9 @@ export default function ControlPanelView() {
             label={t('controlPanel.today.team')}
             value={team ? `${team.day.working}/${team.day.total}` : '—'}
             progress={team ? percent(team.day.working, team.day.total) : undefined}
+            plannedProgress={team ? percent(team.day.planned, team.day.total) : undefined}
             detail={team
-              ? t('controlPanel.kpi.teamDetail', { absent: team.day.absentCount, off: team.day.off })
+              ? t('controlPanel.kpi.teamDetail', { planned: team.day.planned, absent: team.day.absentCount, off: team.day.off })
               : t('controlPanel.team.emptyTitle')}
             to="/grafik"
           />
@@ -560,8 +560,17 @@ export default function ControlPanelView() {
               {team.day.groups.map(group => (
                 <div className="cp-group" key={group.name}>
                   <span className="cp-group-name">{prettyGroupName(group.name)}</span>
-                  <span className="cp-group-value">{group.working}/{group.total}</span>
-                  <span className="cp-progress" aria-hidden="true"><span style={{ width: `${percent(group.working, group.total)}%` }} /></span>
+                  <span className="cp-group-value">
+                    {t('controlPanel.team.groupSummary', {
+                      working: group.working,
+                      planned: group.planned,
+                      total: group.total,
+                    })}
+                  </span>
+                  <ProgressBar
+                    value={percent(group.working, group.total)}
+                    planned={percent(group.planned, group.total)}
+                  />
                 </div>
               ))}
             </div>
@@ -584,23 +593,6 @@ export default function ControlPanelView() {
             </ul>
           ) : (
             <p className="cp-inline-empty is-ok"><CheckCircle2 size={15} aria-hidden="true" />{t('controlPanel.team.nobodyAbsent')}</p>
-          )}
-
-          <h4 className="cp-subhead">
-            {t('controlPanel.team.planned')}
-            {team?.upcoming.length > 0 && <span className="cp-count tone-blue">{team.upcoming.length}</span>}
-          </h4>
-          {team?.upcoming.length ? (
-            <ul className="cp-people">
-              {team.upcoming.map(item => (
-                <li key={item.id}>
-                  <span>{item.name}<small>{formatDayRange(item)}</small></span>
-                  <span className={`cp-status status-${item.value.toLowerCase()}`}>{item.value}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="cp-inline-empty is-ok"><CheckCircle2 size={15} aria-hidden="true" />{t('controlPanel.team.noPlanned')}</p>
           )}
         </section>
       </div>

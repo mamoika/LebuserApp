@@ -2976,7 +2976,7 @@
       "trolleys": "Wózki zajęte",
       "trolleysDetail": "wolne: {{free}} · u klientów: {{atClient}}",
       "team": "W pracy dziś",
-      "teamDetail": "nieobecni: {{absent}} · wolne: {{off}}",
+      "teamDetail": "zaplanowani: {{planned}} · nieobecni: {{absent}} · wolne: {{off}}",
       "myHours": "Moje godziny · {{month}}",
       "myHoursDetail": "norma {{norm}} h · różnica {{diff}} h",
       "myHoursMissing": "Twoje konto nie jest powiązane z grafikiem"
@@ -3021,8 +3021,7 @@
       "emptyTitle": "Brak danych grafiku na dziś",
       "absentToday": "Nieobecni dziś",
       "nobodyAbsent": "Nikt dziś nie jest nieobecny.",
-      "planned": "Zaplanowane",
-      "noPlanned": "Brak zaplanowanych nieobecności w najbliższych dniach."
+      "groupSummary": "{{working}} w pracy · {{planned}} planowanych · {{total}} razem"
     }
   }
 }
