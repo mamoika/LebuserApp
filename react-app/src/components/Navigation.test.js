@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const source = await readFile(new URL('./Navigation.jsx', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../index.css', import.meta.url), 'utf8');
 
 test('admin route plan appears directly after clients in navigation', () => {
   const clientsIndex = source.indexOf("navItems.push({ to: '/clients'");
@@ -35,4 +36,11 @@ test('desktop sidebar can be collapsed to icons and remembers the choice', () =>
   assert.match(source, /aria-pressed=\{isCollapsed\}/);
   assert.match(source, /title=\{isCollapsed \? label : undefined\}/);
   assert.match(source, /'nav\.expand' : 'nav\.collapse'/);
+});
+
+test('collapsed desktop sidebar hides privacy and sign-out actions', () => {
+  assert.match(
+    styles,
+    /\.app-navigation\.is-collapsed \.app-navigation-rodo,\s*\.app-navigation\.is-collapsed \.app-navigation-signout\s*\{\s*display:\s*none;/,
+  );
 });

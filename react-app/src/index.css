@@ -11554,6 +11554,11 @@ select.ap-input {
     padding: 0;
   }
 
+  .app-navigation.is-collapsed .app-navigation-rodo,
+  .app-navigation.is-collapsed .app-navigation-signout {
+    display: none;
+  }
+
   .app-navigation.is-collapsed .app-navigation-account {
     align-items: center;
     padding-inline: 8px;
