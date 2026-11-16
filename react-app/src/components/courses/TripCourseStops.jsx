@@ -12,6 +12,7 @@ import {
   splitCleanTasks, statsFromCourseStops, stopLaundryMeta,
 } from '../../lib/courseTaskHelpers';
 import { parseExtraClients } from '../../lib/tripUiHelpers';
+import { operationalCourseStops } from '../../lib/courseStopVisibility';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { ViewEditEntryModal } from '../modals/EntryModals';
 import {
@@ -73,7 +74,7 @@ export default function TripCourseStops({
     setLoading(true);
     try {
       const data = await getTripCourse(sessionToken, trip.id);
-      setStops(data.stops || []);
+      setStops(operationalCourseStops(data.stops || []));
       const sourceTrip = data.trip || trip;
       if (sourceTrip.planned_start) {
         const date = new Date(sourceTrip.planned_start);

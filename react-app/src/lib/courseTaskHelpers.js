@@ -1,6 +1,7 @@
 import { VEHICLE_LABELS } from './vehicles';
 import { laundryTypeFlags } from './laundryCategories.js';
 import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers';
+import { operationalCourseStops } from './courseStopVisibility.js';
 
 export { buildDirtyOnlyCandidates } from './dirtyOnlyCandidates';
 
@@ -350,7 +351,8 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
 }
 
 export function statsFromCourseStops(stops = [], entries = [], tripDate) {
-  const deliveryStops = stops.filter(stop =>
+  const visibleStops = operationalCourseStops(stops);
+  const deliveryStops = visibleStops.filter(stop =>
     stop.stop_kind !== 'dirty_only'
     && (stop.tasks || []).some(task =>
       task.task_type === 'pickup_clean' || task.task_type === 'deliver_clean'
@@ -366,10 +368,10 @@ export function statsFromCourseStops(stops = [], entries = [], tripDate) {
     if (clean.pendingDelivery.length === 0 && clean.completedDelivery.length > 0) delivered += 1;
     kg += sumTaskWeight(clean.pickup);
   });
-  const dirtyStops = stops.filter(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate).length > 0);
+  const dirtyStops = visibleStops.filter(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate).length > 0);
   const dirtyFlat = dirtyStops.flatMap(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate));
   return {
-    totalStops: stops.length,
+    totalStops: visibleStops.length,
     stops: deliveryStops.length,
     picked,
     delivered,
