@@ -3020,7 +3020,9 @@
       "open": "Grafik",
       "emptyTitle": "Brak danych grafiku na dziś",
       "absentToday": "Nieobecni dziś",
-      "nobodyAbsent": "Nikt dziś nie jest nieobecny."
+      "nobodyAbsent": "Nikt dziś nie jest nieobecny.",
+      "planned": "Zaplanowane",
+      "noPlanned": "Brak zaplanowanych nieobecności w najbliższych dniach."
     }
   }
 }

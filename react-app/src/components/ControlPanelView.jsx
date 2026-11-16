@@ -38,6 +38,7 @@ import { getRouteColorByDisplay } from '../lib/visualSystem';
 import {
   buildMyMonthHours,
   buildTeamDay,
+  buildUpcomingAbsences,
   collectApprovals,
   percentChange,
   prettyGroupName,
@@ -335,7 +336,10 @@ export default function ControlPanelView() {
       year,
       month,
     };
-    return { day: buildTeamDay({ ...input, day }) };
+    return {
+      day: buildTeamDay({ ...input, day }),
+      upcoming: buildUpcomingAbsences({ ...input, fromDay: day + 1, days: 7 }),
+    };
   }, [day, month, remote.schedule, year]);
 
   const myHours = useMemo(() => buildMyMonthHours({
@@ -373,6 +377,13 @@ export default function ControlPanelView() {
   const prevMonthLabel = monthNames()[prev.month - 1] || '';
   const visibleApprovals = approvals.slice(0, APPROVALS_VISIBLE);
   const hiddenApprovals = approvals.length - visibleApprovals.length;
+  const formatDayRange = (item) => {
+    const toLabel = dayNumber => new Date(year, month - 1, dayNumber)
+      .toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+    return item.firstDay === item.lastDay
+      ? toLabel(item.firstDay)
+      : `${toLabel(item.firstDay)} – ${toLabel(item.lastDay)}`;
+  };
 
   const lowTrolleys = !loading && laundry.free <= LOW_TROLLEYS;
   const attentionCount = approvals.length + (lowTrolleys ? 1 : 0);
@@ -573,6 +584,23 @@ export default function ControlPanelView() {
             </ul>
           ) : (
             <p className="cp-inline-empty is-ok"><CheckCircle2 size={15} aria-hidden="true" />{t('controlPanel.team.nobodyAbsent')}</p>
+          )}
+
+          <h4 className="cp-subhead">
+            {t('controlPanel.team.planned')}
+            {team?.upcoming.length > 0 && <span className="cp-count tone-blue">{team.upcoming.length}</span>}
+          </h4>
+          {team?.upcoming.length ? (
+            <ul className="cp-people">
+              {team.upcoming.map(item => (
+                <li key={item.id}>
+                  <span>{item.name}<small>{formatDayRange(item)}</small></span>
+                  <span className={`cp-status status-${item.value.toLowerCase()}`}>{item.value}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="cp-inline-empty is-ok"><CheckCircle2 size={15} aria-hidden="true" />{t('controlPanel.team.noPlanned')}</p>
           )}
         </section>
       </div>
