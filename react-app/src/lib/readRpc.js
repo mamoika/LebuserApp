@@ -38,6 +38,12 @@ export function getDriverCardReminders(sessionToken) {
   });
 }
 
+export function getControlPanelApprovalBacklog(sessionToken) {
+  return callReadRpc('get_control_panel_approval_backlog', {
+    p_session_token: sessionToken,
+  });
+}
+
 export function getTimelineWeek(sessionToken, dateFrom, dateTo, year, month) {
   return callReadRpc('get_timeline_week', {
     p_session_token: sessionToken,

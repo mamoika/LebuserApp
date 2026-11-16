@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
@@ -492,11 +492,15 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
 
 export default function DispatchBoard() {
   const { t, i18n } = useTranslation();
+  const [searchParams] = useSearchParams();
   const locale = i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL';
   const { sessionToken, isAdmin } = useAuth();
   const { entries, allRoutes, clients, refetch } = useAppData();
   const [viewMode, setViewMode] = useState('day');
-  const [tripDate, setTripDate] = useState(() => operationalYmd());
+  const [tripDate, setTripDate] = useState(() => {
+    const requestedDate = searchParams.get('date');
+    return /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || '') ? requestedDate : operationalYmd();
+  });
   const [trips, setTrips] = useState([]);
   const [allTrips, setAllTrips] = useState([]);
   const [dailyCosts, setDailyCosts] = useState([]);

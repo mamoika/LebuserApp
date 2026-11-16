@@ -24,7 +24,13 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { getDispatchBoard } from '../lib/courseRpc';
-import { getCostsMonth, getDriverCardReminders, getMyWorkTime, getWorkScheduleMonth } from '../lib/readRpc';
+import {
+  getControlPanelApprovalBacklog,
+  getCostsMonth,
+  getDriverCardReminders,
+  getMyWorkTime,
+  getWorkScheduleMonth,
+} from '../lib/readRpc';
 import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
@@ -55,6 +61,7 @@ const EMPTY_REMOTE = {
   arrivalReservations: [],
   trolleyCount: DEFAULT_TROLLEY_COUNT,
   boardTrips: [],
+  approvalBacklog: null,
   schedule: null,
   driverCards: [],
   myWork: null,
@@ -182,12 +189,16 @@ function RouteBadge({ trip }) {
 
 function ApprovalRow({ item, t, locale }) {
   if (item.kind === 'settlement') {
+    const date = item.trip.trip_date
+      ? new Date(`${item.trip.trip_date}T00:00:00`).toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })
+      : null;
     const parts = [
+      date,
       item.kmPending && t('controlPanel.approvals.km', { km: item.trip.end_km }),
       item.hoursPending && t('controlPanel.approvals.hours', { hours: item.trip.reported_hours || '—' }),
     ].filter(Boolean);
     return (
-      <Link to="/routes" className="cp-row">
+      <Link to={`/routes?date=${item.trip.trip_date || ''}`} className="cp-row">
         <span className="cp-row-icon tone-amber" aria-hidden="true"><Gauge size={16} /></span>
         <span className="cp-row-body">
           <strong>{t('controlPanel.approvals.settlementTitle', { driver: item.trip.driver_name || t('controlPanel.noDriverName') })}</strong>
@@ -269,9 +280,10 @@ export default function ControlPanelView() {
     setLoading(true);
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
     const prevMonthKey = `${prev.year}-${String(prev.month).padStart(2, '0')}`;
-    const [laundryRes, boardRes, scheduleRes, cardsRes, myWorkRes, costsRes, prevCostsRes] = await Promise.allSettled([
+    const [laundryRes, boardRes, approvalsRes, scheduleRes, cardsRes, myWorkRes, costsRes, prevCostsRes] = await Promise.allSettled([
       getLaundryWorkflow(sessionToken),
       getDispatchBoard(sessionToken, todayKey),
+      getControlPanelApprovalBacklog(sessionToken),
       getWorkScheduleMonth(sessionToken, year, month),
       getDriverCardReminders(sessionToken),
       getMyWorkTime(sessionToken, year, month),
@@ -281,7 +293,9 @@ export default function ControlPanelView() {
 
     const nextIssues = [];
     if (laundryRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.laundry'));
-    if (boardRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.routes'));
+    if (boardRes.status === 'rejected' || approvalsRes.status === 'rejected') {
+      nextIssues.push(t('controlPanel.issues.routes'));
+    }
     if (scheduleRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.schedule'));
     if (cardsRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.driverCards'));
     if (myWorkRes.status === 'rejected') nextIssues.push(t('controlPanel.issues.myHours'));
@@ -293,6 +307,7 @@ export default function ControlPanelView() {
       arrivalReservations: laundry?.arrival_reservations || [],
       trolleyCount: Math.max(1, Math.min(99, Number(laundry?.trolley_count) || DEFAULT_TROLLEY_COUNT)),
       boardTrips: boardRes.status === 'fulfilled' ? (boardRes.value?.trips || []) : [],
+      approvalBacklog: approvalsRes.status === 'fulfilled' ? approvalsRes.value : null,
       schedule: scheduleRes.status === 'fulfilled' ? scheduleRes.value : null,
       driverCards: cardsRes.status === 'fulfilled' ? (cardsRes.value?.cards || []) : [],
       myWork: myWorkRes.status === 'fulfilled' ? myWorkRes.value : null,
@@ -366,10 +381,10 @@ export default function ControlPanelView() {
     : null), [prev.month, prev.year, prev.ymd, remote.prevCostsMonth]);
 
   const approvals = useMemo(() => collectApprovals({
-    workTimeReports: remote.schedule?.work_time_reports || [],
-    boardTrips: remote.boardTrips,
+    workTimeReports: remote.approvalBacklog?.work_time_reports || [],
+    boardTrips: remote.approvalBacklog?.trips || [],
     driverCardReminders: remote.driverCards.map(card => getDriverCardReminder(card, new Date())),
-  }), [remote.boardTrips, remote.driverCards, remote.schedule]);
+  }), [remote.approvalBacklog, remote.driverCards]);
 
   const trips = useMemo(() => {
     const real = remote.boardTrips.filter(trip => !trip.isVirtual);

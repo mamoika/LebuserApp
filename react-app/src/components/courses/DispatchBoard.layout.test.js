@@ -37,6 +37,11 @@ test('daily toolbar aligns controls and offers one-click date navigation', () =>
   );
 });
 
+test('an approval link can open the dispatch board on its original date', () => {
+  assert.match(source, /const requestedDate = searchParams\.get\('date'\)/);
+  assert.match(source, /\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(requestedDate \|\| ''\)/);
+});
+
 test('each workflow stage grows with its content instead of a fixed tall surface', () => {
   assert.match(
     source,
