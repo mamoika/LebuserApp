@@ -375,6 +375,7 @@ export default function ControlPanelView() {
       roster: schedule.roster || [],
       scheduleEntries: schedule.schedule_entries || [],
       employmentPeriods: schedule.employment_periods || [],
+      groupOrder: schedule.groups || [],
       year,
       month,
     };

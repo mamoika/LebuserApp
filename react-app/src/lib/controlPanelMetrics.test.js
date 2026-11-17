@@ -63,6 +63,30 @@ test('team day counts working, absent and skips people outside employment', () =
   });
 });
 
+test('team groups and absences follow the work schedule group order', () => {
+  const day = buildTeamDay({
+    roster: [
+      { id: 1, name: 'Anna', group_name: 'Kierowcy' },
+      { id: 2, name: 'Bartek', group_name: 'Kierowcy' },
+      { id: 3, name: 'Celina', group_name: 'Pralnia' },
+      { id: 5, name: 'Ewa', group_name: 'Biuro' },
+      { id: 6, name: 'Adam', group_name: 'Techniczny' },
+    ],
+    employmentPeriods: [1, 2, 3, 5, 6].map(id => ({ employee_id: id, started_on: '2026-01-01', ended_on: null })),
+    groupOrder: [{ name: 'Biuro' }, { name: 'Pralnia' }, { name: 'Kierowcy' }],
+    scheduleEntries: [
+      { employee_id: 1, day: 16, value: 'L4' },
+      { employee_id: 5, day: 16, value: 'UW' },
+      { employee_id: 6, day: 16, value: 'L4' },
+    ],
+    year: 2026,
+    month: 11,
+    day: 16,
+  });
+  assert.deepEqual(day.groups.map(group => group.name), ['Biuro', 'Pralnia', 'Kierowcy', 'Techniczny']);
+  assert.deepEqual(day.absent.map(item => item.name), ['Ewa', 'Anna', 'Adam']);
+});
+
 test('weekend days default to off', () => {
   // 2026-11-15 is a Sunday.
   const day = buildTeamDay({ roster, employmentPeriods: periods, scheduleEntries: [], year: 2026, month: 11, day: 15 });

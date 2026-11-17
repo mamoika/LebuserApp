@@ -66,7 +66,24 @@ export function classifyScheduleValue(value) {
   return 'off';
 }
 
-export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeriods = [], year, month, day }) {
+// Kolejność grup jak w Grafiku: najpierw grupy w kolejności z listy grup
+// (get_work_schedule_month → groups), potem pozostałe w kolejności pojawienia
+// się w roster.
+function buildGroupRank(groupOrder, roster) {
+  const rank = new Map();
+  groupOrder.forEach(group => {
+    const name = typeof group === 'string' ? group : group?.name;
+    if (name && !rank.has(name)) rank.set(name, rank.size);
+  });
+  roster.forEach(employee => {
+    const name = employee.group_name || '—';
+    if (!rank.has(name)) rank.set(name, rank.size);
+  });
+  return name => (rank.has(name) ? rank.get(name) : Number.MAX_SAFE_INTEGER);
+}
+
+export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeriods = [], groupOrder = [], year, month, day }) {
+  const groupRank = buildGroupRank(groupOrder, roster);
   const isEmployed = buildEmploymentCheck(employmentPeriods);
   const schedule = buildScheduleLookup(scheduleEntries);
   const dateKey = monthDayKey(year, month, day);
@@ -103,7 +120,10 @@ export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeri
     groups.set(groupName, group);
   });
 
-  absent.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pl'));
+  absent.sort((a, b) => (
+    groupRank(a.group) - groupRank(b.group)
+    || String(a.name).localeCompare(String(b.name), 'pl')
+  ));
   return {
     total,
     working,
@@ -111,7 +131,7 @@ export function buildTeamDay({ roster = [], scheduleEntries = [], employmentPeri
     absentCount: absent.length,
     off,
     absent,
-    groups: [...groups.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'pl')),
+    groups: [...groups.values()].sort((a, b) => groupRank(a.name) - groupRank(b.name)),
   };
 }
 
