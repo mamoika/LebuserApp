@@ -153,7 +153,10 @@ export function buildVirtualPlannedTrips({
   tripDate = null,
 }) {
   const horizonSet = new Set();
-  const anchor = operationalDate();
+  const requestedAnchor = tripDate ? new Date(`${tripDate}T00:00:00`) : null;
+  const anchor = requestedAnchor && !Number.isNaN(requestedAnchor.getTime())
+    ? requestedAnchor
+    : operationalDate();
   for (let i = 0; i < horizonDays; i += 1) {
     const d = new Date(anchor);
     d.setDate(anchor.getDate() + i);
