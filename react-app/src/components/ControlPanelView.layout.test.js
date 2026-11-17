@@ -35,3 +35,15 @@ test('approval inbox loads unresolved items from earlier days', () => {
   assert.match(backlogMigration, /where report\.status = 'pending'/);
   assert.doesNotMatch(backlogMigration, /report\.work_date\s*(?:=|>=)\s*public\.lebuser_operational_date/);
 });
+
+test('laundry card shows washing and packing progress side by side', () => {
+  assert.match(viewSource, /key: 'washed'[\s\S]*?percent\(laundry\.washedKg, laundry\.plannedKg\)/);
+  assert.match(viewSource, /key: 'packed'[\s\S]*?percent\(laundry\.packedKg, laundry\.plannedKg\)/);
+  for (const locale of [pl, de]) {
+    assert.ok(locale.controlPanel.kpi.laundryWashed);
+    assert.ok(locale.controlPanel.kpi.laundryPacked);
+    assert.match(locale.controlPanel.kpi.laundryStageValue, /\{\{done\}\} \/ \{\{total\}\}/);
+    assert.match(locale.controlPanel.kpi.laundryDetail, /\{\{toPack\}\}/);
+    assert.doesNotMatch(locale.controlPanel.kpi.laundryDetail, /\{\{washed\}\}/);
+  }
+});

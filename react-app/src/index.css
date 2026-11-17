@@ -11931,6 +11931,40 @@ select.ap-input {
   background: var(--cp-violet);
 }
 
+/* Karta Pranie: osobny pasek dla prania i pakowania */
+.cp-kpi-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cp-kpi-stage {
+  --tone: var(--cp-blue);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cp-kpi-stage.tone-teal { --tone: var(--cp-teal); }
+
+.cp-kpi-stage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--laundry-ink-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.cp-kpi-stage-head strong {
+  color: var(--laundry-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Sekcje: Dziś / Miesiąc */
 .cp-section {
   display: flex;

@@ -139,7 +139,23 @@ function TrendChip({ value, goodWhenUp, label }) {
   );
 }
 
-function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit, detail, progress, plannedProgress, trend, to }) {
+function KpiStages({ stages }) {
+  return (
+    <span className="cp-kpi-stages">
+      {stages.map(stage => (
+        <span key={stage.key} className={`cp-kpi-stage tone-${stage.tone || 'blue'}`}>
+          <span className="cp-kpi-stage-head">
+            <span>{stage.label}</span>
+            <strong>{stage.value}</strong>
+          </span>
+          <ProgressBar value={stage.progress} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit, detail, progress, plannedProgress, stages, trend, to }) {
   return (
     <Link to={to} className={`cp-kpi tone-${tone} ${alert ? 'is-alert' : ''}`}>
       <span className="cp-kpi-head">
@@ -151,7 +167,7 @@ function KpiCard({ icon: Icon, tone = 'blue', alert = false, label, value, unit,
         {value}
         {unit && <small>{unit}</small>}
       </span>
-      {(typeof progress === 'number' || typeof plannedProgress === 'number') && (
+      {stages?.length ? <KpiStages stages={stages} /> : (typeof progress === 'number' || typeof plannedProgress === 'number') && (
         <ProgressBar value={progress} planned={plannedProgress} />
       )}
       {detail && <span className="cp-kpi-detail">{detail}</span>}
@@ -343,6 +359,7 @@ export default function ControlPanelView() {
     return {
       ...metrics,
       remainingKg: Math.max(0, Number((metrics.plannedKg - metrics.washedKg).toFixed(1))),
+      toPackKg: Math.max(0, Number((metrics.plannedKg - metrics.packedKg).toFixed(1))),
       occupied,
       atClient,
       inLaundry: Math.max(0, activeCycles.length - atClient),
@@ -472,10 +489,31 @@ export default function ControlPanelView() {
             label={t('controlPanel.today.laundry')}
             value={formatNumber(laundry.plannedKg)}
             unit="kg"
-            progress={percent(laundry.washedKg, laundry.plannedKg)}
+            stages={[
+              {
+                key: 'washed',
+                tone: 'blue',
+                label: t('controlPanel.kpi.laundryWashed'),
+                value: t('controlPanel.kpi.laundryStageValue', {
+                  done: formatNumber(laundry.washedKg),
+                  total: formatNumber(laundry.plannedKg),
+                }),
+                progress: percent(laundry.washedKg, laundry.plannedKg),
+              },
+              {
+                key: 'packed',
+                tone: 'teal',
+                label: t('controlPanel.kpi.laundryPacked'),
+                value: t('controlPanel.kpi.laundryStageValue', {
+                  done: formatNumber(laundry.packedKg),
+                  total: formatNumber(laundry.plannedKg),
+                }),
+                progress: percent(laundry.packedKg, laundry.plannedKg),
+              },
+            ]}
             detail={t('controlPanel.kpi.laundryDetail', {
-              washed: formatNumber(laundry.washedKg),
               remaining: formatNumber(laundry.remainingKg),
+              toPack: formatNumber(laundry.toPackKg),
               departure: formatNumber(laundry.departureKg),
             })}
             to="/wash"

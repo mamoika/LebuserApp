@@ -35,6 +35,9 @@ export function calculateLaundryDayMetrics(entries, selectedDate, getWashDate, g
   return {
     plannedKg: sumFor(entry => getWashDate(entry) === selectedDate),
     washedKg: sumFor(entry => warsawCalendarDate(entry.washed_at) === selectedDate),
+    // Pakowanie kończy się ustawieniem laundry_packed_at / laundry_ready_at
+    // („Zakończ pakowanie”) — tak samo jak gotowość na liście Pralni.
+    packedKg: sumFor(entry => warsawCalendarDate(entry.laundry_packed_at || entry.laundry_ready_at) === selectedDate),
     departureKg: sumFor(entry => getDepartureDate(entry) === selectedDate),
   };
 }
