@@ -10981,6 +10981,8 @@ select.ap-input {
 }
 
 .kiosk-session {
+  display: flex;
+  justify-content: flex-end;
   max-width: 760px;
   margin: 0 auto 16px;
 }
