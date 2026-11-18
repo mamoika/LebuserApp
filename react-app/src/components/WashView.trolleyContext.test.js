@@ -7,9 +7,10 @@ const dashboardModal = await readFile(new URL('./TrolleysDashboardModal.jsx', im
 const polish = JSON.parse(await readFile(new URL('../i18n/locales/pl.json', import.meta.url), 'utf8'));
 
 test('occupied dirty trolley cards explain their date context and next planning dates', () => {
-  assert.match(washView, /laundry_origin_date: arrivalDateOf\(entry\) \|\| dateOnly\(entry\?\.dirty_received_at\) \|\| dateOnly\(entry\?\.added_at\)/);
-  assert.match(washView, /dirty_received_at: entry\?\.dirty_received_at/);
-  assert.match(washView, /wash_date: entry \? slotToDate\(washSlotOf/);
+  assert.match(washView, /const receivedAt = reservation\.dirty_received_at \|\| entry\?\.dirty_received_at/);
+  assert.match(washView, /laundry_origin_date: arrivalDateOf\(entry\) \|\| dateOnly\(receivedAt\) \|\| dateOnly\(entry\?\.added_at\)/);
+  assert.match(washView, /dirty_received_at: receivedAt/);
+  assert.match(washView, /wash_date: entry \? plannedWashDateOf\(entry, scheduleByRoute, dailyServiceByClient\)/);
   assert.match(washView, /departure_date: entry \? departureDateOf/);
   assert.equal(polish.wash.trolleyBoard.liveContext, 'Stan na teraz — niezależny od daty wybranej w planie pralni powyżej.');
 });

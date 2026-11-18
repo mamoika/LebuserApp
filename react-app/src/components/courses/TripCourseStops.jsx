@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, CheckCircle2, LoaderCircle, Navigation2, Package, Pencil, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
@@ -154,7 +155,7 @@ export default function TripCourseStops({
       await loadStops();
       await onReload?.();
     } catch (error) {
-      toastError(error.message);
+      toastError(laundryActionErrorMessage(error, t));
     } finally {
       setBusy(false);
     }

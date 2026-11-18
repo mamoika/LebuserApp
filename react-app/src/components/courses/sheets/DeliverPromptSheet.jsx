@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, CheckCircle2, Plus, Search, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { captureError } from '../../../lib/sentry';
-import { getLaundryWorkflow } from '../../../lib/laundryRpc';
+import { getLaundryWorkflow, laundryActionErrorMessage } from '../../../lib/laundryRpc';
 import { describeTrolleyActions } from '../../../lib/tripUiHelpers';
 import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
 import { formatTrolleyCode } from '../../../lib/trolleyCodes';
@@ -109,7 +109,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       await onDone?.();
       onClose();
     } catch (err) {
-      toastError(t('course.sheets.delivery.error', { message: err.message }));
+      toastError(t('course.sheets.delivery.error', { message: laundryActionErrorMessage(err, t) }));
     } finally {
       setBusy(false);
     }

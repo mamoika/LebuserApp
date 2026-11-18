@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Navigation2, Package, Pencil, Plus, RotateCcw, ShoppingCart, Trash2, Truck, WashingMachine } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import {
@@ -147,7 +148,7 @@ export default function CourseCurrentStop({
       }
       await onReload();
     } catch (error) {
-      toastError(error.message);
+      toastError(laundryActionErrorMessage(error, t));
     } finally {
       setBusy(false);
     }

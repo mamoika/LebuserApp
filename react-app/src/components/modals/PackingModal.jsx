@@ -12,6 +12,7 @@ import {
   ScanBarcode,
 } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
 import ArrivalTrolleyPicker from './ArrivalTrolleyPicker';
 
@@ -113,7 +114,7 @@ export default function PackingModal({
         try {
           await onFinishPacking(group);
         } catch (err) {
-          setError(err.message || t('wash.packing.error'));
+          setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
           setIsPacking(false);
         }
         return;
@@ -130,7 +131,7 @@ export default function PackingModal({
         await onPack(group, trolleysToSend[0], group.remainingKg);
       }
     } catch (err) {
-      setError(err.message || t('wash.packing.error'));
+      setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
       setIsPacking(false);
     }
   };
@@ -146,7 +147,7 @@ export default function PackingModal({
         await onPackMulti(group, [], null, true);
       }
     } catch (err) {
-      setError(err.message || t('wash.packing.error'));
+      setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
       setIsPacking(false);
     }
   };

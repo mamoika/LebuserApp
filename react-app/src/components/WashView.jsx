@@ -28,6 +28,7 @@ import {
   finishLaundryPacking,
   getLaundryWorkflow,
   markLaundryWashed,
+  packLaundryBatch,
   packLaundryTrolley,
   undoReturnLaundryTrolley,
   unmarkLaundryWashed,
@@ -167,17 +168,18 @@ const getTrolleyStatus = (cycle, entryById, t) => {
   if (cycle.status === 'canceled') return { key: 'canceled', label: t('wash.statuses.canceled'), tone: 'neutral' };
 
   const linked = (cycle.entry_ids || []).map(id => entryById.get(id)).filter(Boolean);
-  const delivered = Boolean(cycle.is_delivered || linked.some(e => e.delivered_at || e.delivered));
+  const delivered = cycle.is_delivered ?? Boolean(
+    linked.length > 0 && linked.length === (cycle.entry_ids || []).length
+    && linked.every(entry => entry.delivered ?? Boolean(entry.delivered_at)),
+  );
   const picked = Boolean(cycle.is_issued_to_driver || linked.some(e => e.picked_at));
 
   // "Bez wózka" (paczka / worek)
   if (!isRealTrolley(cycle)) {
-    if (cycle.status === 'returned' || cycle.returned_at || delivered) {
+    if (delivered) {
       return { key: 'delivered', label: t('wash.statuses.deliveredLoose'), tone: 'delivered' };
     }
     if (picked) return { key: 'picked', label: t('wash.statuses.picked'), tone: 'picked' };
-    const isOldCycle = cycle.packed_at && (Date.now() - new Date(cycle.packed_at).getTime() > 7 * 86400000);
-    if (isOldCycle) return { key: 'delivered', label: t('wash.statuses.completedArchive'), tone: 'delivered' };
     return { key: 'packed', label: t('wash.statuses.packedLoose'), tone: 'packed' };
   }
 
@@ -535,11 +537,12 @@ export default function WashView() {
   const activeTrolleyByNo = useMemo(() => {
     const enrichedArrivals = arrivalReservations.map(reservation => {
       const entry = entryById.get(reservation.entry_id);
+      const receivedAt = reservation.dirty_received_at || entry?.dirty_received_at || null;
       return {
         ...reservation,
-        dirty_received_at: entry?.dirty_received_at || null,
+        dirty_received_at: receivedAt,
         picked_up_at: entry?.added_at || null,
-        laundry_origin_date: arrivalDateOf(entry) || dateOnly(entry?.dirty_received_at) || dateOnly(entry?.added_at),
+        laundry_origin_date: arrivalDateOf(entry) || dateOnly(receivedAt) || dateOnly(entry?.added_at),
         wash_date: entry ? plannedWashDateOf(entry, scheduleByRoute, dailyServiceByClient) : null,
         departure_date: entry ? departureDateOf(entry) : null,
       };
@@ -717,18 +720,8 @@ export default function WashView() {
 
     try {
       setBusyKey(`pack:${group.key}`);
-      for (let i = 0; i < trolleyNos.length; i++) {
-        const kgValue = kgFor(i);
-        const isLast = i === trolleyNos.length - 1;
-        await packLaundryTrolley(
-          sessionToken,
-          group.washedIds,
-          trolleyNos[i],
-          kgValue,
-          user?.name,
-          isLast ? finish : false,
-        );
-      }
+      const items = trolleyNos.map((trolleyNo, index) => ({ trolley_no: trolleyNo, kg: kgFor(index) }));
+      await packLaundryBatch(sessionToken, group.washedIds, items, user?.name, finish);
       if (finish) {
         toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
       } else {
@@ -737,9 +730,8 @@ export default function WashView() {
       await Promise.all([refetch(), fetchWorkflow()]);
       setPackingGroup(null);
     } catch (err) {
-      toastError(err.message || t('wash.messages.packError'));
-      // Refetch anyway in case partial packing happened
       await Promise.all([refetch(), fetchWorkflow()]);
+      throw err;
     } finally {
       setBusyKey('');
     }
@@ -754,7 +746,8 @@ export default function WashView() {
       await Promise.all([refetch(), fetchWorkflow()]);
       setPackingGroup(null);
     } catch (err) {
-      toastError(err.message || t('wash.messages.packError'));
+      await Promise.all([refetch(), fetchWorkflow()]);
+      throw err;
     } finally {
       setBusyKey('');
     }

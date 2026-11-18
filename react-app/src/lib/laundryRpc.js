@@ -1,6 +1,16 @@
 import { supabase } from './supabaseClient';
 import { throwRpcError } from './rpcError';
 
+const LAUNDRY_ACTION_ERRORS = {
+  delivery_trolley_state_changed: 'course.currentStop.trolleyStateChanged',
+  packing_batch_changed: 'wash.messages.packingBatchChanged',
+};
+
+export function laundryActionErrorMessage(error, t) {
+  const key = Object.hasOwn(LAUNDRY_ACTION_ERRORS, error?.message) && LAUNDRY_ACTION_ERRORS[error.message];
+  return key ? t(key) : error?.message;
+}
+
 async function callLaundryRpc(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) throwRpcError(error, `${fn} failed`);
@@ -73,6 +83,16 @@ export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by, finish 
     p_ids: ids,
     p_trolley_no: trolleyNo,
     p_kg: kg,
+    p_by: by || null,
+    p_finish: finish,
+  });
+}
+
+export function packLaundryBatch(sessionToken, ids, items, by, finish) {
+  return callLaundryRpc('admin_pack_laundry_batch', {
+    p_session_token: sessionToken,
+    p_ids: ids,
+    p_items: items,
     p_by: by || null,
     p_finish: finish,
   });
