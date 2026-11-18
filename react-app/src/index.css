@@ -160,21 +160,12 @@
 .kiosk-primary-btn:disabled{cursor:wait;opacity:.6;transform:none}
 .kiosk-security-note{display:flex;align-items:center;gap:8px;margin-top:24px;color:var(--kiosk-muted);font-size:13px}
 .kiosk-secondary-link{margin-top:18px;color:var(--kiosk-blue);font-size:14px;font-weight:750;text-decoration:none}
-.kiosk-session-bar{
-  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;
-  border:1px solid rgba(8,102,204,.18);border-radius:14px;background:rgba(8,102,204,.07);color:#094C93
-}
-.kiosk-session-station,.kiosk-session-user{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700}
-.kiosk-session-user{justify-content:center}.kiosk-session-user strong{font-size:14px}
-.kiosk-session-bar button{min-height:40px;padding:0 14px;border:0;border-radius:10px;background:#0866CC;color:#FFF;font:750 12px/1 var(--font);cursor:pointer}
-
 @media(max-width:700px){
   .kiosk-header{min-height:72px;padding:12px 16px}.kiosk-brand img{height:34px}.kiosk-status{padding:0 10px;font-size:11px}
   .kiosk-content{width:min(100% - 28px,1120px);padding-top:32px}.kiosk-heading{align-items:flex-start}.kiosk-heading-icon{width:48px;height:48px;border-radius:14px}
   .kiosk-driver-grid{grid-template-columns:1fr 1fr;gap:10px}.kiosk-driver-card{min-height:146px;padding:16px;border-radius:15px}
   .kiosk-avatar{width:44px;height:44px;margin-bottom:14px;border-radius:13px}.kiosk-driver-name{font-size:16px}
   .kiosk-footer{justify-content:flex-start}.kiosk-footer a{margin-left:auto;white-space:nowrap}
-  .kiosk-session-bar{grid-template-columns:1fr auto}.kiosk-session-station{display:none}.kiosk-session-user{justify-content:flex-start}.kiosk-session-user span{display:none}
 }
 @media(max-width:430px){.kiosk-driver-grid{grid-template-columns:1fr}.kiosk-driver-card{min-height:126px}.kiosk-footer>svg,.kiosk-footer{font-size:0}.kiosk-footer a{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.kiosk-driver-card,.kiosk-primary-btn{transition:none}.kiosk-driver-card:hover,.kiosk-primary-btn:hover{transform:none}}
@@ -10989,6 +10980,72 @@ select.ap-input {
   padding: clamp(18px, 2.2vw, 32px);
 }
 
+.kiosk-session {
+  max-width: 760px;
+  margin: 0 auto 16px;
+}
+
+.kiosk-session-bar {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--laundry-divider-strong);
+  border-radius: var(--laundry-radius-control);
+  background: var(--laundry-surface-soft);
+}
+
+.kiosk-session-icon {
+  display: grid;
+  flex: 0 0 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--laundry-wash-blue-soft);
+  color: var(--laundry-wash-blue-ink);
+}
+
+.kiosk-session-details {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.kiosk-session-station {
+  color: var(--laundry-ink-secondary);
+  font-size: 12px;
+}
+
+.kiosk-session-user {
+  color: var(--laundry-ink);
+  font-size: 14px;
+}
+
+.kiosk-session-bar button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--laundry-wash-blue-ink);
+  font: 650 13px/1.25 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kiosk-session-bar button:hover {
+  background: var(--laundry-wash-blue-soft);
+}
+
+.kiosk-session-bar button:focus-visible {
+  outline: 2px solid var(--laundry-wash-blue-ink);
+  outline-offset: 1px;
+}
+
 .app-view-loading {
   display: flex;
   min-height: 260px;
@@ -11240,6 +11297,11 @@ select.ap-input {
 
   .app-main-content {
     padding: 14px;
+  }
+
+  .kiosk-session {
+    max-width: 430px;
+    margin-bottom: 12px;
   }
 }
 

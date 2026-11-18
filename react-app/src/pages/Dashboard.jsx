@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
-import { AlertTriangle, Eye, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
+import { AlertTriangle, Eye, Scale, ShieldCheck, Undo2 } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import RodoNotice from './RodoNotice';
 
@@ -175,20 +175,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {user?.kiosk_mode && (
-        <div className="kiosk-session-bar" role="status">
-          <span className="kiosk-session-station"><Scale size={17} /> {user.kiosk_device_name || t('kiosk.station')}</span>
-          <span className="kiosk-session-user">
-            <UserRound size={17} />
-            <span>{t('kiosk.loggedInAs')}</span>
-            <strong>{user.name}</strong>
-          </span>
-          <button type="button" onClick={switchKioskUser}>
-            {t('kiosk.changeDriver')}
-          </button>
-        </div>
-      )}
-
       <div className="app-frame">
         <Navigation />
 
@@ -197,6 +183,23 @@ export default function Dashboard() {
 
           {/* Kontent główny */}
           <main id="main-content" className="app-main-content" tabIndex={-1}>
+            {user?.kiosk_mode && (
+              <div className="kiosk-session">
+                <div className="kiosk-session-bar">
+                  <span className="kiosk-session-icon" aria-hidden="true"><Scale size={17} /></span>
+                  <div className="kiosk-session-details">
+                    <span className="kiosk-session-station">{user.kiosk_device_name || t('kiosk.station')}</span>
+                    <span className="kiosk-session-user">
+                      <span className="sr-only">{t('kiosk.loggedInAs')} </span>
+                      <strong>{user.name}</strong>
+                    </span>
+                  </div>
+                  <button type="button" onClick={switchKioskUser}>
+                    {t('kiosk.changeDriver')}
+                  </button>
+                </div>
+              </div>
+            )}
             <Suspense fallback={<ViewLoading label={t('common.loading')} />}>
             <Routes>
           <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
