@@ -11,8 +11,8 @@ export default function CourseSheet({ titleId, title, onClose, busy = false, cla
 
   useEffect(() => {
     const previous = document.activeElement;
-    sheetRef.current?.focus();
-    return () => { previous?.focus?.(); };
+    sheetRef.current?.focus({ preventScroll: true });
+    return () => { previous?.focus?.({ preventScroll: true }); };
   }, []);
 
   useEffect(() => {

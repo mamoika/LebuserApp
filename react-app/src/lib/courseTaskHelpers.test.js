@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { operationalCourseStops } from './courseStopVisibility.js';
+import { canCompleteStop, statsFromCourseStops, stopLaundryMeta } from './courseTaskHelpers.js';
 
 const dispatchProgressMigration = await readFile(
-  new URL('../../db/migrations/20261116120000_ignore_removed_scheduled_stops.sql', import.meta.url),
+  new URL('../../db/migrations/20261118130000_preserve_course_stop_outcomes.sql', import.meta.url),
   'utf8',
 );
 const tripCourseStopsSource = await readFile(
@@ -19,8 +20,10 @@ test('a scheduled stop removed during planning does not count in the active cour
       client_name: 'Hotel Green',
       stop_kind: 'scheduled',
       status: 'skipped',
+      completed_at: '2026-11-18T07:05:00Z',
       tasks: [],
     },
+    { id: 'not-loaded', stop_kind: 'client', status: 'skipped', completed_at: null, tasks: [] },
     {
       id: 'radisson',
       client_name: 'Radisson',
@@ -31,7 +34,7 @@ test('a scheduled stop removed during planning does not count in the active cour
   ];
 
   assert.deepEqual(
-    operationalCourseStops(stops).map(stop => stop.client_name),
+    operationalCourseStops(stops, '2026-11-18T07:08:00Z').map(stop => stop.client_name),
     ['Radisson'],
   );
 });
@@ -40,21 +43,55 @@ test('a stop skipped during the drive remains part of the operational history', 
   const stops = [{
     id: 'unavailable-client',
     client_name: 'Hotel Today',
-    stop_kind: 'client',
+    stop_kind: 'scheduled',
     status: 'skipped',
+    completed_at: '2026-11-18T08:00:00Z',
     tasks: [],
   }];
 
-  assert.deepEqual(operationalCourseStops(stops), stops);
+  assert.deepEqual(operationalCourseStops(stops, '2026-11-18T07:08:00Z'), stops);
 });
 
 test('dispatch progress excludes a scheduled stop removed during planning', () => {
   assert.match(
     dispatchProgressMigration,
-    /not \(s\.stop_kind = 'scheduled' and s\.status = 'skipped'\)/,
+    /s\.status = 'skipped' and \(\s*s\.completed_at is null\s*or \(dt\.started_at is not null and s\.completed_at < dt\.started_at\)/,
   );
 });
 
 test('course details hide a scheduled stop removed during planning', () => {
-  assert.match(tripCourseStopsSource, /setStops\(operationalCourseStops\(data\.stops \|\| \[\]\)\)/);
+  assert.match(tripCourseStopsSource, /operationalCourseStops\(stops, trip\.started_at\)\.sort\(buildCourseStopComparator\(clients, routes\)\)/);
+});
+
+test('synchronizing a finished course preserves skipped visits and unfinished clean delivery tasks', () => {
+  assert.match(dispatchProgressMigration, /where stop\.trip_id = v_trip\.id\s+and stop\.status <> 'skipped'/);
+  assert.match(dispatchProgressMigration, /and v_trip\.status = 'finished'\s+and stop\.status = 'pending'\s+and not exists/);
+  assert.match(dispatchProgressMigration, /and stop\.status = 'completed'\s+and task\.task_type = 'pickup_dirty'/);
+});
+
+test('one load has the same weight in the stop and course summary', () => {
+  const load = { entry_id: 'load', quantity: 1205, unit: 'kg', status: 'completed' };
+  const tasks = [
+    { ...load, task_type: 'pickup_clean', done: true },
+    { ...load, task_type: 'deliver_clean', delivered: true },
+    { entry_id: 'dirty', task_type: 'pickup_dirty', quantity: 3, unit: 'wózki', status: 'pending' },
+  ];
+  const stop = { client_name: 'Radisson', stop_kind: 'client', status: 'pending', tasks };
+
+  assert.equal(stopLaundryMeta(tasks).kg, 1205);
+  const stats = statsFromCourseStops([stop]);
+  assert.equal(stats.kg, 1205);
+  assert.equal(stats.delivered, 1);
+  assert.equal(canCompleteStop(stop), true);
+});
+
+test('undoing a delivery takes precedence over a stale completed task status', () => {
+  const stop = {
+    stop_kind: 'client',
+    status: 'pending',
+    tasks: [{ task_type: 'deliver_clean', status: 'completed', delivered: false }],
+  };
+
+  assert.equal(statsFromCourseStops([stop]).delivered, 0);
+  assert.equal(canCompleteStop(stop), false);
 });

@@ -81,7 +81,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   };
 
   const confirm = async () => {
-    if (loadingTrolleys) return;
+    if (loadingTrolleys || pendingDelivery.length === 0) return;
     const ids = [...new Set(pendingDelivery.map(task => task.entry_id).filter(Boolean))];
     const actions = prompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: 'leave' }));
     try {
@@ -98,7 +98,12 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
       const { data, error } = await supabase.rpc(rpcName, args);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if ((data?.affected ?? 0) !== ids.length) throw new Error(t('course.sheets.delivery.otherDriverError'));
+      const affected = data?.affected ?? 0;
+      if (affected !== ids.length) {
+        toastError(t(affected > 0 ? 'course.currentStop.partialAffected' : 'course.sheets.delivery.otherDriverError'));
+        await onDone?.();
+        return;
+      }
       const details = describeTrolleyActions(prompt);
       toastSuccess(details ? t('course.sheets.delivery.savedDetails', { details }) : t('course.sheets.delivery.saved'));
       await onDone?.();
@@ -167,7 +172,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
         </div>
         <div className="ap-btn-group delivery-main-actions">
           <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-          <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys}>
+          <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys || pendingDelivery.length === 0}>
             {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : busy ? t('common.saving') : t('course.sheets.delivery.confirm')}
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Gauge, LoaderCircle, Printer, ShoppingCart, UserCheck,
 } from 'lucide-react';
@@ -41,6 +41,7 @@ export default function DriverCourse() {
   const { clients, allRoutes, entries, refetch } = useAppData();
   const [data, setData] = useState({ trip: null, stops: [], employee: null });
   const [loading, setLoading] = useState(true);
+  const courseRequest = useRef(0);
   const [busy, setBusy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [problemOpen, setProblemOpen] = useState(false);
@@ -78,14 +79,13 @@ export default function DriverCourse() {
 
   const loadCourse = useCallback(async () => {
     if (!sessionToken) return;
-    setLoading(true);
+    const request = ++courseRequest.current;
     try {
       const [next, tripsData] = await Promise.all([
         getDriverCourse(sessionToken),
         getDriverTripsData(sessionToken),
       ]);
       const trips = tripsData?.trips || [];
-      setAllTrips(trips);
 
       let trip = next.trip || null;
       let stops = next.stops || [];
@@ -101,6 +101,8 @@ export default function DriverCourse() {
         }
       }
 
+      if (request !== courseRequest.current) return;
+      setAllTrips(trips);
       setData({
         trip,
         stops,
@@ -108,13 +110,16 @@ export default function DriverCourse() {
         workTimeReport: next.work_time_report || null,
       });
     } catch (error) {
-      toastError(t('course.driver.loadCourseError', { message: error.message }));
+      if (request === courseRequest.current) toastError(t('course.driver.loadCourseError', { message: error.message }));
     } finally {
-      setLoading(false);
+      if (request === courseRequest.current) setLoading(false);
     }
   }, [sessionToken, t, user?.id, user?.name]);
 
-  useEffect(() => { loadCourse(); }, [loadCourse]);
+  useEffect(() => {
+    loadCourse();
+    return () => { courseRequest.current += 1; };
+  }, [loadCourse]);
 
   const trip = data.trip;
   const stops = useMemo(
@@ -173,9 +178,12 @@ export default function DriverCourse() {
     const data = await getBlockingPickedLaundry(sessionToken);
     const routeIds = new Set(String(trip.routes || '').split(',').map(value => Number(value.trim())).filter(Boolean));
     const extras = new Set(parseExtraClients(trip.extra_clients));
-    const blocking = (data?.entries || []).filter(entry => pickupDateStr(entry) === trip.trip_date && (
-      routeIds.size === 0 || routeIds.has(entry.route_id) || extras.has(entry.client_name)
-    ));
+    const blocking = (data?.entries || []).filter(entry => {
+      if (entry.driver_pickup_trip_id) return entry.driver_pickup_trip_id === trip.id;
+      return pickupDateStr(entry) === trip.trip_date && (
+        routeIds.size === 0 || routeIds.has(entry.route_id) || extras.has(entry.client_name)
+      );
+    });
     return [...new Set(blocking.map(entry => entry.client_name).filter(Boolean))];
   };
 
@@ -192,14 +200,16 @@ export default function DriverCourse() {
   const completeStop = async () => {
     if (!viewStop || viewStop.status !== 'pending') {
       toastError(t('course.driver.stopAlreadyDone'));
-      return;
+      return false;
     }
     const completedId = viewStop.id;
     try {
       setBusy(true);
       await completeCourseStop(sessionToken, completedId);
       toastSuccess(t('course.driver.stopCompleted', { name: viewStop.client_name }));
+      const request = ++courseRequest.current;
       const next = await getDriverCourse(sessionToken);
+      if (request !== courseRequest.current) return false;
       setData({
         trip: next.trip || null,
         stops: next.stops || [],
@@ -207,17 +217,15 @@ export default function DriverCourse() {
         workTimeReport: next.work_time_report || null,
       });
       await refetch();
-      const freshOrdered = [...(next.stops || [])].sort(compareStops);
+      const freshOrdered = (next.stops || []).filter(stop => stop.status !== 'skipped').sort(compareStops);
       const completedIndex = freshOrdered.findIndex(stop => stop.id === completedId);
       const nextPending = freshOrdered.slice(completedIndex + 1).find(stop => stop.status === 'pending')
         ?? freshOrdered.find(stop => stop.status === 'pending');
       if (nextPending) setViewStopId(nextPending.id);
-      else {
-        const idx = freshOrdered.findIndex(stop => stop.id === completedId);
-        if (idx >= 0 && idx < freshOrdered.length - 1) setViewStopId(freshOrdered[idx + 1].id);
-      }
+      return next.trip?.id === trip.id && !nextPending;
     } catch (error) {
       toastError(error.message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -355,9 +363,7 @@ export default function DriverCourse() {
   };
 
   const completeCurrentStop = async () => {
-    const finishAfter = isLastStop && canCompleteCurrent;
-    await completeStop();
-    if (finishAfter) await openFinish();
+    if (await completeStop()) await openFinish();
   };
 
   const durationMinutes = workMode === 'duration' ? decimalHoursToMinutes(workHours) : null;
@@ -551,6 +557,7 @@ export default function DriverCourse() {
       {viewStop ? (
         <>
           <CourseCurrentStop
+            key={viewStop.id}
             stop={viewStop}
             trip={trip}
             allTrips={allTrips}

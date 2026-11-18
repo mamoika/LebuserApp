@@ -1,9 +1,9 @@
-import { VEHICLE_LABELS } from './vehicles';
+import { VEHICLE_LABELS } from './vehicles.js';
 import { laundryTypeFlags } from './laundryCategories.js';
-import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers';
+import { parseExtraClients, parseRouteIds, pickupDateStr, arrivalDateStr } from './tripUiHelpers.js';
 import { operationalCourseStops } from './courseStopVisibility.js';
 
-export { buildDirtyOnlyCandidates } from './dirtyOnlyCandidates';
+export { buildDirtyOnlyCandidates } from './dirtyOnlyCandidates.js';
 
 export function tripContainsEntryClient(sourceTrip, entry) {
   if (!sourceTrip || !entry) return false;
@@ -47,15 +47,6 @@ export function completedEntryIdsForTasks(tasks = []) {
   return [...new Set(
     tasks
       .filter(task => task.done || task.status === 'completed')
-      .map(task => task.entry_id)
-      .filter(Boolean),
-  )];
-}
-
-export function pendingEntryIdsForTasks(tasks = []) {
-  return [...new Set(
-    tasks
-      .filter(task => !task.delivered && task.status !== 'completed')
       .map(task => task.entry_id)
       .filter(Boolean),
   )];
@@ -117,10 +108,8 @@ export function canManagePickupTasks(tasks = [], user, trip) {
 }
 
 export function stopHasPickedNotDelivered(stop, user, trip) {
-  const tasks = stop?.tasks || [];
-  const picked = tasks.some(task => task.task_type === 'pickup_clean' && task.done && pickupOwnedByDriver(task, user, trip));
-  const undelivered = tasks.some(task => task.task_type === 'deliver_clean' && !task.delivered);
-  return picked && undelivered;
+  const { completedPickup, pendingDelivery } = splitCleanTasks(stop?.tasks || []);
+  return pendingDelivery.length > 0 && completedPickup.some(task => pickupOwnedByDriver(task, user, trip));
 }
 
 export function pickedNotDeliveredStops(stops = [], user, trip) {
@@ -136,15 +125,17 @@ export function tasksDeliveredByUser(tasks = [], userName) {
 }
 
 export function splitCleanTasks(tasks = []) {
-  const pickup = tasks.filter(task => task.task_type === 'pickup_clean');
-  const delivery = tasks.filter(task => task.task_type === 'deliver_clean');
+  const pickup = tasks.filter(task => task.task_type === 'pickup_clean' && task.status !== 'skipped');
+  const delivery = tasks.filter(task => task.task_type === 'deliver_clean' && task.status !== 'skipped');
+  const picked = task => task.done ?? task.status === 'completed';
+  const delivered = task => task.delivered ?? task.status === 'completed';
   return {
     pickup,
     delivery,
-    pendingPickup: pickup.filter(task => task.status === 'pending' && !task.done),
-    completedPickup: pickup.filter(task => task.done || task.status === 'completed'),
-    pendingDelivery: delivery.filter(task => !task.delivered && task.status === 'pending'),
-    completedDelivery: delivery.filter(task => task.delivered || task.status === 'completed'),
+    pendingPickup: pickup.filter(task => !picked(task)),
+    completedPickup: pickup.filter(picked),
+    pendingDelivery: delivery.filter(task => !delivered(task)),
+    completedDelivery: delivery.filter(delivered),
   };
 }
 
@@ -342,7 +333,14 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
     ...tasks.map(task => task.metadata?.entry_type).filter(Boolean),
     ...dirtyEntries.map(entry => entry.type || 'P'),
   ]);
-  const kg = Number(tasks.reduce((sum, task) => sum + (Number(task.quantity) || 0), 0).toFixed(1));
+  const weighed = new Map();
+  for (const task of tasks) {
+    if ((task.unit && task.unit !== 'kg') || task.status === 'skipped') continue;
+    const quantity = Number(task.quantity) || 0;
+    const key = task.entry_id == null ? task : JSON.stringify([task.entry_id, task.task_type === 'pickup_dirty']);
+    weighed.set(key, Math.max(weighed.get(key) || 0, quantity));
+  }
+  const kg = Number([...weighed.values()].reduce((sum, weight) => sum + weight, 0).toFixed(1));
   return {
     kg,
     ...laundryTypeFlags([...types]),
@@ -350,8 +348,8 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
   };
 }
 
-export function statsFromCourseStops(stops = [], entries = [], tripDate) {
-  const visibleStops = operationalCourseStops(stops);
+export function statsFromCourseStops(stops = [], entries = [], tripDate, startedAt) {
+  const visibleStops = operationalCourseStops(stops, startedAt);
   const deliveryStops = visibleStops.filter(stop =>
     stop.stop_kind !== 'dirty_only'
     && (stop.tasks || []).some(task =>
@@ -363,10 +361,9 @@ export function statsFromCourseStops(stops = [], entries = [], tripDate) {
   let kg = 0;
   deliveryStops.forEach(stop => {
     const clean = splitCleanTasks(stop.tasks || []);
-    if (!clean.pickup.length) return;
     if (clean.pendingPickup.length === 0 && clean.completedPickup.length > 0) picked += 1;
     if (clean.pendingDelivery.length === 0 && clean.completedDelivery.length > 0) delivered += 1;
-    kg += sumTaskWeight(clean.pickup);
+    kg += stopLaundryMeta([...clean.pickup, ...clean.delivery]).kg;
   });
   const dirtyStops = visibleStops.filter(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate).length > 0);
   const dirtyFlat = dirtyStops.flatMap(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate));

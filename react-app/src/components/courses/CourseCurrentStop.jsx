@@ -6,7 +6,7 @@ import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
-  isTripDriver, pendingEntryIdsForTasks, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
+  isTripDriver, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
 } from '../../lib/courseTaskHelpers';
 import { formatKg, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -166,7 +166,9 @@ export default function CourseCurrentStop({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toastSuccess(t('course.currentStop.pickupDone'));
+      if (!data?.affected) throw new Error(t('course.currentStop.nothingAffected'));
+      if (data.affected < ids.length) toastError(t('course.currentStop.partialAffected'));
+      else toastSuccess(t('course.currentStop.pickupDone'));
       await onReload();
     } catch (error) {
       toastError(error.message);
@@ -197,7 +199,7 @@ export default function CourseCurrentStop({
 
   const deliverLaundry = () => {
     if (hasDeliveryTrolleys) setDeliverOpen(true);
-    else rpcEntries('driver_deliver_entries', pendingEntryIdsForTasks(clean.pendingDelivery), t('course.currentStop.deliverDone'), { action: 'delivered', details: 'dostawa do klienta' });
+    else rpcEntries('driver_deliver_entries', entryIdsForTasks(clean.pendingDelivery), t('course.currentStop.deliverDone'), { action: 'delivered', details: 'dostawa do klienta' });
   };
 
   const saveClientNote = async value => {

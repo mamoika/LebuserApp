@@ -2023,6 +2023,7 @@
     },
     "stops": {
       "statusPending": "Ausstehend",
+      "statusReadyToComplete": "Abschluss offen",
       "statusCompleted": "Abgeschlossen",
       "statusSkipped": "Übersprungen",
       "pickupLaundry": "Abholung aus Wäscherei",

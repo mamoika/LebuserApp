@@ -159,7 +159,7 @@ export default function DispatchTripArchive({
   const enrichedTrips = useMemo(() => allTrips.map(trip => ({
     ...trip,
     _archiveDriverName: trip.driver_name || t('course.unknownDriver'),
-    _stats: statsFromCourseStops(trip.stops || [], entries, trip.trip_date),
+    _stats: statsFromCourseStops(trip.stops || [], entries, trip.trip_date, trip.started_at),
   })), [allTrips, entries, t]);
 
   const combinedTrips = useMemo(() => [

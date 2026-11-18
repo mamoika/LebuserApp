@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, CheckCircle2, LoaderCircle, Navigation2, Package, Pencil, Printer, Trash2, Truck, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -7,11 +7,12 @@ import { callExistingTripRpc, getTripCourse } from '../../lib/courseRpc';
 import { printDayWorkCard, printTripWorkCard } from '../../lib/coursePrint';
 import { logAction } from '../../lib/logger';
 import {
-  assignedTripForEntry, buildExtraCandidates, dirtyEntriesForStop, entryAssignmentCaption,
+  assignedTripForEntry, buildExtraCandidates, canCompleteStop, dirtyEntriesForStop, entryAssignmentCaption,
   entryIdsForTasks, fmtTime, getPackInfo,
   splitCleanTasks, statsFromCourseStops, stopLaundryMeta,
 } from '../../lib/courseTaskHelpers';
-import { parseExtraClients } from '../../lib/tripUiHelpers';
+import { buildCourseStopComparator } from '../../lib/courseStopOrder';
+import { parseExtraClients, stopDisplayOrder } from '../../lib/tripUiHelpers';
 import { operationalCourseStops } from '../../lib/courseStopVisibility';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { ViewEditEntryModal } from '../modals/EntryModals';
@@ -23,6 +24,7 @@ import AddDirtyToTripSheet from './sheets/AddDirtyToTripSheet';
 
 const STOP_STATUS_KEYS = {
   pending: 'statusPending',
+  ready: 'statusReadyToComplete',
   completed: 'statusCompleted',
   skipped: 'statusSkipped',
 };
@@ -59,6 +61,7 @@ export default function TripCourseStops({
 }) {
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadRequest = useRef(0);
   const [addOpen, setAddOpen] = useState(false);
   const [dirtyOpen, setDirtyOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
@@ -68,38 +71,48 @@ export default function TripCourseStops({
   const [viewEntry, setViewEntry] = useState(null);
   const [isCorrectionEditing, setIsCorrectionEditing] = useState(false);
   const { t, i18n } = useTranslation();
+  const { id: tripId, isVirtual } = trip;
 
   const loadStops = useCallback(async () => {
-    if (!sessionToken || !trip?.id || trip.isVirtual) return;
-    setLoading(true);
+    if (!sessionToken || !tripId || isVirtual) return;
+    const request = ++loadRequest.current;
     try {
-      const data = await getTripCourse(sessionToken, trip.id);
-      setStops(operationalCourseStops(data.stops || []));
-      const sourceTrip = data.trip || trip;
-      if (sourceTrip.planned_start) {
-        const date = new Date(sourceTrip.planned_start);
-        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-        setPlannedStart(local.toISOString().slice(0, 16));
-      } else {
-        setPlannedStart('');
-      }
+      const data = await getTripCourse(sessionToken, tripId);
+      if (request !== loadRequest.current) return;
+      setStops(data.stops || []);
     } catch (error) {
-      toastError(t('course.stops.loadError', { message: error.message }));
-      setStops([]);
+      if (request === loadRequest.current) toastError(t('course.stops.loadError', { message: error.message }));
     } finally {
-      setLoading(false);
+      if (request === loadRequest.current) setLoading(false);
     }
-  }, [sessionToken, t, trip]);
+  }, [isVirtual, sessionToken, t, tripId]);
 
-  useEffect(() => { loadStops(); }, [loadStops]);
+  useEffect(() => {
+    loadStops();
+    return () => { loadRequest.current += 1; };
+  }, [loadStops, trip]);
+
+  useEffect(() => {
+    if (!trip.planned_start) {
+      setPlannedStart('');
+      return;
+    }
+    const date = new Date(trip.planned_start);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    setPlannedStart(local.toISOString().slice(0, 16));
+  }, [trip.id, trip.planned_start]);
 
   useEffect(() => {
     setIsCorrectionEditing(false);
   }, [trip.id, trip.status]);
 
+  const visibleStops = useMemo(
+    () => operationalCourseStops(stops, trip.started_at).sort(buildCourseStopComparator(clients, routes)),
+    [stops, trip.started_at, clients, routes],
+  );
   const stats = useMemo(
-    () => statsFromCourseStops(stops, entries, trip.trip_date),
-    [stops, entries, trip.trip_date],
+    () => statsFromCourseStops(visibleStops, entries, trip.trip_date, trip.started_at),
+    [visibleStops, entries, trip.trip_date, trip.started_at],
   );
   const isFinished = trip.status === 'finished';
   const canCorrectFinished = isAdmin && !trip.isVirtual && isFinished && isCorrectionEditing;
@@ -123,6 +136,12 @@ export default function TripCourseStops({
       const { data, error } = await supabase.rpc(fn, { p_session_token: sessionToken, ...args });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (args.p_ids && !data?.affected) throw new Error(t('course.currentStop.nothingAffected'));
+      if (args.p_ids && data.affected < args.p_ids.length) {
+        toastError(t('course.currentStop.partialAffected'));
+      } else {
+        toastSuccess(success);
+      }
       if (logDetails) {
         await logAction({
           sessionToken,
@@ -132,7 +151,6 @@ export default function TripCourseStops({
           details: logDetails.details,
         });
       }
-      toastSuccess(success);
       await loadStops();
       await onReload?.();
     } catch (error) {
@@ -393,10 +411,10 @@ export default function TripCourseStops({
         </div>
       )}
 
-      <div className="live-journal-section-title">{t('course.stops.stopsCount', { count: stops.length })}</div>
-      {stops.length === 0 && <div className="driver-empty-row">{t('course.stops.noStops')}</div>}
+      <div className="live-journal-section-title">{t('course.stops.stopsCount', { count: visibleStops.length })}</div>
+      {visibleStops.length === 0 && <div className="driver-empty-row">{t('course.stops.noStops')}</div>}
 
-      {stops.map((stop, index) => {
+      {visibleStops.map((stop, index) => {
         const clean = splitCleanTasks(stop.tasks || []);
         const packInfo = getPackInfo(clean.pickup);
         const pickupDone = clean.pendingPickup.length === 0 && clean.completedPickup.length > 0;
@@ -407,7 +425,7 @@ export default function TripCourseStops({
         return (
           <article className={`live-stop-card ${stop.status === 'completed' ? 'is-done' : ''}`} key={stop.id}>
             <div className="live-stop-card-head">
-              <span className="driver-upcoming-index">{index + 1}</span>
+              <span className="driver-upcoming-index">{stopDisplayOrder(stop, clients) ?? index + 1}</span>
               <RouteChip routeId={stop.route_id} routeMap={routeMap} />
               <strong>{stop.client_name}</strong>
               {meta.isUrgent && <UrgentChip />}
@@ -416,7 +434,7 @@ export default function TripCourseStops({
               <a className="driver-nav-btn live-stop-nav" href={mapsUrlForStop(stop)} target="_blank" rel="noopener noreferrer" aria-label={t('course.navigate')}>
                 <Navigation2 size={14} />
               </a>
-              <StopStatusBadge status={stop.status} t={t} />
+              <StopStatusBadge status={stop.status === 'pending' && deliveryDone && canCompleteStop(stop) ? 'ready' : stop.status} t={t} />
             </div>
 
             {clean.pickup.length > 0 && (
@@ -443,7 +461,7 @@ export default function TripCourseStops({
               <div className="live-stop-action">
                 <Truck size={14} />
                 <div className="live-stop-action-body">
-                  <span>{t('course.stops.delivered')}</span>
+                  <span>{t(deliveryDone ? 'course.stops.delivered' : 'course.currentStop.deliverySection')}</span>
                   {deliveryDone ? (
                     <span className="live-task-action-meta">✓ {fmtTime(clean.delivery.find(task => task.completed_at)?.completed_at || clean.delivery[0]?.delivered_at)}</span>
                   ) : (
@@ -478,6 +496,14 @@ export default function TripCourseStops({
                   );
                 })}
               </div>
+            )}
+
+            {isAdmin && trip.status === 'active' && stop.status === 'pending' && canCompleteStop(stop) && (
+              <AdminActionBtn
+                label={t('course.driver.completeStop')}
+                onClick={() => adminRpc('driver_complete_trip_stop', { p_stop_id: stop.id }, t('course.driver.stopCompleted', { name: stop.client_name }))}
+                disabled={busy}
+              />
             )}
 
             {stop.status === 'completed' && <CheckCircle2 size={16} color="var(--accent-green)" className="live-stop-done-icon" />}

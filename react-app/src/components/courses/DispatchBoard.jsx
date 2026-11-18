@@ -77,20 +77,27 @@ function DispatchPlanningView({ trip, sessionToken, readOnly, onReload, onCancel
   const { t } = useTranslation();
   const [course, setCourse] = useState({ trip, stops: [] });
   const [loading, setLoading] = useState(true);
+  const loadRequest = useRef(0);
+  const tripId = trip.id;
 
   const loadCourse = useCallback(async () => {
-    setLoading(true);
+    const request = ++loadRequest.current;
     try {
-      const data = await getTripCourse(sessionToken, trip.id);
-      setCourse({ trip: data.trip || trip, stops: data.stops || [] });
+      const data = await getTripCourse(sessionToken, tripId);
+      if (request === loadRequest.current) {
+        setCourse(current => ({ trip: data.trip || current.trip, stops: data.stops || [] }));
+      }
     } catch (error) {
-      toastError(error.message);
+      if (request === loadRequest.current) toastError(error.message);
     } finally {
-      setLoading(false);
+      if (request === loadRequest.current) setLoading(false);
     }
-  }, [sessionToken, trip]);
+  }, [sessionToken, tripId]);
 
-  useEffect(() => { loadCourse(); }, [loadCourse]);
+  useEffect(() => {
+    loadCourse();
+    return () => { loadRequest.current += 1; };
+  }, [loadCourse, trip]);
 
   const reload = async () => {
     await loadCourse();
@@ -129,20 +136,20 @@ function JournalPanel({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     getTripJournal(sessionToken, trip.id)
       .then(data => { if (!cancelled) setJournal({ events: data.events || [], segments: data.segments || [] }); })
       .catch(error => { if (!cancelled) toastError(error.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [sessionToken, trip.id]);
+  }, [sessionToken, trip]);
 
   useEffect(() => {
     const previous = document.activeElement;
-    panelRef.current?.focus();
+    panelRef.current?.focus({ preventScroll: true });
     const keydown = event => {
+      if (!panelRef.current?.contains(document.activeElement)) return;
       if (event.key === 'Escape') onClose();
-      if (event.key === 'Tab' && panelRef.current) {
+      if (event.key === 'Tab') {
         const focusable = [...panelRef.current.querySelectorAll('a[href], button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')];
         if (!focusable.length) return;
         const first = focusable[0];
@@ -152,7 +159,7 @@ function JournalPanel({
       }
     };
     document.addEventListener('keydown', keydown);
-    return () => { document.removeEventListener('keydown', keydown); previous?.focus?.(); };
+    return () => { document.removeEventListener('keydown', keydown); previous?.focus?.({ preventScroll: true }); };
   }, [onClose]);
 
   return (
@@ -507,6 +514,8 @@ export default function DispatchBoard() {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openTrip, setOpenTrip] = useState(null);
+  const boardRequest = useRef(0);
+  const closeTrip = useCallback(() => setOpenTrip(null), []);
   const [kmTrip, setKmTrip] = useState(null);
   const [assignTrip, setAssignTrip] = useState(null);
   const [kmValue, setKmValue] = useState('');
@@ -538,12 +547,14 @@ export default function DispatchBoard() {
 
   const loadBoard = useCallback(async () => {
     if (!sessionToken) return;
+    const request = ++boardRequest.current;
     try {
       const [data, tripsData, routePlanData] = await Promise.all([
         getDispatchBoard(sessionToken, tripDate),
         getDriverTripsData(sessionToken),
         getWeeklyRoutePlan(sessionToken, tripDate),
       ]);
+      if (request !== boardRequest.current) return;
       const boardTrips = data.trips || [];
       const storedTrips = tripsData?.trips || [];
       setAllTrips(storedTrips);
@@ -561,13 +572,23 @@ export default function DispatchBoard() {
       }));
       const merged = [...virtualTrips, ...boardTrips];
       setTrips(merged);
-      setOpenTrip(current => current ? merged.find(trip => trip.id === current.id) || storedTrips.find(trip => trip.id === current.id) || null : null);
+      setOpenTrip(current => current ? merged.find(trip => trip.id === current.id) || storedTrips.find(trip => trip.id === current.id) || current : null);
     } catch (error) {
-      toastError(error.message);
-    } finally { setLoading(false); }
+      if (request === boardRequest.current) toastError(error.message);
+    } finally {
+      if (request === boardRequest.current) setLoading(false);
+    }
   }, [entries, routeMap, sessionToken, tripDate]);
 
-  useEffect(() => { setLoading(true); loadBoard(); }, [loadBoard]);
+  useEffect(() => {
+    setLoading(true);
+    setTrips([]);
+  }, [sessionToken, tripDate]);
+
+  useEffect(() => {
+    loadBoard();
+    return () => { boardRequest.current += 1; };
+  }, [loadBoard]);
 
   useEffect(() => {
     if (!isAdmin || !sessionToken) return undefined;
@@ -829,6 +850,7 @@ export default function DispatchBoard() {
 
       {openTrip && !openTrip.isVirtual && (
         <JournalPanel
+          key={openTrip.id}
           trip={openTrip}
           sessionToken={sessionToken}
           isAdmin={isAdmin}
@@ -843,7 +865,7 @@ export default function DispatchBoard() {
           setBusy={setBusy}
           boardColumns={boardColumns}
           locale={locale}
-          onClose={() => setOpenTrip(null)}
+          onClose={closeTrip}
           onStageChange={moveStage}
           onReload={async () => { await loadBoard(); await refetch(); }}
           onDeleted={() => { setOpenTrip(null); loadBoard(); }}

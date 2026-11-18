@@ -2045,6 +2045,7 @@
     },
     "stops": {
       "statusPending": "Oczekuje",
+      "statusReadyToComplete": "Do zamknięcia",
       "statusCompleted": "Zakończony",
       "statusSkipped": "Pominięty",
       "pickupLaundry": "Odbiór z pralni",
