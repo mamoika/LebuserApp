@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, LockKeyhole, RefreshCw, Scale, Search, UserRound } from 'lucide-react';
+import { ArrowRight, CheckCircle2, LockKeyhole, Monitor, RefreshCw, Search, UserRound } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +24,6 @@ export default function KioskLogin() {
     signOut,
   } = useAuth();
   const [drivers, setDrivers] = useState([]);
-  const [deviceName, setDeviceName] = useState(kioskDevice?.name || '');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingUserId, setLoadingUserId] = useState(null);
@@ -44,9 +43,8 @@ export default function KioskLogin() {
       setError(result.error);
       return;
     }
-    setDeviceName(result.device_name || kioskDevice.name || '');
     setDrivers(Array.isArray(result.drivers) ? result.drivers : []);
-  }, [getKioskDrivers, kioskDevice?.name, kioskDevice?.token, user]);
+  }, [getKioskDrivers, kioskDevice?.token, user]);
 
   useEffect(() => { loadDrivers(); }, [loadDrivers]);
 
@@ -82,7 +80,7 @@ export default function KioskLogin() {
     return (
       <main className="kiosk-screen kiosk-setup-screen">
         <section className="kiosk-setup-card" aria-labelledby="kiosk-start-title">
-          <div className="kiosk-mark"><Scale size={28} aria-hidden="true" /></div>
+          <div className="kiosk-mark"><Monitor size={28} aria-hidden="true" /></div>
           <p className="kiosk-eyebrow">{t('kiosk.station')}</p>
           <h1 id="kiosk-start-title">{kioskDevice ? t('kiosk.readyTitle') : t('kiosk.activateTitle')}</h1>
           <p>{kioskDevice ? t('kiosk.readyDescription') : t('kiosk.activateDescription')}</p>
@@ -111,7 +109,7 @@ export default function KioskLogin() {
       <main className="kiosk-screen kiosk-setup-screen">
         <section className="kiosk-setup-card" aria-labelledby="kiosk-inactive-title">
           <img className="kiosk-logo" src={logoImg} alt="LEBUSER" />
-          <div className="kiosk-mark"><Scale size={28} aria-hidden="true" /></div>
+          <div className="kiosk-mark"><Monitor size={28} aria-hidden="true" /></div>
           <p className="kiosk-eyebrow">{t('kiosk.station')}</p>
           <h1 id="kiosk-inactive-title">{t('kiosk.inactiveTitle')}</h1>
           <p>{t('kiosk.inactiveDescription')}</p>
@@ -128,10 +126,7 @@ export default function KioskLogin() {
       <header className="kiosk-header">
         <div className="kiosk-brand">
           <img src={logoImg} alt="LEBUSER" />
-          <div>
-            <span>{t('kiosk.station')}</span>
-            <strong>{deviceName || kioskDevice.name}</strong>
-          </div>
+          <strong>{t('kiosk.station')}</strong>
         </div>
         <div className="kiosk-status"><span /> {t('kiosk.deviceActive')}</div>
       </header>

@@ -74,10 +74,8 @@
   backdrop-filter:blur(18px) saturate(150%);
 }
 .kiosk-brand{display:flex;align-items:center;gap:14px;min-width:0}
-.kiosk-brand img{width:auto;height:42px;object-fit:contain}
-.kiosk-brand div{display:flex;min-width:0;flex-direction:column;gap:2px}
-.kiosk-brand span{color:var(--kiosk-muted);font-size:12px;font-weight:650}
-.kiosk-brand strong{overflow:hidden;font-size:16px;text-overflow:ellipsis;white-space:nowrap}
+.kiosk-brand img{width:auto;height:42px;min-width:0;object-fit:contain;object-position:left center}
+.kiosk-brand strong{font-size:16px;line-height:1.25}
 .kiosk-status{
   display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px;
   border-radius:999px;background:var(--kiosk-green-soft);color:var(--kiosk-green);
@@ -167,6 +165,7 @@
   .kiosk-avatar{width:44px;height:44px;margin-bottom:14px;border-radius:13px}.kiosk-driver-name{font-size:16px}
   .kiosk-footer{justify-content:flex-start}.kiosk-footer a{margin-left:auto;white-space:nowrap}
 }
+@media(max-width:540px){.kiosk-brand strong{display:none}}
 @media(max-width:430px){.kiosk-driver-grid{grid-template-columns:1fr}.kiosk-driver-card{min-height:126px}.kiosk-footer>svg,.kiosk-footer{font-size:0}.kiosk-footer a{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.kiosk-driver-card,.kiosk-primary-btn{transition:none}.kiosk-driver-card:hover,.kiosk-primary-btn:hover{transform:none}}
 
