@@ -81,7 +81,6 @@ export default function KioskLogin() {
       <main className="kiosk-screen kiosk-setup-screen">
         <section className="kiosk-setup-card" aria-labelledby="kiosk-start-title">
           <div className="kiosk-mark"><Monitor size={28} aria-hidden="true" /></div>
-          <p className="kiosk-eyebrow">{t('kiosk.station')}</p>
           <h1 id="kiosk-start-title">{kioskDevice ? t('kiosk.readyTitle') : t('kiosk.activateTitle')}</h1>
           <p>{kioskDevice ? t('kiosk.readyDescription') : t('kiosk.activateDescription')}</p>
           {error && <div className="kiosk-error" role="alert">{error}</div>}
@@ -110,7 +109,6 @@ export default function KioskLogin() {
         <section className="kiosk-setup-card" aria-labelledby="kiosk-inactive-title">
           <img className="kiosk-logo" src={logoImg} alt="LEBUSER" />
           <div className="kiosk-mark"><Monitor size={28} aria-hidden="true" /></div>
-          <p className="kiosk-eyebrow">{t('kiosk.station')}</p>
           <h1 id="kiosk-inactive-title">{t('kiosk.inactiveTitle')}</h1>
           <p>{t('kiosk.inactiveDescription')}</p>
           <Link className="kiosk-primary-btn" to="/login" state={{ from: '/kiosk' }}>
@@ -124,10 +122,7 @@ export default function KioskLogin() {
   return (
     <main className="kiosk-screen">
       <header className="kiosk-header">
-        <div className="kiosk-brand">
-          <img src={logoImg} alt="LEBUSER" />
-          <strong>{t('kiosk.station')}</strong>
-        </div>
+        <img className="kiosk-brand" src={logoImg} alt="LEBUSER" />
         <div className="kiosk-status"><span /> {t('kiosk.deviceActive')}</div>
       </header>
 

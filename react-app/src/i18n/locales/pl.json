@@ -111,7 +111,6 @@
     "noSavedAdminSession": "Brak zapisanej sesji admina"
   },
   "kiosk": {
-    "station": "Stanowisko wspólne",
     "defaultDeviceName": "Stanowisko",
     "notActive": "Stanowisko nie jest aktywne",
     "inactiveTitle": "Najpierw aktywuj ten komputer",

@@ -111,7 +111,6 @@
     "noSavedAdminSession": "Keine gespeicherte Admin-Sitzung"
   },
   "kiosk": {
-    "station": "Gemeinsamer Arbeitsplatz",
     "defaultDeviceName": "Arbeitsplatz",
     "notActive": "Die Station ist nicht aktiviert",
     "inactiveTitle": "Aktivieren Sie zuerst diesen Computer",
