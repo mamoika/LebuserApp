@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
 import { AlertTriangle, Eye, Scale, ShieldCheck, Undo2, UserRound } from 'lucide-react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import RodoNotice from './RodoNotice';
 
 import ToastContainer from '../components/ToastContainer';
@@ -126,7 +126,6 @@ export default function Dashboard() {
   const isImpersonating = !!adminBackup;
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
-  const navigate = useNavigate();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
   // Admin zaczyna od Panelu sterującego; reszta od pierwszego dostępnego widoku.
   const firstAllowedPath = [
@@ -140,11 +139,6 @@ export default function Dashboard() {
   const handleStopImpersonating = async () => {
     const result = await stopImpersonating();
     window.location.href = result?.needsLogin ? '/login' : '/admin';
-  };
-
-  const handleSwitchKioskUser = () => {
-    switchKioskUser();
-    navigate('/kiosk', { replace: true });
   };
 
   return (
@@ -189,7 +183,7 @@ export default function Dashboard() {
             <span>{t('kiosk.loggedInAs')}</span>
             <strong>{user.name}</strong>
           </span>
-          <button type="button" onClick={handleSwitchKioskUser}>
+          <button type="button" onClick={switchKioskUser}>
             {t('kiosk.changeDriver')}
           </button>
         </div>

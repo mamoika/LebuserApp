@@ -59,6 +59,7 @@ const readStoredSession = (key) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => readStoredSession(STORAGE_KEY));
   const [adminBackup, setAdminBackup] = useState(() => readStoredSession(BACKUP_KEY));
+  const sessionTokenRef = useRef(user?.session_token);
   const moduleAccessRef = useRef(user?.module_access || null);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export const AuthProvider = ({ children }) => {
 
   const storeUser = useCallback((userData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    sessionTokenRef.current = userData.session_token;
     setUser(userData);
   }, []);
 
@@ -99,29 +101,31 @@ export const AuthProvider = ({ children }) => {
   const clearSession = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(BACKUP_KEY);
+    sessionTokenRef.current = undefined;
     setUser(null);
     setAdminBackup(null);
   }, []);
 
   const refreshUserProfile = useCallback(async () => {
-    if (!user?.session_token) return;
+    const token = user?.session_token;
+    if (!token) return;
     const { data, error } = await supabase.rpc('session_user', {
-      p_session_token: user.session_token,
+      p_session_token: token,
     });
-    if (error) return;
+    if (error || sessionTokenRef.current !== token) return;
     const fresh = Array.isArray(data) ? data[0] : data;
     if (!fresh?.id) {
       clearSession();
       return;
     }
     const moduleAccess = await loadModuleAccess(
-      user.session_token,
+      token,
       fresh.role,
       fresh.username,
       moduleAccessRef.current
     );
     setUser((prev) => {
-      if (!prev || prev.session_token !== user.session_token) return prev;
+      if (!prev || prev.session_token !== token) return prev;
       const next = {
         ...prev,
         id: fresh.id,
@@ -290,14 +294,11 @@ export const AuthProvider = ({ children }) => {
     return { ok: true };
   };
 
-  const switchKioskUser = useCallback(() => {
+  const switchKioskUser = useCallback(async () => {
     const token = user?.session_token;
-    if (token) supabase.rpc('logout_user', { p_session_token: token });
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(BACKUP_KEY);
-    setUser(null);
-    setAdminBackup(null);
-  }, [user?.session_token]);
+    clearSession();
+    if (token) await supabase.rpc('logout_user', { p_session_token: token });
+  }, [clearSession, user?.session_token]);
 
   const impersonate = async (targetUserId) => {
     const { data, error } = await supabase.rpc('admin_impersonate_user', {
@@ -383,15 +384,11 @@ export const AuthProvider = ({ children }) => {
       }
     }
     if (!adminBackup.session_token) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(BACKUP_KEY);
-      setUser(null);
-      setAdminBackup(null);
+      clearSession();
       return { needsLogin: true };
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(adminBackup));
+    storeUser(adminBackup);
     localStorage.removeItem(BACKUP_KEY);
-    setUser(adminBackup);
     setAdminBackup(null);
     return { ok: true };
   };
@@ -401,11 +398,8 @@ export const AuthProvider = ({ children }) => {
     [...new Set(tokens)].forEach((token) => {
       supabase.rpc('logout_user', { p_session_token: token });
     });
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(BACKUP_KEY);
-    setUser(null);
-    setAdminBackup(null);
-  }, [adminBackup?.session_token, user?.session_token]);
+    clearSession();
+  }, [adminBackup?.session_token, clearSession, user?.session_token]);
 
   const role = user?.role ?? null;
   const isAdmin = role === 'admin';

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const pageSource = fs.readFileSync(new URL('./KioskLogin.jsx', import.meta.url), 'utf8');
 const authSource = fs.readFileSync(new URL('../context/AuthContext.jsx', import.meta.url), 'utf8');
+const appSource = fs.readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
 const migrationSource = fs.readFileSync(
   new URL('../../db/migrations/20261030120000_driver_kiosk_login.sql', import.meta.url),
   'utf8',
@@ -27,4 +28,8 @@ test('kiosk sessions are short-lived and identify their device', () => {
   assert.match(migrationSource, /now\(\) \+ interval '4 hours'/);
   assert.match(migrationSource, /kiosk_device_id/);
   assert.match(pageSource, /kiosk\.loggedInAs|chooseDriver/);
+});
+
+test('protected routes return an activated kiosk to driver selection after its session ends', () => {
+  assert.match(appSource, /if \(!user\) \{\s*return <Navigate to=\{kioskDevice\?\.token \? '\/kiosk' : '\/login'\} replace/);
 });

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
@@ -41,7 +41,6 @@ function readCollapsed() {
 export default function Navigation() {
   const { t, i18n } = useTranslation();
   const { canViewModule, canViewControlPanel, user, signOut, switchKioskUser, adminBackup, setLanguage } = useAuth();
-  const navigate = useNavigate();
   const menuPanelId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
@@ -94,15 +93,6 @@ export default function Navigation() {
     .slice(0, 2)
     .map(part => part[0]?.toUpperCase())
     .join('') || t('common.appName').slice(0, 1);
-
-  const handleSignOut = () => {
-    if (user?.kiosk_mode) {
-      switchKioskUser();
-      navigate('/kiosk', { replace: true });
-      return;
-    }
-    signOut();
-  };
 
   const currentLanguage = SUPPORTED_LANGUAGES.includes(i18n.resolvedLanguage)
     ? i18n.resolvedLanguage
@@ -260,7 +250,7 @@ export default function Navigation() {
               <button
                 type="button"
                 className="app-navigation-icon-button app-navigation-signout"
-                onClick={handleSignOut}
+                onClick={user?.kiosk_mode ? switchKioskUser : signOut}
                 title={signOutLabel}
                 aria-label={signOutLabel}
               >

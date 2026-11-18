@@ -6,9 +6,9 @@ import Dashboard from './pages/Dashboard';
 import KioskLogin from './pages/KioskLogin';
 
 const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
+  const { user, kioskDevice } = useAuth();
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={kioskDevice?.token ? '/kiosk' : '/login'} replace />;
   }
   return children;
 };
