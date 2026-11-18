@@ -4206,3 +4206,35 @@
   .live-dispatch .kurs-card:hover,
   .live-dispatch .kurs-card.is-dragging { transform: none; }
 }
+
+/* Stanowisko stacjonarne: szerszy widok kierowcy i zadania obok siebie. */
+.app-shell--kiosk .driver-phone {
+  max-width: var(--kiosk-content-width);
+}
+
+.app-shell--kiosk .live-start-heading-row {
+  flex-wrap: wrap;
+}
+
+.app-shell--kiosk .live-stop-tasks {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  align-items: start;
+}
+
+@media screen and (min-width: 640px) {
+  .app-shell--kiosk .live-start-card {
+    display: grid;
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  }
+
+  .app-shell--kiosk .live-start-section + .live-start-section {
+    margin-top: 0;
+    padding: 0 0 0 clamp(12px, 2vw, 24px);
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .app-shell--kiosk .live-start-submit {
+    max-width: 420px;
+  }
+}

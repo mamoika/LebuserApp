@@ -142,7 +142,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${user?.kiosk_mode ? ' app-shell--kiosk' : ''}`}>
       <a className="skip-link" href="#main-content">{t('common.skipToContent')}</a>
 
       {/* Baner impersonacji */}

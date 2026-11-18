@@ -12651,6 +12651,128 @@ select.ap-input {
   }
 }
 
+/* Kiosk: stała boczna nawigacja także w węższym oknie. */
+.app-shell--kiosk {
+  --kiosk-content-width: 1120px;
+}
+
+.app-shell--kiosk .app-main-content {
+  padding: clamp(12px, 2.6vh, 28px) clamp(12px, 2.2vw, 28px);
+}
+
+.app-shell--kiosk .kiosk-session {
+  max-width: var(--kiosk-content-width);
+  margin-bottom: 12px;
+}
+
+@media screen and (max-width: 900px) {
+  body:has(.app-shell--kiosk) {
+    padding: 0;
+  }
+
+  .app-shell--kiosk .app-frame {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .app-shell--kiosk .app-workspace {
+    border-radius: 0;
+  }
+
+  .app-shell--kiosk .app-navigation {
+    z-index: 40;
+    display: flex;
+    height: 100dvh;
+    border-inline-end: 1px solid var(--laundry-divider);
+    border-block-end: 0;
+    border-radius: 0;
+    background: var(--laundry-surface);
+    backdrop-filter: none;
+  }
+
+  .app-shell--kiosk .app-navigation-panel {
+    position: static;
+    width: auto;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
+  }
+
+  .app-shell--kiosk .app-navigation-brand {
+    justify-content: center;
+    padding: 12px 0;
+    border-block-end: 1px solid var(--laundry-divider);
+  }
+
+  .app-shell--kiosk .app-navigation-logo {
+    flex: 0 0 34px;
+  }
+
+  .app-shell--kiosk .app-navigation-logo img {
+    max-width: none;
+  }
+
+  .app-shell--kiosk .app-navigation-toggle,
+  .app-shell--kiosk .app-navigation-mobile-avatar,
+  .app-shell--kiosk .app-navigation-backdrop,
+  .app-shell--kiosk .app-navigation-collapse,
+  .app-shell--kiosk .app-navigation-actions .lang-selector,
+  .app-shell--kiosk .app-navigation-account-copy,
+  .app-shell--kiosk .app-navigation-rodo span {
+    display: none;
+  }
+
+  .app-shell--kiosk .app-navigation-scroller {
+    padding-inline: 8px;
+  }
+
+  .app-shell--kiosk .app-navigation-link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .app-shell--kiosk .app-navigation-link span,
+  .app-shell--kiosk .app-navigation-group h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .app-shell--kiosk .app-navigation-account,
+  .app-shell--kiosk .app-navigation-actions,
+  .app-shell--kiosk .app-navigation-profile {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-shell--kiosk .app-navigation-account {
+    padding: 10px 6px;
+    background: var(--laundry-surface);
+  }
+
+  .app-shell--kiosk .app-navigation-lang-compact {
+    display: inline-flex;
+  }
+
+  .app-shell--kiosk .app-navigation-rodo {
+    flex: 0 0 auto;
+    width: 34px;
+    padding: 0;
+  }
+}
+
 /* ── PLAN TRAS: pełna szerokość, niższe wiersze, spokojniejsze puste dni ── */
 .weekly-route-plan {
   max-width: none;
