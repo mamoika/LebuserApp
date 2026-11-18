@@ -49,7 +49,7 @@ function distanceForTrip(trip, dailyCosts = []) {
   return distance >= 0 ? Number(distance.toFixed(1)) : null;
 }
 
-function stopPrintData(stop, entries, tripDate) {
+function stopPrintData(stop, entries, trip) {
   const stopEntries = entriesForStop(stop, entries);
   const clean = splitCleanTasks(stop?.tasks || []);
   const hasPickup = clean.pickup.length > 0;
@@ -63,7 +63,7 @@ function stopPrintData(stop, entries, tripDate) {
     clean.delivery.find(task => task.completed_at)?.completed_at
     || stopEntries.find(entry => entry.delivered_at)?.delivered_at,
   );
-  const dirtyEntries = dirtyEntriesForStop(entries, stop.client_name, tripDate);
+  const dirtyEntries = dirtyEntriesForStop(entries, stop.client_name, trip.trip_date, trip.id);
   return {
     client_name: stop.client_name,
     pralnia,
@@ -137,7 +137,7 @@ export async function printTripWorkCard({
     return;
   }
   const stops = await loadTripStops(sessionToken, trip);
-  const stopRows = stops.map((stop, index) => stopRowHtml(stopPrintData(stop, entries, trip.trip_date), index)).join('');
+  const stopRows = stops.map((stop, index) => stopRowHtml(stopPrintData(stop, entries, trip), index)).join('');
   const startRow = `<tr class="route-marker">
     <td>1</td><td class="l"><b>${escHtml(tr('laundry'))}</b></td>
     <td>${escHtml(fmtTime(trip.started_at) || '—')}</td><td>${escHtml(tr('courseStart'))}</td>
@@ -200,10 +200,10 @@ export async function printDayWorkCard({
     const stops = await loadTripStops(sessionToken, dayTrip);
     stops.forEach(stop => {
       const key = stop.client_name || '—';
-      if (!merged.has(key)) merged.set(key, { stop, data: stopPrintData(stop, entries, dayTrip.trip_date) });
+      if (!merged.has(key)) merged.set(key, { stop, data: stopPrintData(stop, entries, dayTrip) });
       else {
         const existing = merged.get(key);
-        const next = stopPrintData(stop, entries, dayTrip.trip_date);
+        const next = stopPrintData(stop, entries, dayTrip);
         if (next.pralnia && !existing.data.pralnia) existing.data = { ...existing.data, ...next };
         if (next.delivered) existing.data.delivered = true;
         if (next.kg && !existing.data.kg) existing.data.kg = next.kg;

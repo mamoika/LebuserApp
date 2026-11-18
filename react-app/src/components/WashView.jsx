@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
@@ -19,14 +19,13 @@ import {
   Truck,
   WashingMachine,
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { useLaundryWorkflow } from '../hooks/useLaundryWorkflow';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import TrolleysDashboardModal from './TrolleysDashboardModal';
 import {
   cancelLaundryTrolley,
   finishLaundryPacking,
-  getLaundryWorkflow,
   markLaundryWashed,
   packLaundryBatch,
   packLaundryTrolley,
@@ -42,6 +41,7 @@ import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSche
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
 import { calculateLaundryDayMetrics, laundryBatchKey } from '../lib/laundryDayPlan';
 import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
+const EMPTY_WORKFLOW_ROWS = [];
 const DEFAULT_TROLLEY_COUNT = 25;
 
 function ymd(date) {
@@ -311,15 +311,14 @@ export default function WashView() {
   const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver, canEditModule } = useAuth();
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
-  const [trolleys, setTrolleys] = useState([]);
-  const [arrivalReservations, setArrivalReservations] = useState([]);
-  const [workflowLoading, setWorkflowLoading] = useState(true);
-  const [workflowError, setWorkflowError] = useState('');
+  const { data: workflow, error: workflowError, loading: workflowLoading, refresh: fetchWorkflow } = useLaundryWorkflow(sessionToken);
+  const trolleys = workflow?.trolleys || EMPTY_WORKFLOW_ROWS;
+  const arrivalReservations = workflow?.arrival_reservations || EMPTY_WORKFLOW_ROWS;
+  const trolleyCount = Math.max(1, Math.min(99, Number(workflow?.trolley_count) || DEFAULT_TROLLEY_COUNT));
   const [busyKey, setBusyKey] = useState('');
   const [packingGroup, setPackingGroup] = useState(null);
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [historyTrolley, setHistoryTrolley] = useState(null);
-  const [trolleyCount, setTrolleyCount] = useState(DEFAULT_TROLLEY_COUNT);
   const [workFilter, setWorkFilter] = useState('all');
   const [entryPickerGroup, setEntryPickerGroup] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -340,39 +339,6 @@ export default function WashView() {
     }
     setEntryPickerGroup(group);
   };
-
-  const fetchWorkflow = useCallback(async () => {
-    if (!sessionToken) {
-      setTrolleys([]);
-      setArrivalReservations([]);
-      setWorkflowLoading(false);
-      return;
-    }
-    setWorkflowLoading(true);
-    setWorkflowError('');
-    try {
-      const data = await getLaundryWorkflow(sessionToken);
-      setTrolleys(data?.trolleys || []);
-      setArrivalReservations(data?.arrival_reservations || []);
-      const nextCount = Math.max(1, Math.min(99, Number(data?.trolley_count) || DEFAULT_TROLLEY_COUNT));
-      setTrolleyCount(nextCount);
-    } catch (err) {
-      setWorkflowError(err.message || t('wash.loadWorkflowError'));
-    } finally {
-      setWorkflowLoading(false);
-    }
-  }, [sessionToken, t]);
-
-  useEffect(() => {
-    fetchWorkflow();
-    const channel = supabase.channel('laundry-workflow')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'laundry_trolley_cycles' }, fetchWorkflow)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, fetchWorkflow)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchWorkflow]);
 
   const scheduleByRoute = useMemo(
     () => new Map(routes.map(route => [route.id, route.schedule || 'other'])),
@@ -482,7 +448,7 @@ export default function WashView() {
         .map(reservation => String(reservation.trolley_no).trim());
       const arrivalEntryIds = new Set(
         arrivalReservations
-          .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation))
+          .filter(reservation => entryIdSet.has(reservation.entry_id) && isRealTrolley(reservation) && !reservation.dirty_received_at)
           .map(reservation => reservation.entry_id),
       );
       const hasInTransitLaundry = group.entries.some(entry => (
@@ -846,7 +812,7 @@ export default function WashView() {
 
       {workflowError && (
         <div className="laundry-warning">
-          {t('wash.workflowWarning', { message: workflowError })}
+          {t('wash.workflowWarning', { message: workflowError.message || t('wash.loadWorkflowError') })}
         </div>
       )}
 
@@ -1153,6 +1119,9 @@ export default function WashView() {
           onPack={handlePack}
           onPackMulti={handlePackMulti}
           onFinishPacking={handleFinishPacking}
+          workflowAvailable={Boolean(workflow) && !workflowError}
+          workflowError={workflowError}
+          onRefreshAvailability={fetchWorkflow}
           sessionToken={sessionToken}
           trolleyNumbers={trolleyNumbers}
           activeTrolleyByNo={activeTrolleyByNo}

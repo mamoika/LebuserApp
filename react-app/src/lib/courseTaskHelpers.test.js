@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { operationalCourseStops } from './courseStopVisibility.js';
-import { canCompleteStop, statsFromCourseStops, stopLaundryMeta } from './courseTaskHelpers.js';
+import { canCompleteStop, dirtyEntriesForStop, statsFromCourseStops, stopLaundryMeta } from './courseTaskHelpers.js';
 
 const dispatchProgressMigration = await readFile(
   new URL('../../db/migrations/20261118130000_preserve_course_stop_outcomes.sql', import.meta.url),
@@ -12,6 +12,16 @@ const tripCourseStopsSource = await readFile(
   new URL('../components/courses/TripCourseStops.jsx', import.meta.url),
   'utf8',
 );
+
+test('an explicitly assigned dirty pickup belongs only to its course', () => {
+  const legacy = { id: 'legacy', client_name: 'Radisson', week_key: '2026-11-16', arr_day: 3 };
+  const assigned = { ...legacy, id: 'assigned', dirty_pickup_trip_id: 'course-1' };
+  const removed = { ...assigned, id: 'removed', deleted_at: '2026-11-18T09:00:00Z' };
+  const entries = [legacy, assigned, removed];
+
+  assert.deepEqual(dirtyEntriesForStop(entries, 'Radisson', '2026-11-18', 'course-1'), [legacy, assigned]);
+  assert.deepEqual(dirtyEntriesForStop(entries, 'Radisson', '2026-11-18', 'course-2'), [legacy]);
+});
 
 test('a scheduled stop removed during planning does not count in the active course', () => {
   const stops = [

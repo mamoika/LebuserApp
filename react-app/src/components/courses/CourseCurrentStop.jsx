@@ -103,7 +103,7 @@ export default function CourseCurrentStop({
   const pickupKg = sumTaskWeight(clean.pendingPickup.length ? clean.pendingPickup : clean.pickup);
   const hasPhysicalTrolley = clean.pickup.some(task => task.laundry_trolley_no && task.laundry_trolley_no !== 'brak');
   const hasDeliveryTrolleys = clean.pendingDelivery.some(task => task.laundry_trolley_cycle_id);
-  const dirtyToday = useMemo(() => dirtyEntriesForStop(entries, stop.client_name, trip.trip_date), [entries, stop.client_name, trip.trip_date]);
+  const dirtyToday = useMemo(() => dirtyEntriesForStop(entries, stop.client_name, trip.trip_date, trip.id), [entries, stop.client_name, trip.trip_date, trip.id]);
   const entryDateInfo = useMemo(() => tripDateInfo(trip.trip_date), [trip.trip_date]);
   const pickupOwner = clean.pickup.map(task => task.picked_by).find(Boolean) || t('course.currentStop.otherDriver');
   const deliveryOwner = clean.delivery.map(task => task.delivered_by).find(Boolean) || t('course.currentStop.otherDriver');
@@ -466,6 +466,7 @@ export default function CourseCurrentStop({
         <AddEntryModal
           isOpen
           onClose={() => setAddEntryFor(null)}
+          courseTripId={trip.id}
           defaultArrDay={entryDateInfo.arrDay}
           defaultClientName={addEntryFor}
           weekKey={entryDateInfo.weekKey}

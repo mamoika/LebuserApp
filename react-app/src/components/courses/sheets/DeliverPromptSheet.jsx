@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, CheckCircle2, Plus, Search, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
-import { captureError } from '../../../lib/sentry';
-import { getLaundryWorkflow, laundryActionErrorMessage } from '../../../lib/laundryRpc';
+import { useLaundryWorkflow } from '../../../hooks/useLaundryWorkflow';
+import { buildTrolleyOccupancy } from '../../../lib/trolleyOccupancy';
+import { laundryActionErrorMessage } from '../../../lib/laundryRpc';
 import { describeTrolleyActions } from '../../../lib/tripUiHelpers';
 import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
 import { formatTrolleyCode } from '../../../lib/trolleyCodes';
@@ -14,14 +15,20 @@ import '../../mockups/mockups.css';
 export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken, onClose, onDone }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const [loadingTrolleys, setLoadingTrolleys] = useState(true);
-  const [prompt, setPrompt] = useState(() => ({
-    trolleys: deliveryTrolleyChoices(pendingDelivery),
-    emptyTrolleys: [],
-  }));
-  const [availableEmptyTrolleys, setAvailableEmptyTrolleys] = useState([]);
+  const { data: workflow, error: workflowError, refresh } = useLaundryWorkflow(sessionToken);
+  const [emptyTrolleys, setEmptyTrolleys] = useState([]);
+  const loadingTrolleys = !workflow && !workflowError;
+  const availableEmptyTrolleys = useMemo(() => {
+    if (!workflow || workflowError) return [];
+    const occupied = buildTrolleyOccupancy(workflow.trolleys, workflow.arrival_reservations);
+    return Array.from({ length: Number(workflow.trolley_count) || 25 }, (_, index) => String(index + 1))
+      .filter(number => !occupied.has(number));
+  }, [workflow, workflowError]);
+  const prompt = { trolleys: deliveryTrolleyChoices(pendingDelivery, workflow?.trolleys), emptyTrolleys };
+  const emptySelectionChanged = emptyTrolleys.some(number => !availableEmptyTrolleys.includes(number));
   const [trolleyPickerOpen, setTrolleyPickerOpen] = useState(false);
   const [trolleyPickerDraft, setTrolleyPickerDraft] = useState([]);
+  const draftSelectionChanged = trolleyPickerDraft.some(number => !availableEmptyTrolleys.includes(number));
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredEmptyTrolleys = useMemo(() => {
@@ -30,39 +37,8 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     return availableEmptyTrolleys.filter(number => number.includes(q));
   }, [availableEmptyTrolleys, searchQuery]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingTrolleys(true);
-
-    (async () => {
-      try {
-        const wf = await getLaundryWorkflow(sessionToken);
-        if (cancelled) return;
-        const occupied = new Set([
-          ...(wf?.trolleys || [])
-            .filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status))
-            .map(cycle => String(cycle.trolley_no)),
-          ...(wf?.arrival_reservations || []).map(reservation => String(reservation.trolley_no)),
-        ]);
-        const free = Array.from({ length: Number(wf?.trolley_count) || 25 }, (_, index) => String(index + 1))
-          .filter(number => !occupied.has(number));
-        setAvailableEmptyTrolleys(free);
-        setPrompt(prev => {
-          const trolleys = deliveryTrolleyChoices(pendingDelivery, wf?.trolleys || []);
-          return { trolleys, emptyTrolleys: prev.emptyTrolleys.filter(number => free.includes(number)) };
-        });
-      } catch (error) {
-        captureError(error, { feature: 'DeliverPromptSheet.loadTrolleys' });
-      } finally {
-        if (!cancelled) setLoadingTrolleys(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [pendingDelivery, sessionToken, stop.client_name]);
-
   const openTrolleyPicker = () => {
-    setTrolleyPickerDraft(prompt.emptyTrolleys);
+    setTrolleyPickerDraft(emptyTrolleys.filter(number => availableEmptyTrolleys.includes(number)));
     setSearchQuery('');
     setTrolleyPickerOpen(true);
   };
@@ -76,12 +52,13 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
   };
 
   const saveTrolleyPicker = () => {
-    setPrompt(prev => ({ ...prev, emptyTrolleys: trolleyPickerDraft }));
+    if (workflowError || draftSelectionChanged) return;
+    setEmptyTrolleys(trolleyPickerDraft);
     setTrolleyPickerOpen(false);
   };
 
   const confirm = async () => {
-    if (loadingTrolleys || pendingDelivery.length === 0) return;
+    if (loadingTrolleys || workflowError || emptySelectionChanged || pendingDelivery.length === 0) return;
     const ids = [...new Set(pendingDelivery.map(task => task.entry_id).filter(Boolean))];
     const actions = prompt.trolleys.map(t => ({ cycle_id: t.cycleId, action: 'leave' }));
     try {
@@ -147,11 +124,18 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
             type="button"
             className="delivery-add-trolley-btn"
             onClick={openTrolleyPicker}
-            disabled={loadingTrolleys || availableEmptyTrolleys.length === 0}
+            disabled={loadingTrolleys || Boolean(workflowError) || (availableEmptyTrolleys.length === 0 && emptyTrolleys.length === 0)}
           >
             <Plus size={16} aria-hidden="true" />
             <span>{loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : t('course.sheets.delivery.addTrolley')}</span>
           </button>
+          {workflowError && (
+            <div className="ap-error" role="alert">
+              <p>{t('entry.trolleyAvailabilityError')}</p>
+              <button type="button" className="driver-tool-btn" onClick={refresh}>{t('common.refresh')}</button>
+            </div>
+          )}
+          {!workflowError && emptySelectionChanged && <div className="ap-error" role="alert">{t('entry.trolleySelectionChanged')}</div>}
           {prompt.emptyTrolleys.length > 0 && (
             <div className="delivery-selected-trolleys" aria-label={t('course.sheets.delivery.selectedEmptyTrolleys')}>
               {prompt.emptyTrolleys.map(number => (
@@ -160,7 +144,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
                   {formatTrolleyCode(number)}
                   <button
                     type="button"
-                    onClick={() => setPrompt(prev => ({ ...prev, emptyTrolleys: prev.emptyTrolleys.filter(item => item !== number) }))}
+                    onClick={() => setEmptyTrolleys(current => current.filter(item => item !== number))}
                     aria-label={t('course.sheets.delivery.removeEmptyTrolley', { number })}
                   >
                     <X size={13} aria-hidden="true" />
@@ -172,7 +156,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
         </div>
         <div className="ap-btn-group delivery-main-actions">
           <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-          <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys || pendingDelivery.length === 0}>
+          <button className="ap-btn ap-btn-primary" onClick={confirm} disabled={busy || loadingTrolleys || Boolean(workflowError) || emptySelectionChanged || pendingDelivery.length === 0}>
             {loadingTrolleys ? t('course.sheets.delivery.checkingTrolleys') : busy ? t('common.saving') : t('course.sheets.delivery.confirm')}
           </button>
         </div>
@@ -241,7 +225,12 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
           )}
 
           <div className="delivery-picker-scroll">
-            {filteredEmptyTrolleys.length > 0 ? (
+            {workflowError ? (
+              <div className="ap-error" role="alert">
+                <p>{t('entry.trolleyAvailabilityError')}</p>
+                <button type="button" className="driver-tool-btn" onClick={refresh}>{t('common.refresh')}</button>
+              </div>
+            ) : filteredEmptyTrolleys.length > 0 ? (
               <div className="delivery-empty-trolley-grid" role="group" aria-label={t('course.sheets.delivery.emptyTrolleys')}>
                 {filteredEmptyTrolleys.map(number => {
                   const selected = trolleyPickerDraft.includes(number);
@@ -266,12 +255,13 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
               <div className="delivery-empty-trolley-state">{t('course.sheets.delivery.noSearchResults')}</div>
             )}
           </div>
+          {!workflowError && draftSelectionChanged && <div className="ap-error" role="alert">{t('entry.trolleySelectionChanged')}</div>}
 
           <div className="delivery-picker-actions">
             <button type="button" className="ap-btn ap-btn-secondary" onClick={() => setTrolleyPickerOpen(false)}>
               {t('common.cancel')}
             </button>
-            <button type="button" className="ap-btn ap-btn-primary" onClick={saveTrolleyPicker}>
+            <button type="button" className="ap-btn ap-btn-primary" onClick={saveTrolleyPicker} disabled={Boolean(workflowError) || draftSelectionChanged}>
               {trolleyPickerDraft.length > 0
                 ? t('course.sheets.delivery.confirmCount', { count: trolleyPickerDraft.length })
                 : t('course.sheets.delivery.confirmSelection')}

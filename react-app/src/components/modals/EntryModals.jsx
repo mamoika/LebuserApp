@@ -8,7 +8,6 @@ import { currentLocale, dayNamesFull, dayNamesShort, formatWeekKey, operationalW
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
 import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
-import { ymd } from '../../lib/tripUiHelpers';
 import {
   LAUNDRY_CATEGORIES,
   firstAllowedLaundryType,
@@ -571,6 +570,7 @@ export function AddEntryModal({
   defaultClientName,
   defaultType,
   laundryPlannedDate = null,
+  courseTripId = null,
 }) {
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
@@ -690,7 +690,9 @@ export function AddEntryModal({
       // Unikalne ID — sam timestamp w ms powodował kolizje przy szybkim dodawaniu
       // dwóch wpisów (ten sam id → akcje/grupowanie łączyły je w jedno zamówienie).
       const newEntryId = 'ID_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const rpcName = laundryPlannedDate ? 'admin_add_laundry_plan_entry' : 'admin_insert_entry';
+      const rpcName = courseTripId
+        ? 'add_dirty_laundry_to_trip'
+        : laundryPlannedDate ? 'admin_add_laundry_plan_entry' : 'admin_insert_entry';
       const rpcArgs = {
         p_session_token: sessionToken,
         p_id: newEntryId,
@@ -707,7 +709,12 @@ export function AddEntryModal({
         p_urgent: urgent,
         p_added_by: user.name,
       };
-      if (laundryPlannedDate) rpcArgs.p_planned_date = laundryPlannedDate;
+      if (courseTripId) {
+        rpcArgs.p_trip_id = courseTripId;
+        delete rpcArgs.p_added_by;
+      } else if (laundryPlannedDate) {
+        rpcArgs.p_planned_date = laundryPlannedDate;
+      }
       const { data, error } = await supabase.rpc(rpcName, rpcArgs);
 
       if (error) throw error;
@@ -717,7 +724,7 @@ export function AddEntryModal({
       await onAdded?.({ id: newEntryId, clientName, routeId, type, weight: netWeightKg, trolleys: trolleyData.trolleys, arrival_trolley_nos: trolleyData.arrival_trolley_nos });
       onClose();
     } catch (err) {
-      toastError(t('entry.errAdding') + ' ' + err.message);
+      toastError(err.message === 'dirty_pickup_trip_changed' ? t('entry.dirtyPickupTripChanged') : t('entry.errAdding') + ' ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -835,7 +842,7 @@ export function AddEntryModal({
           <div className="live-entry-date-grid">
             <div>
               <div className="live-entry-field-label">{t('entry.arrivalDay')}</div>
-              {isDriverStopFlow ? (
+              {(isDriverStopFlow || courseTripId) ? (
                 <div className="live-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
               ) : (
                 <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(e.target.value, resolvedWeekKey, clients, routes, clientName); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
@@ -870,7 +877,6 @@ export function AddEntryModal({
           <ArrivalTrolleyPicker
             sessionToken={sessionToken}
             clientName={clientName}
-            arrivalDate={ymd(dateForDay(resolvedWeekKey, arrDay))}
             mode={trolleyMode}
             onModeChange={setTrolleyMode}
             selected={selectedTrolleys}
@@ -1506,7 +1512,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
             <ArrivalTrolleyPicker
               sessionToken={sessionToken}
               clientName={clientName || targetEntry.client_name}
-              arrivalDate={ymd(dateForDay(targetEntry.week_key, arrDay))}
+              entryId={targetEntry.id}
               mode={trolleyMode}
               onModeChange={setTrolleyMode}
               selected={selectedTrolleys}

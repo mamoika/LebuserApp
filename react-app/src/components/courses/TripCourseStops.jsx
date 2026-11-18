@@ -112,8 +112,8 @@ export default function TripCourseStops({
     [stops, trip.started_at, clients, routes],
   );
   const stats = useMemo(
-    () => statsFromCourseStops(visibleStops, entries, trip.trip_date, trip.started_at),
-    [visibleStops, entries, trip.trip_date, trip.started_at],
+    () => statsFromCourseStops(visibleStops, entries, trip.trip_date, trip.started_at, tripId),
+    [visibleStops, entries, trip.trip_date, trip.started_at, tripId],
   );
   const isFinished = trip.status === 'finished';
   const canCorrectFinished = isAdmin && !trip.isVirtual && isFinished && isCorrectionEditing;
@@ -420,7 +420,7 @@ export default function TripCourseStops({
         const packInfo = getPackInfo(clean.pickup);
         const pickupDone = clean.pendingPickup.length === 0 && clean.completedPickup.length > 0;
         const deliveryDone = clean.pendingDelivery.length === 0 && clean.completedDelivery.length > 0;
-        const dirtyToday = dirtyEntriesForStop(entries, stop.client_name, trip.trip_date);
+        const dirtyToday = dirtyEntriesForStop(entries, stop.client_name, trip.trip_date, tripId);
         const meta = stopLaundryMeta(stop.tasks || [], dirtyToday);
 
         return (
@@ -532,7 +532,6 @@ export default function TripCourseStops({
       {dirtyOpen && (
         <AddDirtyToTripSheet
           trip={trip}
-          sessionToken={sessionToken}
           clients={clients}
           routes={routes}
           onClose={() => setDirtyOpen(false)}

@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const pickerSource = await readFile(new URL('./ArrivalTrolleyPicker.jsx', import.meta.url), 'utf8');
 const entryModalsSource = await readFile(new URL('./EntryModals.jsx', import.meta.url), 'utf8');
-const planPickupSource = await readFile(new URL('../courses/sheets/PlanPickupSheet.jsx', import.meta.url), 'utf8');
+const workflowSource = await readFile(new URL('../../hooks/useLaundryWorkflow.js', import.meta.url), 'utf8');
 const pl = JSON.parse(await readFile(new URL('../../i18n/locales/pl.json', import.meta.url), 'utf8'));
 const de = JSON.parse(await readFile(new URL('../../i18n/locales/de.json', import.meta.url), 'utf8'));
 
@@ -30,10 +30,18 @@ test('the trolley grid shows occupied numbers as unavailable until washing', () 
   assert.match(pickerSource, /t\('entry\.trolleyOccupiedCount'/);
 });
 
-test('every arrival picker receives the exact dirty-arrival date', () => {
-  assert.match(entryModalsSource, /arrivalDate=\{ymd\(dateForDay\(resolvedWeekKey, arrDay\)\)\}/);
-  assert.match(entryModalsSource, /arrivalDate=\{ymd\(dateForDay\(targetEntry\.week_key, arrDay\)\)\}/);
-  assert.match(planPickupSource, /arrivalDate=\{draft\.dirtyDate\}/);
+test('arrival pickers use the live global reservation pool and keep their own reservation when editing', () => {
+  assert.match(pickerSource, /useLaundryWorkflow\(sessionToken, pickerOpen\)/);
+  assert.match(workflowSource, /table: 'laundry_trolley_cycles'/);
+  assert.match(workflowSource, /setInterval\(refreshWhenVisible, REFRESH_INTERVAL_MS\)/);
+  assert.match(entryModalsSource, /entryId=\{targetEntry\.id\}/);
+  assert.match(pickerSource, /reservation\.entry_id\) !== String\(entryId\)/);
+});
+
+test('an unavailable snapshot blocks trolley selection and offers a retry', () => {
+  assert.match(pickerSource, /disabled=\{disabled \|\| !availabilityReady \|\| hasConflictingSelection\}/);
+  assert.match(pickerSource, /t\('entry\.trolleyAvailabilityError'\)/);
+  assert.match(pickerSource, /onClick=\{refresh\}/);
 });
 
 test('pickup opens on trolleys at the client while packing still opens on free trolleys', () => {

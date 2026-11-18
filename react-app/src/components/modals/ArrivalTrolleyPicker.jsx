@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getArrivalTrolleyReservations, getLaundryWorkflow } from '../../lib/laundryRpc';
+import { useLaundryWorkflow } from '../../hooks/useLaundryWorkflow';
+import { activePhysicalTrolleyCycles } from '../../lib/trolleyOccupancy';
 import { trolleysAtClient, trolleyCellState, visibleArrivalTrolleyNumbers } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
@@ -49,7 +50,7 @@ export default function ArrivalTrolleyPicker({
   onModeChange,
   selected,
   onSelectedChange,
-  arrivalDate,
+  entryId,
   disabled = false,
   purpose = 'pickup',
   hideModeSwitch = false,
@@ -59,62 +60,21 @@ export default function ArrivalTrolleyPicker({
   trolleyCount: externalTrolleyCount,
 }) {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(!externalActiveTrolleyByNo);
-  const [trolleyCount, setTrolleyCount] = useState(externalTrolleyCount || DEFAULT_TROLLEY_COUNT);
-  const [activeTrolleyByNo, setActiveTrolleyByNo] = useState(new Map());
-  const [reservedTrolleyByNo, setReservedTrolleyByNo] = useState(new Map());
   const [error, setError] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState(() => purpose === 'pack' ? 'free' : 'returning');
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!sessionToken || !pickerOpen) {
-      setLoading(false);
-      return undefined;
-    }
-    setLoading(true);
-    (async () => {
-      try {
-        const [wf, reservationData] = await Promise.all([
-          getLaundryWorkflow(sessionToken),
-          arrivalDate
-            ? getArrivalTrolleyReservations(sessionToken, arrivalDate)
-            : Promise.resolve({ reservations: [] }),
-        ]);
-        if (cancelled) return;
-        const count = Number(wf?.trolley_count || DEFAULT_TROLLEY_COUNT);
-        const map = new Map();
-        (wf?.trolleys || []).forEach(cycle => {
-          if (!cycle?.returned_at && !['returned', 'canceled'].includes(cycle.status)) {
-            map.set(String(cycle.trolley_no || '').trim().toLowerCase(), cycle);
-          }
-        });
-        setTrolleyCount(Math.max(1, count));
-        setActiveTrolleyByNo(map);
-        setReservedTrolleyByNo(new Map(
-          (reservationData?.reservations || []).map(reservation => [
-            String(reservation.trolley_no || '').trim().toLowerCase(),
-            reservation,
-          ]),
-        ));
-      } catch {
-        if (!cancelled) {
-          setTrolleyCount(DEFAULT_TROLLEY_COUNT);
-          setActiveTrolleyByNo(new Map());
-          setReservedTrolleyByNo(new Map());
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [sessionToken, arrivalDate, pickerOpen]);
-
-  const effectiveActiveTrolleyByNo = externalActiveTrolleyByNo || activeTrolleyByNo;
-  const effectiveTrolleyCount = externalTrolleyCount || trolleyCount;
+  const { data: workflow, error: workflowError, refresh } = useLaundryWorkflow(sessionToken, pickerOpen);
+  const availabilityReady = Boolean(workflow) && !workflowError;
+  const effectiveActiveTrolleyByNo = useMemo(() => workflow
+    ? new Map(activePhysicalTrolleyCycles(workflow.trolleys || []).map(cycle => [String(cycle.trolley_no).trim().toLowerCase(), cycle]))
+    : (externalActiveTrolleyByNo || new Map()), [externalActiveTrolleyByNo, workflow]);
+  const reservedTrolleyByNo = useMemo(() => new Map((workflow?.arrival_reservations || [])
+    .filter(reservation => !entryId || String(reservation.entry_id) !== String(entryId))
+    .map(reservation => [String(reservation.trolley_no).trim().toLowerCase(), reservation])), [entryId, workflow]);
+  const effectiveTrolleyCount = Number(workflow?.trolley_count) || externalTrolleyCount || DEFAULT_TROLLEY_COUNT;
   const effectiveClientName = purpose === 'pack' ? '' : clientName;
 
   const trolleyNumbers = useMemo(
@@ -125,8 +85,9 @@ export default function ArrivalTrolleyPicker({
   const returningTrolleys = useMemo(
     () => purpose === 'pack'
       ? []
-      : trolleysAtClient(trolleyNumbers, effectiveActiveTrolleyByNo, clientName),
-    [purpose, trolleyNumbers, effectiveActiveTrolleyByNo, clientName]
+      : trolleysAtClient(trolleyNumbers, effectiveActiveTrolleyByNo, clientName)
+        .filter(no => !reservedTrolleyByNo.has(no.toLowerCase())),
+    [purpose, trolleyNumbers, effectiveActiveTrolleyByNo, clientName, reservedTrolleyByNo]
   );
 
   const visibleTrolleyNumbers = useMemo(
@@ -166,8 +127,11 @@ export default function ArrivalTrolleyPicker({
     trolleyCellState(no, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'free'
   )).length, [trolleyNumbers, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo]);
 
+  const hasConflictingSelection = draftSelected.some(no => (
+    trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'busy'
+  ));
+
   const openPicker = () => {
-    setLoading(true);
     setDraftSelected(selected);
     setError('');
     setSearchQuery('');
@@ -181,6 +145,7 @@ export default function ArrivalTrolleyPicker({
   };
 
   const savePicker = () => {
+    if (!availabilityReady || hasConflictingSelection) return;
     onSelectedChange(draftSelected);
     closePicker();
   };
@@ -198,23 +163,23 @@ export default function ArrivalTrolleyPicker({
 
   const toggleTrolley = (trolleyNo) => {
     const no = String(trolleyNo || '').trim();
-    if (!no || disabled) return;
-    const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
-    if (state === 'busy') {
-      const occupied = reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase());
-      setError(t('entry.trolleyBusy', { no, client: occupied?.client_name || '?' }));
-      return;
-    }
-    setError('');
+    if (!no || disabled || !availabilityReady) return;
     if (draftSelected.includes(no)) {
       setDraftSelected(draftSelected.filter(item => item !== no));
       return;
     }
+    const state = trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo);
+    if (state === 'busy') {
+      const occupied = reservedTrolleyByNo.get(no.toLowerCase()) || effectiveActiveTrolleyByNo.get(no.toLowerCase());
+      setError(t('entry.trolleyBusy', { no, client: occupied?.client_name || '?' }));
+      return;
+    }
+    setError('');
     setDraftSelected([...draftSelected, no]);
   };
 
   useBarcodeScanner({
-    enabled: mode === 'trolley' && pickerOpen && !disabled,
+    enabled: mode === 'trolley' && pickerOpen && availabilityReady && !disabled,
     onScan: (scannedCode) => {
       const no = parseTrolleyCode(scannedCode);
       if (!no) {
@@ -222,7 +187,7 @@ export default function ArrivalTrolleyPicker({
         return;
       }
       if (!trolleyNumbers.includes(no)) {
-        setError(t('entry.trolleyInvalid', { max: trolleyCount }));
+        setError(t('entry.trolleyInvalid', { max: effectiveTrolleyCount }));
         return;
       }
       toggleTrolley(no);
@@ -305,7 +270,7 @@ export default function ArrivalTrolleyPicker({
             </div>
 
             {/* Pasek wyszukiwania i zakładek filtrów */}
-            <div className="live-trolley-picker-toolbar">
+            {availabilityReady && <div className="live-trolley-picker-toolbar">
               <div className="live-trolley-search-box">
                 <Search size={14} className="live-trolley-search-icon" />
                 <input
@@ -371,10 +336,15 @@ export default function ArrivalTrolleyPicker({
                   {t('entry.trolleySelectedCount', { count: draftSelected.length })}
                 </button>
               </div>
-            </div>
+            </div>}
 
             <div className="live-trolley-picker-content">
-              {loading ? (
+              {workflowError ? (
+                <div className="ap-error live-arrival-trolley-error" role="alert">
+                  <p>{t('entry.trolleyAvailabilityError')}</p>
+                  <button type="button" className="ap-btn ap-btn-secondary" onClick={refresh}>{t('common.refresh')}</button>
+                </div>
+              ) : !availabilityReady ? (
                 <div className="live-arrival-trolley-skeleton" aria-hidden="true">
                   {Array.from({ length: 15 }, (_, i) => <span key={i} />)}
                 </div>
@@ -418,7 +388,7 @@ export default function ArrivalTrolleyPicker({
                   {visibleTrolleyNumbers.length > 0 ? (
                     <div className="live-arrival-trolley-grid" role="group" aria-label={t('entry.trolleys')}>
                       {visibleTrolleyNumbers.map(no => {
-                        const state = trolleyCellState(no, draftSelected, activeTrolleyByNo, clientName, reservedTrolleyByNo);
+                        const state = trolleyCellState(no, draftSelected, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo);
                         return (
                           <button
                             key={no}
@@ -428,11 +398,11 @@ export default function ArrivalTrolleyPicker({
                             disabled={disabled || state === 'busy'}
                             aria-pressed={state === 'selected'}
                             aria-label={state === 'busy'
-                              ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
+                              ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || effectiveActiveTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
                               : undefined}
                             title={
                               state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName })
-                                : state === 'busy' ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || activeTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
+                                : state === 'busy' ? t('entry.trolleyBusy', { no, client: (reservedTrolleyByNo.get(no.toLowerCase()) || effectiveActiveTrolleyByNo.get(no.toLowerCase()))?.client_name || '?' })
                                   : t('entry.trolleyFree', { no })
                             }
                           >
@@ -476,6 +446,7 @@ export default function ArrivalTrolleyPicker({
                     <span>{t('entry.trolleyScanHintShort')}</span>
                   </div>
 
+                  {hasConflictingSelection && <div className="ap-error live-arrival-trolley-error" role="alert">{t('entry.trolleySelectionChanged')}</div>}
                   {error && <div className="ap-error live-arrival-trolley-error">{error}</div>}
                 </>
               )}
@@ -496,7 +467,7 @@ export default function ArrivalTrolleyPicker({
                 type="button"
                 className="live-trolley-picker-save-btn"
                 onClick={savePicker}
-                disabled={disabled}
+                disabled={disabled || !availabilityReady || hasConflictingSelection}
               >
                 {draftSelected.length > 0 ? (
                   <>

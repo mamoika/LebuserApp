@@ -22,6 +22,9 @@ export default function PackingModal({
   onPack,
   onPackMulti,
   onFinishPacking,
+  workflowAvailable = true,
+  workflowError = null,
+  onRefreshAvailability,
   sessionToken,
   trolleyNumbers = [],
   activeTrolleyByNo = new Map(),
@@ -35,7 +38,7 @@ export default function PackingModal({
 
   // Barcode scanner — dodaje zeskanowany wózek do bieżącej partii
   useBarcodeScanner({
-    enabled: packMode === 'trolley',
+    enabled: packMode === 'trolley' && workflowAvailable && !isPacking,
     onScan: (scannedCode) => {
       const trolleyNo = parseTrolleyCode(scannedCode);
       if (!trolleyNo) {
@@ -104,6 +107,7 @@ export default function PackingModal({
 
   // Zapis partii (Kontynuuj pakowanie [finish=false] lub Zakończ pakowanie [finish=true])
   const handleConfirm = async (finish) => {
+    if (!workflowAvailable) return;
     setError('');
     const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
 
@@ -138,6 +142,7 @@ export default function PackingModal({
 
   // Zakończenie pakowania bez nowych wózków (gdy wcześniejsze wózki pokrywają już całość)
   const handleFinishOnly = async () => {
+    if (!workflowAvailable) return;
     setError('');
     setIsPacking(true);
     try {
@@ -255,6 +260,12 @@ export default function PackingModal({
             </div>
           </div>
 
+          {workflowError && (
+            <div className="ap-error" role="alert">
+              <p>{t('entry.trolleyAvailabilityError')}</p>
+              <button type="button" className="ap-btn ap-btn-secondary" onClick={onRefreshAvailability}>{t('common.refresh')}</button>
+            </div>
+          )}
           {error && (
             <div
               className="ap-error"
@@ -416,7 +427,6 @@ export default function PackingModal({
               <ArrivalTrolleyPicker
                 sessionToken={sessionToken}
                 clientName={group.clientName}
-                arrivalDate={group.washDate || group.departureDate}
                 mode="trolley"
                 onModeChange={() => {}}
                 selected={scannedTrolleys}
@@ -608,7 +618,7 @@ export default function PackingModal({
                   boxShadow: '0 4px 14px rgba(0, 122, 255, 0.25)',
                 }}
                 onClick={handleFinishOnly}
-                disabled={isPacking}
+                disabled={isPacking || !workflowAvailable}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <PackageCheck size={18} />
@@ -639,7 +649,7 @@ export default function PackingModal({
                     border: '1px solid var(--border)',
                   }}
                   onClick={() => handleConfirm(false)}
-                  disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0)}
+                  disabled={isPacking || !workflowAvailable || (packMode === 'trolley' && scannedTrolleys.length === 0)}
                   title={t('wash.packing.continueHint')}
                 >
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -670,7 +680,7 @@ export default function PackingModal({
                     boxShadow: '0 4px 14px rgba(0, 122, 255, 0.25)',
                   }}
                   onClick={() => handleConfirm(true)}
-                  disabled={isPacking || (packMode === 'trolley' && scannedTrolleys.length === 0 && !hasExistingCycles)}
+                  disabled={isPacking || !workflowAvailable || (packMode === 'trolley' && scannedTrolleys.length === 0 && !hasExistingCycles)}
                   title={t('wash.packing.finishHint')}
                 >
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

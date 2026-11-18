@@ -23,7 +23,10 @@ export function assignedTripForEntry(entry, { allTrips = [], trip = null, focusT
       .sort((a, b) => (a.status === 'active' ? -1 : 0) - (b.status === 'active' ? -1 : 0)),
     ...allTrips.filter(item => item.trip_date === date && item.status === 'finished'),
   ].filter(Boolean);
-  const assignedTrip = candidates.find(item => tripContainsEntryClient(item, entry));
+  const assignedTrip = entry.dirty_pickup_trip_id
+    ? candidates.find(item => String(item.id) === String(entry.dirty_pickup_trip_id))
+      || allTrips.find(item => String(item.id) === String(entry.dirty_pickup_trip_id))
+    : candidates.find(item => tripContainsEntryClient(item, entry));
   if (!assignedTrip) return null;
   const driver = assignedTrip.driver_name || 'nieprzypisane';
   const car = assignedTrip.car ? ` · ${VEHICLE_LABELS[assignedTrip.car] || assignedTrip.car}` : '';
@@ -300,8 +303,12 @@ export function cleanLaundryReadyForEntry(entry) {
   );
 }
 
-export function dirtyEntriesForStop(entries = [], clientName, tripDate) {
-  return entries.filter(entry => entry.client_name === clientName && arrivalDateStr(entry) === tripDate && !entry.deleted_at);
+export function dirtyEntriesForStop(entries = [], clientName, tripDate, tripId) {
+  return entries.filter(entry => entry.client_name === clientName && !entry.deleted_at && (
+    entry.dirty_pickup_trip_id
+      ? String(entry.dirty_pickup_trip_id) === String(tripId)
+      : arrivalDateStr(entry) === tripDate
+  ));
 }
 
 export function findBlockingFromEntries(entries = [], trip) {
@@ -348,7 +355,7 @@ export function stopLaundryMeta(tasks = [], dirtyEntries = []) {
   };
 }
 
-export function statsFromCourseStops(stops = [], entries = [], tripDate, startedAt) {
+export function statsFromCourseStops(stops = [], entries = [], tripDate, startedAt, tripId) {
   const visibleStops = operationalCourseStops(stops, startedAt);
   const deliveryStops = visibleStops.filter(stop =>
     stop.stop_kind !== 'dirty_only'
@@ -365,15 +372,15 @@ export function statsFromCourseStops(stops = [], entries = [], tripDate, started
     if (clean.pendingDelivery.length === 0 && clean.completedDelivery.length > 0) delivered += 1;
     kg += stopLaundryMeta([...clean.pickup, ...clean.delivery]).kg;
   });
-  const dirtyStops = visibleStops.filter(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate).length > 0);
-  const dirtyFlat = dirtyStops.flatMap(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate));
+  const dirtyByStop = visibleStops.map(stop => dirtyEntriesForStop(entries, stop.client_name, tripDate, tripId)).filter(rows => rows.length > 0);
+  const dirtyFlat = dirtyByStop.flat();
   return {
     totalStops: visibleStops.length,
     stops: deliveryStops.length,
     picked,
     delivered,
     kg: Number(kg.toFixed(1)),
-    dirtyStops: dirtyStops.length,
+    dirtyStops: dirtyByStop.length,
     dirtyPickups: dirtyFlat.length,
     dirtyTrolleys: dirtyFlat.reduce((sum, entry) => sum + (Number(entry.trolleys) || 1), 0),
   };

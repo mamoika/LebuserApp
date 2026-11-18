@@ -730,6 +730,7 @@ export default function DriverCourse() {
         <AddEntryModal
           isOpen
           onClose={() => setAddEntryFor(null)}
+          courseTripId={trip.id}
           defaultArrDay={addEntryInfo.arrDay}
           defaultClientName={addEntryFor || undefined}
           weekKey={addEntryInfo.weekKey}
