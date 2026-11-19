@@ -127,10 +127,10 @@ export default function Dashboard() {
   const needsPrivacyNotice = !isImpersonating && user?.privacy_notice_ack_version !== PRIVACY_NOTICE_VERSION;
   const location = useLocation();
   const pageKey = PAGE_KEYS[location.pathname] || 'home';
-  // Admin zaczyna od Panelu sterującego; reszta od pierwszego dostępnego widoku.
+  // Kierowca zaczyna od własnej trasy, także gdy ma dostęp do panelu.
   const firstAllowedPath = [
-    ...(canViewControlPanel ? [['panel', '/panel']] : []),
     ...(isDriver ? [['route', '/route']] : []),
+    ...(canViewControlPanel ? [['panel', '/panel']] : []),
     ['schedule', '/schedule'], ['clients', '/clients'], ['route', '/route'],
     ['map', '/map'],
     ['wash', '/wash'], ['warehouse', '/warehouse'], ['history', '/history'],
