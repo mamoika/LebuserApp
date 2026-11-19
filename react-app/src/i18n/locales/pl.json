@@ -2339,6 +2339,25 @@
     }
   },
   "admin": {
+    "appStatus": {
+      "title": "Stan aplikacji",
+      "site": "Strona produkcyjna",
+      "production": "Wersja na produkcji",
+      "latestDeployment": "Ostatnie wdrożenie produkcyjne",
+      "online": "Strona odpowiada",
+      "offline": "Strona niedostępna",
+      "checking": "Sprawdzanie…",
+      "unavailable": "Odczyt niedostępny",
+      "notConfigured": "Odczyt wdrożeń Vercel wymaga konfiguracji.",
+      "deploymentUnavailable": "Nie udało się pobrać danych o wdrożeniach z Vercel.",
+      "ready": "Gotowe",
+      "error": "Wdrożenie nieudane",
+      "canceled": "Anulowane",
+      "blocked": "Zablokowane",
+      "building": "W trakcie budowania",
+      "queued": "W kolejce",
+      "unknown": "Stan nieznany"
+    },
     "databaseStatus": {
       "title": "Stan bazy",
       "connection": "Połączenie",

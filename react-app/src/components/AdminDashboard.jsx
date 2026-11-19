@@ -25,6 +25,7 @@ import { withRetry } from '../lib/fetchRetry';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
 import AdminDatabaseStatus from './AdminDatabaseStatus';
+import AdminAppStatus from './AdminAppStatus';
 import BarcodeGenerator from './BarcodeGenerator';
 import { APP_MODULES } from '../lib/modulePermissions';
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
@@ -2675,7 +2676,12 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 
-      {tab === 'overview' && sessionToken && <AdminDatabaseStatus key={sessionToken} sessionToken={sessionToken} />}
+      {tab === 'overview' && sessionToken && (
+        <div className="admin-status-grid" key={sessionToken}>
+          <AdminDatabaseStatus sessionToken={sessionToken} />
+          <AdminAppStatus sessionToken={sessionToken} />
+        </div>
+      )}
       {loading && <div className="loader">{t('admin.loadingUsers')}</div>}
       {!loading && error && <DataError onRetry={fetchUsers} error={error} />}
       {ready && tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}

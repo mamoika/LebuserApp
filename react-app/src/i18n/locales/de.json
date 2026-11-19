@@ -2317,6 +2317,25 @@
     }
   },
   "admin": {
+    "appStatus": {
+      "title": "Anwendungsstatus",
+      "site": "Produktionsseite",
+      "production": "Aktive Version",
+      "latestDeployment": "Letztes Produktionsdeployment",
+      "online": "Seite antwortet",
+      "offline": "Seite nicht erreichbar",
+      "checking": "Prüfung läuft…",
+      "unavailable": "Abfrage nicht verfügbar",
+      "notConfigured": "Der Abruf der Vercel-Deployments muss konfiguriert werden.",
+      "deploymentUnavailable": "Die Deployment-Daten von Vercel konnten nicht abgerufen werden.",
+      "ready": "Bereit",
+      "error": "Deployment fehlgeschlagen",
+      "canceled": "Abgebrochen",
+      "blocked": "Blockiert",
+      "building": "Build läuft",
+      "queued": "In der Warteschlange",
+      "unknown": "Status unbekannt"
+    },
     "databaseStatus": {
       "title": "Datenbankstatus",
       "connection": "Verbindung",
