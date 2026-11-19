@@ -21,6 +21,8 @@ import {
   WashingMachine,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import AdminAppStatus from './AdminAppStatus';
+import AdminDatabaseStatus from './AdminDatabaseStatus';
 import { useAppData } from '../hooks/useAppData';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import { getDispatchBoard } from '../lib/courseRpc';
@@ -278,7 +280,7 @@ function ApprovalRow({ item, t, locale }) {
 
 export default function ControlPanelView() {
   const { t } = useTranslation();
-  const { sessionToken, user } = useAuth();
+  const { isAdmin, sessionToken, user } = useAuth();
   const { entries, routes, clients } = useAppData();
   const [remote, setRemote] = useState(EMPTY_REMOTE);
   const [issues, setIssues] = useState([]);
@@ -700,6 +702,13 @@ export default function ControlPanelView() {
           />
         </div>
       </section>
+
+      {isAdmin && sessionToken && (
+        <div className="admin-status-grid" key={sessionToken}>
+          <AdminDatabaseStatus sessionToken={sessionToken} />
+          <AdminAppStatus sessionToken={sessionToken} />
+        </div>
+      )}
     </div>
   );
 }
