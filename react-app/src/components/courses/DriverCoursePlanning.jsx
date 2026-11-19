@@ -10,6 +10,7 @@ import {
   addDirtyPlannedStop, callExistingTripRpc, pickupPlannedClean, removeDirtyPlannedStop,
   skipPlannedStop, startFinalizedDriverTrip, undoPlannedCleanPickup,
 } from '../../lib/courseRpc';
+import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
 } from '../../lib/courseTaskHelpers';
@@ -231,7 +232,7 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
       toastSuccess(t('course.planning.undoPickupSuccess', { name: group.client_name }));
       await reload();
     } catch (error) {
-      toastError(error.message);
+      toastError(laundryActionErrorMessage(error, t));
     } finally {
       setBusy(false);
     }

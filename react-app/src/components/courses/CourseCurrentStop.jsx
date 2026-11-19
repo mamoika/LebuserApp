@@ -7,7 +7,7 @@ import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import {
   assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
-  isTripDriver, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser,
+  isTripDriver, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser, trolleyNumbersFromEntry,
 } from '../../lib/courseTaskHelpers';
 import { formatKg, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../lib/toast';
@@ -101,7 +101,8 @@ export default function CourseCurrentStop({
   const packInfo = useMemo(() => getPackInfo(clean.pickup), [clean.pickup]);
   const packLabel = useMemo(() => formatPackInfoLabel(packInfo, t, locale), [packInfo, t, locale]);
   const pickupKg = sumTaskWeight(clean.pendingPickup.length ? clean.pendingPickup : clean.pickup);
-  const hasPhysicalTrolley = clean.pickup.some(task => task.laundry_trolley_no && task.laundry_trolley_no !== 'brak');
+  const physicalTrolleys = new Set(clean.pendingPickup.flatMap(trolleyNumbersFromEntry));
+  const hasPhysicalTrolley = physicalTrolleys.size > 0;
   const hasDeliveryTrolleys = clean.pendingDelivery.some(task => task.laundry_trolley_cycle_id);
   const dirtyToday = useMemo(() => dirtyEntriesForStop(entries, stop.client_name, trip.trip_date, trip.id), [entries, stop.client_name, trip.trip_date, trip.id]);
   const entryDateInfo = useMemo(() => tripDateInfo(trip.trip_date), [trip.trip_date]);
@@ -156,13 +157,12 @@ export default function CourseCurrentStop({
 
   const pickupLaundry = async (leaveTrolley = false) => {
     const ids = entryIdsForTasks(clean.pendingPickup);
-    const physicalTrolleys = [...new Set(clean.pendingPickup.map(task => task.laundry_trolley_no).filter(value => value && value !== 'brak'))];
     try {
       setBusy(true);
       const { data, error } = await supabase.rpc('driver_pickup_entries', {
         p_session_token: sessionToken,
         p_ids: ids,
-        p_baskets: physicalTrolleys.length || 1,
+        p_baskets: physicalTrolleys.size || 1,
         p_leave_trolley: hasPhysicalTrolley ? leaveTrolley : true,
       });
       if (error) throw error;

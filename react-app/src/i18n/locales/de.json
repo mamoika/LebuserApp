@@ -2238,6 +2238,7 @@
       "undoDeliverOnly": "Lieferung rückgängig machen kann nur: {{name}}",
       "partialAffected": "Der Vorgang betraf nicht alle Einträge. Ansicht aktualisieren.",
       "trolleyStateChanged": "Der Zustand der Wagen oder der Ladung hat sich geändert. Aktualisieren Sie die Tour und prüfen Sie die Lieferung.",
+      "pickupTrolleyReused": "Die Abholung kann nicht rückgängig gemacht werden, weil mindestens ein Wagen bereits anderweitig eingesetzt wurde.",
       "nothingAffected": "Keine Einträge zum Aktualisieren. Ansicht aktualisieren oder Administrator kontaktieren.",
       "noEntries": "Keine verknüpften Einträge im Plan.",
       "undoPickupDone": "Abholung aus Wäscherei rückgängig gemacht",

@@ -2260,6 +2260,7 @@
       "undoDeliverOnly": "Cofnąć dostawę może tylko: {{name}}",
       "partialAffected": "Operacja nie objęła wszystkich wpisów. Odśwież widok.",
       "trolleyStateChanged": "Zmienił się stan wózków lub ładunku. Odśwież kurs i sprawdź dostawę.",
+      "pickupTrolleyReused": "Nie można cofnąć odbioru, bo co najmniej jeden wózek został już użyty w innym obiegu.",
       "nothingAffected": "Brak wpisów do zaktualizowania. Odśwież widok lub skontaktuj się z administratorem.",
       "noEntries": "Brak powiązanych wpisów w harmonogramie.",
       "undoPickupDone": "Cofnięto odbiór z pralni",

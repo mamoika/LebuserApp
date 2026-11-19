@@ -3,6 +3,7 @@ import { throwRpcError } from './rpcError';
 
 const LAUNDRY_ACTION_ERRORS = {
   delivery_trolley_state_changed: 'course.currentStop.trolleyStateChanged',
+  pickup_trolley_reused: 'course.currentStop.pickupTrolleyReused',
   packing_batch_changed: 'wash.messages.packingBatchChanged',
 };
 

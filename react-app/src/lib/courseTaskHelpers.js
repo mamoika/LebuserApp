@@ -170,7 +170,7 @@ export function buildExtraCandidates({ entries = [], stops = [], trip }) {
   }));
 }
 
-function trolleyNumbersFromEntry(entry) {
+export function trolleyNumbersFromEntry(entry) {
   return String(entry?.laundry_trolley_no || '')
     .split(/[,;]/)
     .map(value => value.trim())
