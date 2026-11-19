@@ -544,6 +544,7 @@
       "waitingForUnload": "Warten auf Rückkehr und Entladung",
       "pack": "Packen",
       "packMore": "Weiterpacken",
+      "addEmptyTrolleys": "Leere Wagen hinzufügen",
       "ready": "Für Fahrer bereit",
       "nothing": "Nichts zu erledigen",
       "correction": "Korrektur",
@@ -577,6 +578,7 @@
       "packedLoose": "{{client}}: gepackt (ohne Wagen)",
       "packedTrolleys": "{{client}}: in {{count}} Wagen gepackt",
       "packingFinished": "{{client}}: Packen abgeschlossen — Wäsche bereit für den Fahrer",
+      "emptyTrolleysAdded": "{{client}}: Leere Wagen wurden zur Lieferung hinzugefügt",
       "packingSavedInProgress": "{{client}}: {{count}} Wagen gespeichert — Packen bleibt in Bearbeitung",
       "packError": "Fehler beim Packen der Wagen",
       "packingBatchChanged": "Prüfen Sie, ob die Wäsche angenommen und gewaschen wurde und die gewählten Wagen verfügbar sind. Aktualisieren Sie die Packliste.",
@@ -599,6 +601,8 @@
       "clearError": "Fehler beim Bereinigen: {{message}}"
     },
     "packing": {
+      "batchWeight": "Nettogewicht der gesamten Charge: {{weight}} kg",
+      "emptyTrolleysHint": "Wählen Sie die Nummern der leeren Wagen aus, die mit dieser Lieferung mitfahren sollen.",
       "unknownCode": "Unbekannter Code: {{code}}. Wagen scannen (z. B. LEB-#05).",
       "missingTrolley": "Wagen {{trolley}} existiert nicht.",
       "occupied": "Wagen {{trolley}} ist belegt durch: {{client}}",

@@ -27,8 +27,7 @@ import {
   cancelLaundryTrolley,
   finishLaundryPacking,
   markLaundryWashed,
-  packLaundryBatch,
-  packLaundryTrolley,
+  saveLaundryTrolleys,
   undoReturnLaundryTrolley,
   unmarkLaundryWashed,
 } from '../lib/laundryRpc';
@@ -150,15 +149,13 @@ function isPackCandidate(group) {
     && group.washedIds.length > 0;
 }
 
-function isEntryIssuedToDriver(entry) {
+function isEntryCollectedByDriver(entry) {
   return Boolean(
     entry?.picked_at
     || entry?.delivered_at
     || entry?.delivered
     || entry?.done
-    || entry?.laundry_packed_at
-    || entry?.laundry_ready_at
-    || ['packed', 'released', 'at_client', 'returned'].includes(entry?.laundry_status)
+    || ['released', 'at_client', 'returned'].includes(entry?.laundry_status)
   );
 }
 
@@ -317,6 +314,7 @@ export default function WashView() {
   const trolleyCount = Math.max(1, Math.min(99, Number(workflow?.trolley_count) || DEFAULT_TROLLEY_COUNT));
   const [busyKey, setBusyKey] = useState('');
   const [packingGroup, setPackingGroup] = useState(null);
+  const [addingEmptyTrolleys, setAddingEmptyTrolleys] = useState(false);
   const [trolleysModalOpen, setTrolleysModalOpen] = useState(false);
   const [historyTrolley, setHistoryTrolley] = useState(null);
   const [workFilter, setWorkFilter] = useState('all');
@@ -424,9 +422,8 @@ export default function WashView() {
         cycle.client_name === group.clientName
         && (cycle.entry_ids || []).some(id => entryIdSet.has(id))
       ));
-      const activeCycles = groupCycles.filter(cycle => !cycle.returned_at && !['returned', 'canceled'].includes(cycle.status));
-      const packedKg = activeCycles.reduce((sum, cycle) => sum + (parseFloat(cycle.total_kg) || 0), 0);
-      const remainingKg = Math.max(0, totalKg - packedKg);
+      const activeCycles = groupCycles.filter(cycle => cycle.status !== 'canceled' && (!cycle.returned_at || cycle.trolley_no === 'brak'));
+      const packedKg = ready.reduce((sum, entry) => sum + (parseFloat(entry.weight) || 0), 0);
       const hasKnownWeight = totalKg > 0;
       // O gotowości decydują flagi gotowości/spakowania na wpisach (laundry_ready_at / laundry_packed_at)
       // ustawiane po zakończeniu pakowania („Zakończ pakowanie”).
@@ -437,7 +434,7 @@ export default function WashView() {
           ? 'partial'
           : pending.length > 0
             ? 'pending'
-            : packedKg > 0
+            : activeCycles.length > 0
               ? 'partial'
               : 'washed';
       const packedTrolleyNos = activeCycles
@@ -462,14 +459,13 @@ export default function WashView() {
         kg: Number(totalKg.toFixed(1)),
         hasKnownWeight,
         packedKg: Number(Math.min(totalKg, packedKg).toFixed(1)),
-        remainingKg: Number(remainingKg.toFixed(1)),
         stage,
         pendingIds: pending.map(entry => entry.id),
-        washedIds: groupReady ? [] : washed.map(entry => entry.id),
+        washedIds: washed.filter(entry => !isReadyForDriver(entry)).map(entry => entry.id),
         readyIds: groupReady ? entryIds : ready.map(entry => entry.id),
         cycles: activeCycles,
         allCycles: groupCycles,
-        issuedToDriver: group.entries.some(isEntryIssuedToDriver),
+        issuedToDriver: group.entries.some(isEntryCollectedByDriver),
         trolleyCount: trolleyNos.length,
         trolleyNo: trolleyNos.join(', '),
         hasArrivalTrolleys: arrivalTrolleyNos.length > 0,
@@ -607,42 +603,7 @@ export default function WashView() {
     });
   };
 
-  const handlePack = async (group, trolleyNo, kgValue) => {
-    if (!trolleyNo) {
-      throw new Error(t('wash.validation.chooseTrolley'));
-    }
-    // Waga nieznana z przyjazdu → kg jest opcjonalne teraz, można uzupełnić później
-    // (np. gdy kierowca zgłosi wagę po dostawie) przez edycję wpisu wózka.
-    const kg = Number.isFinite(kgValue) ? kgValue : 0;
-    if (group.hasKnownWeight && kg <= 0) {
-      throw new Error(t('wash.validation.enterKg'));
-    }
-    if (group.hasKnownWeight && kg > group.remainingKg + 0.05) {
-      throw new Error(t('wash.validation.remainingKg', { weight: group.remainingKg }));
-    }
-    if (!trolleyNumbers.includes(trolleyNo)) {
-      throw new Error(t('wash.validation.chooseRange', { count: trolleyCount }));
-    }
-    const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
-    if (activeCycle) {
-      throw new Error(t('wash.validation.occupied', { trolley: trolleyNo, client: activeCycle.client_name }));
-    }
-    if (group.pendingIds.length > 0) {
-      throw new Error(t('wash.validation.markWashedFirst'));
-    }
-    if (!group.washedIds.length) return;
-
-    setBusyKey(`pack:${group.key}`);
-    try {
-      await packLaundryTrolley(sessionToken, group.washedIds, trolleyNo, kg, user?.name);
-      toastSuccess(t('wash.messages.packedToTrolley', { client: group.clientName, weight: kg > 0 ? `${kg} kg` : t('wash.packed'), trolley: trolleyNo }));
-      await Promise.all([refetch(), fetchWorkflow()]);
-    } finally {
-      setBusyKey('');
-    }
-  };
-
-  const handlePackMulti = async (group, trolleyNos, kgByTrolley, finish = true) => {
+  const handlePackMulti = async (group, trolleyNos, finish) => {
     if (!trolleyNos || trolleyNos.length === 0) {
       throw new Error(t('wash.validation.noTrolleys'));
     }
@@ -659,36 +620,12 @@ export default function WashView() {
       }
     }
 
-    // Waga znana z przyjazdu:
-    // - Jeśli finish = true (Zakończ pakowanie), brakującą wagę dzielimy na wybrane wózki
-    // - Jeśli finish = false (Kontynuuj pakowanie), użytkownik może podać kg lub używamy proporcji
-    let kgFor;
-    if (group.hasKnownWeight) {
-      const perTrolleyDefault = finish
-        ? Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10
-        : Math.min(Math.floor((group.remainingKg / trolleyNos.length) * 10) / 10, 80);
-      const totalBase = perTrolleyDefault * (trolleyNos.length - 1);
-      const lastKgDefault = finish
-        ? Math.round((group.remainingKg - totalBase) * 10) / 10
-        : perTrolleyDefault;
-
-      kgFor = (i) => {
-        const custom = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
-        if (Number.isFinite(custom) && custom > 0) return custom;
-        return (i === trolleyNos.length - 1) ? lastKgDefault : perTrolleyDefault;
-      };
-    } else {
-      kgFor = (i) => {
-        const kg = parseFloat(String(kgByTrolley?.[trolleyNos[i]] ?? '').replace(',', '.'));
-        return Number.isFinite(kg) && kg > 0 ? kg : 0;
-      };
-    }
-
     try {
       setBusyKey(`pack:${group.key}`);
-      const items = trolleyNos.map((trolleyNo, index) => ({ trolley_no: trolleyNo, kg: kgFor(index) }));
-      await packLaundryBatch(sessionToken, group.washedIds, items, user?.name, finish);
-      if (finish) {
+      await saveLaundryTrolleys(sessionToken, addingEmptyTrolleys ? group.readyIds : group.washedIds, trolleyNos, finish, addingEmptyTrolleys);
+      if (addingEmptyTrolleys) {
+        toastSuccess(t('wash.messages.emptyTrolleysAdded', { client: group.clientName }));
+      } else if (finish) {
         toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
       } else {
         toastSuccess(t('wash.messages.packingSavedInProgress', { client: group.clientName, count: trolleyNos.length }));
@@ -706,7 +643,7 @@ export default function WashView() {
   const handleFinishPacking = async (group) => {
     setBusyKey(`pack:${group.key}`);
     try {
-      const entryIds = group.entries?.map(e => e.id) || group.washedIds || [];
+      const entryIds = group.washedIds;
       await finishLaundryPacking(sessionToken, entryIds, user?.name);
       toastSuccess(t('wash.messages.packingFinished', { client: group.clientName }));
       await Promise.all([refetch(), fetchWorkflow()]);
@@ -847,10 +784,11 @@ export default function WashView() {
           {filteredLaundryGroups.map(group => {
             const route = routeBadge(group.routeId, routeMap);
             const groupIssuedToDriver = group.issuedToDriver
-              || group.allCycles.some(cycle => getCycleTransportState(cycle, entryById, t).isIssuedToDriver);
+              || group.allCycles.some(cycle => isRealTrolley(cycle) && (cycle.status === 'released' || getCycleTransportState(cycle, entryById, t).isIssuedToDriver));
             const canMarkWashed = hasWashRole && group.pendingIds.length > 0 && !group.hasInTransitLaundry;
-            const canUnmarkWashed = hasWashRole && !groupIssuedToDriver && group.entries.some(entry => entry.washed);
+            const canUnmarkWashed = hasWashRole && !groupIssuedToDriver && group.readyIds.length === 0 && group.entries.some(entry => entry.washed);
             const canPack = hasPackRole && !group.hasInTransitLaundry && isPackCandidate(group);
+            const canAddEmptyTrolleys = hasPackRole && group.stage === 'ready' && !groupIssuedToDriver && !group.hasInTransitLaundry;
             const busyWashed = busyKey === `washed:${group.key}`;
             const busyUnwashed = busyKey === `unwashed:${group.key}`;
             const busyPack = busyKey === `pack:${group.key}`;
@@ -868,8 +806,8 @@ export default function WashView() {
                 ? {
                   className: 'is-pack',
                   Icon: Package,
-                  label: busyPack ? t('wash.actions.opening') : t(group.packedKg > 0 ? 'wash.actions.packMore' : 'wash.actions.pack'),
-                  onClick: () => setPackingGroup(group),
+                  label: busyPack ? t('wash.actions.opening') : t(group.cycles.length > 0 ? 'wash.actions.packMore' : 'wash.actions.pack'),
+                  onClick: () => { setAddingEmptyTrolleys(false); setPackingGroup(group); },
                   disabled: busyPack,
                 }
                 : null;
@@ -929,11 +867,6 @@ export default function WashView() {
                         <span className="tabular-nums">{t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}</span>
                       </span>
                     )}
-                    {group.packedKg > 0 && group.remainingKg > 0 && (
-                      <span className="laundry-meta-chip is-remaining">
-                        <span className="tabular-nums">{t('wash.remainingAmount', { weight: group.remainingKg })}</span>
-                      </span>
-                    )}
                     {group.washedAt && <span className="laundry-meta-chip">{t('wash.washedAt', { time: fmtTimeForDay(group.washedAt, selectedDate) })}</span>}
                     {group.packedAt && <span className="laundry-meta-chip">{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
                   </div>
@@ -970,8 +903,7 @@ export default function WashView() {
                           style={{ cursor: cycle.trolley_no !== 'brak' ? 'pointer' : 'default' }}
                           title={cycle.trolley_no !== 'brak' ? t('wash.fleet.openHistory') : undefined}
                         >
-                          <strong>{t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
-                          <b className="tabular-nums">{Number(cycle.total_kg || 0).toFixed(1)} kg</b>
+                          <strong>{cycle.trolley_no === 'brak' ? t('wash.packing.loose') : t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
                         </span>
                       ))}
                     </div>
@@ -995,6 +927,18 @@ export default function WashView() {
                       {group.hasInTransitLaundry ? <Truck size={15} /> : group.stage === 'ready' && <CheckCircle2 size={15} />}
                       <span>{waitingNote}</span>
                     </div>
+                  )}
+
+                  {canAddEmptyTrolleys && (
+                    <button
+                      type="button"
+                      className="laundry-edit-details-btn"
+                      onClick={() => { setAddingEmptyTrolleys(true); setPackingGroup(group); }}
+                      disabled={busyPack}
+                    >
+                      <Plus size={14} aria-hidden="true" />
+                      <span>{t('wash.actions.addEmptyTrolleys')}</span>
+                    </button>
                   )}
 
                   {canEditEntryDetails && (
@@ -1116,7 +1060,7 @@ export default function WashView() {
         <PackingModal
           group={laundryGroups.find(g => g.key === packingGroup.key) || packingGroup}
           onClose={() => setPackingGroup(null)}
-          onPack={handlePack}
+          addingEmptyTrolleys={addingEmptyTrolleys}
           onPackMulti={handlePackMulti}
           onFinishPacking={handleFinishPacking}
           workflowAvailable={Boolean(workflow) && !workflowError}

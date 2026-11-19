@@ -78,24 +78,13 @@ export function unmarkLaundryWashed(sessionToken, ids, by) {
   });
 }
 
-export function packLaundryTrolley(sessionToken, ids, trolleyNo, kg, by, finish = null) {
-  return callLaundryRpc('admin_pack_laundry_trolley', {
+export function saveLaundryTrolleys(sessionToken, ids, trolleyNos, finish, appendToReady) {
+  return callLaundryRpc('admin_save_laundry_trolleys', {
     p_session_token: sessionToken,
     p_ids: ids,
-    p_trolley_no: trolleyNo,
-    p_kg: kg,
-    p_by: by || null,
+    p_trolley_nos: trolleyNos,
     p_finish: finish,
-  });
-}
-
-export function packLaundryBatch(sessionToken, ids, items, by, finish) {
-  return callLaundryRpc('admin_pack_laundry_batch', {
-    p_session_token: sessionToken,
-    p_ids: ids,
-    p_items: items,
-    p_by: by || null,
-    p_finish: finish,
+    p_append_to_ready: appendToReady,
   });
 }
 

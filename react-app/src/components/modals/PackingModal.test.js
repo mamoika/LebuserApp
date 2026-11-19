@@ -20,6 +20,8 @@ test('PackingModal offers visual trolley selection via fleet grid for users with
   assert.doesNotMatch(packingModal, /wash\.packing\.manualTrolleyAdd/);
   assert.doesNotMatch(packingModal, /wash\.packing\.addTrolleyBtn/);
   assert.match(packingModal, /<ArrivalTrolleyPicker/);
+  assert.match(packingModal, /wash\.packing\.batchWeight/);
+  assert.doesNotMatch(packingModal, /kgByTrolley|total_kg|inputMode="decimal"/);
 });
 
 test('ArrivalTrolleyPicker uses createPortal to prevent modal clipping and includes trigger styles', () => {
@@ -44,6 +46,8 @@ test('packing translations are complete in Polish and German simultaneously', ()
     'continueHint',
     'finishPacking',
     'finishHint',
+    'batchWeight',
+    'emptyTrolleysHint',
   ];
 
   for (const key of keys) {

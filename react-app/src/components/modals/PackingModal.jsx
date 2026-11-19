@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   PackageCheck,
@@ -19,7 +19,7 @@ import ArrivalTrolleyPicker from './ArrivalTrolleyPicker';
 export default function PackingModal({
   group,
   onClose,
-  onPack,
+  addingEmptyTrolleys = false,
   onPackMulti,
   onFinishPacking,
   workflowAvailable = true,
@@ -31,7 +31,7 @@ export default function PackingModal({
 }) {
   const { t } = useTranslation();
   const [scannedTrolleys, setScannedTrolleys] = useState([]);
-  const [kgByTrolley, setKgByTrolley] = useState({});
+  const titleId = useId();
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'none'
@@ -72,107 +72,33 @@ export default function PackingModal({
     setScannedTrolleys(newSelected);
   };
 
-  const handleKgChange = (trolleyNo, val) => {
-    setKgByTrolley(prev => ({
-      ...prev,
-      [trolleyNo]: val,
-    }));
-  };
+  const hasExistingCycles = group.cycles.length > 0;
+  const canFinishOnly = !addingEmptyTrolleys && packMode === 'trolley' && scannedTrolleys.length === 0
+    && group.washedIds.length > 0 && group.washedIds.every(id => group.cycles.some(cycle => cycle.entry_ids?.includes(id)));
 
-  const removeTrolley = (trolleyNo) => {
-    setScannedTrolleys(prev => prev.filter(no => no !== trolleyNo));
-    setKgByTrolley(prev => {
-      const next = { ...prev };
-      delete next[trolleyNo];
-      return next;
-    });
-  };
-
-  // Oblicz domyślny placeholder kg na jeden wózek
-  const estimatedPerTrolley = useMemo(() => {
-    if (!group?.hasKnownWeight || scannedTrolleys.length === 0) return '';
-    const rem = Number(group.remainingKg) || 0;
-    if (rem <= 0) return '';
-    const perTrolley = Math.round((rem / scannedTrolleys.length) * 10) / 10;
-    return String(perTrolley);
-  }, [group, scannedTrolleys]);
-
-  // Suma kg wpisana ręcznie w bieżącej partii
-  const currentBatchTotalKg = useMemo(() => {
-    return scannedTrolleys.reduce((sum, no) => {
-      const val = parseFloat(String(kgByTrolley[no] ?? '').replace(',', '.'));
-      return sum + (Number.isFinite(val) && val > 0 ? val : (parseFloat(estimatedPerTrolley) || 0));
-    }, 0);
-  }, [scannedTrolleys, kgByTrolley, estimatedPerTrolley]);
-
-  // Zapis partii (Kontynuuj pakowanie [finish=false] lub Zakończ pakowanie [finish=true])
   const handleConfirm = async (finish) => {
-    if (!workflowAvailable) return;
+    if (!workflowAvailable || isPacking) return;
+    const numbers = packMode === 'trolley' ? scannedTrolleys : ['brak'];
+    if (!numbers.length && !(finish && canFinishOnly)) return;
+
     setError('');
-    const trolleysToSend = packMode === 'trolley' ? scannedTrolleys : ['brak'];
-
-    // Jeśli nie wybrano nowych wózków, ale hotel ma już spakowane wózki i klikamy "Zakończ pakowanie"
-    if (trolleysToSend.length === 0 || (packMode === 'trolley' && trolleysToSend.length === 0)) {
-      if (finish && group?.cycles?.length > 0 && onFinishPacking) {
-        setIsPacking(true);
-        try {
-          await onFinishPacking(group);
-        } catch (err) {
-          setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
-          setIsPacking(false);
-        }
-        return;
-      }
-      setError(t('wash.packing.chooseAtLeastOne'));
-      return;
-    }
-
     setIsPacking(true);
     try {
-      if (onPackMulti) {
-        await onPackMulti(group, trolleysToSend, kgByTrolley, finish);
-      } else {
-        await onPack(group, trolleysToSend[0], group.remainingKg);
-      }
+      if (!numbers.length) await onFinishPacking(group);
+      else await onPackMulti(group, numbers, finish);
     } catch (err) {
       setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
       setIsPacking(false);
     }
   };
-
-  // Zakończenie pakowania bez nowych wózków (gdy wcześniejsze wózki pokrywają już całość)
-  const handleFinishOnly = async () => {
-    if (!workflowAvailable) return;
-    setError('');
-    setIsPacking(true);
-    try {
-      if (onFinishPacking) {
-        await onFinishPacking(group);
-      } else if (onPackMulti) {
-        await onPackMulti(group, [], null, true);
-      }
-    } catch (err) {
-      setError(laundryActionErrorMessage(err, t) || t('wash.packing.error'));
-      setIsPacking(false);
-    }
-  };
-
-  // Auto-close, gdy nic już nie czeka na spakowanie
-  useEffect(() => {
-    if (group && group.washedIds?.length === 0 && (!group.cycles || group.cycles.length === 0)) {
-      onClose();
-    }
-  }, [group, onClose]);
-
-  if (!group) return null;
-
-  const hasExistingCycles = Array.isArray(group.cycles) && group.cycles.length > 0;
-  const canFinishOnly = hasExistingCycles && scannedTrolleys.length === 0;
 
   return (
-    <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
+    <div className="ap-overlay" style={{ display: 'flex' }} onClick={isPacking ? undefined : onClose}>
       <div
         className="ap-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         onClick={e => e.stopPropagation()}
         style={{
           maxWidth: '640px',
@@ -192,8 +118,8 @@ export default function PackingModal({
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.015em' }}>
-                {t('wash.packing.title')}
+              <div id={titleId} className="ap-title" style={{ textAlign: 'left', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.015em' }}>
+                {t(addingEmptyTrolleys ? 'wash.actions.addEmptyTrolleys' : 'wash.packing.title')}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 500 }}>
                 <strong>{group.clientName}</strong>
@@ -203,6 +129,7 @@ export default function PackingModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={isPacking}
               style={{
                 width: '32px',
                 height: '32px',
@@ -248,13 +175,11 @@ export default function PackingModal({
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {group.hasKnownWeight
-                    ? t('wash.packing.remaining', { client: group.clientName, weight: group.remainingKg })
+                    ? t('wash.packing.batchWeight', { weight: group.kg })
                     : t('wash.packing.noWeightRequired', { client: group.clientName })}
                 </div>
-                {group.hasKnownWeight && (
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }} className="tabular-nums">
-                    {t('wash.packedAmount', { packed: group.packedKg, total: group.kg })}
-                  </div>
+                {addingEmptyTrolleys && (
+                  <div className="laundry-work-state">{t('wash.packing.emptyTrolleysHint')}</div>
                 )}
               </div>
             </div>
@@ -298,12 +223,6 @@ export default function PackingModal({
                   <Archive size={15} />
                   <span>{t('wash.packing.alreadyPackedTitle')}</span>
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#248A3D' }} className="tabular-nums">
-                  {t('wash.packing.alreadyPackedTotal', {
-                    weight: group.packedKg,
-                    count: group.cycles.length,
-                  })}
-                </span>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -325,20 +244,22 @@ export default function PackingModal({
                     className="tabular-nums"
                   >
                     <CheckCircle2 size={13} style={{ color: '#34C759' }} />
-                    <strong>{formatTrolleyCode(cycle.trolley_no)}</strong>
-                    {cycle.total_kg > 0 && <span style={{ color: 'var(--text-secondary)' }}>· {cycle.total_kg} kg</span>}
+                    <strong>{cycle.trolley_no === 'brak' ? t('wash.packing.loose') : formatTrolleyCode(cycle.trolley_no)}</strong>
                     {cycle.packed_by && <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>({cycle.packed_by})</span>}
                   </div>
                 ))}
               </div>
 
-              <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                {t('wash.packing.multiPersonNote')}
-              </p>
+              {!addingEmptyTrolleys && (
+                <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                  {t('wash.packing.multiPersonNote')}
+                </p>
+              )}
             </div>
           )}
 
           {/* Segmented Control / Tryb pakowania */}
+          {!addingEmptyTrolleys && (
           <div style={{ display: 'flex', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: '10px', marginBottom: '16px' }}>
             <button
               type="button"
@@ -371,6 +292,7 @@ export default function PackingModal({
               <Package size={15} /> {t('wash.packing.loose')}
             </button>
           </div>
+          )}
 
           {/* Główna sekcja wyboru wózków / pakowania */}
           {packMode === 'trolley' ? (
@@ -461,7 +383,7 @@ export default function PackingModal({
                   }}>
                     <span>{t('wash.packing.currentBatch')}</span>
                     <span className="tabular-nums" style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                      {scannedTrolleys.length} {scannedTrolleys.length === 1 ? 'wózek' : 'wózki'}
+                      {t('entry.trolleySelected', { count: scannedTrolleys.length })}
                     </span>
                   </div>
 
@@ -490,30 +412,6 @@ export default function PackingModal({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder={estimatedPerTrolley || 'kg'}
-                              value={kgByTrolley[no] ?? ''}
-                              onChange={e => handleKgChange(no, e.target.value)}
-                              disabled={isPacking}
-                              className="tabular-nums"
-                              style={{
-                                width: '68px',
-                                padding: '5px 8px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border)',
-                                background: 'var(--bg-secondary)',
-                                color: 'var(--text-primary)',
-                                fontSize: '13px',
-                                fontWeight: 700,
-                                textAlign: 'right',
-                              }}
-                            />
-                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>kg</span>
-                          </div>
-
                           <button
                             type="button"
                             style={{
@@ -526,7 +424,8 @@ export default function PackingModal({
                               color: 'var(--text-tertiary)',
                               borderRadius: '50%',
                             }}
-                            onClick={() => removeTrolley(no)}
+                            onClick={() => setScannedTrolleys(selected => selected.filter(value => value !== no))}
+                            disabled={isPacking}
                             aria-label={t('common.remove')}
                           >
                             <X size={15} />
@@ -536,25 +435,6 @@ export default function PackingModal({
                     ))}
                   </div>
 
-                  {group.hasKnownWeight && (
-                    <div style={{
-                      marginTop: '12px',
-                      paddingTop: '10px',
-                      borderTop: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)',
-                      fontWeight: 600,
-                    }} className="tabular-nums">
-                      <span>{t('wash.packing.batchTotal', { weight: Number(currentBatchTotalKg).toFixed(1) })}</span>
-                      <span>
-                        {t('wash.packing.remainingKgAfterBatch', {
-                          weight: Math.max(0, Number(group.remainingKg - currentBatchTotalKg)).toFixed(1),
-                        })}
-                      </span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div style={{
@@ -601,7 +481,12 @@ export default function PackingModal({
           {/* PRZYCISKI AKCJI: Kontynuuj pakowanie vs Zakończ pakowanie */}
           <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Opcja A: Zakończenie pakowania (jeśli wcześniejsze wózki pokrywają hotel, a w tej partii nic nowego nie wybrano) */}
-            {canFinishOnly ? (
+            {addingEmptyTrolleys ? (
+              <button type="button" className="ap-btn ap-btn-primary" onClick={() => handleConfirm(false)}
+                disabled={isPacking || !workflowAvailable || scannedTrolleys.length === 0}>
+                {t(isPacking ? 'common.saving' : 'wash.actions.addEmptyTrolleys')}
+              </button>
+            ) : canFinishOnly ? (
               <button
                 type="button"
                 className="ap-btn ap-btn-primary"
@@ -617,7 +502,7 @@ export default function PackingModal({
                   gap: '3px',
                   boxShadow: '0 4px 14px rgba(0, 122, 255, 0.25)',
                 }}
-                onClick={handleFinishOnly}
+                onClick={() => handleConfirm(true)}
                 disabled={isPacking || !workflowAvailable}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -680,7 +565,7 @@ export default function PackingModal({
                     boxShadow: '0 4px 14px rgba(0, 122, 255, 0.25)',
                   }}
                   onClick={() => handleConfirm(true)}
-                  disabled={isPacking || !workflowAvailable || (packMode === 'trolley' && scannedTrolleys.length === 0 && !hasExistingCycles)}
+                  disabled={isPacking || !workflowAvailable || (packMode === 'trolley' && scannedTrolleys.length === 0)}
                   title={t('wash.packing.finishHint')}
                 >
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

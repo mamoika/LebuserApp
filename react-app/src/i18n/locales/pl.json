@@ -546,6 +546,7 @@
       "waitingForUnload": "Oczekiwanie na powrót i rozładunek",
       "pack": "Pakuj",
       "packMore": "Dopakuj",
+      "addEmptyTrolleys": "Dodaj puste wózki",
       "ready": "Gotowe dla kierowcy",
       "nothing": "Nic do wykonania",
       "correction": "Korekta",
@@ -579,6 +580,7 @@
       "packedLoose": "{{client}}: spakowano (bez wózka)",
       "packedTrolleys": "{{client}}: spakowano do {{count}} wózków",
       "packingFinished": "{{client}}: zakończono pakowanie — pranie gotowe dla kierowcy",
+      "emptyTrolleysAdded": "{{client}}: dodano puste wózki do dostawy",
       "packingSavedInProgress": "{{client}}: zapisano wózki ({{count}} szt.) — pakowanie w toku",
       "packError": "Błąd podczas pakowania wózków",
       "packingBatchChanged": "Sprawdź, czy pranie zostało przyjęte i wyprane oraz czy wybrane wózki są dostępne. Odśwież listę pakowania.",
@@ -601,6 +603,8 @@
       "clearError": "Błąd podczas czyszczenia: {{message}}"
     },
     "packing": {
+      "batchWeight": "Waga netto całej partii: {{weight}} kg",
+      "emptyTrolleysHint": "Wybierz numery pustych wózków, które mają pojechać z tą dostawą.",
       "unknownCode": "Nieznany kod: {{code}}. Zeskanuj wózek (np. LEB-#05).",
       "missingTrolley": "Wózek {{trolley}} nie istnieje.",
       "occupied": "Wózek {{trolley}} jest zajęty przez: {{client}}",
