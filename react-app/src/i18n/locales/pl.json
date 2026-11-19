@@ -2339,6 +2339,15 @@
     }
   },
   "admin": {
+    "databaseStatus": {
+      "title": "Stan bazy",
+      "connection": "Połączenie",
+      "size": "Rozmiar bazy",
+      "lastChecked": "Ostatni udany odczyt",
+      "checking": "Sprawdzanie…",
+      "available": "Baza odpowiada",
+      "unavailable": "Odczyt niedostępny"
+    },
     "rodoFullLink": "Pełna klauzula RODO",
     "loadingRoutes": "Ładowanie tras…",
     "newUser": "Nowy użytkownik",

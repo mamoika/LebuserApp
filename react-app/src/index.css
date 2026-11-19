@@ -10456,6 +10456,90 @@ select.ap-input {
   gap: 18px;
 }
 
+.admin-database-status {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card-solid);
+}
+.admin-database-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-database-heading h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.admin-database-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.admin-database-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-inline-start: auto;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-database-refresh:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+.admin-database-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+  gap: 12px;
+}
+.admin-database-metrics > div {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+.admin-database-metrics dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.admin-database-metrics dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.admin-database-connection {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.admin-database-connection::before {
+  content: '';
+  flex: 0 0 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+.admin-database-connection[data-status='available']::before { background: var(--accent-green); }
+.admin-database-connection[data-status='unavailable']::before { background: var(--accent-orange); }
+
 .admin-segmented-control {
   overflow-x: auto;
   scrollbar-width: none;

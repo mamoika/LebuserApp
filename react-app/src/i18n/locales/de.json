@@ -2317,6 +2317,15 @@
     }
   },
   "admin": {
+    "databaseStatus": {
+      "title": "Datenbankstatus",
+      "connection": "Verbindung",
+      "size": "Datenbankgröße",
+      "lastChecked": "Letzte erfolgreiche Abfrage",
+      "checking": "Prüfung läuft…",
+      "available": "Datenbank antwortet",
+      "unavailable": "Abfrage nicht verfügbar"
+    },
     "rodoFullLink": "Vollständige DSGVO-Klausel",
     "loadingRoutes": "Routen werden geladen…",
     "newUser": "Neuer Benutzer",

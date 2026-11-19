@@ -24,6 +24,7 @@ import { currentLocale, monthNames, operationalYmd } from '../lib/dateUtils';
 import { withRetry } from '../lib/fetchRetry';
 import { getLaundryWorkflow } from '../lib/laundryRpc';
 import DataError from './DataError';
+import AdminDatabaseStatus from './AdminDatabaseStatus';
 import BarcodeGenerator from './BarcodeGenerator';
 import { APP_MODULES } from '../lib/modulePermissions';
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' };
@@ -2660,8 +2661,7 @@ export default function AdminDashboard() {
     window.location.href = '/';
   };
 
-  if (loading) return <div className="loader">{t('admin.loadingUsers')}</div>;
-  if (error) return <DataError onRetry={fetchUsers} error={error} />;
+  const ready = !loading && !error;
 
   return (
     <div className="admin-shell-container">
@@ -2675,14 +2675,17 @@ export default function AdminDashboard() {
         <button type="button" className={`seg-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.settings')}</button>
       </div>
 
-      {tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}
-      {tab === 'permissions' && <PermissionsSection users={users} />}
-      {tab === 'logs' && <LogsSection />}
-      {tab === 'sessions' && <SessionsSection />}
-      {tab === 'barcodes' && <BarcodeGenerator />}
-      {tab === 'settings' && <SettingsSection />}
+      {tab === 'overview' && sessionToken && <AdminDatabaseStatus key={sessionToken} sessionToken={sessionToken} />}
+      {loading && <div className="loader">{t('admin.loadingUsers')}</div>}
+      {!loading && error && <DataError onRetry={fetchUsers} error={error} />}
+      {ready && tab === 'overview' && <AdminOverview users={users} driverCars={driverCars} onOpenTab={setTab} />}
+      {ready && tab === 'permissions' && <PermissionsSection users={users} />}
+      {ready && tab === 'logs' && <LogsSection />}
+      {ready && tab === 'sessions' && <SessionsSection />}
+      {ready && tab === 'barcodes' && <BarcodeGenerator />}
+      {ready && tab === 'settings' && <SettingsSection />}
 
-      {tab === 'users' && <>
+      {ready && tab === 'users' && <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{t('admin.users')}</div>

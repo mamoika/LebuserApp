@@ -11,6 +11,10 @@ export async function callAdminRpc(sessionToken, fn, args = {}) {
   return data;
 }
 
+export function getAdminDatabaseStatus(sessionToken) {
+  return callAdminRpc(sessionToken, 'admin_get_database_status');
+}
+
 export function upsertAppSetting(sessionToken, key, value) {
   return callAdminRpc(sessionToken, 'admin_upsert_app_setting', {
     p_key: key,
