@@ -1069,7 +1069,7 @@
       "days": { "mon": "Mo", "tue": "Di", "wed": "Mi", "thu": "Do", "fri": "Fr", "sat": "Sa", "sun": "So" },
       "dayNames": { "mon": "Montag", "tue": "Dienstag", "wed": "Mittwoch", "thu": "Donnerstag", "fri": "Freitag", "sat": "Samstag", "sun": "Sonntag" },
       "cleanDeparture": "Abfahrt der sauberen Wäsche",
-      "automaticDeparture": "Automatisch: {{day}}",
+      "automaticDeparture": "Auto · {{day}}",
       "nextTerm": "nächster Termin",
       "frequency": "Häufigkeit",
       "everyWeek": "Jede Woche",

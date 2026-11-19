@@ -155,74 +155,77 @@ export default function ServiceScheduleBuilder({
             <div className="service-schedule-empty">{t('clients.servicePlan.selectDay')}</div>
           ) : (
             <div className="service-schedule-rules">
-              {normalized.map(rule => (
-                <div className={`service-schedule-rule${showTurnaround ? ' with-turnaround' : ''}`} key={rule.weekday}>
-                  <strong>{t(`clients.servicePlan.dayNames.${DAY_KEYS[rule.weekday - 1]}`)}</strong>
-                  {showTurnaround && (
+              {normalized.map(rule => {
+                const automaticDay = departureDayFor(rule, normalized, true);
+                return (
+                  <div className={`service-schedule-rule${showTurnaround ? ' with-turnaround' : ''}`} key={rule.weekday}>
+                    <strong>{t(`clients.servicePlan.dayNames.${DAY_KEYS[rule.weekday - 1]}`)}</strong>
+                    {showTurnaround && (
+                      <label>
+                        <span>{t('clients.servicePlan.cleanDeparture')}</span>
+                        <select
+                          className="ap-input"
+                          value={rule.turnaround_days || ''}
+                          onChange={event => updateRule(rule.weekday, {
+                            turnaround_days: Number(event.target.value),
+                          })}
+                        >
+                          <option value="">
+                            {t('clients.servicePlan.automaticDeparture', {
+                              day: automaticDay
+                                ? t(`clients.servicePlan.days.${DAY_KEYS[automaticDay - 1] || 'sun'}`)
+                                : t('clients.servicePlan.nextTerm'),
+                            })}
+                          </option>
+                          {Array.from({ length: 7 }, (_, index) => index + 1)
+                            .filter(days => ((rule.weekday - 1 + days) % 7) + 1 <= 6)
+                            .map(days => {
+                              const departureDay = ((rule.weekday - 1 + days) % 7) + 1;
+                              const key = DAY_KEYS[departureDay - 1] || 'sun';
+                              return (
+                                <option key={days} value={days}>
+                                  {t(`clients.servicePlan.dayNames.${key}`)} (+{days})
+                                </option>
+                              );
+                            })}
+                        </select>
+                      </label>
+                    )}
                     <label>
-                      <span>{t('clients.servicePlan.cleanDeparture')}</span>
+                      <span>{t('clients.servicePlan.frequency')}</span>
                       <select
                         className="ap-input"
-                        value={rule.turnaround_days || ''}
-                        onChange={event => updateRule(rule.weekday, {
-                          turnaround_days: Number(event.target.value),
-                        })}
+                        value={rule.interval_weeks}
+                        onChange={event => {
+                          const intervalWeeks = Number(event.target.value);
+                          updateRule(rule.weekday, {
+                            interval_weeks: intervalWeeks,
+                            anchor_week: intervalWeeks === 1
+                              ? mondayKey()
+                              : rule.anchor_week || mondayKey(),
+                          });
+                        }}
                       >
-                        <option value="">
-                          {t('clients.servicePlan.automaticDeparture', {
-                            day: departureDayFor(rule, normalized, true)
-                              ? t(`clients.servicePlan.dayNames.${DAY_KEYS[departureDayFor(rule, normalized, true) - 1] || 'sun'}`)
-                              : t('clients.servicePlan.nextTerm'),
-                          })}
-                        </option>
-                        {Array.from({ length: 7 }, (_, index) => index + 1)
-                          .filter(days => ((rule.weekday - 1 + days) % 7) + 1 <= 6)
-                          .map(days => {
-                          const departureDay = ((rule.weekday - 1 + days) % 7) + 1;
-                          const key = DAY_KEYS[departureDay - 1] || 'sun';
-                          return (
-                            <option key={days} value={days}>
-                              {t(`clients.servicePlan.dayNames.${key}`)} (+{days})
-                            </option>
-                          );
-                          })}
+                        <option value={1}>{t('clients.servicePlan.everyWeek')}</option>
+                        <option value={2}>{t('clients.servicePlan.everyTwoWeeks')}</option>
                       </select>
                     </label>
-                  )}
-                  <label>
-                    <span>{t('clients.servicePlan.frequency')}</span>
-                    <select
-                      className="ap-input"
-                      value={rule.interval_weeks}
-                      onChange={event => {
-                        const intervalWeeks = Number(event.target.value);
-                        updateRule(rule.weekday, {
-                          interval_weeks: intervalWeeks,
-                          anchor_week: intervalWeeks === 1
-                            ? mondayKey()
-                            : rule.anchor_week || mondayKey(),
-                        });
-                      }}
-                    >
-                      <option value={1}>{t('clients.servicePlan.everyWeek')}</option>
-                      <option value={2}>{t('clients.servicePlan.everyTwoWeeks')}</option>
-                    </select>
-                  </label>
-                  {rule.interval_weeks > 1 && (
-                    <label>
-                      <span>{t('clients.servicePlan.firstCycleWeek')}</span>
-                      <input
-                        className="ap-input"
-                        type="date"
-                        value={rule.anchor_week}
-                        onChange={event => updateRule(rule.weekday, {
-                          anchor_week: mondayKey(event.target.value) || mondayKey(),
-                        })}
-                      />
-                    </label>
-                  )}
-                </div>
-              ))}
+                    {rule.interval_weeks > 1 && (
+                      <label className="service-schedule-cycle-start">
+                        <span>{t('clients.servicePlan.firstCycleWeek')}</span>
+                        <input
+                          className="ap-input"
+                          type="date"
+                          value={rule.anchor_week}
+                          onChange={event => updateRule(rule.weekday, {
+                            anchor_week: mondayKey(event.target.value) || mondayKey(),
+                          })}
+                        />
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

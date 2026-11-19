@@ -310,12 +310,12 @@ function AddClientModal({ routes, defaultRouteId, onClose, onSave }) {
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+      <div className="ap-sheet client-editor-sheet" role="dialog" aria-modal="true" aria-labelledby="client-new-title" onClick={e => e.stopPropagation()}>
         <div className="ap-handle" />
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#34C759,#25A244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(52,199,89,0.3)' }}>👤</div>
-            <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.newClient')}</div>
+            <div id="client-new-title" className="ap-title" style={{ textAlign: 'left', fontSize: '19px' }}>{t('clients.newClient')}</div>
           </div>
 
           <div style={LABEL_STYLE}>{t('clients.clientName')}</div>
@@ -414,13 +414,13 @@ function EditClientModal({ client, clients, routes, onClose, onSave, onArchive, 
 
   return (
     <div className="ap-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="ap-sheet" onClick={e => e.stopPropagation()}>
+      <div className="ap-sheet client-editor-sheet" role="dialog" aria-modal="true" aria-labelledby="client-edit-title" onClick={e => e.stopPropagation()}>
         <div className="ap-handle" />
         <div className="ap-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(145deg,#FF9500,#CC6600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0, boxShadow: '0 3px 10px rgba(255,149,0,0.3)' }}>✏️</div>
             <div>
-              <div className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>{t('clients.editClient')}</div>
+              <div id="client-edit-title" className="ap-title" style={{ textAlign: 'left', fontSize: '19px', marginBottom: '1px' }}>{t('clients.editClient')}</div>
               <div style={{ fontSize: '12px', color: 'rgba(60,60,67,0.5)' }}>{client.name}</div>
             </div>
           </div>
