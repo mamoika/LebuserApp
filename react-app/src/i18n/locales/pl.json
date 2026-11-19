@@ -2362,6 +2362,15 @@
       "title": "Stan bazy",
       "connection": "Połączenie",
       "size": "Rozmiar bazy",
+      "ram": "Zużycie RAM",
+      "ramOf": "{{used}} z {{total}}",
+      "cpu": "Użycie CPU",
+      "sampling": "Zbieranie próbek…",
+      "resourcesChecked": "Odczyt RAM i CPU",
+      "metrics": {
+        "unconfigured": "Odczyt RAM i CPU wymaga konfiguracji Supabase Metrics API.",
+        "unavailable": "Nie udało się pobrać aktualnych metryk Supabase."
+      },
       "lastChecked": "Ostatni udany odczyt",
       "checking": "Sprawdzanie…",
       "available": "Baza odpowiada",

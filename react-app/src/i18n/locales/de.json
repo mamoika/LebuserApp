@@ -2340,6 +2340,15 @@
       "title": "Datenbankstatus",
       "connection": "Verbindung",
       "size": "Datenbankgröße",
+      "ram": "RAM-Auslastung",
+      "ramOf": "{{used}} von {{total}}",
+      "cpu": "CPU-Auslastung",
+      "sampling": "Messwerte werden erfasst …",
+      "resourcesChecked": "RAM- und CPU-Abfrage",
+      "metrics": {
+        "unconfigured": "Für die RAM- und CPU-Abfrage muss die Supabase Metrics API eingerichtet werden.",
+        "unavailable": "Die aktuellen Supabase-Metriken konnten nicht abgerufen werden."
+      },
       "lastChecked": "Letzte erfolgreiche Abfrage",
       "checking": "Prüfung läuft…",
       "available": "Datenbank antwortet",
