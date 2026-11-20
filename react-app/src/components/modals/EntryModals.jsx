@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n/index.js';
-import { Package } from 'lucide-react';
+import { Flag, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { currentLocale, dayNamesFull, dayNamesShort, formatWeekKey, operationalWeekday } from '../../lib/dateUtils';
 import { toastError, toastSuccess } from '../../lib/toast';
 import { logAction } from '../../lib/logger';
+import { lockPageScroll } from '../../lib/modalScrollLock';
 import { effectiveServiceRules, nextServiceSlot } from '../../lib/serviceSchedule';
 import {
   LAUNDRY_CATEGORIES,
@@ -16,6 +17,7 @@ import {
 } from '../../lib/laundryCategories';
 import ArrivalTrolleyPicker, { arrivalTrolleyModeFromEntry, arrivalTrolleyPayload } from './ArrivalTrolleyPicker';
 import '../mockups/mockups.css';
+import './AddEntryModal.css';
 
 // arr_day: 1=PN, 2=WT, 3=ŚR, 4=CZ, 5=PT, 6=SO
 function getDefaultPickInfo(arrDay, schedule = 'other', serviceRules = [], weekKey = null) {
@@ -173,6 +175,7 @@ function LaundryTypeSelector({
   value,
   onChange,
   includeCurrent = false,
+  compact = false,
 }) {
   const { t } = useTranslation();
   const enabled = laundryCategoriesForClient(client, routes);
@@ -183,19 +186,20 @@ function LaundryTypeSelector({
 
   if (visible.length === 0) {
     return (
-      <div className="service-schedule-disabled" style={{ marginBottom: '12px' }}>
+      <div className="service-schedule-disabled" style={{ marginBottom: compact ? 0 : '12px' }}>
         {t('clients.laundryOffer.none')}
       </div>
     );
   }
 
   return (
-    <div className="segmented-control" style={{ marginBottom: '12px' }}>
+    <div className="segmented-control" style={{ marginBottom: compact ? 0 : '12px' }}>
       {visible.map(category => (
         <button
           type="button"
           key={category.code}
           className={`seg-btn type-${category.code} ${value === category.code ? 'active' : ''}`}
+          aria-pressed={value === category.code}
           onClick={() => onChange(category.code)}
         >
           {t(category.translationKey)}
@@ -574,6 +578,8 @@ export function AddEntryModal({
 }) {
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
+  const formId = useId();
+  const closeButtonRef = useRef(null);
   const [clientName, setClientName] = useState('');
   const [clientQuery, setClientQuery] = useState('');
   const [clientListOpen, setClientListOpen] = useState(false);
@@ -625,6 +631,17 @@ export function AddEntryModal({
     setPickWeek(pw);
     setType(firstAllowedLaundryType(selectedClient, routes) || '');
   };
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    const unlockPage = lockPageScroll();
+    closeButtonRef.current?.focus({ preventScroll: true });
+    return () => {
+      unlockPage();
+      opener?.focus({ preventScroll: true });
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -731,44 +748,48 @@ export function AddEntryModal({
   };
 
   return (
-    <div className="ap-overlay" style={{ display: 'flex' }}>
-      <div className={`ap-sheet ${isDriverStopFlow ? 'is-driver-dirty' : ''}`}>
-        <div className="ap-handle"></div>
-        <div className="ap-content">
-          <div className="live-entry-modal-head">
-            <div className="live-entry-modal-icon" aria-hidden="true"><Package size={22} /></div>
-            <div>
-              <div className="ap-title live-entry-modal-title">
-                {isClientScoped ? (clientName || defaultClientName) : t('entry.addArrival')}
-              </div>
-              <div className="live-entry-modal-subtitle">
-                {isClientScoped ? t('entry.dirtyToLaundry') : user?.name}
-              </div>
-            </div>
-          </div>
+    <div className="ap-overlay add-entry-overlay">
+      <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}>
+        <header className="add-entry-header">
+          <h2 id={`${formId}-title`}>{t('entry.addForm.title')}</h2>
+          <button ref={closeButtonRef} type="button" className="add-entry-close" onClick={onClose} disabled={loading} aria-label={t('common.close')}>
+            <X size={19} aria-hidden="true" />
+          </button>
+        </header>
 
-          {!isClientScoped && (
-            <>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.client')}</div>
-              <div style={{ marginBottom: '12px' }}>
+        <div className="add-entry-content">
+          <section className="add-entry-card" aria-labelledby={`${formId}-laundry`}>
+            <h3 id={`${formId}-laundry`}>{t('entry.addForm.laundry')}</h3>
+
+            {isClientScoped ? (
+              <div className="add-entry-client-summary">
+                <span className="add-entry-label">{t('entry.client')}</span>
+                <strong>{clientName || defaultClientName}</strong>
+              </div>
+            ) : (
+              <div onBlur={event => {
+                if (event.currentTarget.contains(event.relatedTarget)) return;
+                setClientListOpen(false);
+                setClientQuery(clientName);
+              }}>
+                <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.client')}</label>
                 <input
+                  id={`${formId}-client`}
                   type="text"
                   className="ap-input"
-                  style={{ padding: '12px 14px' }}
                   placeholder={t('entry.searchClientPlaceholder')}
                   value={clientQuery}
                   onFocus={() => { if (clientQuery === clientName) setClientQuery(''); setClientListOpen(true); }}
-                  onBlur={() => setTimeout(() => setClientListOpen(false), 150)}
-                  onChange={e => { setClientQuery(e.target.value); setClientListOpen(true); }}
+                  onChange={event => { setClientQuery(event.target.value); setClientListOpen(true); }}
                 />
                 {clientListOpen && (
-                  <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '6px' }}>
+                  <div className="add-entry-client-options">
                     {routes
                       .filter(r => filteredClients.some(c => c.route_id === r.id))
                       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                       .map(r => (
                         <div key={r.id}>
-                          <div style={{ padding: '6px 14px', fontSize: '10px', fontWeight: 700, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', background: 'var(--bg-secondary)' }}>
+                          <div className="add-entry-client-route">
                             {r.name}{hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}
                           </div>
                           {filteredClients
@@ -777,123 +798,159 @@ export function AddEntryModal({
                             .map(c => (
                               <button
                                 type="button"
+                                className="add-entry-client-option"
                                 key={c.id}
-                                onMouseDown={e => e.preventDefault()}
+                                aria-pressed={clientName === c.name}
+                                onMouseDown={event => event.preventDefault()}
                                 onClick={() => selectClient(c.name)}
-                                style={{
-                                  display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px',
-                                  border: 'none', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit',
-                                  background: clientName === c.name ? 'rgba(0,122,255,0.1)' : 'transparent',
-                                  fontWeight: clientName === c.name ? 700 : 400,
-                                  color: clientName === c.name ? 'var(--accent)' : 'inherit',
-                                }}
                               >
                                 {c.name}
                               </button>
                             ))}
                         </div>
                       ))}
-                    {filteredClients.length === 0 && (
-                      <div style={{ padding: '14px', textAlign: 'center', color: 'rgba(60,60,67,0.4)', fontSize: '13px' }}>{t('entry.noClientResults')}</div>
-                    )}
+                    {filteredClients.length === 0 && <div className="add-entry-client-empty">{t('entry.noClientResults')}</div>}
                   </div>
                 )}
               </div>
-              {canToggleOtherRoutes && (
-                <button
-                  type="button"
-                  onClick={() => setShowOtherRoutes(value => !value)}
-                  style={{
-                    width: '100%', border: '1px solid rgba(0,122,255,0.22)',
-                    background: showOtherRoutes ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.06)',
-                    color: 'var(--accent)', borderRadius: '12px', padding: '10px 12px',
-                    fontSize: '13px', fontWeight: 700, cursor: 'pointer', marginTop: '-4px', marginBottom: '12px',
-                  }}
-                >
-                  {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
-                </button>
-              )}
-            </>
-          )}
+            )}
 
-          {isAdmin && !isDriverStopFlow && (
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.assignToRoute')}</div>
-              <select className="ap-input" value={explicitRouteId} onChange={e => setExplicitRouteId(e.target.value)}>
-                <option value="">{t('entry.defaultClientRoute')}</option>
-                {routes.map(r => (
-                  <option key={r.id} value={r.id}>T{r.sort_order ?? r.id} - {r.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
+            {canToggleOtherRoutes && !isClientScoped && (
+              <button className="add-entry-other-routes" type="button" onClick={() => setShowOtherRoutes(value => !value)}>
+                {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
+              </button>
+            )}
 
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.laundryType')}</div>
-          <LaundryTypeSelector
-            client={clients.find(c => c.name === clientName)}
-            routes={routes}
-            value={type}
-            onChange={setType}
-          />
-
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>{t('entry.netWeightOptional')}</div>
-          <input type="text" className="ap-input" placeholder={t('entry.weightPlaceholder')} style={{ marginBottom: '12px' }} inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value)} />
-
-          <div className="live-entry-date-grid">
-            <div>
-              <div className="live-entry-field-label">{t('entry.arrivalDay')}</div>
-              {(isDriverStopFlow || courseTripId) ? (
-                <div className="live-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
-              ) : (
-                <select className="ap-input" value={arrDay} onChange={e => { const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(e.target.value, resolvedWeekKey, clients, routes, clientName); setArrDay(e.target.value); setPickDay(pd); setPickWeek(pw); }}>
-                  {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(resolvedWeekKey, i + 1))}</option>)}
+            {isAdmin && !isDriverStopFlow && (
+              <div className="add-entry-route">
+                <label className="add-entry-label" htmlFor={`${formId}-route`}>{t('entry.addForm.route')}</label>
+                <select id={`${formId}-route`} className="ap-input" value={explicitRouteId} onChange={event => setExplicitRouteId(event.target.value)}>
+                  <option value="">{t('entry.defaultClientRoute')}</option>
+                  {routes.map(r => (
+                    <option key={r.id} value={r.id}>T{r.sort_order ?? r.id} - {r.name}</option>
+                  ))}
                 </select>
-              )}
+              </div>
+            )}
+
+            <div role="group" aria-labelledby={`${formId}-type`}>
+              <div className="add-entry-label" id={`${formId}-type`}>{t('entry.laundryType')}</div>
+              <LaundryTypeSelector
+                client={clients.find(c => c.name === clientName)}
+                routes={routes}
+                value={type}
+                onChange={setType}
+                compact
+              />
             </div>
+
             <div>
-              <div className="live-entry-field-label">{t('entry.pickupDay')}</div>
-              <select className="ap-input" value={pickDay} onChange={e => setPickDay(Number(e.target.value))}>
-                {buildPickDayOptions(resolvedWeekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <label className="add-entry-label" htmlFor={`${formId}-weight`}>{t('entry.addForm.netWeight')}</label>
+              <div className="add-entry-weight">
+                <input
+                  id={`${formId}-weight`}
+                  type="text"
+                  className="ap-input"
+                  placeholder={t('entry.weightPlaceholder')}
+                  inputMode="decimal"
+                  value={weight}
+                  aria-describedby={`${formId}-weight-unit ${formId}-weight-hint`}
+                  onChange={event => setWeight(event.target.value)}
+                />
+                <span id={`${formId}-weight-unit`} aria-hidden="true">{t('entry.addForm.weightUnit')}</span>
+              </div>
+              <p className="add-entry-hint" id={`${formId}-weight-hint`}>{t('entry.addForm.netWeightHint')}</p>
             </div>
-          </div>
+          </section>
 
-          <div style={{ marginBottom: '12px' }}>
-            <div className="live-entry-field-label">{t('entry.pickupWeek')}</div>
-            <div className="live-entry-week-row">
-              <select className="ap-input" style={{ flex: 1 }} value={pickWeek} onChange={e => { const w = Number(e.target.value); setPickWeek(w); if (w === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1); }}>
-                <option value={0}>{t('entry.sameWeek')}</option>
-                <option value={1}>{t('entry.nextWeek')}</option>
-                {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                  <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1)) })}</option>
-                ))}
-              </select>
-              {isAdmin && !isDriverStopFlow && (
-                <button type="button" className="live-entry-week-plus" title={t('entry.postponeWeek')} onClick={() => setPickWeek(p => Number(p) + 1)}>+</button>
-              )}
+          <section className="add-entry-card" aria-labelledby={`${formId}-dates`}>
+            <h3 id={`${formId}-dates`}>{t('entry.addForm.dates')}</h3>
+            <div className="add-entry-date-grid">
+              <div>
+                {(isDriverStopFlow || courseTripId) ? (
+                  <>
+                    <span className="add-entry-label">{t('entry.arrivalDay')}</span>
+                    <div className="add-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
+                  </>
+                ) : (
+                  <>
+                    <label className="add-entry-label" htmlFor={`${formId}-arrival`}>{t('entry.arrivalDay')}</label>
+                    <select id={`${formId}-arrival`} className="ap-input" value={arrDay} onChange={event => {
+                      const { value } = event.target;
+                      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(value, resolvedWeekKey, clients, routes, clientName);
+                      setArrDay(value);
+                      setPickDay(pd);
+                      setPickWeek(pw);
+                    }}>
+                      {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(resolvedWeekKey, i + 1))}</option>)}
+                    </select>
+                  </>
+                )}
+              </div>
+              <div>
+                <label className="add-entry-label" htmlFor={`${formId}-pickup`}>{t('entry.pickupDay')}</label>
+                <select id={`${formId}-pickup`} className="ap-input" value={pickDay} onChange={event => setPickDay(Number(event.target.value))}>
+                  {buildPickDayOptions(resolvedWeekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
+            <div className="add-entry-pickup-week">
+              <label className="add-entry-label" htmlFor={`${formId}-week`}>{t('entry.pickupWeek')}</label>
+              <div className="add-entry-week-row">
+                <select id={`${formId}-week`} className="ap-input" value={pickWeek} onChange={event => {
+                  const week = Number(event.target.value);
+                  setPickWeek(week);
+                  if (week === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1);
+                }}>
+                  <option value={0}>{t('entry.sameWeek')}</option>
+                  <option value={1}>{t('entry.nextWeek')}</option>
+                  {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
+                    <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1)) })}</option>
+                  ))}
+                </select>
+                {isAdmin && !isDriverStopFlow && (
+                  <button
+                    type="button"
+                    className="add-entry-week-plus"
+                    aria-label={t('entry.postponeWeek')}
+                    title={t('entry.postponeWeek')}
+                    onClick={() => setPickWeek(week => Number(week) + 1)}
+                  >
+                    <Plus size={17} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
 
-          <ArrivalTrolleyPicker
-            sessionToken={sessionToken}
-            clientName={clientName}
-            mode={trolleyMode}
-            onModeChange={setTrolleyMode}
-            selected={selectedTrolleys}
-            onSelectedChange={setSelectedTrolleys}
-            disabled={loading}
-          />
+          <section className="add-entry-card" aria-labelledby={`${formId}-trolleys`}>
+            <h3 id={`${formId}-trolleys`}>{t('entry.addForm.trolleysAndPriority')}</h3>
+            <ArrivalTrolleyPicker
+              sessionToken={sessionToken}
+              clientName={clientName}
+              mode={trolleyMode}
+              onModeChange={setTrolleyMode}
+              selected={selectedTrolleys}
+              onSelectedChange={setSelectedTrolleys}
+              modeLabelId={`${formId}-trolleys`}
+              triggerLabel={t('entry.trolleyPickerTitle')}
+              disabled={loading}
+            />
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '4px', cursor: 'pointer' }}>
-            <input type="checkbox" style={{ width: '18px', height: '18px' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} />
-            <span style={{ color: 'var(--accent-red)' }}>{t('entry.urgent')}</span>
-          </label>
-
-          <div className="ap-btn-group" style={{ marginTop: '18px' }}>
-            <button className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading || !type}>{loading ? t('entry.adding') : t('entry.add')}</button>
-            <button className="ap-btn ap-btn-secondary" onClick={onClose} disabled={loading}>{t('common.cancel')}</button>
-          </div>
+            <label className="add-entry-priority">
+              <Flag size={16} aria-hidden="true" />
+              <span>{t('entry.addForm.urgent')}</span>
+              <input className="sr-only" type="checkbox" role="switch" checked={urgent} disabled={loading} onChange={event => setUrgent(event.target.checked)} />
+              <span className="add-entry-priority-switch" aria-hidden="true" />
+            </label>
+          </section>
         </div>
+
+        <footer className="add-entry-footer">
+          <button type="button" className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading || !type}>
+            {loading ? t('entry.adding') : t('entry.add')}
+          </button>
+        </footer>
       </div>
     </div>
   );

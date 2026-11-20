@@ -879,6 +879,17 @@
     }
   },
   "entry": {
+    "addForm": {
+      "title": "Dodaj pranie",
+      "laundry": "Pranie",
+      "route": "Trasa",
+      "netWeight": "Waga netto",
+      "weightUnit": "kg",
+      "netWeightHint": "Bez wózków · opcjonalnie",
+      "dates": "Terminy",
+      "trolleysAndPriority": "Wózki i priorytet",
+      "urgent": "Pilne"
+    },
     "addArrival": "Dodaj przyjazd",
     "dirtyToLaundry": "Brudne pranie do pralni",
     "client": "Klient",

@@ -54,6 +54,7 @@ export default function ArrivalTrolleyPicker({
   disabled = false,
   purpose = 'pickup',
   hideModeSwitch = false,
+  modeLabelId,
   triggerLabel,
   triggerHint,
   activeTrolleyByNo: externalActiveTrolleyByNo,
@@ -199,9 +200,9 @@ export default function ArrivalTrolleyPicker({
     <div className="live-arrival-trolleys">
       {!hideModeSwitch && (
         <>
-          <div className="live-entry-field-label">{t('entry.trolleys')}</div>
+          {!modeLabelId && <div className="live-entry-field-label">{t('entry.trolleys')}</div>}
 
-          <div className="live-arrival-trolley-mode" role="group" aria-label={t('entry.trolleys')}>
+          <div className="live-arrival-trolley-mode" role="group" aria-labelledby={modeLabelId} aria-label={modeLabelId ? undefined : t('entry.trolleys')}>
             <button
               type="button"
               aria-pressed={mode === 'trolley'}
