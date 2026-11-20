@@ -441,7 +441,7 @@
       "planned": "Geplant",
       "plannedHint": "Gewicht im Tagesplan",
       "washed": "Gewaschen",
-      "washedHint": "Bereit zum Packen",
+      "washedHint": "Aus dem Tagesplan",
       "packed": "Gepackt",
       "packedHint": "Ausgaben zugeordnet",
       "departure": "Zur Abfahrt",

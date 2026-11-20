@@ -22,22 +22,45 @@ export function effectiveLaundryWashDate(entry, getDerivedWashDate) {
   return entry?.laundry_planned_date || getDerivedWashDate(entry);
 }
 
+function hasWorkflowColumns(entry) {
+  return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_packed_at')
+    || Object.prototype.hasOwnProperty.call(entry, 'laundry_trolley_no');
+}
+
+export function isReadyForDriver(entry) {
+  if (entry?.done) return true;
+  if (hasWorkflowColumns(entry)) {
+    return Boolean(
+      entry.laundry_ready_at
+      || entry.laundry_packed_at
+      || ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status)
+    );
+  }
+  return Boolean(entry?.washed);
+}
+
+export function isLaundryWashed(entry) {
+  return isReadyForDriver(entry) || (entry.washed ?? Boolean(warsawCalendarDate(entry.washed_at)));
+}
+
 export function calculateLaundryDayMetrics(entries, selectedDate, getWashDate, getDepartureDate) {
   // Metryki mają opisywać dokładnie ten sam aktywny plan, który operator widzi
   // na liście Pralni. Wpisy zakończone oraz miękko usunięte pozostają w historii,
   // ale nie mogą podbijać bieżących kilogramów po zniknięciu z listy pracy.
   const activeEntries = entries.filter(entry => entry?.id && !entry.deleted_at && !entry.done);
-  const sumFor = predicate => Number(activeEntries
-    .filter(predicate)
+  const plannedEntries = activeEntries.filter(entry => getWashDate(entry) === selectedDate);
+  const sumWeight = items => Number(items
     .reduce((sum, entry) => sum + numericWeight(entry), 0)
     .toFixed(1));
 
   return {
-    plannedKg: sumFor(entry => getWashDate(entry) === selectedDate),
-    washedKg: sumFor(entry => warsawCalendarDate(entry.washed_at) === selectedDate),
+    plannedKg: sumWeight(plannedEntries),
+    washedKg: sumWeight(plannedEntries.filter(isLaundryWashed)),
     // Pakowanie kończy się ustawieniem laundry_packed_at / laundry_ready_at
     // („Zakończ pakowanie”) — tak samo jak gotowość na liście Pralni.
-    packedKg: sumFor(entry => warsawCalendarDate(entry.laundry_packed_at || entry.laundry_ready_at) === selectedDate),
-    departureKg: sumFor(entry => getDepartureDate(entry) === selectedDate),
+    packedKg: sumWeight(activeEntries.filter(entry => warsawCalendarDate(entry.laundry_packed_at || entry.laundry_ready_at) === selectedDate)),
+    departureKg: sumWeight(activeEntries.filter(entry => getDepartureDate(entry) === selectedDate)),
   };
 }

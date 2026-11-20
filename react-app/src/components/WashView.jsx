@@ -38,7 +38,7 @@ import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
-import { calculateLaundryDayMetrics, laundryBatchKey } from '../lib/laundryDayPlan';
+import { calculateLaundryDayMetrics, isLaundryWashed, isReadyForDriver, laundryBatchKey } from '../lib/laundryDayPlan';
 import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 const EMPTY_WORKFLOW_ROWS = [];
 const DEFAULT_TROLLEY_COUNT = 25;
@@ -97,25 +97,6 @@ function dateToWeekSlot(dateStr) {
   const monday = new Date(date);
   monday.setDate(date.getDate() - (day - 1));
   return { day, weekKey: ymd(monday) };
-}
-
-function hasWorkflowColumns(entry) {
-  return Object.prototype.hasOwnProperty.call(entry, 'laundry_status')
-    || Object.prototype.hasOwnProperty.call(entry, 'laundry_ready_at')
-    || Object.prototype.hasOwnProperty.call(entry, 'laundry_packed_at')
-    || Object.prototype.hasOwnProperty.call(entry, 'laundry_trolley_no');
-}
-
-function isReadyForDriver(entry) {
-  if (entry?.done) return true;
-  if (hasWorkflowColumns(entry)) {
-    return Boolean(
-      entry.laundry_ready_at
-      || entry.laundry_packed_at
-      || ['packed', 'released', 'at_client', 'returned'].includes(entry.laundry_status)
-    );
-  }
-  return Boolean(entry?.washed);
 }
 
 function stageConfig(stage, t) {
@@ -413,8 +394,8 @@ export default function WashView() {
 
     return [...groups.values()].map(group => {
       const totalKg = group.entries.reduce((sum, entry) => sum + (parseFloat(entry.weight) || 0), 0);
-      const pending = group.entries.filter(entry => !entry.washed && !isReadyForDriver(entry));
-      const washed = group.entries.filter(entry => entry.washed || isReadyForDriver(entry));
+      const pending = group.entries.filter(entry => !isLaundryWashed(entry));
+      const washed = group.entries.filter(isLaundryWashed);
       const ready = group.entries.filter(isReadyForDriver);
       const entryIds = group.entries.map(entry => entry.id);
       const entryIdSet = new Set(entryIds);
