@@ -285,6 +285,7 @@
 }
 
 .live-trolley-picker-selection {
+  --picker-selection-row-height: 36px;
   padding-block: 10px;
   border-bottom: 1px solid var(--picker-divider);
   background: #f2f7fe;
@@ -300,6 +301,7 @@
 .live-trolley-selection-list {
   display: flex;
   gap: 6px;
+  min-height: var(--picker-selection-row-height);
   overflow-x: auto;
 }
 
@@ -307,7 +309,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: var(--picker-selection-row-height);
   padding-inline: 8px;
   border: 1px solid rgb(0 103 212 / 20%);
   border-radius: 9px;
@@ -484,6 +486,11 @@
 .live-trolley-picker-clear-btn {
   background: var(--picker-muted);
   color: var(--text-secondary);
+}
+
+.live-trolley-picker-clear-btn:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
 }
 
 .live-trolley-picker-save-btn {

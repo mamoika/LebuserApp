@@ -313,7 +313,7 @@ export default function ArrivalTrolleyPicker({
               </div>
             )}
 
-            {availabilityReady && draftSelected.length > 0 && (
+            {availabilityReady && (
               <div className="live-trolley-picker-selection">
                 <div className="live-trolley-selection-title">
                   {t(purpose === 'pack' ? 'entry.trolleySelectedCount' : 'entry.trolleySelectedForPickup', { count: draftSelected.length })}
@@ -407,11 +407,15 @@ export default function ArrivalTrolleyPicker({
             </div>
 
             <footer className="live-trolley-picker-footer">
-              {draftSelected.length > 0 && (
-                <button type="button" className="live-trolley-picker-clear-btn" onClick={clearSelection} disabled={disabled} title={t('entry.trolleyClearSelection')}>
-                  {t('common.clear')}
-                </button>
-              )}
+              <button
+                type="button"
+                className="live-trolley-picker-clear-btn"
+                onClick={clearSelection}
+                disabled={disabled || draftSelected.length === 0}
+                title={t('entry.trolleyClearSelection')}
+              >
+                {t('common.clear')}
+              </button>
               <button
                 type="button"
                 className="live-trolley-picker-save-btn"

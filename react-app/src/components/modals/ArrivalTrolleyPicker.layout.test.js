@@ -51,9 +51,10 @@ test('pickup opens on registered trolleys when present, otherwise on free trolle
 });
 
 test('trolley picker allows saving zero trolleys', () => {
-  assert.match(pickerSource, /t\('entry\.trolleyDoneEmpty'\)/);
-  assert.match(pickerSource, /disabled=\{disabled\}/);
-  assert.doesNotMatch(pickerSource, /disabled=\{disabled \|\| draftSelected\.length === 0\}/);
+  const saveButton = pickerSource.slice(pickerSource.indexOf('className="live-trolley-picker-save-btn"'));
+  assert.match(saveButton, /t\('entry\.trolleyDoneEmpty'\)/);
+  assert.match(saveButton, /disabled=\{disabled \|\| !availabilityReady \|\| hasConflictingSelection\}/);
+  assert.match(pickerSource, /className="live-trolley-picker-clear-btn"\s+onClick=\{clearSelection\}\s+disabled=\{disabled \|\| draftSelected\.length === 0\}/);
   assert.match(pickerSource, /if \(!hideModeSwitch && draftSelected\.length === 0\) onModeChange\('none'\)/);
 
   assert.equal(pl.entry.trolleyDoneEmpty, 'Gotowe (bez wózka)');
