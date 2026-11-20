@@ -871,13 +871,11 @@
   "entry": {
     "addForm": {
       "title": "Wäsche hinzufügen",
-      "laundry": "Wäsche",
       "route": "Route",
       "netWeight": "Nettogewicht",
       "weightUnit": "kg",
       "netWeightHint": "Ohne Wagen · optional",
       "dates": "Termine",
-      "trolleysAndPriority": "Wagen und Priorität",
       "urgent": "Dringend"
     },
     "addArrival": "Ankunft hinzufügen",

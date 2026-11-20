@@ -758,9 +758,7 @@ export function AddEntryModal({
         </header>
 
         <div className="add-entry-content">
-          <section className="add-entry-card" aria-labelledby={`${formId}-laundry`}>
-            <h3 id={`${formId}-laundry`}>{t('entry.addForm.laundry')}</h3>
-
+          <div className="add-entry-card">
             {isClientScoped ? (
               <div className="add-entry-client-summary">
                 <span className="add-entry-label">{t('entry.client')}</span>
@@ -861,10 +859,39 @@ export function AddEntryModal({
               </div>
               <p className="add-entry-hint" id={`${formId}-weight-hint`}>{t('entry.addForm.netWeightHint')}</p>
             </div>
-          </section>
+
+            <div className="add-entry-trolleys">
+              <div className="add-entry-label" id={`${formId}-trolleys`}>{t('entry.trolleys')}</div>
+              <ArrivalTrolleyPicker
+                sessionToken={sessionToken}
+                clientName={clientName}
+                mode={trolleyMode}
+                onModeChange={setTrolleyMode}
+                selected={selectedTrolleys}
+                onSelectedChange={setSelectedTrolleys}
+                modeLabelId={`${formId}-trolleys`}
+                triggerLabel={t('entry.trolleyPickerTitle')}
+                disabled={loading}
+              />
+            </div>
+          </div>
 
           <section className="add-entry-card" aria-labelledby={`${formId}-dates`}>
-            <h3 id={`${formId}-dates`}>{t('entry.addForm.dates')}</h3>
+            <div className="add-entry-card-header">
+              <h3 id={`${formId}-dates`}>{t('entry.addForm.dates')}</h3>
+              <button
+                type="button"
+                className="add-entry-priority"
+                aria-pressed={urgent}
+                disabled={loading}
+                onClick={() => setUrgent(value => !value)}
+              >
+                <span>
+                  <Flag size={14} aria-hidden="true" />
+                  {t('entry.addForm.urgent')}
+                </span>
+              </button>
+            </div>
             <div className="add-entry-date-grid">
               <div>
                 {(isDriverStopFlow || courseTripId) ? (
@@ -921,28 +948,6 @@ export function AddEntryModal({
                 )}
               </div>
             </div>
-          </section>
-
-          <section className="add-entry-card" aria-labelledby={`${formId}-trolleys`}>
-            <h3 id={`${formId}-trolleys`}>{t('entry.addForm.trolleysAndPriority')}</h3>
-            <ArrivalTrolleyPicker
-              sessionToken={sessionToken}
-              clientName={clientName}
-              mode={trolleyMode}
-              onModeChange={setTrolleyMode}
-              selected={selectedTrolleys}
-              onSelectedChange={setSelectedTrolleys}
-              modeLabelId={`${formId}-trolleys`}
-              triggerLabel={t('entry.trolleyPickerTitle')}
-              disabled={loading}
-            />
-
-            <label className="add-entry-priority">
-              <Flag size={16} aria-hidden="true" />
-              <span>{t('entry.addForm.urgent')}</span>
-              <input className="sr-only" type="checkbox" role="switch" checked={urgent} disabled={loading} onChange={event => setUrgent(event.target.checked)} />
-              <span className="add-entry-priority-switch" aria-hidden="true" />
-            </label>
           </section>
         </div>
 
