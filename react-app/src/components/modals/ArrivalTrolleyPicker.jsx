@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronRight, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, Package, ScanBarcode, Search, ShoppingCart, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLaundryWorkflow } from '../../hooks/useLaundryWorkflow';
 import { activePhysicalTrolleyCycles } from '../../lib/trolleyOccupancy';
@@ -201,25 +201,27 @@ export default function ArrivalTrolleyPicker({
         <>
           <div className="live-entry-field-label">{t('entry.trolleys')}</div>
 
-          <div className="segmented-control live-arrival-trolley-mode">
+          <div className="live-arrival-trolley-mode" role="group" aria-label={t('entry.trolleys')}>
             <button
               type="button"
-              className={`seg-btn${mode === 'none' ? ' active' : ''}`}
-              onClick={() => { onModeChange('none'); onSelectedChange([]); setError(''); }}
-              disabled={disabled}
-            >
-              {t('entry.trolleyModeNone')}
-            </button>
-            <button
-              type="button"
-              className={`seg-btn${mode === 'trolley' ? ' active' : ''}`}
+              aria-pressed={mode === 'trolley'}
               onClick={() => {
                 onModeChange('trolley');
                 if (selected.length === 0) openPicker();
               }}
               disabled={disabled}
             >
+              <ShoppingCart size={16} aria-hidden="true" />
               {t('entry.trolleyModeNumbered')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'none'}
+              onClick={() => { onModeChange('none'); onSelectedChange([]); setError(''); }}
+              disabled={disabled}
+            >
+              <Package size={16} aria-hidden="true" />
+              {t('entry.trolleyModeNone')}
             </button>
           </div>
         </>

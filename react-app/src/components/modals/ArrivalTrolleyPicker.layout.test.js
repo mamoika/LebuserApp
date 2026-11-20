@@ -8,18 +8,18 @@ const workflowSource = await readFile(new URL('../../hooks/useLaundryWorkflow.js
 const pl = JSON.parse(await readFile(new URL('../../i18n/locales/pl.json', import.meta.url), 'utf8'));
 const de = JSON.parse(await readFile(new URL('../../i18n/locales/de.json', import.meta.url), 'utf8'));
 
-test('new arrival form defaults to with trolley while preserving the option order', () => {
-  const modeControlStart = pickerSource.indexOf('className="segmented-control live-arrival-trolley-mode"');
+test('new arrivals default to the first option, with trolley', () => {
+  const modeControlStart = pickerSource.indexOf('className="live-arrival-trolley-mode"');
   const modeControlEnd = pickerSource.indexOf("\n      {mode === 'trolley' ?", modeControlStart);
   const modeControlSource = pickerSource.slice(modeControlStart, modeControlEnd);
+  const numberedOption = modeControlSource.indexOf("t('entry.trolleyModeNumbered')");
+  const noTrolleyOption = modeControlSource.indexOf("t('entry.trolleyModeNone')");
 
   assert.match(entryModalsSource, /const \[trolleyMode, setTrolleyMode\] = useState\('trolley'\)/);
   assert.match(entryModalsSource, /setTrolleyMode\('trolley'\)/);
-  assert.ok(
-    modeControlSource.indexOf("t('entry.trolleyModeNone')")
-      < modeControlSource.indexOf("t('entry.trolleyModeNumbered')"),
-    'the no-trolley option must be rendered before the with-trolley option',
-  );
+  assert.ok(numberedOption >= 0 && numberedOption < noTrolleyOption);
+  assert.match(modeControlSource, /aria-pressed=\{mode === 'trolley'\}/);
+  assert.match(modeControlSource, /aria-pressed=\{mode === 'none'\}/);
 });
 
 test('the trolley grid shows occupied numbers as unavailable until washing', () => {

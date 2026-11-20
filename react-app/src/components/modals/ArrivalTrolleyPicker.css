@@ -1,5 +1,32 @@
 /* ArrivalTrolleyPicker.css — Apple Design System & Bulletproof Scroll Containment */
 
+.live-arrival-trolleys > .live-arrival-trolley-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.live-arrival-trolleys .live-arrival-trolley-mode button {
+  min-height: 44px;
+  padding-inline: 4px;
+  white-space: nowrap;
+}
+
+.live-arrival-trolley-mode button svg {
+  flex-shrink: 0;
+}
+
+.live-arrival-trolley-mode button:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-arrival-trolleys .live-arrival-trolley-mode button {
+    transition: none;
+  }
+}
+
 .live-trolley-picker-overlay {
   position: fixed;
   inset: 0;

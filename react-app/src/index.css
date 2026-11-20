@@ -8912,7 +8912,8 @@ select.ap-input {
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
 }
-.work-schedule-tabs {
+.work-schedule-tabs,
+.live-arrival-trolley-mode {
   flex-shrink:0;
   display:flex;
   gap:4px;
@@ -8967,7 +8968,8 @@ select.ap-input {
   outline:3px solid rgba(0,122,255,.3);
   outline-offset:2px;
 }
-.work-schedule-tabs button {
+.work-schedule-tabs button,
+.live-arrival-trolley-mode button {
   min-height:34px;
   display:flex;
   align-items:center;
@@ -8984,17 +8986,21 @@ select.ap-input {
   cursor:pointer;
   transition:color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease;
 }
-.work-schedule-tabs button:hover {
+.work-schedule-tabs button:hover,
+.live-arrival-trolley-mode button:enabled:hover {
   background:rgba(255,255,255,.6);
   color:var(--text-primary);
 }
-.work-schedule-tabs button:active { transform:scale(.97); }
-.work-schedule-tabs button.active {
+.work-schedule-tabs button:active,
+.live-arrival-trolley-mode button:enabled:active { transform:scale(.97); }
+.work-schedule-tabs button.active,
+.live-arrival-trolley-mode button[aria-pressed="true"] {
   background:linear-gradient(180deg, #1687FF 0%, #007AFF 100%);
   color:#fff;
   box-shadow:0 5px 14px rgba(0,122,255,.28), inset 0 1px 0 rgba(255,255,255,.24);
 }
-.work-schedule-tabs button:focus-visible {
+.work-schedule-tabs button:focus-visible,
+.live-arrival-trolley-mode button:focus-visible {
   outline:3px solid rgba(0,122,255,.3);
   outline-offset:2px;
 }
