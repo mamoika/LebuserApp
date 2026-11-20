@@ -944,7 +944,6 @@
     "trolleySearchPlaceholder": "Nummer eingeben oder scannen",
     "trolleyClearSearch": "Suche leeren",
     "trolleyFilters": "Wagen filtern",
-    "trolleySelectAll": "Alle auswählen ({{count}})",
     "trolleyNoSearchResults": "Keine Wagen entsprechen den Suchkriterien.",
     "trolleyClearSelection": "Auswahl leeren",
     "trolleyRemove": "Wagen {{no}} entfernen",

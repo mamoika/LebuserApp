@@ -954,7 +954,6 @@
     "trolleySearchPlaceholder": "Wpisz lub zeskanuj numer",
     "trolleyClearSearch": "Wyczyść wyszukiwanie",
     "trolleyFilters": "Filtry wózków",
-    "trolleySelectAll": "Zaznacz wszystkie ({{count}})",
     "trolleyNoSearchResults": "Brak wózków spełniających kryteria wyszukiwania.",
     "trolleyClearSelection": "Wyczyść zaznaczenie",
     "trolleyRemove": "Usuń wózek {{no}}",

@@ -104,7 +104,6 @@ export default function ArrivalTrolleyPicker({
   const hasConflictingSelection = draftSelected.some(no => (
     trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'busy'
   ));
-  const canSelectAll = filterTab === 'returning' && visibleTrolleyNumbers.some(no => !draftSelected.includes(no));
 
   useEffect(() => {
     if (!pickerOpen) return undefined;
@@ -137,10 +136,6 @@ export default function ArrivalTrolleyPicker({
     onSelectedChange(draftSelected);
     if (!hideModeSwitch && draftSelected.length === 0) onModeChange('none');
     closePicker();
-  };
-
-  const selectAllReturning = () => {
-    setDraftSelected(current => [...new Set([...current, ...visibleTrolleyNumbers])]);
   };
 
   const clearSelection = () => {
@@ -351,11 +346,6 @@ export default function ArrivalTrolleyPicker({
                   {hasConflictingSelection && <div className="live-trolley-picker-error" role="alert">{t('entry.trolleySelectionChanged')}</div>}
                   {error && <div className="live-trolley-picker-error" role="alert">{error}</div>}
 
-                  {canSelectAll && (
-                    <button type="button" className="live-trolley-picker-link" onClick={selectAllReturning} disabled={disabled}>
-                      {t('entry.trolleySelectAll', { count: visibleTrolleyNumbers.length })}
-                    </button>
-                  )}
                   {purpose !== 'pack' && filterTab === 'free' && !query && (
                     <div className="live-trolley-picker-note">
                       {counts.returning === 0 && <strong>{t('entry.trolleyAtClientEmpty')}</strong>}
