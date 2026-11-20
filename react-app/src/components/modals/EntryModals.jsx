@@ -593,7 +593,6 @@ export function AddEntryModal({
   const [selectedTrolleys, setSelectedTrolleys] = useState([]);
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [explicitRouteId, setExplicitRouteId] = useState('');
   const isClientScoped = !!defaultClientName;
   const resolvedWeekKey = useMemo(() => {
     if (weekKey) return weekKey;
@@ -665,7 +664,6 @@ export function AddEntryModal({
       setTrolleyMode('trolley');
       setSelectedTrolleys([]);
       setUrgent(false);
-      setExplicitRouteId('');
     }
   }, [isOpen, defaultArrDay, clients, routes, ownClients, defaultClientName, defaultType, resolvedWeekKey]);
 
@@ -698,7 +696,7 @@ export function AddEntryModal({
       if (trolleyMode === 'trolley' && selectedTrolleys.length === 0) {
         throw new Error(t('entry.trolleyRequired'));
       }
-      const routeId = explicitRouteId ? Number(explicitRouteId) : (client ? client.route_id : 1);
+      const routeId = client.route_id;
       const trolleyData = arrivalTrolleyPayload(trolleyMode, selectedTrolleys);
 
       // Calculate pick_week_key — offset 0/1 (kierowca) lub dalej (admin)
@@ -817,18 +815,6 @@ export function AddEntryModal({
               <button className="add-entry-other-routes" type="button" onClick={() => setShowOtherRoutes(value => !value)}>
                 {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
               </button>
-            )}
-
-            {isAdmin && !isDriverStopFlow && (
-              <div className="add-entry-route">
-                <label className="add-entry-label" htmlFor={`${formId}-route`}>{t('entry.addForm.route')}</label>
-                <select id={`${formId}-route`} className="ap-input" value={explicitRouteId} onChange={event => setExplicitRouteId(event.target.value)}>
-                  <option value="">{t('entry.defaultClientRoute')}</option>
-                  {routes.map(r => (
-                    <option key={r.id} value={r.id}>T{r.sort_order ?? r.id} - {r.name}</option>
-                  ))}
-                </select>
-              </div>
             )}
 
             <div role="group" aria-labelledby={`${formId}-type`}>

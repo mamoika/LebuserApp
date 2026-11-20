@@ -151,15 +151,14 @@
   outline-offset: 2px;
 }
 
-.add-entry-client-summary,
-.add-entry-route {
+.add-entry-client-summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
 }
 
-:is(.add-entry-client-summary, .add-entry-route) .add-entry-label {
+.add-entry-client-summary .add-entry-label {
   margin-bottom: 0;
 }
 
@@ -167,10 +166,6 @@
   min-width: 0;
   font-size: 15px;
   overflow-wrap: anywhere;
-}
-
-.add-entry-route select.ap-input {
-  font-size: 14px;
 }
 
 .add-entry-client-options {

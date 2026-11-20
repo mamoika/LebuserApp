@@ -876,7 +876,6 @@
   "entry": {
     "addForm": {
       "title": "Wäsche hinzufügen",
-      "route": "Route",
       "netWeight": "Nettogewicht",
       "weightUnit": "kg",
       "netWeightHint": "Ohne Wagen · optional",
@@ -891,8 +890,6 @@
     "backToMyRoutes": "Zurück zu meinen Routen",
     "addFromOtherRoute": "Kunde aus anderer Route hinzufügen",
     "yourRouteSuffix": " · Ihre Route",
-    "assignToRoute": "Route zuweisen (optional)",
-    "defaultClientRoute": "Standardroute des Kunden",
     "laundryType": "Wäscheart",
     "sheets": "Bettwäsche",
     "tablecloths": "Tischwäsche",

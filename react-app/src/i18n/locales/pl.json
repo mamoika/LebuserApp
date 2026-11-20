@@ -886,7 +886,6 @@
   "entry": {
     "addForm": {
       "title": "Dodaj pranie",
-      "route": "Trasa",
       "netWeight": "Waga netto",
       "weightUnit": "kg",
       "netWeightHint": "Bez wózków · opcjonalnie",
@@ -901,8 +900,6 @@
     "backToMyRoutes": "Wróć do moich tras",
     "addFromOtherRoute": "Dodaj klienta z innej trasy",
     "yourRouteSuffix": " · twoja trasa",
-    "assignToRoute": "Przypisz do trasy (Opcjonalnie)",
-    "defaultClientRoute": "Domyślna trasa klienta",
     "laundryType": "Rodzaj prania",
     "sheets": "Pościel",
     "tablecloths": "Obrusy",
