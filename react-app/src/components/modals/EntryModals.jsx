@@ -594,6 +594,7 @@ export function AddEntryModal({
   const [urgent, setUrgent] = useState(false);
   const [loading, setLoading] = useState(false);
   const isClientScoped = !!defaultClientName;
+  const showClientInTitle = isDriver && isClientScoped;
   const resolvedWeekKey = useMemo(() => {
     if (weekKey) return weekKey;
     const anchor = new Date();
@@ -749,7 +750,7 @@ export function AddEntryModal({
     <div className="ap-overlay add-entry-overlay">
       <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}>
         <header className="add-entry-header">
-          <h2 id={`${formId}-title`}>{t('entry.addForm.title')}</h2>
+          <h2 id={`${formId}-title`}>{showClientInTitle ? (clientName || defaultClientName) : t('entry.addForm.title')}</h2>
           <button ref={closeButtonRef} type="button" className="add-entry-close" onClick={onClose} disabled={loading} aria-label={t('common.close')}>
             <X size={19} aria-hidden="true" />
           </button>
@@ -757,12 +758,13 @@ export function AddEntryModal({
 
         <div className="add-entry-content">
           <div className="add-entry-card">
-            {isClientScoped ? (
+            {isClientScoped && !showClientInTitle && (
               <div className="add-entry-client-summary">
                 <span className="add-entry-label">{t('entry.client')}</span>
                 <strong>{clientName || defaultClientName}</strong>
               </div>
-            ) : (
+            )}
+            {!isClientScoped && (
               <div onBlur={event => {
                 if (event.currentTarget.contains(event.relatedTarget)) return;
                 setClientListOpen(false);

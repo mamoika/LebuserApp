@@ -34,11 +34,13 @@
 }
 
 .add-entry-header h2 {
+  min-width: 0;
   margin: 0;
   font-size: 23px;
   font-weight: 730;
   line-height: 1.2;
   letter-spacing: -.025em;
+  overflow-wrap: anywhere;
 }
 
 .add-entry-close,
