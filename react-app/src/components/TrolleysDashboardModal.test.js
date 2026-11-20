@@ -15,12 +15,13 @@ test('clicking a trolley opens an immediate history drawer instead of appending 
   assert.equal(polish.wash.fleet.currentStatus, 'Aktualny stan');
 });
 
-test('the history drawer supports keyboard dismissal and restores focus to its trolley card', () => {
+test('the history drawer supports keyboard dismissal and restores focus to its trolley row', () => {
   assert.match(component, /event\.key === 'Escape'/);
   assert.match(component, /historyCloseRef\.current\?\.focus\(\)/);
   assert.match(component, /historyTriggerRef\.current\?\.focus\(\)/);
   assert.match(component, /event\.key !== 'Tab'/);
-  assert.match(component, /historyPanelRef\.current\?\.querySelectorAll/);
+  assert.match(component, /const panel = selectedTrolley \? historyPanelRef\.current : fleetContentRef\.current/);
+  assert.match(component, /panel\?\.querySelectorAll/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 });
 

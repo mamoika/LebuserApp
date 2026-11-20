@@ -1,25 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Archive, CalendarClock, CheckCircle2, ChevronRight, Clock3, History, MapPin, PackageOpen, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronRight, Clock3, History, MapPin, PackageOpen, Search, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
-import { formatTrolleyCode } from '../lib/trolleyCodes';
+import { formatTrolleyCode, parseTrolleyCode } from '../lib/trolleyCodes';
 import { operationalYmd } from '../lib/dateUtils';
+import { lockPageScroll } from '../lib/modalScrollLock';
+import './TrolleysDashboardModal.css';
 
-function daysSince(value) {
-  if (!value) return 0;
-  const then = new Date(value);
-  const today = new Date();
-  if (Number.isNaN(then.getTime())) return 0;
-  then.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.floor((today - then) / 86400000));
+const FLEET_STATUSES = {
+  free: { Icon: CheckCircle2, label: 'free', filter: 'filterFree' },
+  inUse: { Icon: Truck, label: 'inUse', filter: 'inUse' },
+  dirty: { Icon: WashingMachine, label: 'dirtyAtLaundry', filter: 'filterDirty' },
+  atClient: { Icon: Archive, label: 'left', filter: 'left' },
+};
+
+function getFleetStatus(active) {
+  if (!active) return 'free';
+  if (active.occupancy_source === 'arrival') return 'dirty';
+  return active.status === 'at_client' ? 'atClient' : 'inUse';
 }
 
-function trolleyPresentation(active, t) {
-  if (!active) return { label: t('wash.fleet.free'), Icon: CheckCircle2, accent: 'var(--text-quaternary)', background: 'transparent', border: 'rgba(156,163,175,.4)', text: 'var(--text-tertiary)' };
-  if (active.occupancy_source === 'arrival') return { label: active.status === 'returning_to_laundry' ? t('wash.fleet.returningToLaundry') : t('wash.fleet.dirtyAtLaundry'), Icon: active.status === 'returning_to_laundry' ? Truck : WashingMachine, accent: '#AF52DE', background: 'rgba(175,82,222,.04)', border: 'rgba(175,82,222,.18)', text: '#7E22CE' };
-  if (active.status === 'at_client') return { label: t('wash.fleet.left'), Icon: Archive, accent: 'var(--accent-orange)', background: 'rgba(255,149,0,.04)', border: 'rgba(255,149,0,.18)', text: 'var(--accent-orange-text)' };
-  return { label: t('wash.fleet.inUse'), Icon: Truck, accent: 'var(--accent)', background: 'rgba(0,122,255,.03)', border: 'rgba(0,122,255,.16)', text: 'var(--accent)' };
+function normalizeSearch(value = '') {
+  return value.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replaceAll('ł', 'l').replaceAll('ß', 'ss');
+}
+
+function daysSince(value, today = new Date()) {
+  if (!value) return null;
+  const then = new Date(value);
+  if (Number.isNaN(then.getTime())) return null;
+  // Compare calendar days across daylight-saving changes.
+  const todayDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const thenDay = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? then.getTime()
+    : Date.UTC(then.getFullYear(), then.getMonth(), then.getDate());
+  return Math.max(0, (todayDay - thenDay) / 86400000);
 }
 
 export default function TrolleysDashboardModal({
@@ -34,6 +48,9 @@ export default function TrolleysDashboardModal({
   actorName = null,
 }) {
   const { t, i18n } = useTranslation();
+  const [filter, setFilter] = useState(null);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('number');
   const [selectedTrolley, setSelectedTrolley] = useState(initialTrolley);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -46,12 +63,26 @@ export default function TrolleysDashboardModal({
   const historyCloseRef = useRef(null);
   const historyPanelRef = useRef(null);
   const historyTriggerRef = useRef(null);
-  const trolleyNumbers = Array.from({ length: trolleyCount }, (_, index) => String(index + 1));
+  const fleetCloseRef = useRef(null);
+  const fleetContentRef = useRef(null);
+  const fleetListRef = useRef(null);
+  const searchRef = useRef(null);
 
   const closeHistory = useCallback(() => {
     setSelectedTrolley(null);
-    requestAnimationFrame(() => historyTriggerRef.current?.focus());
+    requestAnimationFrame(() => {
+      historyTriggerRef.current?.focus();
+      if (document.activeElement !== historyTriggerRef.current) fleetCloseRef.current?.focus();
+    });
   }, []);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    if (!initialTrolley) fleetCloseRef.current?.focus();
+    return () => opener?.focus();
+  }, [initialTrolley]);
+
+  useEffect(() => lockPageScroll(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,12 +104,18 @@ export default function TrolleysDashboardModal({
   }, [selectedTrolley, sessionToken, t]);
 
   useEffect(() => {
-    if (!selectedTrolley) return undefined;
-    historyCloseRef.current?.focus();
+    if (selectedTrolley) historyCloseRef.current?.focus();
+  }, [selectedTrolley]);
+
+  useEffect(() => {
     const handleKeyDown = event => {
-      if (event.key === 'Escape') closeHistory();
+      if (event.key === 'Escape') {
+        if (selectedTrolley) closeHistory();
+        else onClose();
+      }
       if (event.key !== 'Tab') return;
-      const focusable = historyPanelRef.current?.querySelectorAll(
+      const panel = selectedTrolley ? historyPanelRef.current : fleetContentRef.current;
+      const focusable = panel?.querySelectorAll(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       if (!focusable?.length) return;
@@ -94,16 +131,35 @@ export default function TrolleysDashboardModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeHistory, selectedTrolley]);
+  }, [closeHistory, onClose, selectedTrolley]);
 
-  const counts = trolleyNumbers.reduce((result, trolleyNo) => {
+  const counts = { free: 0, inUse: 0, dirty: 0, atClient: 0 };
+  const today = new Date();
+  const fleet = Array.from({ length: trolleyCount }, (_, index) => {
+    const trolleyNo = String(index + 1);
     const active = activeTrolleyByNo.get(trolleyNo);
-    if (!active) result.free += 1;
-    else if (active.occupancy_source === 'arrival') result.dirty += 1;
-    else if (active.status === 'at_client') result.atClient += 1;
-    else result.inUse += 1;
-    return result;
-  }, { free: 0, inUse: 0, dirty: 0, atClient: 0 });
+    const status = getFleetStatus(active);
+    counts[status] += 1;
+    const atClientDays = status === 'atClient'
+      ? daysSince(active.delivered_at || active.entry_delivered_at || active.packed_at, today)
+      : null;
+    return { trolleyNo, code: formatTrolleyCode(trolleyNo), active, status, atClientDays };
+  });
+  const search = normalizeSearch(query);
+  const searchNumber = parseTrolleyCode(search);
+  const visibleTrolleys = fleet.filter(({ trolleyNo, code, active, status }) => (
+    (!filter || status === filter) && (!search || (
+      (searchNumber ? trolleyNo === searchNumber : code.toLowerCase().includes(search))
+      || normalizeSearch(active?.client_name ?? '').includes(search)
+    ))
+  ));
+  if (sort === 'oldest') {
+    visibleTrolleys.sort((a, b) => (b.atClientDays ?? -1) - (a.atClientDays ?? -1));
+  }
+  const resetListScroll = () => {
+    fleetListRef.current?.scrollTo(0, 0);
+    fleetContentRef.current?.scrollTo(0, 0);
+  };
 
   const formatDate = value => {
     if (!value) return '—';
@@ -117,15 +173,8 @@ export default function TrolleysDashboardModal({
     return date.toLocaleString(i18n.language?.startsWith('de') ? 'de-DE' : 'pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
   };
 
-  const metric = (color, label) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', flex: 1, minWidth: '130px' }}>
-      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>{label}</span>
-    </div>
-  );
-
   const selectedActive = selectedTrolley ? activeTrolleyByNo.get(String(selectedTrolley)) : null;
-  const occupiedDays = selectedActive ? daysSince(selectedActive.dirty_received_at || selectedActive.picked_up_at) : 0;
+  const occupiedDays = daysSince(selectedActive?.dirty_received_at || selectedActive?.picked_up_at, today) ?? 0;
   const overdueDays = selectedActive?.wash_date && selectedActive.wash_date < operationalYmd()
     ? daysSince(selectedActive.wash_date)
     : 0;
@@ -133,8 +182,10 @@ export default function TrolleysDashboardModal({
   const activeClients = clients
     .filter(client => client?.id && !client.archived_at)
     .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
-  const selectedPresentation = trolleyPresentation(selectedActive, t);
-  const SelectedStatusIcon = selectedPresentation.Icon;
+  const selectedStatus = getFleetStatus(selectedActive);
+  const selectedReturning = selectedStatus === 'dirty' && selectedActive.status === 'returning_to_laundry';
+  const selectedStatusLabel = selectedReturning ? 'returningToLaundry' : FLEET_STATUSES[selectedStatus].label;
+  const SelectedStatusIcon = selectedReturning ? Truck : FLEET_STATUSES[selectedStatus].Icon;
 
   const handleCorrection = async () => {
     if (!pendingAction || !selectedTrolley || actionBusy) return;
@@ -164,66 +215,151 @@ export default function TrolleysDashboardModal({
   };
 
   return (
-    <div className="ap-overlay" style={{ display: 'flex', backdropFilter: 'blur(16px)', background: 'rgba(15,23,42,.45)' }} onClick={onClose}>
-      <div className="ap-modal" onClick={event => event.stopPropagation()} style={{ position: 'relative', maxWidth: '980px', width: '95vw', maxHeight: '90vh', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#fff', border: 'none', boxShadow: '0 30px 60px -15px rgba(0,0,0,.3)' }}>
-        <div className="ap-handle" style={{ marginTop: '12px', marginBottom: '-8px' }} />
-        <header className="ap-modal-header" style={{ padding: '24px 32px', borderBottom: '1px solid rgba(229,231,235,.7)', background: 'rgba(249,250,251,.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div className="ap-modal-title" style={{ fontSize: '22px', fontWeight: 800, textAlign: 'left' }}>{t('wash.fleet.title')}</div>
-            <div style={{ marginTop: '2px', fontSize: '13px', fontWeight: 500, color: 'var(--text-tertiary)' }}>{t('wash.fleet.subtitle', { count: trolleyCount })}</div>
-          </div>
-          <button type="button" className="ap-modal-close" onClick={onClose} aria-label={t('common.close')}><X size={16} /></button>
-        </header>
+    <div className="ap-overlay fleet-overlay" onClick={onClose}>
+      <section className="fleet-modal" role="dialog" aria-modal="true" aria-labelledby="fleet-title" onClick={event => event.stopPropagation()}>
+        <div className="fleet-content" ref={fleetContentRef} inert={Boolean(selectedTrolley)}>
+          <header className="fleet-header">
+            <div>
+              <h2 id="fleet-title">{t('wash.fleet.title')}</h2>
+              <p>{t('wash.fleet.subtitle', { count: trolleyCount })}</p>
+            </div>
+            <button ref={fleetCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={onClose} aria-label={t('common.close')}>
+              <X size={19} aria-hidden="true" />
+            </button>
+          </header>
 
-        <div className="ap-modal-body" style={{ padding: '24px 32px', overflowY: 'auto', background: '#FAFAFC' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '22px', padding: '12px 16px', borderRadius: '16px', background: '#fff', border: '1px solid rgba(229,231,235,.6)' }}>
-            {metric('var(--text-quaternary)', t('wash.fleet.freeCount', { count: counts.free }))}
-            {metric('var(--accent)', t('wash.fleet.inUseCount', { count: counts.inUse }))}
-            {metric('#AF52DE', t('wash.fleet.dirtyCount', { count: counts.dirty }))}
-            {metric('var(--accent-orange)', t('wash.fleet.leftCount', { count: counts.atClient }))}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '12px' }}>
-            {trolleyNumbers.map(trolleyNo => {
-              const active = activeTrolleyByNo.get(trolleyNo);
-              const presentation = trolleyPresentation(active, t);
-              const Icon = presentation.Icon;
-              const atClientDays = active?.status === 'at_client' ? daysSince(active.delivered_at || active.entry_delivered_at || active.packed_at) : null;
-              return (
+          <div className="fleet-controls">
+            <div className="fleet-filters" role="group" aria-label={t('wash.fleet.filterLabel')}>
+              {Object.entries(FLEET_STATUSES).map(([status, { Icon, filter: label }]) => (
                 <button
+                  key={status}
                   type="button"
-                  key={trolleyNo}
-                  aria-label={`${formatTrolleyCode(trolleyNo)} — ${presentation.label}. ${t('wash.fleet.openHistory')}`}
-                  aria-haspopup="dialog"
-                  onClick={event => {
-                    historyTriggerRef.current = event.currentTarget;
-                    setSelectedTrolley(trolleyNo);
+                  className="fleet-filter"
+                  data-status={status}
+                  aria-pressed={filter === status}
+                  onClick={() => {
+                    setFilter(filter === status ? null : status);
+                    resetListScroll();
                   }}
-                  style={{ minHeight: '118px', padding: '15px', textAlign: 'left', cursor: 'pointer', borderRadius: '16px', border: `1px ${active ? 'solid' : 'dashed'} ${presentation.border}`, background: presentation.background, display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: active ? '0 4px 12px rgba(0,0,0,.025)' : 'none', fontFamily: 'inherit' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <strong style={{ fontSize: '17px', fontWeight: 850, color: active ? 'var(--text-primary)' : 'var(--text-quaternary)' }}>{formatTrolleyCode(trolleyNo)}</strong>
-                    <Icon size={16} color={presentation.accent} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 750, color: presentation.text }}>{presentation.label}</div>
-                    {active?.client_name && <div title={active.client_name} style={{ marginTop: '2px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{active.client_name}</div>}
-                  </div>
-                  {atClientDays !== null && (
-                    <div style={{ marginTop: 'auto', paddingTop: '7px', borderTop: '1px solid rgba(229,231,235,.65)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 750, color: atClientDays > 5 ? 'var(--accent-red)' : 'var(--text-tertiary)' }}>
-                      <CalendarClock size={11} />
-                      {atClientDays === 0 ? t('wash.fleet.leftToday') : atClientDays === 1 ? t('wash.fleet.sinceYesterday') : t('wash.fleet.daysAtClient', { count: atClientDays })}
-                    </div>
-                  )}
-                  <span style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '10px', fontWeight: 700, color: 'var(--text-quaternary)' }}>
-                    {t('wash.fleet.openHistory')}
-                    <ChevronRight size={13} aria-hidden="true" />
-                  </span>
+                  <span className="fleet-filter-icon"><Icon size={17} aria-hidden="true" /></span>
+                  <span className="fleet-filter-label">{t(`wash.fleet.${label}`)}</span>
+                  <strong>{counts[status]}</strong>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            <div className="fleet-toolbar">
+              <div className="fleet-search">
+                <Search size={17} aria-hidden="true" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  aria-label={t('wash.fleet.search')}
+                  placeholder={t('wash.fleet.search')}
+                  value={query}
+                  onChange={event => {
+                    setQuery(event.target.value);
+                    resetListScroll();
+                  }}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    className="fleet-icon-button"
+                    aria-label={t('wash.fleet.clearSearch')}
+                    onClick={() => {
+                      setQuery('');
+                      resetListScroll();
+                      searchRef.current?.focus();
+                    }}
+                  >
+                    <X size={15} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <label className="fleet-sort">
+                <span>{t('wash.fleet.sortLabel')}</span>
+                <select value={sort} onChange={event => {
+                  setSort(event.target.value);
+                  resetListScroll();
+                }}>
+                  <option value="number">{t('wash.fleet.sortNumber')}</option>
+                  <option value="oldest">{t('wash.fleet.sortOldest')}</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="fleet-results">
+              <span role="status">{t('wash.fleet.results', { shown: visibleTrolleys.length, total: trolleyCount })}</span>
+              {(filter || query) && (
+                <button type="button" onClick={() => {
+                  searchRef.current?.focus();
+                  setFilter(null);
+                  setQuery('');
+                  resetListScroll();
+                }}>{t('wash.fleet.showAll')}</button>
+              )}
+            </div>
           </div>
 
+          <div className="fleet-list-scroll" ref={fleetListRef}>
+            {visibleTrolleys.length > 0 ? (
+              <div className="fleet-list">
+                <div className="fleet-list-heading" aria-hidden="true">
+                  <span>{t('wash.fleet.columnTrolley')}</span>
+                  <span>{t('wash.fleet.currentStatus')}</span>
+                  <span>{t('wash.fleet.actions.clientLabel')}</span>
+                  <span>{t('wash.fleet.columnStay')}</span>
+                  <span><History size={16} /></span>
+                </div>
+                <ul aria-label={t('wash.fleet.title')}>
+                  {visibleTrolleys.map(({ trolleyNo, code, active, status, atClientDays }) => {
+                    const returning = status === 'dirty' && active.status === 'returning_to_laundry';
+                    const label = returning ? 'rowReturning' : status === 'dirty' ? 'rowDirty' : FLEET_STATUSES[status].label;
+                    const Icon = returning ? Truck : FLEET_STATUSES[status].Icon;
+                    const duration = atClientDays === null ? null
+                      : atClientDays === 0 ? t('wash.fleet.leftToday')
+                      : atClientDays === 1 ? t('wash.fleet.sinceYesterday')
+                      : t('wash.fleet.daysAtClient', { count: atClientDays });
+
+                    return (
+                      <li key={trolleyNo}>
+                        <button
+                          type="button"
+                          className="fleet-row"
+                          data-status={status}
+                          aria-haspopup="dialog"
+                          onClick={event => {
+                            historyTriggerRef.current = event.currentTarget;
+                            setSelectedTrolley(trolleyNo);
+                          }}
+                        >
+                          <strong className="fleet-code">{code}</strong>
+                          <span className="fleet-row-status"><Icon size={14} aria-hidden="true" />{t(`wash.fleet.${label}`)}</span>
+                          <span className="fleet-client" title={active?.client_name || undefined}>
+                            {active?.client_name || <span className="fleet-list-dash" aria-hidden="true">—</span>}
+                          </span>
+                          <span className="fleet-stay" data-long-stay={atClientDays > 5 || undefined}>
+                            {duration || <span className="fleet-list-dash" aria-hidden="true">—</span>}
+                          </span>
+                          <span className="fleet-row-history">
+                            <span className="sr-only">{t('wash.fleet.openHistory')}</span>
+                            <ChevronRight size={17} aria-hidden="true" />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <div className="fleet-empty">
+                <Search size={24} aria-hidden="true" />
+                <strong>{t('wash.fleet.empty')}</strong>
+              </div>
+            )}
+          </div>
         </div>
 
         {selectedTrolley && (
@@ -244,14 +380,16 @@ export default function TrolleysDashboardModal({
                   </div>
                   <div className="fleet-history-subtitle">{t('wash.fleet.historySubtitle')}</div>
                 </div>
-                <button ref={historyCloseRef} type="button" className="ap-modal-close" onClick={closeHistory} aria-label={t('common.close')}><X size={16} /></button>
+                <button ref={historyCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={closeHistory} aria-label={t('common.close')}>
+                  <X size={19} aria-hidden="true" />
+                </button>
               </header>
 
-              <div className="fleet-history-current" style={{ '--fleet-status-color': selectedPresentation.accent, '--fleet-status-bg': selectedPresentation.background }}>
+              <div className="fleet-history-current" data-status={selectedStatus}>
                 <span className="fleet-history-current-icon"><SelectedStatusIcon size={18} aria-hidden="true" /></span>
                 <div>
                   <span>{t('wash.fleet.currentStatus')}</span>
-                  <strong>{selectedPresentation.label}</strong>
+                  <strong>{t(`wash.fleet.${selectedStatusLabel}`)}</strong>
                   {selectedActive?.client_name && <small><MapPin size={12} aria-hidden="true" /> {selectedActive.client_name}</small>}
                 </div>
               </div>
@@ -360,7 +498,7 @@ export default function TrolleysDashboardModal({
             </aside>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
