@@ -1,0 +1,180 @@
+.laundry-history {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.laundry-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--laundry-line);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+
+.laundry-history-filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.laundry-history-filters label:first-child {
+  flex: 1 1 180px;
+}
+
+.laundry-history-filters input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.laundry-history-results,
+.laundry-history-day,
+.laundry-history-batches {
+  display: grid;
+  min-width: 0;
+}
+
+.laundry-history-results { gap: 18px; }
+.laundry-history-day { gap: 8px; }
+
+.laundry-history-day h2 {
+  margin: 0;
+  padding-inline: 2px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.laundry-history-batches,
+.laundry-history-notice {
+  border: 1px solid var(--laundry-line);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.laundry-history-batch + .laundry-history-batch {
+  border-block-start: 1px solid var(--laundry-line);
+}
+
+.laundry-history-batch summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 16px;
+  align-items: center;
+  gap: 10px;
+  min-height: 53px;
+  padding: 9px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.laundry-history-batch summary::-webkit-details-marker { display: none; }
+.laundry-history-batch summary:hover { background: var(--bg-secondary); }
+.laundry-history-batch summary:focus-visible { outline-offset: -2px; }
+.laundry-history-batch summary svg { color: var(--text-tertiary); }
+.laundry-history-batch[open] summary svg { transform: rotate(180deg); }
+
+.laundry-history-client {
+  color: var(--text-primary);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.laundry-history-collected {
+  grid-column: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--laundry-success-bg);
+  color: var(--laundry-green);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.laundry-history-weight {
+  grid-column: 3;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: end;
+}
+
+.laundry-history-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+  padding: 14px;
+  border-block-start: 1px solid var(--laundry-line);
+  font-size: 13px;
+}
+
+.laundry-history-timeline dt {
+  margin-block-end: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.laundry-history-timeline dd { margin: 0; }
+
+.laundry-history-event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.laundry-history-event + .laundry-history-event { margin-block-start: 5px; }
+.laundry-history-event time { white-space: nowrap; }
+.laundry-history-event span { color: var(--text-secondary); }
+
+.laundry-history-notice {
+  margin: 0;
+  padding: 20px;
+  color: var(--text-secondary);
+}
+
+.laundry-history-notice p { margin: 0 0 12px; }
+
+.laundry-history-pages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .laundry-history-timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .laundry-history-filters label:first-child { flex-basis: 100%; }
+  .laundry-history-filters label:not(:first-child) { flex: 1 1 120px; }
+  .laundry-history-filters button { width: 100%; }
+  .laundry-history-batch summary {
+    grid-template-columns: minmax(0, 1fr) auto 16px;
+    gap: 4px 8px;
+  }
+  .laundry-history-weight { grid-column: 2; grid-row: 1; }
+  .laundry-history-batch summary svg { grid-column: 3; grid-row: 1; }
+  .laundry-history-collected {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+}

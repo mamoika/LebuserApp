@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Archive,
   Calendar,
@@ -33,6 +34,7 @@ import {
 } from '../lib/laundryRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import DataError from './DataError';
+import LaundryHistoryView from './LaundryHistoryView';
 import PackingModal from './modals/PackingModal';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
@@ -62,7 +64,6 @@ function formatDate(dateStr) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// Poprawna polska odmiana: 1 punkt, 2-4 punkty, 5+ punktów (z wyjątkiem 12-14).
 function fmtTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
@@ -103,6 +104,7 @@ function stageConfig(stage, t) {
   const map = {
     pending: { label: t('wash.stages.pending'), tone: 'pending', Icon: Clock3 },
     partial: { label: t('wash.stages.partial'), tone: 'partial', Icon: WashingMachine },
+    packing: { label: t('wash.stages.packing'), tone: 'partial', Icon: Package },
     washed: { label: t('wash.stages.washed'), tone: 'washed', Icon: CheckCircle2 },
     ready: { label: t('wash.stages.ready'), tone: 'ready', Icon: PackageCheck },
   };
@@ -229,7 +231,7 @@ function StagePill({ stage }) {
   const Icon = conf.Icon;
   return (
     <span className={`laundry-stage-pill tone-${conf.tone}`}>
-      <Icon size={14} />
+      <Icon size={14} aria-hidden="true" />
       {conf.label}
     </span>
   );
@@ -286,10 +288,13 @@ function LaundryEntryPicker({ group, onSelect, onClose }) {
 
 export default function WashView() {
   const { t } = useTranslation();
-  const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver, canEditModule } = useAuth();
+  const { sessionToken, user, isAdmin, isTunnel, isPacker, isDriver, canEditModule, canViewModule } = useAuth();
+  const [searchParams] = useSearchParams();
+  const canViewHistory = canViewModule('history');
+  const showingHistory = canViewHistory && searchParams.get('view') === 'history';
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
-  const { data: workflow, error: workflowError, loading: workflowLoading, refresh: fetchWorkflow } = useLaundryWorkflow(sessionToken);
+  const { data: workflow, error: workflowError, loading: workflowLoading, refresh: fetchWorkflow } = useLaundryWorkflow(sessionToken, !showingHistory);
   const trolleys = workflow?.trolleys || EMPTY_WORKFLOW_ROWS;
   const arrivalReservations = workflow?.arrival_reservations || EMPTY_WORKFLOW_ROWS;
   const trolleyCount = Math.max(1, Math.min(99, Number(workflow?.trolley_count) || DEFAULT_TROLLEY_COUNT));
@@ -415,8 +420,8 @@ export default function WashView() {
           ? 'partial'
           : pending.length > 0
             ? 'pending'
-            : activeCycles.length > 0
-              ? 'partial'
+            : activeCycles.length > 0 || ready.length > 0
+              ? 'packing'
               : 'washed';
       const packedTrolleyNos = activeCycles
         .filter(isRealTrolley)
@@ -432,7 +437,8 @@ export default function WashView() {
       const hasInTransitLaundry = group.entries.some(entry => (
         arrivalEntryIds.has(entry.id) && !entry.dirty_received_at
       ));
-      const trolleyNos = [...new Set([...arrivalTrolleyNos, ...packedTrolleyNos])]
+      const packedTrolleySet = new Set(packedTrolleyNos);
+      const arrivalOnlyTrolleyNos = [...new Set(arrivalTrolleyNos)].filter(no => !packedTrolleySet.has(no))
         .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b, 'pl'));
 
       return {
@@ -447,15 +453,14 @@ export default function WashView() {
         cycles: activeCycles,
         allCycles: groupCycles,
         issuedToDriver: group.entries.some(isEntryCollectedByDriver),
-        trolleyCount: trolleyNos.length,
-        trolleyNo: trolleyNos.join(', '),
+        trolleyCount: packedTrolleySet.size + arrivalOnlyTrolleyNos.length,
+        arrivalOnlyTrolleyNos,
         hasArrivalTrolleys: arrivalTrolleyNos.length > 0,
         hasInTransitLaundry,
         washedAt: group.entries.map(entry => entry.washed_at).filter(Boolean).sort().at(-1),
-        packedAt: [
-          ...group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean),
-          ...activeCycles.map(cycle => cycle.packed_at).filter(Boolean),
-        ].sort().at(-1),
+        packedAt: groupReady
+          ? group.entries.map(entry => entry.laundry_packed_at || entry.laundry_ready_at).filter(Boolean).sort().at(-1)
+          : null,
       };
     }).sort((a, b) => {
       // Keep the list stable while operators mark items as washed/packed.
@@ -661,15 +666,18 @@ export default function WashView() {
   if (loading) return <div className="loader">{t('wash.loading')}</div>;
   if (error) return <DataError onRetry={refetch} />;
 
-  return (
-    <div className="laundry-shell">
+  const toolbar = (
       <div className="laundry-toolbar">
         <div className="laundry-title-group">
-          <div className="laundry-kicker">{t('wash.kicker')}</div>
-          <h1>{t('wash.title')}</h1>
-          <p>{t('wash.subtitle', { date: formatDate(selectedDate) })}</p>
+          <h1>{t('wash.kicker')}</h1>
+          {canViewHistory && (
+            <nav className="laundry-view-nav" aria-label={t('wash.viewSelector')}>
+              <Link to="." aria-current={!showingHistory ? 'page' : undefined}>{t('wash.title')}</Link>
+              <Link to="?view=history" aria-current={showingHistory ? 'page' : undefined}>{t('wash.history.title')}</Link>
+            </nav>
+          )}
         </div>
-        <div className="laundry-toolbar-actions">
+        {!showingHistory && <div className="laundry-toolbar-actions">
           <div className="laundry-date-nav apple-date-nav">
             <button
               type="button"
@@ -686,6 +694,7 @@ export default function WashView() {
               <input
                 type="date"
                 className="laundry-date-input"
+                aria-label={t('wash.date.choose')}
                 value={selectedDate}
                 onChange={e => setSelectedDate(e.target.value || operationalYmd())}
               />
@@ -725,27 +734,46 @@ export default function WashView() {
             <RefreshCw size={15} className={workflowLoading ? 'spin' : ''} />
             <span>{t('common.refresh')}</span>
           </button>
-        </div>
+        </div>}
       </div>
+  );
 
+  if (showingHistory) {
+    return (
+      <div className="laundry-shell">
+        {toolbar}
+        <LaundryHistoryView
+          key={sessionToken}
+          sessionToken={sessionToken}
+          initialFrom={addDays(selectedDate, -13)}
+          initialTo={selectedDate}
+          scheduleByRoute={scheduleByRoute}
+          dailyServiceByClient={dailyServiceByClient}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="laundry-shell">
+      {toolbar}
       {workflowError && (
         <div className="laundry-warning">
           {t('wash.workflowWarning', { message: workflowError.message || t('wash.loadWorkflowError') })}
         </div>
       )}
 
-      <section className="laundry-section">
+      <section className="laundry-section" aria-labelledby="laundry-plan-title">
+        <h2 className="sr-only" id="laundry-plan-title">{t('wash.title')}</h2>
         <div className="laundry-section-head">
-          <div>
-            <h2>{t('wash.dayPlan', { date: formatDate(selectedDate) })}</h2>
-            <span>{t('wash.watchPoints', { count: filteredLaundryGroups.length })}{workFilter !== 'all' ? ` ${t('wash.ofTotal', { count: laundryGroups.length })}` : ''}</span>
-          </div>
+          <span className="laundry-batch-count tabular-nums">{t('wash.batchCount', { count: filteredLaundryGroups.length })}</span>
           <div className="laundry-filter-tabs" aria-label={t('wash.filterAria')}>
             {WORK_FILTERS.map(filter => (
               <button
                 key={filter.key}
                 type="button"
                 className={workFilter === filter.key ? 'is-active' : ''}
+                aria-pressed={workFilter === filter.key}
                 onClick={() => setWorkFilter(filter.key)}
               >
                 <span>{t(filter.labelKey)}</span>
@@ -792,36 +820,19 @@ export default function WashView() {
                   disabled: busyPack,
                 }
                 : null;
-            const waitingNote = group.hasInTransitLaundry
-              ? t('wash.actions.waitingForUnload')
-              : !primaryAction && group.stage === 'ready'
-                ? t('wash.actions.ready')
-                : !primaryAction && group.pendingIds.length === 0 && group.washedIds.length === 0
-                  ? t('wash.actions.nothing')
-                  : null;
-
-
             return (
               <article key={group.key} className={`laundry-work-row stage-${group.stage}`}>
                 <div className="laundry-work-main">
                   <div className="laundry-client-line">
                     {route && <span className="laundry-route-badge">{route}</span>}
-                    <strong>{group.clientName}</strong>
+                    <h3>{group.clientName}</h3>
+                    <span className="laundry-batch-weight tabular-nums">
+                      <Scale size={13} aria-hidden="true" />
+                      {group.hasKnownWeight ? t('wash.weightKg', { weight: group.kg.toLocaleString(currentLocale()) }) : t('wash.unknownWeight')}
+                    </span>
                     <StagePill stage={group.stage} />
                   </div>
                   <div className="laundry-work-meta">
-                    <span className="laundry-meta-chip is-weight">
-                      <Scale size={12} />
-                      <strong className="tabular-nums">{group.hasKnownWeight ? `${group.kg} kg` : t('wash.unknownWeight')}</strong>
-                    </span>
-                    {group.trolleyCount > 0 && (
-                      <span className="laundry-meta-chip is-trolleys">
-                        <Archive size={12} />
-                        <strong className="tabular-nums">
-                          {t('wash.trolleysAssigned', { count: group.trolleyCount, list: group.trolleyNo })}
-                        </strong>
-                      </span>
-                    )}
                     {group.hasArrivalTrolleys && (
                       <span className={`laundry-meta-chip ${group.hasInTransitLaundry ? 'is-in-vehicle' : 'is-at-laundry'}`}>
                         {group.hasInTransitLaundry ? <Truck size={12} /> : <WashingMachine size={12} />}
@@ -852,40 +863,36 @@ export default function WashView() {
                     {group.packedAt && <span className="laundry-meta-chip">{t('wash.packedAt', { time: fmtTimeForDay(group.packedAt, selectedDate) })}</span>}
                   </div>
                   
-                  {group.hasKnownWeight && (
+                  {group.packedKg > 0 && group.packedKg < group.kg && (
                     <div className="laundry-progress-track">
                       <div
-                        className={`laundry-progress-fill ${group.packedKg + 0.05 >= group.kg ? 'is-complete' : ''}`}
+                        className="laundry-progress-fill"
                         style={{ width: `${Math.min(100, Math.max(0, (group.packedKg / group.kg) * 100))}%` }}
                       />
                     </div>
                   )}
-                  {group.cycles.length > 0 && (
+                  {(group.trolleyCount > 0 || group.cycles.length > 0) && (
                     <div className="laundry-cycle-chips">
-                      {group.cycles.map(cycle => (
-                        <span
-                          key={cycle.id}
-                          className="laundry-cycle-chip"
-                          role={cycle.trolley_no !== 'brak' ? 'button' : undefined}
-                          tabIndex={cycle.trolley_no !== 'brak' ? 0 : undefined}
-                          onClick={() => {
-                            if (cycle.trolley_no !== 'brak') {
-                              setHistoryTrolley(String(cycle.trolley_no));
-                              setTrolleysModalOpen(true);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (cycle.trolley_no !== 'brak' && (e.key === 'Enter' || e.key === ' ')) {
-                              e.preventDefault();
-                              setHistoryTrolley(String(cycle.trolley_no));
-                              setTrolleysModalOpen(true);
-                            }
-                          }}
-                          style={{ cursor: cycle.trolley_no !== 'brak' ? 'pointer' : 'default' }}
-                          title={cycle.trolley_no !== 'brak' ? t('wash.fleet.openHistory') : undefined}
-                        >
-                          <strong>{cycle.trolley_no === 'brak' ? t('wash.packing.loose') : t('wash.trolleyNumber', { number: cycle.trolley_no })}</strong>
+                      {group.arrivalOnlyTrolleyNos.map(trolleyNo => (
+                        <span className="laundry-cycle-chip is-static tabular-nums" key={trolleyNo}>
+                          {t('wash.trolleyNumber', { number: trolleyNo })}
                         </span>
+                      ))}
+                      {group.cycles.map(cycle => (
+                        isRealTrolley(cycle) ? <button
+                          key={cycle.id}
+                          type="button"
+                          className="laundry-cycle-chip tabular-nums"
+                          onClick={() => {
+                            setHistoryTrolley(String(cycle.trolley_no));
+                            setTrolleysModalOpen(true);
+                          }}
+                          title={t('wash.fleet.openHistory')}
+                        >
+                          {t('wash.trolleyNumber', { number: cycle.trolley_no })}
+                        </button> : (
+                          <span className="laundry-cycle-chip is-static" key={cycle.id}>{t('wash.packing.loose')}</span>
+                        )
                       ))}
                     </div>
                   )}
@@ -903,23 +910,11 @@ export default function WashView() {
                       <primaryAction.Icon size={16} />
                       <span>{primaryAction.label}</span>
                     </button>
-                  ) : (
-                    <div className={`laundry-work-state ${group.hasInTransitLaundry ? 'is-blocked' : ''}`}>
-                      {group.hasInTransitLaundry ? <Truck size={15} /> : group.stage === 'ready' && <CheckCircle2 size={15} />}
-                      <span>{waitingNote}</span>
+                  ) : group.hasInTransitLaundry && (
+                    <div className="laundry-work-state is-blocked">
+                      <Truck size={15} aria-hidden="true" />
+                      <span>{t('wash.actions.waitingForUnload')}</span>
                     </div>
-                  )}
-
-                  {canAddEmptyTrolleys && (
-                    <button
-                      type="button"
-                      className="laundry-edit-details-btn"
-                      onClick={() => { setAddingEmptyTrolleys(true); setPackingGroup(group); }}
-                      disabled={busyPack}
-                    >
-                      <Plus size={14} aria-hidden="true" />
-                      <span>{t('wash.actions.addEmptyTrolleys')}</span>
-                    </button>
                   )}
 
                   {canEditEntryDetails && (
@@ -936,12 +931,23 @@ export default function WashView() {
                     </button>
                   )}
 
-                  {hasCorrections && (
+                  {(hasCorrections || canAddEmptyTrolleys) && (
                     <details className="laundry-correction-menu">
-                      <summary title={t('wash.actions.correction')} aria-label={t('wash.actions.correction')}>
+                      <summary title={t('wash.actions.more')} aria-label={t('wash.actions.more')}>
                         <MoreHorizontal size={16} />
                       </summary>
                       <div className="laundry-correction-panel">
+                        {canAddEmptyTrolleys && (
+                          <button
+                            type="button"
+                            className="laundry-correction-btn"
+                            onClick={() => { setAddingEmptyTrolleys(true); setPackingGroup(group); }}
+                            disabled={busyPack}
+                          >
+                            <Plus size={15} aria-hidden="true" />
+                            <span>{t('wash.actions.addEmptyTrolleys')}</span>
+                          </button>
+                        )}
                         {canUnmarkWashed && (
                           <button
                             type="button"

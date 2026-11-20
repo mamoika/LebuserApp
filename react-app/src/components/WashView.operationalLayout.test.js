@@ -30,7 +30,8 @@ test('new operational copy is complete in Polish and German', () => {
     assert.ok(locale.wash.locationStatus.inVehicle);
     assert.ok(locale.wash.locationStatus.atLaundry);
     assert.ok(locale.wash.messages.laundryStillInVehicle);
-    assert.ok(locale.wash.trolleysAssigned_one);
+    assert.ok(locale.wash.trolleyNumber);
+    assert.ok(locale.wash.stages.packing);
   }
 
   assert.equal(pl.wash.actions.washed, 'Oznacz jako wyprane');
@@ -49,16 +50,17 @@ test('washing is blocked until the dirty laundry has returned from the vehicle',
 test('work rows count physical trolleys from arrivals and packing without counting loose issues', () => {
   assert.match(washView, /arrivalReservations\s*\.filter\(reservation => entryIdSet\.has\(reservation\.entry_id\) && isRealTrolley\(reservation\)\)/);
   assert.match(washView, /activeCycles\s*\.filter\(isRealTrolley\)/);
-  assert.match(washView, /trolleyCount: trolleyNos\.length/);
-  assert.match(washView, /wash\.trolleysAssigned/);
+  assert.match(washView, /trolleyCount: packedTrolleySet\.size \+ arrivalOnlyTrolleyNos\.length/);
+  assert.match(washView, /arrivalOnlyTrolleyNos\.map/);
+  assert.doesNotMatch(washView, /wash\.trolleysAssigned/);
   assert.match(washView, /group\.trolleyCount > 0/);
 });
 
 test('laundry list is at the top and operational plan with weights and trolleys is at the bottom', () => {
   assert.equal(pl.wash.title, 'Plan prania');
   assert.equal(de.wash.title, 'Wäscheplan');
-  assert.match(pl.wash.dayPlan, /^Plan prania/);
-  assert.match(de.wash.dayPlan, /^Wäscheplan/);
+  assert.ok(pl.wash.batchCount_one);
+  assert.ok(de.wash.batchCount_one);
   assert.equal(pl.wash.operationsPlan, 'Plan operacyjny');
   assert.equal(de.wash.operationsPlan, 'Operativer Plan');
   assert.ok(
@@ -69,4 +71,10 @@ test('laundry list is at the top and operational plan with weights and trolleys 
   assert.doesNotMatch(washView, /laundry-operations-head/);
   assert.doesNotMatch(washView, /wash\.flowOverview\.eyebrow/);
   assert.doesNotMatch(washView, /wash\.flowOverview\.current/);
+});
+
+test('laundry history is a separate view and requires history access', () => {
+  assert.match(washView, /canViewModule\('history'\)/);
+  assert.match(washView, /if \(showingHistory\) \{[\s\S]*?<LaundryHistoryView/);
+  assert.deepEqual(Object.keys(pl.wash.history).sort(), Object.keys(de.wash.history).sort());
 });
