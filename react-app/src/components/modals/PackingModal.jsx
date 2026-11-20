@@ -35,10 +35,11 @@ export default function PackingModal({
   const [error, setError] = useState('');
   const [isPacking, setIsPacking] = useState(false);
   const [packMode, setPackMode] = useState('trolley'); // 'trolley' | 'none'
+  const [trolleyPickerOpen, setTrolleyPickerOpen] = useState(false);
 
   // Barcode scanner — dodaje zeskanowany wózek do bieżącej partii
   useBarcodeScanner({
-    enabled: packMode === 'trolley' && workflowAvailable && !isPacking,
+    enabled: packMode === 'trolley' && workflowAvailable && !isPacking && !trolleyPickerOpen,
     onScan: (scannedCode) => {
       const trolleyNo = parseTrolleyCode(scannedCode);
       if (!trolleyNo) {
@@ -353,6 +354,7 @@ export default function PackingModal({
                 onModeChange={() => {}}
                 selected={scannedTrolleys}
                 onSelectedChange={handleTrolleySelectionChange}
+                onOpenChange={setTrolleyPickerOpen}
                 activeTrolleyByNo={activeTrolleyByNo}
                 trolleyCount={trolleyNumbers.length}
                 purpose="pack"

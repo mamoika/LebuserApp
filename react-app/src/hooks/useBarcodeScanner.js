@@ -33,7 +33,7 @@ export function useBarcodeScanner({ onScan, enabled = true }) {
           buffer.current = '';
           
           // Allow focus to continue unless we specifically want to stop it
-          onScan(scannedCode);
+          onScan(scannedCode, e);
         } else {
           buffer.current = '';
         }

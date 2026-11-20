@@ -23,7 +23,7 @@ test('new arrivals default to the first option, with trolley', () => {
 });
 
 test('the trolley grid shows occupied numbers as unavailable until washing', () => {
-  assert.match(pickerSource, /filterTab === 'busy'/);
+  assert.match(pickerSource, /stateByNo\.get\(no\) === filterTab/);
   assert.match(pickerSource, /visibleTrolleyNumbers\.map\(no =>/);
   assert.match(pickerSource, /disabled=\{disabled \|\| state === 'busy'\}/);
   assert.match(pickerSource, /t\('entry\.trolleyLegendBusy'\)/);
@@ -44,8 +44,8 @@ test('an unavailable snapshot blocks trolley selection and offers a retry', () =
   assert.match(pickerSource, /onClick=\{refresh\}/);
 });
 
-test('pickup opens on trolleys at the client while packing still opens on free trolleys', () => {
-  assert.match(pickerSource, /purpose === 'pack' \? 'free' : 'returning'/);
+test('pickup opens on registered trolleys when present, otherwise on free trolleys', () => {
+  assert.match(pickerSource, /purpose === 'pack' \|\| counts\.returning === 0 \? 'free' : 'returning'/);
   assert.match(pickerSource, /t\('entry\.trolleyAtClientCount'/);
   assert.match(pickerSource, /t\('entry\.trolleyAddOther'/);
 });
@@ -54,6 +54,7 @@ test('trolley picker allows saving zero trolleys', () => {
   assert.match(pickerSource, /t\('entry\.trolleyDoneEmpty'\)/);
   assert.match(pickerSource, /disabled=\{disabled\}/);
   assert.doesNotMatch(pickerSource, /disabled=\{disabled \|\| draftSelected\.length === 0\}/);
+  assert.match(pickerSource, /if \(!hideModeSwitch && draftSelected\.length === 0\) onModeChange\('none'\)/);
 
   assert.equal(pl.entry.trolleyDoneEmpty, 'Gotowe (bez wózka)');
   assert.equal(de.entry.trolleyDoneEmpty, 'Fertig (ohne Wagen)');
