@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIVACY_NOTICE_VERSION, useAuth } from '../context/AuthContext';
 import Navigation from "../components/Navigation";
+import DomainNotice from '../components/DomainNotice';
 import { AlertTriangle, Eye, ShieldCheck, Undo2 } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import RodoNotice from './RodoNotice';
@@ -183,6 +184,7 @@ export default function Dashboard() {
 
           {/* Kontent główny */}
           <main id="main-content" className="app-main-content" tabIndex={-1}>
+            {!user?.kiosk_mode && <DomainNotice />}
             {user?.kiosk_mode && (
               <div className="kiosk-session">
                 <div className="kiosk-session-bar">

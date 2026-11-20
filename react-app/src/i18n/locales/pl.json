@@ -42,6 +42,11 @@
     "clear": "Wyczyść",
     "skipToContent": "Przejdź do głównej treści"
   },
+  "domainNotice": {
+    "label": "Nowy adres",
+    "open": "Otwórz {{domain}} w nowej karcie",
+    "dismiss": "Ukryj informację o nowym adresie"
+  },
   "language": {
     "label": "Język",
     "pl": "Polski",

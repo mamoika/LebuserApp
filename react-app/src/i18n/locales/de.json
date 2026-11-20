@@ -42,6 +42,11 @@
     "clear": "Leeren",
     "skipToContent": "Zum Hauptinhalt springen"
   },
+  "domainNotice": {
+    "label": "Neue Adresse",
+    "open": "{{domain}} in einem neuen Tab öffnen",
+    "dismiss": "Hinweis zur neuen Adresse ausblenden"
+  },
   "language": {
     "label": "Sprache",
     "pl": "Polnisch",

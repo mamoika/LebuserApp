@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import DomainNotice from '../components/DomainNotice';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import logoImg from '../assets/logo-icon.png';
 
@@ -164,6 +165,7 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+        <DomainNotice />
       </div>
     </div>
   );
