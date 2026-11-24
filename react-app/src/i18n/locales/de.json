@@ -1624,6 +1624,7 @@
       "hoursShort": "Zeiten",
       "kmApproved": "Kilometer bestätigt",
       "hoursApprovedLabel": "Zeiten bestätigt",
+      "hoursRejectedHint": "Arbeitszeit abgelehnt. Die korrigierte Meldung steht noch aus.",
       "settlementHint": "km und Zeiten bestätigen — der Kurs wechselt automatisch nach Geschlossen.",
       "closedAutoHint": "Spalte Geschlossen ist automatisch. km und Zeiten auf der Karte bestätigen."
     },

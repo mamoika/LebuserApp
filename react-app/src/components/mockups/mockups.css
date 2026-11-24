@@ -780,6 +780,12 @@
   border-color: rgba(52,199,89,0.35);
   color: #1A7A37;
 }
+.kurs-settlement-check.is-rejected {
+  background: rgba(255,59,48,0.08);
+  border-color: rgba(255,59,48,0.2);
+  color: #C24135;
+  opacity: 1;
+}
 .kurs-settlement-check.is-missing {
   background: var(--bg-tertiary);
   border-style: dashed;

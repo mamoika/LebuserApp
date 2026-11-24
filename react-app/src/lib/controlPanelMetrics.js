@@ -1,4 +1,5 @@
 import { isHoliday } from '../utils/holidays.js';
+import { courseHoursStatus } from './courseHoursStatus.js';
 import { getEmployeeMonthNorm, parseHours } from './rosterHelpers.js';
 import { isAbsent } from './scheduleStatus.js';
 
@@ -236,8 +237,7 @@ export function collectApprovals({ workTimeReports = [], boardTrips = [], driver
     if (trip.isVirtual) return;
     if (trip.board_status === 'settlement') {
       const kmPending = Boolean(trip.end_km) && trip.km_approval_status !== 'approved';
-      const hasHours = Boolean(trip.work_time_report_id || trip.reported_hours);
-      const hoursPending = hasHours && trip.hours_status !== 'approved';
+      const hoursPending = courseHoursStatus(trip) === 'pending';
       if (kmPending || hoursPending) {
         items.push({ kind: 'settlement', priority: 1, id: `trip-${trip.id}`, trip, kmPending, hoursPending });
       }

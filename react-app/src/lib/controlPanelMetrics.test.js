@@ -158,6 +158,30 @@ test('approvals collect settlements, pending hours, missing drivers and driver c
   assert.equal(items[0].hoursPending, false);
 });
 
+test('rejected course hours leave the approval list until the driver resubmits', () => {
+  const trip = {
+    id: 1,
+    board_status: 'settlement',
+    end_km: 120,
+    km_approval_status: 'approved',
+    work_time_report_id: 'report-1',
+    hours_status: 'pending',
+    reported_hours: '16:00–22:00',
+  };
+  const approvalsFor = boardTrip => collectApprovals({ boardTrips: [boardTrip] });
+  assert.equal(approvalsFor(trip)[0].hoursPending, true);
+
+  const rejected = { ...trip, hours_status: 'rejected' };
+  assert.deepEqual(approvalsFor(rejected), []);
+
+  const [kmApproval] = approvalsFor({ ...rejected, km_approval_status: 'pending' });
+  assert.equal(kmApproval.kmPending, true);
+  assert.equal(kmApproval.hoursPending, false);
+
+  assert.equal(approvalsFor({ ...rejected, hours_status: 'pending' })[0].hoursPending, true);
+  assert.equal(approvalsFor({ ...trip, hours_status: undefined })[0].hoursPending, true);
+});
+
 test('hours to date are compared with a pro-rata norm', () => {
   const result = buildMyMonthHours({
     employee: { id: 1, contract_type: 'UoP' },

@@ -1638,6 +1638,7 @@
       "hoursShort": "Godziny",
       "kmApproved": "Kilometry zatwierdzone",
       "hoursApprovedLabel": "Godziny zatwierdzone",
+      "hoursRejectedHint": "Godziny odrzucone. Oczekiwanie na poprawione zgłoszenie.",
       "settlementHint": "Zatwierdź km i godziny — kurs sam przejdzie do Zamknięte.",
       "closedAutoHint": "Kolumna Zamknięte jest automatyczna. Zatwierdź km i godziny na karcie."
     },

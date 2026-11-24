@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import { approveWorkTime, rejectWorkTime } from '../../lib/adminRpc';
+import { courseHoursStatus } from '../../lib/courseHoursStatus';
 import { formatCourseDate, formatCourseTime } from '../../lib/courseLocale';
 import { approveCourseKm, callExistingTripRpc, getDispatchBoard, getTripCourse, getTripJournal, getTripWorkTimeReport, setCourseStage } from '../../lib/courseRpc';
 import { getDriverTripsData } from '../../lib/readRpc';
@@ -368,7 +369,7 @@ function HoursApprovalSheet({ trip, start, end, busy, onStart, onEnd, onApprove,
   );
 }
 
-function SettlementCheck({ icon: Icon, label, state, disabled, onClick, hint }) {
+function SettlementCheck({ icon: Icon, label, state, disabled, onClick, hint, statusLabel }) {
   return (
     <button
       type="button"
@@ -380,7 +381,7 @@ function SettlementCheck({ icon: Icon, label, state, disabled, onClick, hint }) 
       <span className="kurs-settlement-check-icon" aria-hidden="true"><Icon size={15} /></span>
       <span className="kurs-settlement-check-copy">
         <strong>{label}</strong>
-        <small>{state === 'approved' ? '✓' : state === 'pending' ? '…' : '—'}</small>
+        <small>{statusLabel ?? (state === 'approved' ? '✓' : state === 'pending' ? '…' : '—')}</small>
       </span>
       {state === 'pending' && !disabled && <ChevronRight size={14} className="kurs-settlement-check-chevron" aria-hidden="true" />}
     </button>
@@ -394,11 +395,16 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
   const canAssign = isAdmin && !trip.driver_id && (trip.isVirtual || trip.board_status === 'planning');
   const isVirtual = !!trip.isVirtual;
   const kmApproved = trip.km_approval_status === 'approved';
-  const hoursApproved = trip.hours_status === 'approved';
-  const hasHoursReport = Boolean(trip.work_time_report_id || trip.reported_hours);
   const kmState = kmApproved ? 'approved' : trip.end_km ? 'pending' : 'missing';
-  const hoursState = hoursApproved ? 'approved' : hasHoursReport ? 'pending' : 'missing';
-  const settlementPending = (trip.board_status === 'settlement') && (!kmApproved || !hoursApproved);
+  const hoursState = courseHoursStatus(trip);
+  const hoursHint = {
+    approved: 'course.board.hoursApprovedLabel',
+    pending: 'course.board.hoursApproveTitle',
+    rejected: 'course.board.hoursRejectedHint',
+    missing: 'course.board.noReportedHours',
+  }[hoursState];
+  const settlementPending = trip.board_status === 'settlement' && hoursState !== 'rejected'
+    && (!kmApproved || hoursState !== 'approved');
   const openCourse = () => (isVirtual ? onAssign(trip) : onOpen(trip));
   return (
     <Draggable draggableId={String(trip.id)} index={index} isDragDisabled={!isAdmin || isVirtual}>
@@ -477,12 +483,13 @@ function CourseCard({ trip, index, isAdmin, onOpen, onApprove, onApproveHours, o
                   hint={kmApproved ? t('course.board.kmApproved') : t('course.km.title')}
                 />
                 <SettlementCheck
-                  icon={Clock3}
+                  icon={hoursState === 'rejected' ? XCircle : Clock3}
                   label={t('course.board.hoursShort')}
                   state={hoursState}
-                  disabled={!isAdmin || hoursApproved || !hasHoursReport}
+                  disabled={!isAdmin || hoursState !== 'pending'}
                   onClick={() => onApproveHours(trip)}
-                  hint={hoursApproved ? t('course.board.hoursApprovedLabel') : hasHoursReport ? t('course.board.hoursApproveTitle') : t('course.board.noReportedHours')}
+                  hint={t(hoursHint)}
+                  statusLabel={hoursState === 'rejected' ? t('workTime.statusRejected') : undefined}
                 />
               </div>
               {settlementPending && (
@@ -660,8 +667,13 @@ export default function DispatchBoard() {
         setBusy(false);
       }
     }
-    if (!enriched.work_time_report_id && !enriched.reported_hours) {
+    const hoursState = courseHoursStatus(enriched);
+    if (hoursState === 'missing') {
       toastError(t('course.board.noReportedHours'));
+      return;
+    }
+    if (hoursState !== 'pending') {
+      await loadBoard();
       return;
     }
     setHoursTrip(enriched);
@@ -740,6 +752,7 @@ export default function DispatchBoard() {
     try {
       setBusy(true);
       await rejectWorkTime(sessionToken, reportId, note);
+      setTrips(current => current.map(trip => (trip.id === hoursTrip.id ? { ...trip, hours_status: 'rejected' } : trip)));
       setHoursTrip(null);
       toastSuccess(t('workTime.rejectSuccess'));
       await loadBoard();
