@@ -563,6 +563,158 @@ export function printSavedLaundryReceipt(row, printedBy) {
   printLaundryReceipt({ receipt: draft, printedBy });
 }
 
+function EntryFormSheet({ formId, title, onDismiss, dismissLabel, disabled, footer, children }) {
+  const { t } = useTranslation();
+  const closeButtonRef = useRef(null);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    const unlockPage = lockPageScroll();
+    closeButtonRef.current?.focus({ preventScroll: true });
+    return () => {
+      unlockPage();
+      opener?.focus({ preventScroll: true });
+    };
+  }, []);
+
+  return (
+    <div className="ap-overlay add-entry-overlay">
+      <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}>
+        <header className="add-entry-header">
+          <h2 id={`${formId}-title`}>{title}</h2>
+          <button ref={closeButtonRef} type="button" className="add-entry-close" onClick={onDismiss} disabled={disabled} aria-label={dismissLabel || t('common.close')}>
+            <X size={19} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="add-entry-content">{children}</div>
+        <footer className="add-entry-footer">{footer}</footer>
+      </div>
+    </div>
+  );
+}
+
+function EntryLaundryFields({ formId, client, routes, type, onTypeChange, includeCurrent, weight, onWeightChange, trolleyPicker }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div role="group" aria-labelledby={`${formId}-type`}>
+        <div className="add-entry-label" id={`${formId}-type`}>{t('entry.laundryType')}</div>
+        <LaundryTypeSelector
+          client={client}
+          routes={routes}
+          value={type}
+          onChange={onTypeChange}
+          includeCurrent={includeCurrent}
+          compact
+        />
+      </div>
+
+      <div>
+        <label className="add-entry-label" htmlFor={`${formId}-weight`}>{t('entry.addForm.netWeight')}</label>
+        <div className="add-entry-weight">
+          <input
+            id={`${formId}-weight`}
+            type="text"
+            className="ap-input"
+            placeholder={t('entry.weightPlaceholder')}
+            inputMode="decimal"
+            value={weight}
+            aria-describedby={`${formId}-weight-unit ${formId}-weight-hint`}
+            onChange={event => onWeightChange(event.target.value)}
+          />
+          <span id={`${formId}-weight-unit`} aria-hidden="true">{t('entry.addForm.weightUnit')}</span>
+        </div>
+        <p className="add-entry-hint" id={`${formId}-weight-hint`}>{t('entry.addForm.netWeightHint')}</p>
+      </div>
+
+      <div className="add-entry-trolleys">
+        <div className="add-entry-label" id={`${formId}-trolleys`}>{t('entry.trolleys')}</div>
+        <ArrivalTrolleyPicker
+          {...trolleyPicker}
+          modeLabelId={`${formId}-trolleys`}
+          triggerLabel={t('entry.trolleyPickerTitle')}
+        />
+      </div>
+    </>
+  );
+}
+
+function EntryDatesCard({
+  formId, weekKey, arrDay, onArrivalChange, pickDay, onPickupChange, pickWeek, onPickupWeekChange,
+  onPostponeWeek, urgent, onToggleUrgent, disabled,
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="add-entry-card" aria-labelledby={`${formId}-dates`}>
+      <div className="add-entry-card-header">
+        <h3 id={`${formId}-dates`}>{t('entry.addForm.dates')}</h3>
+        <button
+          type="button"
+          className="add-entry-priority"
+          aria-pressed={urgent}
+          disabled={disabled}
+          onClick={onToggleUrgent}
+        >
+          <span>
+            <Flag size={14} aria-hidden="true" />
+            {t('entry.addForm.urgent')}
+          </span>
+        </button>
+      </div>
+      <div className="add-entry-date-grid">
+        <div>
+          {!onArrivalChange ? (
+            <>
+              <span className="add-entry-label">{t('entry.arrivalDay')}</span>
+              <div className="add-entry-locked-day">{dayWithDate(weekKey, arrDay)}</div>
+            </>
+          ) : (
+            <>
+              <label className="add-entry-label" htmlFor={`${formId}-arrival`}>{t('entry.arrivalDay')}</label>
+              <select id={`${formId}-arrival`} className="ap-input" value={arrDay} onChange={event => onArrivalChange(event.target.value)}>
+                {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(weekKey, i + 1))}</option>)}
+              </select>
+            </>
+          )}
+        </div>
+        <div>
+          <label className="add-entry-label" htmlFor={`${formId}-pickup`}>{t('entry.pickupDay')}</label>
+          <select id={`${formId}-pickup`} className="ap-input" value={pickDay} onChange={event => onPickupChange(Number(event.target.value))}>
+            {buildPickDayOptions(weekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="add-entry-pickup-week">
+        <label className="add-entry-label" htmlFor={`${formId}-week`}>{t('entry.pickupWeek')}</label>
+        <div className="add-entry-week-row">
+          <select id={`${formId}-week`} className="ap-input" value={pickWeek} onChange={event => {
+            const week = Number(event.target.value);
+            onPickupWeekChange(week);
+            if (week === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) onPickupChange(parseInt(arrDay) || 1);
+          }}>
+            <option value={0}>{t('entry.sameWeek')}</option>
+            <option value={1}>{t('entry.nextWeek')}</option>
+            {(onPostponeWeek || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
+              <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(weekKey, n), 1)) })}</option>
+            ))}
+          </select>
+          {onPostponeWeek && (
+            <button
+              type="button"
+              className="add-entry-week-plus"
+              aria-label={t('entry.postponeWeek')}
+              title={t('entry.postponeWeek')}
+              onClick={onPostponeWeek}
+            >
+              <Plus size={17} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AddEntryModal({
   isOpen,
   onClose,
@@ -579,7 +731,6 @@ export function AddEntryModal({
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const formId = useId();
-  const closeButtonRef = useRef(null);
   const [clientName, setClientName] = useState('');
   const [clientQuery, setClientQuery] = useState('');
   const [clientListOpen, setClientListOpen] = useState(false);
@@ -631,17 +782,6 @@ export function AddEntryModal({
     setPickWeek(pw);
     setType(firstAllowedLaundryType(selectedClient, routes) || '');
   };
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const opener = document.activeElement;
-    const unlockPage = lockPageScroll();
-    closeButtonRef.current?.focus({ preventScroll: true });
-    return () => {
-      unlockPage();
-      opener?.focus({ preventScroll: true });
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -747,211 +887,120 @@ export function AddEntryModal({
   };
 
   return (
-    <div className="ap-overlay add-entry-overlay">
-      <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}>
-        <header className="add-entry-header">
-          <h2 id={`${formId}-title`}>{showClientInTitle ? (clientName || defaultClientName) : t('entry.addForm.title')}</h2>
-          <button ref={closeButtonRef} type="button" className="add-entry-close" onClick={onClose} disabled={loading} aria-label={t('common.close')}>
-            <X size={19} aria-hidden="true" />
-          </button>
-        </header>
-
-        <div className="add-entry-content">
-          <div className="add-entry-card">
-            {isClientScoped && !showClientInTitle && (
-              <div className="add-entry-client-summary">
-                <span className="add-entry-label">{t('entry.client')}</span>
-                <strong>{clientName || defaultClientName}</strong>
-              </div>
-            )}
-            {!isClientScoped && (
-              <div onBlur={event => {
-                if (event.currentTarget.contains(event.relatedTarget)) return;
-                setClientListOpen(false);
-                setClientQuery(clientName);
-              }}>
-                <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.client')}</label>
-                <input
-                  id={`${formId}-client`}
-                  type="text"
-                  className="ap-input"
-                  placeholder={t('entry.searchClientPlaceholder')}
-                  value={clientQuery}
-                  onFocus={() => { if (clientQuery === clientName) setClientQuery(''); setClientListOpen(true); }}
-                  onChange={event => { setClientQuery(event.target.value); setClientListOpen(true); }}
-                />
-                {clientListOpen && (
-                  <div className="add-entry-client-options">
-                    {routes
-                      .filter(r => filteredClients.some(c => c.route_id === r.id))
-                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                      .map(r => (
-                        <div key={r.id}>
-                          <div className="add-entry-client-route">
-                            {r.name}{hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}
-                          </div>
-                          {filteredClients
-                            .filter(c => c.route_id === r.id)
-                            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                            .map(c => (
-                              <button
-                                type="button"
-                                className="add-entry-client-option"
-                                key={c.id}
-                                aria-pressed={clientName === c.name}
-                                onMouseDown={event => event.preventDefault()}
-                                onClick={() => selectClient(c.name)}
-                              >
-                                {c.name}
-                              </button>
-                            ))}
-                        </div>
-                      ))}
-                    {filteredClients.length === 0 && <div className="add-entry-client-empty">{t('entry.noClientResults')}</div>}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {canToggleOtherRoutes && !isClientScoped && (
-              <button className="add-entry-other-routes" type="button" onClick={() => setShowOtherRoutes(value => !value)}>
-                {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
-              </button>
-            )}
-
-            <div role="group" aria-labelledby={`${formId}-type`}>
-              <div className="add-entry-label" id={`${formId}-type`}>{t('entry.laundryType')}</div>
-              <LaundryTypeSelector
-                client={clients.find(c => c.name === clientName)}
-                routes={routes}
-                value={type}
-                onChange={setType}
-                compact
-              />
-            </div>
-
-            <div>
-              <label className="add-entry-label" htmlFor={`${formId}-weight`}>{t('entry.addForm.netWeight')}</label>
-              <div className="add-entry-weight">
-                <input
-                  id={`${formId}-weight`}
-                  type="text"
-                  className="ap-input"
-                  placeholder={t('entry.weightPlaceholder')}
-                  inputMode="decimal"
-                  value={weight}
-                  aria-describedby={`${formId}-weight-unit ${formId}-weight-hint`}
-                  onChange={event => setWeight(event.target.value)}
-                />
-                <span id={`${formId}-weight-unit`} aria-hidden="true">{t('entry.addForm.weightUnit')}</span>
-              </div>
-              <p className="add-entry-hint" id={`${formId}-weight-hint`}>{t('entry.addForm.netWeightHint')}</p>
-            </div>
-
-            <div className="add-entry-trolleys">
-              <div className="add-entry-label" id={`${formId}-trolleys`}>{t('entry.trolleys')}</div>
-              <ArrivalTrolleyPicker
-                sessionToken={sessionToken}
-                clientName={clientName}
-                mode={trolleyMode}
-                onModeChange={setTrolleyMode}
-                selected={selectedTrolleys}
-                onSelectedChange={setSelectedTrolleys}
-                modeLabelId={`${formId}-trolleys`}
-                triggerLabel={t('entry.trolleyPickerTitle')}
-                disabled={loading}
-              />
-            </div>
+    <EntryFormSheet
+      formId={formId}
+      title={showClientInTitle ? (clientName || defaultClientName) : t('entry.addForm.title')}
+      onDismiss={onClose}
+      disabled={loading}
+      footer={(
+        <button type="button" className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading || !type}>
+          {loading ? t('entry.adding') : t('entry.add')}
+        </button>
+      )}
+    >
+      <div className="add-entry-card">
+        {isClientScoped && !showClientInTitle && (
+          <div className="add-entry-client-summary">
+            <span className="add-entry-label">{t('entry.client')}</span>
+            <strong>{clientName || defaultClientName}</strong>
           </div>
-
-          <section className="add-entry-card" aria-labelledby={`${formId}-dates`}>
-            <div className="add-entry-card-header">
-              <h3 id={`${formId}-dates`}>{t('entry.addForm.dates')}</h3>
-              <button
-                type="button"
-                className="add-entry-priority"
-                aria-pressed={urgent}
-                disabled={loading}
-                onClick={() => setUrgent(value => !value)}
-              >
-                <span>
-                  <Flag size={14} aria-hidden="true" />
-                  {t('entry.addForm.urgent')}
-                </span>
-              </button>
-            </div>
-            <div className="add-entry-date-grid">
-              <div>
-                {(isDriverStopFlow || courseTripId) ? (
-                  <>
-                    <span className="add-entry-label">{t('entry.arrivalDay')}</span>
-                    <div className="add-entry-locked-day">{dayWithDate(resolvedWeekKey, arrDay)}</div>
-                  </>
-                ) : (
-                  <>
-                    <label className="add-entry-label" htmlFor={`${formId}-arrival`}>{t('entry.arrivalDay')}</label>
-                    <select id={`${formId}-arrival`} className="ap-input" value={arrDay} onChange={event => {
-                      const { value } = event.target;
-                      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(value, resolvedWeekKey, clients, routes, clientName);
-                      setArrDay(value);
-                      setPickDay(pd);
-                      setPickWeek(pw);
-                    }}>
-                      {dayNamesShort().map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(resolvedWeekKey, i + 1))}</option>)}
-                    </select>
-                  </>
-                )}
-              </div>
-              <div>
-                <label className="add-entry-label" htmlFor={`${formId}-pickup`}>{t('entry.pickupDay')}</label>
-                <select id={`${formId}-pickup`} className="ap-input" value={pickDay} onChange={event => setPickDay(Number(event.target.value))}>
-                  {buildPickDayOptions(resolvedWeekKey, arrDay, pickWeek, pickDay).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="add-entry-pickup-week">
-              <label className="add-entry-label" htmlFor={`${formId}-week`}>{t('entry.pickupWeek')}</label>
-              <div className="add-entry-week-row">
-                <select id={`${formId}-week`} className="ap-input" value={pickWeek} onChange={event => {
-                  const week = Number(event.target.value);
-                  setPickWeek(week);
-                  if (week === 0 && Number(pickDay) < (parseInt(arrDay) || 1)) setPickDay(parseInt(arrDay) || 1);
-                }}>
-                  <option value={0}>{t('entry.sameWeek')}</option>
-                  <option value={1}>{t('entry.nextWeek')}</option>
-                  {(isAdmin || pickWeek > 1) && Array.from({ length: Math.max(2, pickWeek) - 1 }, (_, i) => i + 2).map(n => (
-                    <option key={n} value={n}>{t('entry.weeksLater', { count: n, date: shortDate(dateForDay(addWeeks(resolvedWeekKey, n), 1)) })}</option>
+        )}
+        {!isClientScoped && (
+          <div onBlur={event => {
+            if (event.currentTarget.contains(event.relatedTarget)) return;
+            setClientListOpen(false);
+            setClientQuery(clientName);
+          }}>
+            <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.client')}</label>
+            <input
+              id={`${formId}-client`}
+              type="text"
+              className="ap-input"
+              placeholder={t('entry.searchClientPlaceholder')}
+              value={clientQuery}
+              onFocus={() => { if (clientQuery === clientName) setClientQuery(''); setClientListOpen(true); }}
+              onChange={event => { setClientQuery(event.target.value); setClientListOpen(true); }}
+            />
+            {clientListOpen && (
+              <div className="add-entry-client-options">
+                {routes
+                  .filter(r => filteredClients.some(c => c.route_id === r.id))
+                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                  .map(r => (
+                    <div key={r.id}>
+                      <div className="add-entry-client-route">
+                        {r.name}{hasAssignedRouteFilter && assignedRouteIds.has(r.id) ? t('entry.yourRouteSuffix') : ''}
+                      </div>
+                      {filteredClients
+                        .filter(c => c.route_id === r.id)
+                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                        .map(c => (
+                          <button
+                            type="button"
+                            className="add-entry-client-option"
+                            key={c.id}
+                            aria-pressed={clientName === c.name}
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => selectClient(c.name)}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                    </div>
                   ))}
-                </select>
-                {isAdmin && !isDriverStopFlow && (
-                  <button
-                    type="button"
-                    className="add-entry-week-plus"
-                    aria-label={t('entry.postponeWeek')}
-                    title={t('entry.postponeWeek')}
-                    onClick={() => setPickWeek(week => Number(week) + 1)}
-                  >
-                    <Plus size={17} aria-hidden="true" />
-                  </button>
-                )}
+                {filteredClients.length === 0 && <div className="add-entry-client-empty">{t('entry.noClientResults')}</div>}
               </div>
-            </div>
-          </section>
-        </div>
+            )}
+          </div>
+        )}
 
-        <footer className="add-entry-footer">
-          <button type="button" className="ap-btn ap-btn-primary" onClick={handleSubmit} disabled={loading || !type}>
-            {loading ? t('entry.adding') : t('entry.add')}
+        {canToggleOtherRoutes && !isClientScoped && (
+          <button className="add-entry-other-routes" type="button" onClick={() => setShowOtherRoutes(value => !value)}>
+            {showOtherRoutes ? t('entry.backToMyRoutes') : t('entry.addFromOtherRoute')}
           </button>
-        </footer>
+        )}
+
+        <EntryLaundryFields
+          formId={formId}
+          client={clients.find(c => c.name === clientName)}
+          routes={routes}
+          type={type}
+          onTypeChange={setType}
+          weight={weight}
+          onWeightChange={setWeight}
+          trolleyPicker={{
+            sessionToken, clientName, mode: trolleyMode, onModeChange: setTrolleyMode,
+            selected: selectedTrolleys, onSelectedChange: setSelectedTrolleys, disabled: loading,
+          }}
+        />
       </div>
-    </div>
+      <EntryDatesCard
+        formId={formId}
+        weekKey={resolvedWeekKey}
+        arrDay={arrDay}
+        onArrivalChange={isDriverStopFlow || courseTripId ? undefined : value => {
+          const next = defaultPickInfoForClient(value, resolvedWeekKey, clients, routes, clientName);
+          setArrDay(value);
+          setPickDay(next.pickDay);
+          setPickWeek(next.pickWeek);
+        }}
+        pickDay={pickDay}
+        onPickupChange={setPickDay}
+        pickWeek={pickWeek}
+        onPickupWeekChange={setPickWeek}
+        onPostponeWeek={isAdmin && !isDriverStopFlow ? () => setPickWeek(week => Number(week) + 1) : undefined}
+        urgent={urgent}
+        onToggleUrgent={() => setUrgent(value => !value)}
+        disabled={loading}
+      />
+    </EntryFormSheet>
   );
 }
 
 export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = [], onUpdated, onDeleted, routes, clients = [], receipts = [], contextMode = 'view', initiallyEditing = false, source = null, permissionModule = 'schedule', allowDeleteInEditor = false, entryAssignmentLabel = null, entryAssignmentCaption = 'Przywiezie' }) {
   const { t } = useTranslation();
-  const { isAdmin, canEditModule, isViewer, user, sessionToken } = useAuth();
+  const { isAdmin, isDriver, canEditModule, isViewer, user, sessionToken } = useAuth();
+  const formId = useId();
   const canEdit = canEditModule(permissionModule);
   const [editing, setEditing] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -1146,6 +1195,18 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       setPickWeek(pw);
       setType(firstAllowedLaundryType(selected, routes) || '');
     }
+  };
+
+  const handleArrivalChange = value => {
+    const next = defaultPickInfoForClient(value, targetEntry.week_key, clients, routes, clientName);
+    setArrDay(value);
+    setPickDay(next.pickDay);
+    setPickWeek(next.pickWeek);
+  };
+
+  const cancelEdit = () => {
+    if (directEditMode) onClose();
+    else setEditing(false);
   };
 
   const toggleDone = async () => {
@@ -1465,6 +1526,84 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     );
     }
 
+  const editClientOptions = showEditForm && canChangeClient && (
+    <>
+      {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
+      {sortedRoutes
+        .filter(r => clients.some(c => c.route_id === r.id))
+        .map((r, index) => (
+          <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
+            {clients
+              .filter(c => c.route_id === r.id)
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </optgroup>
+        ))}
+    </>
+  );
+
+  if (showEditForm && isDriver) {
+    return (
+      <EntryFormSheet
+        formId={formId}
+        title={clientName || entry.client_name}
+        onDismiss={cancelEdit}
+        dismissLabel={t('common.cancel')}
+        disabled={loading}
+        footer={(
+          <button type="button" className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading || !type}>
+            {loading ? t('common.saving') : t('entry.save')}
+          </button>
+        )}
+      >
+        <div className="add-entry-card">
+          <EntryLaundryFields
+            formId={formId}
+            client={clients.find(c => c.name === clientName)}
+            routes={routes}
+            type={type}
+            onTypeChange={setType}
+            includeCurrent
+            weight={weight}
+            onWeightChange={setWeight}
+            trolleyPicker={{
+              sessionToken, clientName: clientName || targetEntry.client_name, entryId: targetEntry.id,
+              mode: trolleyMode, onModeChange: setTrolleyMode,
+              selected: selectedTrolleys, onSelectedChange: setSelectedTrolleys, disabled: loading,
+            }}
+          />
+        </div>
+        <EntryDatesCard
+          formId={formId}
+          weekKey={targetEntry.week_key}
+          arrDay={arrDay}
+          onArrivalChange={handleArrivalChange}
+          pickDay={pickDay}
+          onPickupChange={setPickDay}
+          pickWeek={pickWeek}
+          onPickupWeekChange={setPickWeek}
+          urgent={urgent}
+          onToggleUrgent={() => setUrgent(value => !value)}
+          disabled={loading}
+        />
+        <div className="add-entry-card">
+          {canChangeClient && (
+            <div>
+              <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.client')}</label>
+              <select id={`${formId}-client`} className="ap-input" value={clientName} onChange={event => handleClientChange(event.target.value)}>
+                {editClientOptions}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="add-entry-label" htmlFor={`${formId}-comment`}>{t('entry.comment')}</label>
+            <input id={`${formId}-comment`} type="text" className="ap-input" value={comment} onChange={event => setComment(event.target.value)} />
+          </div>
+        </div>
+      </EntryFormSheet>
+    );
+  }
+
     // Widok Edycji (tylko dla Admin/Driver po kliknięciu 'Edytuj')
     if (showEditForm) {
     return (
@@ -1490,17 +1629,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                   {contextMode === 'arr' ? t('entry.correctionClient') : t('entry.client')}
                 </div>
                 <select className="ap-input" style={{ padding: '12px 14px', marginBottom: '14px' }} value={clientName} onChange={e => handleClientChange(e.target.value)}>
-                  {!knownClientNames.has(entry.client_name) && <option value={entry.client_name}>{entry.client_name}</option>}
-                  {sortedRoutes
-                    .filter(r => clients.some(c => c.route_id === r.id))
-                    .map((r, index) => (
-                      <optgroup key={r.id} label={`T${index + 1} - ${r.name}`}>
-                        {clients
-                          .filter(c => c.route_id === r.id)
-                          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                          .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                      </optgroup>
-                    ))}
+                  {editClientOptions}
                 </select>
               </>
             )}
@@ -1523,12 +1652,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
                 <select
                   className="ap-input"
                   value={arrDay}
-                  onChange={e => {
-                    const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(e.target.value, targetEntry.week_key, clients, routes, clientName);
-                    setArrDay(e.target.value);
-                    setPickDay(pd);
-                    setPickWeek(pw);
-                  }}
+                  onChange={e => handleArrivalChange(e.target.value)}
                 >
                   {daysFull.map((name, i) => <option key={i} value={i + 1}>{name} {shortDate(dateForDay(targetEntry.week_key, i + 1))}</option>)}
                 </select>
@@ -1591,7 +1715,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
             <div className="ap-btn-group">
               <button className="ap-btn ap-btn-primary" onClick={handleSaveEdit} disabled={loading || !type}>{t('entry.save')}</button>
-              <button className="ap-btn ap-btn-secondary" onClick={() => directEditMode ? onClose() : setEditing(false)} disabled={loading}>{t('common.cancel')}</button>
+              <button className="ap-btn ap-btn-secondary" onClick={cancelEdit} disabled={loading}>{t('common.cancel')}</button>
               {isAdmin && allowDeleteInEditor && (
                 <button type="button" className="ap-btn ap-btn-danger" onClick={handleDelete} disabled={loading}>
                   {confirmDelete ? t('entry.confirmDeleteShort') : t('entry.delete')}
