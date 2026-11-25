@@ -731,6 +731,7 @@ export function AddEntryModal({
   const { t } = useTranslation();
   const { user, isDriver, isAdmin, sessionToken } = useAuth();
   const formId = useId();
+  const initialized = useRef(false);
   const [clientName, setClientName] = useState('');
   const [clientQuery, setClientQuery] = useState('');
   const [clientListOpen, setClientListOpen] = useState(false);
@@ -784,28 +785,28 @@ export function AddEntryModal({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      const day = defaultArrDay || 1;
-      // Jeśli podano defaultClientName, pre-wybierz tego klienta; inaczej pierwszy z tras
-      let initClient;
-      if (defaultClientName) {
-        initClient = clients.find(c => c.name === defaultClientName);
-      }
-      if (!initClient) initClient = firstClientByRouteOrder(ownClients, routes);
-      const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(day, resolvedWeekKey, clients, routes, initClient?.name);
-      setArrDay(day);
-      setPickDay(pd);
-      setPickWeek(pw);
-      setShowOtherRoutes(false);
-      setClientName(initClient?.name || '');
-      setClientQuery(initClient?.name || '');
-      setClientListOpen(false);
-      setWeight('');
-      setType(firstAllowedLaundryType(initClient, routes, defaultType) || '');
-      setTrolleyMode('trolley');
-      setSelectedTrolleys([]);
-      setUrgent(false);
+    if (!isOpen) {
+      initialized.current = false;
+      return;
     }
+    if (initialized.current || !clients.length) return;
+    initialized.current = true;
+
+    const day = defaultArrDay || 1;
+    const initClient = clients.find(client => client.name === defaultClientName) || firstClientByRouteOrder(ownClients, routes);
+    const { pickDay: pd, pickWeek: pw } = defaultPickInfoForClient(day, resolvedWeekKey, clients, routes, initClient?.name);
+    setArrDay(day);
+    setPickDay(pd);
+    setPickWeek(pw);
+    setShowOtherRoutes(false);
+    setClientName(initClient?.name || '');
+    setClientQuery(initClient?.name || '');
+    setClientListOpen(false);
+    setWeight('');
+    setType(firstAllowedLaundryType(initClient, routes, defaultType) || '');
+    setTrolleyMode('trolley');
+    setSelectedTrolleys([]);
+    setUrgent(false);
   }, [isOpen, defaultArrDay, clients, routes, ownClients, defaultClientName, defaultType, resolvedWeekKey]);
 
   useEffect(() => {
@@ -906,7 +907,7 @@ export function AddEntryModal({
           </div>
         )}
         {!isClientScoped && (
-          <div onBlur={event => {
+          <div className="add-entry-client-field" onBlur={event => {
             if (event.currentTarget.contains(event.relatedTarget)) return;
             setClientListOpen(false);
             setClientQuery(clientName);

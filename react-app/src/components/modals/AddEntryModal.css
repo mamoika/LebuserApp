@@ -170,12 +170,23 @@
   overflow-wrap: anywhere;
 }
 
+.add-entry-client-field {
+  position: relative;
+}
+
 .add-entry-client-options {
-  max-height: 185px;
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 100%;
+  inset-inline: 0;
+  max-height: min(185px, 34dvh);
   margin-top: 6px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--add-entry-border);
   border-radius: 12px;
+  background: var(--bg-card-solid);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 12%);
 }
 
 .add-entry-client-route {
