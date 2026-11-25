@@ -1068,7 +1068,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
   const canSaveLaundryReceipt = source === 'schedule' && canEdit;
   const receiptEntries = isPickupContext ? pickupEntries : [targetEntry];
-  const canChangeClient = contextMode !== 'arr' || isAdmin;
+  const canChangeClient = !isDriver && (contextMode !== 'arr' || isAdmin);
   const editNetWeightKg = parseNetWeightKg(weight);
 
   // Znajdź już zapisaną kartkę dla tego przyjęcia — najpierw po powiązanym wpisie,
@@ -1293,7 +1293,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       const effectiveClient = (clients || []).find(c => c.name === effectiveClientName);
       const nextRouteId = canChangeClient
         ? (routeId || effectiveClient?.route_id || targetEntry.route_id || null)
-        : (targetEntry.route_id || null);
+        : (targetEntry.route_id ?? null);
       const trolleyData = arrivalTrolleyPayload(trolleyMode, selectedTrolleys);
 
       let updates = {
@@ -1328,8 +1328,9 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       if (editData?.error) throw new Error(editData.error);
 
       // Zapisz komentarz do clients.note (wspólny dla całego klienta)
-      const currentClientNote = (clients || []).find(c => c.name === entry.client_name)?.note || '';
-      if (comment !== (currentClientNote || '')) {
+      const currentClientNote = selectedClientDetails?.note || '';
+      const noteChanged = !isDriver && comment !== currentClientNote;
+      if (noteChanged) {
         await supabase.rpc('admin_set_client_note', {
           p_session_token: sessionToken,
           p_name: effectiveClientName.trim() || entry.client_name,
@@ -1339,9 +1340,8 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
       // Loguj tylko realne zmiany — automatycznie wykrywamy każde zmienione pole.
       const changes = buildEditDiff(targetEntry, updates, routes, t);
       // Śledź też zmianę komentarza klienta
-      const currentClientNote2 = (clients || []).find(c => c.name === entry.client_name)?.note || '';
-      if (comment !== (currentClientNote2 || '')) {
-        changes.push(`${t('entry.diffComment')}: "${currentClientNote2 || '—'}" → "${comment || '—'}"`);
+      if (noteChanged) {
+        changes.push(`${t('entry.diffComment')}: "${currentClientNote || '—'}" → "${comment || '—'}"`);
       }
       if (isAdmin && contextMode === 'arr' && targetEntry.client_name !== updates.client_name) {
         const originalBy = targetEntry.added_by || targetEntry.picked_by || targetEntry.delivered_by || '—';
@@ -1546,7 +1546,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     return (
       <EntryFormSheet
         formId={formId}
-        title={clientName || entry.client_name}
+        title={targetEntry.client_name}
         onDismiss={cancelEdit}
         dismissLabel={t('common.cancel')}
         disabled={loading}
@@ -1586,20 +1586,6 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           onToggleUrgent={() => setUrgent(value => !value)}
           disabled={loading}
         />
-        <div className="add-entry-card">
-          {canChangeClient && (
-            <div>
-              <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.client')}</label>
-              <select id={`${formId}-client`} className="ap-input" value={clientName} onChange={event => handleClientChange(event.target.value)}>
-                {editClientOptions}
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="add-entry-label" htmlFor={`${formId}-comment`}>{t('entry.comment')}</label>
-            <input id={`${formId}-comment`} type="text" className="ap-input" value={comment} onChange={event => setComment(event.target.value)} />
-          </div>
-        </div>
       </EntryFormSheet>
     );
   }
