@@ -64,3 +64,35 @@ export function buildTrolleyOccupancy(trolleys = [], arrivalReservations = []) {
 
   return occupancy;
 }
+
+export function canUseFreeTrolley(trolleyNo, occupied, inventory) {
+  if (occupied) return false;
+  if (!inventory?.trolley_nos.includes(trolleyNo)) return true;
+  const check = inventory.checks[trolleyNo];
+  return Boolean(check && (check.movement_since_check || check.status === 'free_at_laundry'));
+}
+
+export function trolleyFleetStatus(trolleyNo, occupied, inventory) {
+  const recorded = !occupied ? 'free'
+    : occupied.occupancy_source === 'arrival' ? 'dirty'
+    : occupied.status === 'at_client' ? 'atClient' : 'inUse';
+
+  if (!inventory?.trolley_nos.includes(trolleyNo)) return { status: recorded, recorded };
+
+  const check = inventory.checks[trolleyNo];
+  if (!check) return { status: 'review', recorded };
+  if (check.movement_since_check) return { status: recorded, recorded, check };
+
+  const observed = {
+    free_at_laundry: 'free',
+    at_client: 'atClient',
+    in_use: 'inUse',
+    dirty_at_laundry: 'dirty',
+  }[check.status];
+  const conflict = occupied && (
+    occupied.occupancy_conflict || recorded !== observed
+    || (observed === 'atClient' && occupied.client_name !== check.client_name)
+    || (observed === 'dirty' && occupied.status === 'returning_to_laundry')
+  );
+  return { status: conflict ? 'conflict' : observed, recorded, check };
+}

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { laundryActionErrorMessage } from '../../lib/laundryRpc';
+import { canUseFreeTrolley } from '../../lib/trolleyOccupancy';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
 import ArrivalTrolleyPicker from './ArrivalTrolleyPicker';
 
@@ -27,6 +28,7 @@ export default function PackingModal({
   onRefreshAvailability,
   sessionToken,
   trolleyNumbers = [],
+  trolleyInventory,
   activeTrolleyByNo = new Map(),
 }) {
   const { t } = useTranslation();
@@ -55,6 +57,10 @@ export default function PackingModal({
       const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
       if (activeCycle) {
         setError(t('wash.packing.occupied', { trolley: trolleyNo, client: activeCycle.client_name }));
+        return;
+      }
+      if (!canUseFreeTrolley(trolleyNo, activeCycle, trolleyInventory)) {
+        setError(t('wash.fleet.inventory.unavailable', { trolley: formatTrolleyCode(trolleyNo) }));
         return;
       }
 

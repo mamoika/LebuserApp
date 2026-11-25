@@ -37,7 +37,7 @@ import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
 import { departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
-import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
+import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley } from '../lib/trolleyOccupancy';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { currentLocale, monthNames } from '../lib/dateUtils';
 import { calendarTodayYmd, formatWorkDuration } from '../lib/workTime';
@@ -62,6 +62,7 @@ const EMPTY_REMOTE = {
   trolleys: [],
   arrivalReservations: [],
   trolleyCount: DEFAULT_TROLLEY_COUNT,
+  trolleyInventory: null,
   boardTrips: [],
   approvalBacklog: null,
   schedule: null,
@@ -324,6 +325,7 @@ export default function ControlPanelView() {
       trolleys: laundry?.trolleys || [],
       arrivalReservations: laundry?.arrival_reservations || [],
       trolleyCount: Math.max(1, Math.min(99, Number(laundry?.trolley_count) || DEFAULT_TROLLEY_COUNT)),
+      trolleyInventory: laundry?.trolley_inventory ?? null,
       boardTrips: boardRes.status === 'fulfilled' ? (boardRes.value?.trips || []) : [],
       approvalBacklog: approvalsRes.status === 'fulfilled' ? approvalsRes.value : null,
       schedule: scheduleRes.status === 'fulfilled' ? scheduleRes.value : null,
@@ -356,7 +358,10 @@ export default function ControlPanelView() {
       departureDateOf,
     );
     const activeCycles = activePhysicalTrolleyCycles(remote.trolleys);
-    const occupied = buildTrolleyOccupancy(activeCycles, remote.arrivalReservations).size;
+    const occupancy = buildTrolleyOccupancy(activeCycles, remote.arrivalReservations);
+    const occupied = occupancy.size;
+    const free = Array.from({ length: remote.trolleyCount }, (_, index) => String(index + 1))
+      .filter(no => canUseFreeTrolley(no, occupancy.get(no), remote.trolleyInventory)).length;
     const atClient = activeCycles.filter(cycle => cycle.status === 'at_client').length;
     return {
       ...metrics,
@@ -366,9 +371,9 @@ export default function ControlPanelView() {
       atClient,
       inLaundry: Math.max(0, activeCycles.length - atClient),
       reserved: Math.max(0, occupied - activeCycles.length),
-      free: Math.max(0, remote.trolleyCount - occupied),
+      free,
     };
-  }, [clients, entries, remote.arrivalReservations, remote.trolleyCount, remote.trolleys, routes, todayKey]);
+  }, [clients, entries, remote.arrivalReservations, remote.trolleyCount, remote.trolleyInventory, remote.trolleys, routes, todayKey]);
 
   const team = useMemo(() => {
     const schedule = remote.schedule;
@@ -531,6 +536,11 @@ export default function ControlPanelView() {
             detail={[
               t('controlPanel.today.trolleysDetail', { free: laundry.free, atClient: laundry.atClient, inLaundry: laundry.inLaundry }),
               laundry.reserved > 0 ? t('controlPanel.today.trolleysReserved', { count: laundry.reserved }) : null,
+              remote.trolleyInventory && !remote.trolleyInventory.completed_at
+                ? t('wash.fleet.inventory.progress', {
+                  checked: Object.keys(remote.trolleyInventory.checks).length,
+                  total: remote.trolleyInventory.trolley_nos.length,
+                }) : null,
             ].filter(Boolean).join(' · ')}
             to="/wash"
           />

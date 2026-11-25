@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
   activePhysicalTrolleyCycles,
   buildTrolleyOccupancy,
+  canUseFreeTrolley,
+  trolleyFleetStatus,
 } from './trolleyOccupancy.js';
 
 test('dirty arrival reservations occupy physical trolleys in the laundry fleet', () => {
@@ -53,4 +55,35 @@ test('returned and virtual cycles do not occupy the physical fleet', () => {
     { trolley_no: 'brak', status: 'packed', returned_at: null },
     { trolley_no: '2', status: 'at_client', returned_at: null },
   ]).map(cycle => cycle.trolley_no), ['2']);
+});
+
+test('inventory keeps unchecked and conflicting carts out of free availability', () => {
+  const occupancy = buildTrolleyOccupancy([{ trolley_no: '3', status: 'packed', client_name: 'Motel One' }]);
+  const inventory = {
+    trolley_nos: ['1', '2', '3', '4'],
+    checks: { '2': { status: 'free_at_laundry' }, '3': { status: 'free_at_laundry' }, '4': { status: 'in_use' } },
+  };
+
+  assert.deepEqual(['1', '2', '3', '4', '5'].map(no => (
+    canUseFreeTrolley(no, occupancy.get(no), inventory)
+  )), [false, true, false, false, true]);
+  assert.deepEqual(['1', '2', '3', '4', '5'].map(no => (
+    trolleyFleetStatus(no, occupancy.get(no), inventory).status
+  )), ['review', 'free', 'conflict', 'inUse', 'free']);
+  assert.equal(trolleyFleetStatus('3', occupancy.get('3'), inventory).recorded, 'inUse');
+});
+
+test('a movement after a check resumes normal tracking for that trolley', () => {
+  const inventory = {
+    trolley_nos: ['1', '2'],
+    checks: {
+      '1': { status: 'in_use', movement_since_check: true },
+      '2': { status: 'free_at_laundry', movement_since_check: true },
+    },
+  };
+  const arrival = buildTrolleyOccupancy([], [{ trolley_no: '2', entry_id: 'dirty-2' }]).get('2');
+  assert.equal(trolleyFleetStatus('1', null, inventory).status, 'free');
+  assert.equal(canUseFreeTrolley('1', null, inventory), true);
+  assert.equal(trolleyFleetStatus('2', arrival, inventory).status, 'dirty');
+  assert.equal(canUseFreeTrolley('2', arrival, inventory), false);
 });

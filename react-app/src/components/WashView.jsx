@@ -39,7 +39,8 @@ import PackingModal from './modals/PackingModal';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
-import { activePhysicalTrolleyCycles, buildTrolleyOccupancy } from '../lib/trolleyOccupancy';
+import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley } from '../lib/trolleyOccupancy';
+import { formatTrolleyCode } from '../lib/trolleyCodes';
 import { calculateLaundryDayMetrics, isLaundryWashed, isReadyForDriver, laundryBatchKey } from '../lib/laundryDayPlan';
 import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 const EMPTY_WORKFLOW_ROWS = [];
@@ -298,6 +299,7 @@ export default function WashView() {
   const trolleys = workflow?.trolleys || EMPTY_WORKFLOW_ROWS;
   const arrivalReservations = workflow?.arrival_reservations || EMPTY_WORKFLOW_ROWS;
   const trolleyCount = Math.max(1, Math.min(99, Number(workflow?.trolley_count) || DEFAULT_TROLLEY_COUNT));
+  const trolleyInventory = workflow?.trolley_inventory;
   const [busyKey, setBusyKey] = useState('');
   const [packingGroup, setPackingGroup] = useState(null);
   const [addingEmptyTrolleys, setAddingEmptyTrolleys] = useState(false);
@@ -498,7 +500,7 @@ export default function WashView() {
     return buildTrolleyOccupancy(activeTrolleys, enrichedArrivals);
   }, [activeTrolleys, arrivalReservations, dailyServiceByClient, entryById, scheduleByRoute]);
 
-  const freeTrolleyCount = Math.max(0, trolleyCount - activeTrolleyByNo.size);
+  const freeTrolleyCount = trolleyNumbers.filter(no => canUseFreeTrolley(no, activeTrolleyByNo.get(no), trolleyInventory)).length;
 
   const metrics = useMemo(() => ({
     ...calculateLaundryDayMetrics(
@@ -603,6 +605,9 @@ export default function WashView() {
       const activeCycle = activeTrolleyByNo.get(trolleyNo.toLowerCase());
       if (activeCycle) {
         throw new Error(t('wash.validation.occupiedBy', { trolley: trolleyNo, client: activeCycle.client_name }));
+      }
+      if (!canUseFreeTrolley(trolleyNo, activeCycle, trolleyInventory)) {
+        throw new Error(t('wash.fleet.inventory.unavailable', { trolley: formatTrolleyCode(trolleyNo) }));
       }
     }
 
@@ -1033,7 +1038,9 @@ export default function WashView() {
             <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
             <span className="laundry-fleet-summary-copy">
               <strong>{t('wash.flowOverview.fleetTitle')}</strong>
-              <span>{t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
+              <span>{trolleyInventory && !trolleyInventory.completed_at
+                ? t('wash.fleet.inventory.progress', { checked: Object.keys(trolleyInventory.checks).length, total: trolleyInventory.trolley_nos.length })
+                : t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
             </span>
             <strong className="laundry-fleet-summary-free tabular-nums">
               {t('wash.flowOverview.fleetFree', { count: freeTrolleyCount })}
@@ -1055,6 +1062,7 @@ export default function WashView() {
           onRefreshAvailability={fetchWorkflow}
           sessionToken={sessionToken}
           trolleyNumbers={trolleyNumbers}
+          trolleyInventory={trolleyInventory}
           activeTrolleyByNo={activeTrolleyByNo}
         />
       )}
@@ -1108,6 +1116,7 @@ export default function WashView() {
           }}
           sessionToken={sessionToken}
           trolleyCount={trolleyCount}
+          inventory={trolleyInventory}
           activeTrolleyByNo={activeTrolleyByNo}
           clients={clients}
           initialTrolley={historyTrolley}

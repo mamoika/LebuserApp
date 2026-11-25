@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Archive, CheckCircle2, ChevronRight, Clock3, History, MapPin, PackageOpen, Search, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, History, MapPin, PackageOpen, Search, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
+import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory, startTrolleyInventory, verifyTrolleyInventory } from '../lib/laundryRpc';
 import { formatTrolleyCode, parseTrolleyCode } from '../lib/trolleyCodes';
+import { trolleyFleetStatus } from '../lib/trolleyOccupancy';
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 import { operationalYmd } from '../lib/dateUtils';
 import { lockPageScroll } from '../lib/modalScrollLock';
 import './TrolleysDashboardModal.css';
@@ -14,10 +16,67 @@ const FLEET_STATUSES = {
   atClient: { Icon: Archive, label: 'left', filter: 'left' },
 };
 
-function getFleetStatus(active) {
-  if (!active) return 'free';
-  if (active.occupancy_source === 'arrival') return 'dirty';
-  return active.status === 'at_client' ? 'atClient' : 'inUse';
+const INVENTORY_STATUSES = {
+  review: { Icon: ClipboardCheck, label: 'inventory.review' },
+  conflict: { Icon: ShieldAlert, label: 'inventory.conflict' },
+};
+
+const STATUS_DETAILS = { ...FLEET_STATUSES, ...INVENTORY_STATUSES };
+const OBSERVED_LABELS = {
+  free_at_laundry: 'free',
+  at_client: 'left',
+  in_use: 'inUse',
+  dirty_at_laundry: 'dirtyAtLaundry',
+};
+
+function fleetStatusDetails(status, active) {
+  return status === 'dirty' && active?.status === 'returning_to_laundry'
+    ? { Icon: Truck, label: 'returningToLaundry' }
+    : STATUS_DETAILS[status];
+}
+
+function inventoryErrorMessage(error, t) {
+  if (error?.message === 'trolley_inventory_changed') return t('wash.fleet.inventory.changed');
+  if (error?.message === 'trolley_inventory_invalid_client') return t('wash.fleet.inventory.invalidClient');
+  return t('wash.fleet.inventory.error');
+}
+
+function TrolleyInventoryCheck({ check, active, clients, busy, error, onVerify }) {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState(check?.status || '');
+  const [clientId, setClientId] = useState(() => clients.find(client => (
+    client.name === (check?.client_name || active?.client_name)
+  ))?.id || '');
+
+  return (
+    <form className="fleet-inventory-check" onSubmit={event => {
+      event.preventDefault();
+      if (status && (status !== 'at_client' || clientId) && !busy) onVerify(status, clientId);
+    }}>
+      <label className="fleet-history-client-field">
+        <span>{t('wash.fleet.inventory.observed')}</span>
+        <select value={status} onChange={event => setStatus(event.target.value)} disabled={busy}>
+          <option value="">{t('wash.fleet.inventory.chooseStatus')}</option>
+          {Object.entries(OBSERVED_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{t(`wash.fleet.${label}`)}</option>
+          ))}
+        </select>
+      </label>
+      {status === 'at_client' && (
+        <label className="fleet-history-client-field">
+          <span>{t('wash.fleet.actions.clientLabel')}</span>
+          <select value={clientId} onChange={event => setClientId(event.target.value)} disabled={busy}>
+            <option value="">{t('wash.fleet.actions.clientPlaceholder')}</option>
+            {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+          </select>
+        </label>
+      )}
+      {error && <small className="fleet-inventory-error" role="alert">{error}</small>}
+      <button type="submit" className="fleet-inventory-button" disabled={busy || !status || (status === 'at_client' && !clientId)}>
+        {t(busy ? 'wash.fleet.actions.saving' : 'wash.fleet.inventory.verify')}
+      </button>
+    </form>
+  );
 }
 
 function normalizeSearch(value = '') {
@@ -46,6 +105,7 @@ export default function TrolleysDashboardModal({
   initialTrolley = null,
   canForceReset = false,
   actorName = null,
+  inventory,
 }) {
   const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState(null);
@@ -60,6 +120,10 @@ export default function TrolleysDashboardModal({
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  const [inventoryStartOpen, setInventoryStartOpen] = useState(false);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryError, setInventoryError] = useState('');
+  const [inventoryFeedback, setInventoryFeedback] = useState('');
   const historyCloseRef = useRef(null);
   const historyPanelRef = useRef(null);
   const historyTriggerRef = useRef(null);
@@ -67,10 +131,15 @@ export default function TrolleysDashboardModal({
   const fleetContentRef = useRef(null);
   const fleetListRef = useRef(null);
   const searchRef = useRef(null);
+  const inventoryStartRef = useRef(null);
 
-  const closeHistory = useCallback(() => {
+  const closeHistory = useCallback((focusSearch = false) => {
     setSelectedTrolley(null);
     requestAnimationFrame(() => {
+      if (focusSearch) {
+        searchRef.current?.focus();
+        return;
+      }
       historyTriggerRef.current?.focus();
       if (document.activeElement !== historyTriggerRef.current) fleetCloseRef.current?.focus();
     });
@@ -108,8 +177,13 @@ export default function TrolleysDashboardModal({
   }, [selectedTrolley]);
 
   useEffect(() => {
+    if (inventoryStartOpen) inventoryStartRef.current?.focus();
+  }, [inventoryStartOpen]);
+
+  useEffect(() => {
     const handleKeyDown = event => {
       if (event.key === 'Escape') {
+        if (inventoryBusy) return;
         if (selectedTrolley) closeHistory();
         else onClose();
       }
@@ -131,26 +205,27 @@ export default function TrolleysDashboardModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeHistory, onClose, selectedTrolley]);
+  }, [closeHistory, inventoryBusy, onClose, selectedTrolley]);
 
-  const counts = { free: 0, inUse: 0, dirty: 0, atClient: 0 };
+  const counts = { free: 0, inUse: 0, dirty: 0, atClient: 0, review: 0, conflict: 0 };
   const today = new Date();
   const fleet = Array.from({ length: trolleyCount }, (_, index) => {
     const trolleyNo = String(index + 1);
     const active = activeTrolleyByNo.get(trolleyNo);
-    const status = getFleetStatus(active);
+    const { status, recorded, check } = trolleyFleetStatus(trolleyNo, active, inventory);
     counts[status] += 1;
-    const atClientDays = status === 'atClient'
-      ? daysSince(active.delivered_at || active.entry_delivered_at || active.packed_at, today)
+    const clientName = status === 'atClient' && !check?.movement_since_check ? (check?.client_name || active?.client_name) : active?.client_name;
+    const atClientDays = recorded === 'atClient'
+      ? daysSince(active?.delivered_at || active?.entry_delivered_at || active?.packed_at, today)
       : null;
-    return { trolleyNo, code: formatTrolleyCode(trolleyNo), active, status, atClientDays };
+    return { trolleyNo, code: formatTrolleyCode(trolleyNo), active, status, recorded, clientName, atClientDays };
   });
   const search = normalizeSearch(query);
   const searchNumber = parseTrolleyCode(search);
-  const visibleTrolleys = fleet.filter(({ trolleyNo, code, active, status }) => (
+  const visibleTrolleys = fleet.filter(({ trolleyNo, code, clientName, status }) => (
     (!filter || status === filter) && (!search || (
       (searchNumber ? trolleyNo === searchNumber : code.toLowerCase().includes(search))
-      || normalizeSearch(active?.client_name ?? '').includes(search)
+      || normalizeSearch(clientName ?? '').includes(search)
     ))
   ));
   if (sort === 'oldest') {
@@ -159,6 +234,67 @@ export default function TrolleysDashboardModal({
   const resetListScroll = () => {
     fleetListRef.current?.scrollTo(0, 0);
     fleetContentRef.current?.scrollTo(0, 0);
+  };
+
+  const openTrolley = (trolleyNo, trigger = null) => {
+    historyTriggerRef.current = trigger;
+    setInventoryError('');
+    setInventoryFeedback('');
+    setSelectedTrolley(trolleyNo);
+  };
+
+  const openScannedTrolley = value => {
+    const trolleyNo = parseTrolleyCode(value);
+    if (!trolleyNo || !inventory?.trolley_nos.includes(trolleyNo) || Number(trolleyNo) > trolleyCount) return false;
+    setQuery('');
+    openTrolley(trolleyNo, searchRef.current);
+    return true;
+  };
+
+  useBarcodeScanner({
+    enabled: Boolean(inventory && canForceReset && !selectedTrolley && !inventoryStartOpen && !inventoryBusy),
+    onScan: (code, event) => {
+      if (openScannedTrolley(code)) event.preventDefault();
+    },
+  });
+
+  const handleInventoryStart = async () => {
+    if (inventoryBusy) return;
+    setInventoryBusy(true);
+    setInventoryError('');
+    setInventoryFeedback('');
+    try {
+      await startTrolleyInventory(sessionToken, inventory?.id);
+      await onRefresh?.();
+      setInventoryStartOpen(false);
+      // Keep the toolbar usable while the fleet payload refreshes.
+      setFilter('review');
+      setQuery('');
+      resetListScroll();
+      searchRef.current?.focus();
+    } catch (error) {
+      setInventoryError(inventoryErrorMessage(error, t));
+    } finally {
+      setInventoryBusy(false);
+    }
+  };
+
+  const handleInventoryVerification = async (status, clientId) => {
+    if (inventoryBusy) return;
+    setInventoryBusy(true);
+    setInventoryError('');
+    try {
+      const result = await verifyTrolleyInventory(sessionToken, inventory.id, selectedTrolley, status, clientId);
+      await onRefresh?.();
+      setInventoryFeedback(t('wash.fleet.inventory.verified', { trolley: formatTrolleyCode(selectedTrolley) }));
+      if (result.completed_at && filter === 'review') setFilter(null);
+      setQuery('');
+      closeHistory(true);
+    } catch (error) {
+      setInventoryError(inventoryErrorMessage(error, t));
+    } finally {
+      setInventoryBusy(false);
+    }
   };
 
   const formatDate = value => {
@@ -182,10 +318,10 @@ export default function TrolleysDashboardModal({
   const activeClients = clients
     .filter(client => client?.id && !client.archived_at)
     .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
-  const selectedStatus = getFleetStatus(selectedActive);
-  const selectedReturning = selectedStatus === 'dirty' && selectedActive.status === 'returning_to_laundry';
-  const selectedStatusLabel = selectedReturning ? 'returningToLaundry' : FLEET_STATUSES[selectedStatus].label;
-  const SelectedStatusIcon = selectedReturning ? Truck : FLEET_STATUSES[selectedStatus].Icon;
+  const { status: selectedStatus, recorded: selectedRecorded, check: selectedCheck } = trolleyFleetStatus(selectedTrolley, selectedActive, inventory);
+  const { Icon: SelectedStatusIcon, label: selectedStatusLabel } = fleetStatusDetails(selectedStatus, selectedActive);
+  const inInventory = inventory?.trolley_nos.includes(selectedTrolley);
+  const checkedCount = inventory ? Object.keys(inventory.checks).length : 0;
 
   const handleCorrection = async () => {
     if (!pendingAction || !selectedTrolley || actionBusy) return;
@@ -215,7 +351,7 @@ export default function TrolleysDashboardModal({
   };
 
   return (
-    <div className="ap-overlay fleet-overlay" onClick={onClose}>
+    <div className="ap-overlay fleet-overlay" onClick={() => { if (!inventoryBusy) onClose(); }}>
       <section className="fleet-modal" role="dialog" aria-modal="true" aria-labelledby="fleet-title" onClick={event => event.stopPropagation()}>
         <div className="fleet-content" ref={fleetContentRef} inert={Boolean(selectedTrolley)}>
           <header className="fleet-header">
@@ -223,12 +359,64 @@ export default function TrolleysDashboardModal({
               <h2 id="fleet-title">{t('wash.fleet.title')}</h2>
               <p>{t('wash.fleet.subtitle', { count: trolleyCount })}</p>
             </div>
-            <button ref={fleetCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={onClose} aria-label={t('common.close')}>
+            <button ref={fleetCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={onClose} disabled={inventoryBusy} aria-label={t('common.close')}>
               <X size={19} aria-hidden="true" />
             </button>
           </header>
 
           <div className="fleet-controls">
+            {(inventory || (canForceReset && inventory === null)) && (
+              <section className="fleet-inventory-bar" aria-label={t('wash.fleet.inventory.title')}>
+                <div className="fleet-inventory-heading">
+                  <ClipboardCheck size={18} aria-hidden="true" />
+                  <div>
+                    <strong>{t('wash.fleet.inventory.title')}</strong>
+                    {inventory && (
+                      <small>{t(inventory.completed_at ? 'wash.fleet.inventory.complete' : 'wash.fleet.inventory.progress', {
+                        checked: checkedCount,
+                        total: inventory.trolley_nos.length,
+                      })}</small>
+                    )}
+                  </div>
+                </div>
+                <div className="fleet-inventory-actions">
+                  {inventory && !inventory.completed_at && (
+                    <button type="button" aria-pressed={filter === 'review'} onClick={() => {
+                      setFilter(filter === 'review' ? null : 'review');
+                      resetListScroll();
+                    }}>{t('wash.fleet.inventory.review')} <strong>{counts.review}</strong></button>
+                  )}
+                  {counts.conflict > 0 && (
+                    <button type="button" aria-pressed={filter === 'conflict'} onClick={() => {
+                      setFilter(filter === 'conflict' ? null : 'conflict');
+                      resetListScroll();
+                    }}>{t('wash.fleet.inventory.conflicts')} <strong>{counts.conflict}</strong></button>
+                  )}
+                  {canForceReset && (!inventory || inventory.completed_at) && !inventoryStartOpen && (
+                    <button type="button" onClick={() => {
+                      setInventoryError('');
+                      setInventoryFeedback('');
+                      setInventoryStartOpen(true);
+                    }}>{t('wash.fleet.inventory.start')}</button>
+                  )}
+                </div>
+                {inventoryStartOpen && (
+                  <div className="fleet-inventory-confirm">
+                    <p>{t('wash.fleet.inventory.startDescription')}</p>
+                    {inventoryError && <small className="fleet-inventory-error" role="alert">{inventoryError}</small>}
+                    <div className="fleet-inventory-actions">
+                      <button type="button" disabled={inventoryBusy} onClick={() => {
+                        setInventoryStartOpen(false);
+                        setInventoryError('');
+                      }}>{t('common.cancel')}</button>
+                      <button ref={inventoryStartRef} type="button" className="fleet-inventory-button" disabled={inventoryBusy} onClick={handleInventoryStart}>
+                        {t(inventoryBusy ? 'wash.fleet.actions.saving' : 'wash.fleet.inventory.start')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
             <div className="fleet-filters" role="group" aria-label={t('wash.fleet.filterLabel')}>
               {Object.entries(FLEET_STATUSES).map(([status, { Icon, filter: label }]) => (
                 <button
@@ -250,13 +438,17 @@ export default function TrolleysDashboardModal({
             </div>
 
             <div className="fleet-toolbar">
-              <div className="fleet-search">
+              <form className="fleet-search" role="search" onSubmit={event => {
+                event.preventDefault();
+                if (!canForceReset || inventoryStartOpen || inventoryBusy) return;
+                openScannedTrolley(query);
+              }}>
                 <Search size={17} aria-hidden="true" />
                 <input
                   ref={searchRef}
                   type="search"
-                  aria-label={t('wash.fleet.search')}
-                  placeholder={t('wash.fleet.search')}
+                  aria-label={t(inventory && canForceReset ? 'wash.fleet.inventory.scan' : 'wash.fleet.search')}
+                  placeholder={t(inventory && canForceReset ? 'wash.fleet.inventory.scan' : 'wash.fleet.search')}
                   value={query}
                   onChange={event => {
                     setQuery(event.target.value);
@@ -277,7 +469,7 @@ export default function TrolleysDashboardModal({
                     <X size={15} aria-hidden="true" />
                   </button>
                 )}
-              </div>
+              </form>
               <label className="fleet-sort">
                 <span>{t('wash.fleet.sortLabel')}</span>
                 <select value={sort} onChange={event => {
@@ -291,7 +483,7 @@ export default function TrolleysDashboardModal({
             </div>
 
             <div className="fleet-results">
-              <span role="status">{t('wash.fleet.results', { shown: visibleTrolleys.length, total: trolleyCount })}</span>
+              <span role="status">{inventoryFeedback || t('wash.fleet.results', { shown: visibleTrolleys.length, total: trolleyCount })}</span>
               {(filter || query) && (
                 <button type="button" onClick={() => {
                   searchRef.current?.focus();
@@ -314,10 +506,14 @@ export default function TrolleysDashboardModal({
                   <span><History size={16} /></span>
                 </div>
                 <ul aria-label={t('wash.fleet.title')}>
-                  {visibleTrolleys.map(({ trolleyNo, code, active, status, atClientDays }) => {
-                    const returning = status === 'dirty' && active.status === 'returning_to_laundry';
-                    const label = returning ? 'rowReturning' : status === 'dirty' ? 'rowDirty' : FLEET_STATUSES[status].label;
-                    const Icon = returning ? Truck : FLEET_STATUSES[status].Icon;
+                  {visibleTrolleys.map(({ trolleyNo, code, active, status, recorded, clientName, atClientDays }) => {
+                    const { Icon, label } = fleetStatusDetails(status, active);
+                    const recordedText = recorded === 'free'
+                      ? t('wash.fleet.inventory.noAssignment')
+                      : t(`wash.fleet.${fleetStatusDetails(recorded, active).label}`);
+                    const rowDetail = status === 'review' || status === 'conflict'
+                      ? [recordedText, clientName].filter(Boolean).join(' · ')
+                      : clientName;
                     const duration = atClientDays === null ? null
                       : atClientDays === 0 ? t('wash.fleet.leftToday')
                       : atClientDays === 1 ? t('wash.fleet.sinceYesterday')
@@ -330,15 +526,12 @@ export default function TrolleysDashboardModal({
                           className="fleet-row"
                           data-status={status}
                           aria-haspopup="dialog"
-                          onClick={event => {
-                            historyTriggerRef.current = event.currentTarget;
-                            setSelectedTrolley(trolleyNo);
-                          }}
+                          onClick={event => openTrolley(trolleyNo, event.currentTarget)}
                         >
                           <strong className="fleet-code">{code}</strong>
                           <span className="fleet-row-status"><Icon size={14} aria-hidden="true" />{t(`wash.fleet.${label}`)}</span>
-                          <span className="fleet-client" title={active?.client_name || undefined}>
-                            {active?.client_name || <span className="fleet-list-dash" aria-hidden="true">—</span>}
+                          <span className="fleet-client" title={rowDetail || undefined}>
+                            {rowDetail || <span className="fleet-list-dash" aria-hidden="true">—</span>}
                           </span>
                           <span className="fleet-stay" data-long-stay={atClientDays > 5 || undefined}>
                             {duration || <span className="fleet-list-dash" aria-hidden="true">—</span>}
@@ -363,10 +556,11 @@ export default function TrolleysDashboardModal({
         </div>
 
         {selectedTrolley && (
-          <div className="fleet-history-backdrop" onClick={closeHistory}>
+          <div className="fleet-history-backdrop" onClick={() => { if (!inventoryBusy) closeHistory(); }}>
             <aside
               ref={historyPanelRef}
               className="fleet-history-panel"
+              data-inventory={canForceReset && inInventory || undefined}
               role="dialog"
               aria-modal="true"
               aria-labelledby="fleet-history-title"
@@ -380,7 +574,7 @@ export default function TrolleysDashboardModal({
                   </div>
                   <div className="fleet-history-subtitle">{t('wash.fleet.historySubtitle')}</div>
                 </div>
-                <button ref={historyCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={closeHistory} aria-label={t('common.close')}>
+                <button ref={historyCloseRef} type="button" className="fleet-icon-button fleet-close" onClick={() => closeHistory()} disabled={inventoryBusy} aria-label={t('common.close')}>
                   <X size={19} aria-hidden="true" />
                 </button>
               </header>
@@ -390,9 +584,37 @@ export default function TrolleysDashboardModal({
                 <div>
                   <span>{t('wash.fleet.currentStatus')}</span>
                   <strong>{t(`wash.fleet.${selectedStatusLabel}`)}</strong>
-                  {selectedActive?.client_name && <small><MapPin size={12} aria-hidden="true" /> {selectedActive.client_name}</small>}
+                  {(selectedStatus === 'review' || selectedStatus === 'conflict') && (
+                    <small>
+                      {t('wash.fleet.inventory.recorded', {
+                        status: selectedRecorded === 'free' ? t('wash.fleet.inventory.noAssignment')
+                          : t(`wash.fleet.${fleetStatusDetails(selectedRecorded, selectedActive).label}`),
+                      })}
+                    </small>
+                  )}
+                  {(selectedActive?.client_name || (selectedStatus === 'atClient' && selectedCheck?.client_name)) && (
+                    <small><MapPin size={12} aria-hidden="true" /> {selectedActive?.client_name || selectedCheck.client_name}</small>
+                  )}
+                  {selectedStatus === 'conflict' && (
+                    <small>{t('wash.fleet.inventory.mismatch', {
+                      status: t(`wash.fleet.${OBSERVED_LABELS[selectedCheck.status]}`),
+                      client: selectedCheck.client_name ? ` · ${selectedCheck.client_name}` : '',
+                    })}</small>
+                  )}
                 </div>
               </div>
+
+              {canForceReset && inInventory && (
+                <TrolleyInventoryCheck
+                  key={`${inventory.id}-${selectedTrolley}`}
+                  check={selectedCheck?.movement_since_check ? null : selectedCheck}
+                  active={selectedActive}
+                  clients={activeClients}
+                  busy={inventoryBusy || actionBusy}
+                  error={inventoryError}
+                  onVerify={handleInventoryVerification}
+                />
+              )}
 
               {selectedActive?.occupancy_source === 'arrival' && (
                 <div style={{ margin: '0 24px 16px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(175,82,222,.05)', border: '1px solid rgba(175,82,222,.18)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', fontSize: '12px' }}>

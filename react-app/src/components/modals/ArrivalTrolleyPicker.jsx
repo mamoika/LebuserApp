@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronRight, Package, Search, ShoppingCart, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLaundryWorkflow } from '../../hooks/useLaundryWorkflow';
-import { activePhysicalTrolleyCycles } from '../../lib/trolleyOccupancy';
+import { activePhysicalTrolleyCycles, canUseFreeTrolley } from '../../lib/trolleyOccupancy';
 import { trolleyCellState } from '../../lib/arrivalTrolleyAvailability';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { formatTrolleyCode, parseTrolleyCode } from '../../lib/trolleyCodes';
@@ -88,10 +88,11 @@ export default function ArrivalTrolleyPicker({
     [effectiveTrolleyCount]
   );
 
-  const stateByNo = useMemo(
-    () => new Map(trolleyNumbers.map(no => [no, trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo)])),
-    [trolleyNumbers, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo],
-  );
+  const inventory = purpose === 'pack' ? workflow?.trolley_inventory : null;
+  const stateByNo = useMemo(() => new Map(trolleyNumbers.map(no => {
+    const state = trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo);
+    return [no, state === 'free' && !canUseFreeTrolley(no, null, inventory) ? 'busy' : state];
+  })), [trolleyNumbers, effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo, inventory]);
   const counts = { free: 0, returning: 0, busy: 0 };
   for (const state of stateByNo.values()) counts[state] += 1;
   const filterTab = requestedFilter ?? (purpose === 'pack' || counts.returning === 0 ? 'free' : 'returning');
@@ -101,9 +102,7 @@ export default function ArrivalTrolleyPicker({
     (filterTab === 'all' || stateByNo.get(no) === filterTab)
     && (!query || no === searchedNumber || no.includes(query))
   ));
-  const hasConflictingSelection = draftSelected.some(no => (
-    trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo) === 'busy'
-  ));
+  const hasConflictingSelection = draftSelected.some(no => !stateByNo.has(no) || stateByNo.get(no) === 'busy');
 
   useEffect(() => {
     if (!pickerOpen) return undefined;
@@ -150,10 +149,12 @@ export default function ArrivalTrolleyPicker({
       setError('');
       return;
     }
-    const state = trolleyCellState(no, [], effectiveActiveTrolleyByNo, effectiveClientName, reservedTrolleyByNo);
+    const state = stateByNo.get(no);
     if (state === 'busy') {
       const occupied = reservedTrolleyByNo.get(no.toLowerCase()) || effectiveActiveTrolleyByNo.get(no.toLowerCase());
-      setError(t('entry.trolleyBusy', { no, client: occupied?.client_name || '?' }));
+      setError(occupied
+        ? t('entry.trolleyBusy', { no, client: occupied.client_name || '?' })
+        : t('wash.fleet.inventory.unavailable', { trolley: formatTrolleyCode(no) }));
       return;
     }
     setError('');
@@ -366,7 +367,9 @@ export default function ArrivalTrolleyPicker({
                         const state = draftSelected.includes(no) ? 'selected' : stateByNo.get(no);
                         const occupied = reservedTrolleyByNo.get(no) || effectiveActiveTrolleyByNo.get(no);
                         const label = state === 'busy'
-                          ? t('entry.trolleyBusy', { no, client: occupied?.client_name || '?' })
+                          ? occupied
+                            ? t('entry.trolleyBusy', { no, client: occupied.client_name || '?' })
+                            : t('wash.fleet.inventory.unavailable', { trolley: formatTrolleyCode(no) })
                           : state === 'returning' ? t('entry.trolleyAtClient', { no, client: clientName }) : no;
                         return (
                           <button

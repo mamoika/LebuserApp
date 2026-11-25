@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, CheckCircle2, Plus, Search, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useLaundryWorkflow } from '../../../hooks/useLaundryWorkflow';
-import { buildTrolleyOccupancy } from '../../../lib/trolleyOccupancy';
+import { buildTrolleyOccupancy, canUseFreeTrolley } from '../../../lib/trolleyOccupancy';
 import { laundryActionErrorMessage } from '../../../lib/laundryRpc';
 import { describeTrolleyActions } from '../../../lib/tripUiHelpers';
 import { deliveryTrolleyChoices } from '../../../lib/deliveryTrolleyChoices';
@@ -22,7 +22,7 @@ export default function DeliverPromptSheet({ stop, pendingDelivery, sessionToken
     if (!workflow || workflowError) return [];
     const occupied = buildTrolleyOccupancy(workflow.trolleys, workflow.arrival_reservations);
     return Array.from({ length: Number(workflow.trolley_count) || 25 }, (_, index) => String(index + 1))
-      .filter(number => !occupied.has(number));
+      .filter(number => canUseFreeTrolley(number, occupied.get(number), workflow.trolley_inventory));
   }, [workflow, workflowError]);
   const prompt = { trolleys: deliveryTrolleyChoices(pendingDelivery, workflow?.trolleys), emptyTrolleys };
   const emptySelectionChanged = emptyTrolleys.some(number => !availableEmptyTrolleys.includes(number));

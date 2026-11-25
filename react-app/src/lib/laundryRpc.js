@@ -5,6 +5,7 @@ const LAUNDRY_ACTION_ERRORS = {
   delivery_trolley_state_changed: 'course.currentStop.trolleyStateChanged',
   pickup_trolley_reused: 'course.currentStop.pickupTrolleyReused',
   packing_batch_changed: 'wash.messages.packingBatchChanged',
+  trolley_inventory_unavailable: 'wash.fleet.inventory.packingBlocked',
 };
 
 export function laundryActionErrorMessage(error, t) {
@@ -23,9 +24,33 @@ async function callLaundryRpc(fn, args = {}) {
   return data;
 }
 
-export function getLaundryWorkflow(sessionToken) {
+export async function getLaundryWorkflow(sessionToken) {
+  try {
+    return await callLaundryRpc('get_laundry_workflow_with_inventory', {
+      p_session_token: sessionToken,
+    });
+  } catch (error) {
+    if (error.code !== 'PGRST202') throw error;
+  }
   return callLaundryRpc('get_laundry_workflow', {
     p_session_token: sessionToken,
+  });
+}
+
+export function startTrolleyInventory(sessionToken, previousInventoryId) {
+  return callLaundryRpc('admin_start_trolley_inventory', {
+    p_session_token: sessionToken,
+    p_previous_inventory_id: previousInventoryId ?? null,
+  });
+}
+
+export function verifyTrolleyInventory(sessionToken, inventoryId, trolleyNo, status, clientId) {
+  return callLaundryRpc('admin_verify_trolley_inventory', {
+    p_session_token: sessionToken,
+    p_inventory_id: inventoryId,
+    p_trolley_no: trolleyNo,
+    p_status: status,
+    p_client_id: clientId || null,
   });
 }
 
