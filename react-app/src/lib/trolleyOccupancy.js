@@ -72,6 +72,13 @@ export function canUseFreeTrolley(trolleyNo, occupied, inventory) {
   return Boolean(check && (check.movement_since_check || check.status === 'free_at_laundry'));
 }
 
+export const TROLLEY_INVENTORY_LABELS = {
+  free_at_laundry: 'free',
+  at_client: 'left',
+  in_use: 'inUse',
+  dirty_at_laundry: 'dirtyAtLaundry',
+};
+
 export function trolleyFleetStatus(trolleyNo, occupied, inventory) {
   const recorded = !occupied ? 'free'
     : occupied.occupancy_source === 'arrival' ? 'dirty'

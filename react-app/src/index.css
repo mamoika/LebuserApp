@@ -6837,6 +6837,7 @@ select.ap-input {
 }
 .laundry-view-nav {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 3px;
   border: 1px solid var(--laundry-line);

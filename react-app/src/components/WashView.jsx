@@ -24,6 +24,7 @@ import { useLaundryWorkflow } from '../hooks/useLaundryWorkflow';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../hooks/useAppData';
 import TrolleysDashboardModal from './TrolleysDashboardModal';
+import TrolleyInventoryView from './TrolleyInventoryView';
 import {
   cancelLaundryTrolley,
   finishLaundryPacking,
@@ -45,6 +46,7 @@ import { calculateLaundryDayMetrics, isLaundryWashed, isReadyForDriver, laundryB
 import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
 const EMPTY_WORKFLOW_ROWS = [];
 const DEFAULT_TROLLEY_COUNT = 25;
+const INVENTORY_VIEW = '?view=inventory';
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -293,6 +295,8 @@ export default function WashView() {
   const [searchParams] = useSearchParams();
   const canViewHistory = canViewModule('history');
   const showingHistory = canViewHistory && searchParams.get('view') === 'history';
+  const showingInventory = searchParams.get('view') === 'inventory';
+  const showingPlan = !showingHistory && !showingInventory;
   const { entries, routes, clients, loading, error, refetch } = useAppData();
   const [selectedDate, setSelectedDate] = useState(() => operationalYmd());
   const { data: workflow, error: workflowError, loading: workflowLoading, refresh: fetchWorkflow } = useLaundryWorkflow(sessionToken, !showingHistory);
@@ -675,14 +679,17 @@ export default function WashView() {
       <div className="laundry-toolbar">
         <div className="laundry-title-group">
           <h1>{t('wash.kicker')}</h1>
-          {canViewHistory && (
+          {(canViewHistory || isAdmin || trolleyInventory || showingInventory) && (
             <nav className="laundry-view-nav" aria-label={t('wash.viewSelector')}>
-              <Link to="." aria-current={!showingHistory ? 'page' : undefined}>{t('wash.title')}</Link>
-              <Link to="?view=history" aria-current={showingHistory ? 'page' : undefined}>{t('wash.history.title')}</Link>
+              <Link to="." aria-current={showingPlan ? 'page' : undefined}>{t('wash.title')}</Link>
+              {canViewHistory && <Link to="?view=history" aria-current={showingHistory ? 'page' : undefined}>{t('wash.history.title')}</Link>}
+              {(isAdmin || trolleyInventory || showingInventory) && (
+                <Link to={INVENTORY_VIEW} aria-current={showingInventory ? 'page' : undefined}>{t('wash.fleet.inventory.title')}</Link>
+              )}
             </nav>
           )}
         </div>
-        {!showingHistory && <div className="laundry-toolbar-actions">
+        {showingPlan && <div className="laundry-toolbar-actions">
           <div className="laundry-date-nav apple-date-nav">
             <button
               type="button"
@@ -743,6 +750,26 @@ export default function WashView() {
       </div>
   );
 
+  const fleetModal = trolleysModalOpen && (
+    <TrolleysDashboardModal
+      onClose={() => {
+        setTrolleysModalOpen(false);
+        setHistoryTrolley(null);
+      }}
+      sessionToken={sessionToken}
+      trolleyCount={trolleyCount}
+      inventory={trolleyInventory}
+      inventoryLink={isAdmin || trolleyInventory ? INVENTORY_VIEW : undefined}
+      activeTrolleyByNo={activeTrolleyByNo}
+      clients={clients}
+      initialTrolley={historyTrolley}
+      historyOnly={showingInventory}
+      canForceReset={isAdmin}
+      actorName={user?.name}
+      onRefresh={refreshAll}
+    />
+  );
+
   if (showingHistory) {
     return (
       <div className="laundry-shell">
@@ -755,6 +782,32 @@ export default function WashView() {
           scheduleByRoute={scheduleByRoute}
           dailyServiceByClient={dailyServiceByClient}
         />
+      </div>
+    );
+  }
+
+  if (showingInventory) {
+    return (
+      <div className="laundry-shell">
+        {toolbar}
+        <TrolleyInventoryView
+          key={sessionToken}
+          inventory={trolleyInventory}
+          trolleyCount={trolleyCount}
+          activeTrolleyByNo={activeTrolleyByNo}
+          clients={clients}
+          sessionToken={sessionToken}
+          canEdit={isAdmin}
+          loading={workflowLoading}
+          loadError={workflowError}
+          historyOpen={trolleysModalOpen}
+          onRefresh={fetchWorkflow}
+          onOpenHistory={trolleyNo => {
+            setHistoryTrolley(trolleyNo);
+            setTrolleysModalOpen(true);
+          }}
+        />
+        {fleetModal}
       </div>
     );
   }
@@ -1108,23 +1161,7 @@ export default function WashView() {
         />
       )}
       
-      {trolleysModalOpen && (
-        <TrolleysDashboardModal
-          onClose={() => {
-            setTrolleysModalOpen(false);
-            setHistoryTrolley(null);
-          }}
-          sessionToken={sessionToken}
-          trolleyCount={trolleyCount}
-          inventory={trolleyInventory}
-          activeTrolleyByNo={activeTrolleyByNo}
-          clients={clients}
-          initialTrolley={historyTrolley}
-          canForceReset={isAdmin}
-          actorName={user?.name}
-          onRefresh={refreshAll}
-        />
-      )}
+      {fleetModal}
     </div>
   );
 }

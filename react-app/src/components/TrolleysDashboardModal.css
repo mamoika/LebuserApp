@@ -91,115 +91,39 @@
   padding-inline: var(--fleet-inset);
 }
 
-.fleet-inventory-bar,
-.fleet-inventory-check {
+.fleet-inventory-link {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 6px 9px;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1px solid var(--fleet-line);
   border-radius: 12px;
   background: var(--bg-card-solid);
-}
-
-.fleet-inventory-bar {
-  justify-content: space-between;
-}
-
-.fleet-inventory-heading {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.fleet-inventory-heading > svg {
-  flex: none;
   color: var(--accent);
-}
-
-.fleet-inventory-heading small {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.fleet-inventory-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.fleet-inventory-actions button,
-.fleet-inventory-button {
-  min-height: 38px;
-  padding: 6px 11px;
-  border: 1px solid var(--fleet-line);
-  border-radius: 9px;
-  background: var(--fleet-surface);
-  color: var(--text-primary);
   font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.fleet-inventory-actions button[aria-pressed="true"],
-.fleet-inventory-actions button.fleet-inventory-button,
-.fleet-inventory-button {
-  background: var(--accent);
-  color: #fff;
+.fleet-inventory-link > strong {
+  flex: 1;
 }
 
-.fleet-inventory-bar button:disabled,
-.fleet-inventory-check button:disabled {
-  opacity: .55;
-  cursor: default;
-}
-
-.fleet-inventory-confirm {
-  display: grid;
-  gap: 8px;
-  width: 100%;
-  padding-top: 8px;
-  border-top: 1px solid var(--fleet-line);
-}
-
-.fleet-inventory-confirm p,
-.fleet-inventory-error {
-  margin: 0;
+.fleet-inventory-link > small {
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.4;
 }
 
-.fleet-inventory-error {
-  color: #a33123;
+.fleet-modal[data-history-only] {
+  width: min(440px, calc(100% - 24px));
 }
 
-.fleet-inventory-check {
-  flex: 0 0 auto;
-  align-items: stretch;
-  margin: 8px 24px 0;
+.fleet-modal[data-history-only] .fleet-content {
+  display: none;
 }
 
-.fleet-inventory-check > * {
+.fleet-modal[data-history-only] .fleet-history-panel {
   width: 100%;
-}
-
-.fleet-inventory-check .fleet-history-client-field {
-  margin: 0;
-}
-
-.fleet-history-panel[data-inventory] {
-  overflow-y: auto;
-}
-
-.fleet-history-panel[data-inventory] .fleet-history-content {
-  flex: 1 0 auto;
-  overflow-y: visible;
 }
 
 .fleet-filters {
