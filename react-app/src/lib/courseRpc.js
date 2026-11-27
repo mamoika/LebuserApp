@@ -104,3 +104,7 @@ export const finalizeDriverTripPlan = (sessionToken, tripId) => callCourseRpc(
 export const startFinalizedDriverTrip = (sessionToken, tripId) => callCourseRpc(
   'driver_start_finalized_trip', sessionToken, { p_trip_id: tripId }
 );
+
+export const setPlannedCourseVehicle = (sessionToken, tripId, car) => callCourseRpc(
+  'set_planned_course_vehicle', sessionToken, { p_trip_id: tripId, p_car: car },
+);

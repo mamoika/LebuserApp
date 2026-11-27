@@ -13,7 +13,7 @@ import { driverCardBadgeText, getDriverCardReminder } from '../../lib/driverCard
 import { operationalYmd } from '../../lib/dateUtils';
 import { getRouteColorByDisplay, routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
-import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
+import { activeTripsByVehicle, courseVehicleErrorMessage, VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import DriverCardDddDialog from './DriverCardDddDialog';
 import '../mockups/mockups.css';
 
@@ -113,15 +113,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
     return () => { cancelled = true; };
   }, [loadTrips, plannedTrip, sessionToken, t, today, user?.employee_id, user?.id, user?.name]);
 
-  const carsInUse = useMemo(() => {
-    const map = new Map();
-    allTrips.forEach(trip => {
-      if (trip.status === 'active' && trip.car && trip.driver_id !== user?.id) {
-        map.set(trip.car, trip.driver_name || t('course.start.otherDriver'));
-      }
-    });
-    return map;
-  }, [allTrips, t, user?.id]);
+  const carsInUse = useMemo(() => activeTripsByVehicle(allTrips, plannedTrip?.id), [allTrips, plannedTrip?.id]);
 
   const handoverPool = useMemo(
     () => allTrips.filter(trip => trip.status === 'handover' && trip.trip_date === today),
@@ -154,8 +146,10 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       return;
     }
     const occupiedBy = carsInUse.get(selectedCar);
-    if (occupiedBy) {
-      toastError(t('course.start.carInUse', { car: VEHICLE_LABELS[selectedCar] || selectedCar, driver: occupiedBy }));
+    if (plannedTrip && occupiedBy) {
+      toastError(t('course.start.carInUse', {
+        car: VEHICLE_LABELS[selectedCar] || selectedCar, driver: occupiedBy.driver_name || t('course.start.otherDriver'),
+      }));
       return;
     }
     try {
@@ -169,7 +163,7 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
       toastSuccess(t('course.start.planned'));
       await onStarted?.();
     } catch (error) {
-      toastError(t('course.start.startError', { message: error.message }));
+      toastError(t('course.start.startError', { message: courseVehicleErrorMessage(error, t, selectedCar) }));
     } finally {
       setBusy(false);
     }
@@ -315,16 +309,17 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
           <div className="live-start-car-grid" role="group" aria-label={t('course.start.carToday')}>
             {VEHICLES.map(vehicle => {
               const active = selectedCar === vehicle.key;
-              const lockedBy = carsInUse.get(vehicle.key);
+              const occupied = carsInUse.get(vehicle.key);
+              const locked = Boolean(plannedTrip && occupied);
               const isDefault = defaultCar === vehicle.key;
               return (
                 <button
                   key={vehicle.key}
                   type="button"
-                  className={`live-start-car-chip ${active ? 'is-selected' : ''} ${lockedBy ? 'is-locked' : ''}`}
-                  disabled={Boolean(lockedBy)}
-                  onClick={() => !lockedBy && setSelectedCar(vehicle.key)}
-                  title={lockedBy ? t('course.start.carInUse', { car: vehicle.label, driver: lockedBy }) : undefined}
+                  className={`live-start-car-chip ${active ? 'is-selected' : ''} ${locked ? 'is-locked' : ''}`}
+                  disabled={locked}
+                  aria-pressed={active}
+                  onClick={() => setSelectedCar(vehicle.key)}
                 >
                   <span className="live-start-car-label">{vehicle.label}</span>
                   {isDefault && (
@@ -332,7 +327,9 @@ export default function DriverCourseStart({ plannedTrip = null, onStarted, onHis
                       <Star size={11} aria-hidden="true" />
                     </span>
                   )}
-                  {lockedBy && <span className="live-start-car-lock">{lockedBy}</span>}
+                  {occupied && <span className="live-start-car-lock">{t('course.start.onRouteWithDriver', {
+                    driver: occupied.driver_name || t('course.start.otherDriver'),
+                  })}</span>}
                 </button>
               );
             })}

@@ -3026,6 +3026,12 @@
   font-weight: 700;
   color: var(--text-secondary);
 }
+.live-planning-vehicle-status {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
 .driver-status-pill.is-planning {
   background: var(--accent-amber-light, #fff4e0);
   color: #9a6700;

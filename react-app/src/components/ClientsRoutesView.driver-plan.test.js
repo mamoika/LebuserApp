@@ -30,6 +30,10 @@ const driverChangeFixMigrationSource = await readFile(
   new URL('../../db/migrations/zzzzzzzzzzzz_weekly_route_plan_driver_change.sql', import.meta.url),
   'utf8',
 );
+const sharedVehicleMigrationSource = await readFile(
+  new URL('../../db/migrations/20261127140000_shared_route_plan_vehicles.sql', import.meta.url),
+  'utf8',
+);
 
 test('driver sees the weekly plan followed by the complete read-only route directory', () => {
   const planIndex = clientsRoutesSource.indexOf('<WeeklyRoutePlanView');
@@ -70,15 +74,16 @@ test('assignment sheet uses a compact responsive form and action hierarchy', () 
   assert.match(stylesSource, /\.weekly-plan-sheet-actions\{display:flex;flex-direction:column/);
 });
 
-test('a vehicle cannot be assigned to different drivers on the same day', () => {
+test('the weekly plan lists multiple shifts and prevents a matching start for different drivers', () => {
   assert.match(weeklyPlanSource, /vehicleReservations\.get\(vehicle\.key\)/);
-  assert.match(weeklyPlanSource, /disabled=\{occupiedByOtherDriver\}/);
-  assert.match(weeklyPlanSource, /reservation\.driverId !== nextDriverId/);
-  assert.match(vehicleGuardMigrationSource, /pg_advisory_xact_lock/);
-  assert.match(vehicleGuardMigrationSource, /create trigger weekly_route_plan_vehicle_owner_guard/);
-  assert.match(vehicleGuardMigrationSource, /assignment\.plan_date = p_trip_date/);
-  assert.match(vehicleGuardMigrationSource, /assignment\.driver_id is distinct from p_driver_id/);
-  assert.match(vehicleGuardMigrationSource, /assignment\.route_id is distinct from p_route_id/);
+  assert.match(weeklyPlanSource, /reservations\.map\(/);
+  assert.match(weeklyPlanSource, /reservation\.startTime === startTime && reservation\.driverId !== driverId/);
+  assert.match(weeklyPlanSource, /disabled=\{Boolean\(startConflict\)\}/);
+  assert.match(weeklyPlanSource, /onClick=\{\(\) => setCar\(''\)\}/);
+  assert.match(sharedVehicleMigrationSource, /pg_advisory_xact_lock/);
+  assert.match(sharedVehicleMigrationSource, /update of plan_date, route_id, car, driver_id, planned_start/);
+  assert.match(sharedVehicleMigrationSource, /date_trunc\('minute', assignment\.planned_start\) = date_trunc\('minute', new\.planned_start\)/);
+  assert.match(sharedVehicleMigrationSource, /assignment\.driver_id is distinct from new\.driver_id/);
 });
 
 test('assignment sheet hides drivers already assigned to another route that day', () => {
@@ -92,7 +97,7 @@ test('assignment sheet hides drivers already assigned to another route that day'
 test('changing the driver on an existing route keeps its vehicle assignment', () => {
   // INSERT ... ON CONFLICT runs BEFORE INSERT triggers before it resolves the
   // existing (plan_date, route_id) row, so the guard must ignore that route.
-  for (const source of [vehicleGuardMigrationSource, driverChangeFixMigrationSource]) {
+  for (const source of [vehicleGuardMigrationSource, driverChangeFixMigrationSource, sharedVehicleMigrationSource]) {
     const triggerBody = source.match(
       /create or replace function public\.enforce_weekly_route_plan_vehicle_owner\(\)[\s\S]*?\n\$\$;/,
     )?.[0] || '';

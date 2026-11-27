@@ -24,7 +24,7 @@ import {
   addMinutesToClock, decimalHoursToMinutes, formatWorkDuration, minutesBetweenClocks,
   resolveWorkPlan, timeForInput,
 } from '../../lib/workTime';
-import { VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
+import { courseVehicleErrorMessage, VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import { AddEntryModal } from '../modals/EntryModals';
 import CourseCurrentStop from './CourseCurrentStop';
 import CourseSheet from './CourseSheet';
@@ -286,7 +286,7 @@ export default function DriverCourse() {
       toastSuccess(t('course.driver.carChanged'));
       await loadCourse();
     } catch (error) {
-      toastError(error.message);
+      toastError(courseVehicleErrorMessage(error, t, nextCar));
     } finally {
       setBusy(false);
     }

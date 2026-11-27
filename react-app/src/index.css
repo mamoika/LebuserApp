@@ -764,6 +764,8 @@ body{
 .weekly-plan-vehicle-options button:focus-visible{outline:3px solid rgba(0,122,255,.18);outline-offset:1px}
 .weekly-plan-vehicle-options button:disabled{background:transparent;box-shadow:none;opacity:.62}
 .weekly-plan-vehicle-options button small{margin-top:3px;overflow:visible;font-size:10px;line-height:1.2;text-overflow:clip;text-wrap:pretty;white-space:normal}
+.weekly-plan-vehicle-options .weekly-plan-no-vehicle{grid-column:1/-1;min-height:44px}
+.weekly-plan-vehicle-conflict{margin:2px 0 0;color:var(--accent-red);font-size:12px;font-weight:650;letter-spacing:0;text-transform:none}
 .weekly-plan-sheet-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
 .weekly-plan-primary-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:8px}
 .weekly-plan-sheet-actions .ap-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:46px;width:100%;padding:0 16px;border-radius:12px;font-size:15px}

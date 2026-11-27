@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarClock, CheckCircle2, ChevronDown, Clock3, LoaderCircle, MapPin, Navigation2, Package, PlayCircle,
@@ -8,8 +8,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../hooks/useAppData';
 import {
   addDirtyPlannedStop, callExistingTripRpc, pickupPlannedClean, removeDirtyPlannedStop,
-  skipPlannedStop, startFinalizedDriverTrip, undoPlannedCleanPickup,
+  setPlannedCourseVehicle, skipPlannedStop, startFinalizedDriverTrip, undoPlannedCleanPickup,
 } from '../../lib/courseRpc';
+import { getDriverTripsData } from '../../lib/readRpc';
 import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import {
   buildDirtyOnlyCandidates, buildReadyCleanGroups, summarizeStopTasks,
@@ -18,7 +19,7 @@ import { buildCourseStopComparator } from '../../lib/courseStopOrder';
 import { parseRouteIds, routeNamesForTrip } from '../../lib/tripUiHelpers';
 import { routeBadgeStyle } from '../../lib/visualSystem';
 import { toastError, toastSuccess } from '../../lib/toast';
-import { VEHICLE_LABELS } from '../../lib/vehicles';
+import { activeTripsByVehicle, courseVehicleErrorMessage, VEHICLES, VEHICLE_LABELS } from '../../lib/vehicles';
 import { RouteChip, mapsUrlForStop } from './CourseUiBits';
 import '../mockups/mockups.css';
 
@@ -97,6 +98,33 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   const { entries, clients, allRoutes, refetch } = useAppData();
   const [busy, setBusy] = useState(false);
   const [otherReadyOpen, setOtherReadyOpen] = useState(false);
+  const [liveTrips, setLiveTrips] = useState([]);
+  const selectedVehicle = trip?.car?.trim().toLowerCase() || '';
+  const vehiclesInUse = useMemo(() => activeTripsByVehicle(liveTrips, trip?.id), [liveTrips, trip?.id]);
+  const occupiedVehicle = vehiclesInUse.get(selectedVehicle);
+
+  useEffect(() => {
+    if (readOnly || !sessionToken) return undefined;
+    let latestRequest = 0;
+    const refreshVehicles = async () => {
+      if (document.hidden) return;
+      const request = ++latestRequest;
+      try {
+        const data = await getDriverTripsData(sessionToken);
+        if (request === latestRequest) setLiveTrips(data?.trips || []);
+      } catch {
+        // Start is still validated against current vehicle use by the database.
+      }
+    };
+    refreshVehicles();
+    const interval = window.setInterval(refreshVehicles, 10_000);
+    window.addEventListener('focus', refreshVehicles);
+    return () => {
+      latestRequest += 1;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshVehicles);
+    };
+  }, [readOnly, sessionToken]);
 
   const routeMap = useMemo(
     () => Object.fromEntries(allRoutes.map((route, index) => [route.id, { num: index + 1, name: route.name }])),
@@ -301,7 +329,7 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
   };
 
   const startDrive = async () => {
-    if (!trip) return;
+    if (!trip || !selectedVehicle || occupiedVehicle) return;
     try {
       setBusy(true);
       if (adminMode) {
@@ -312,7 +340,20 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
       toastSuccess(t('course.planning.driveStarted'));
       await onUpdated?.();
     } catch (error) {
-      toastError(error.message);
+      toastError(courseVehicleErrorMessage(error, t, selectedVehicle));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changePlannedVehicle = async car => {
+    if (busy || !car || car === selectedVehicle || vehiclesInUse.has(car)) return;
+    try {
+      setBusy(true);
+      await setPlannedCourseVehicle(sessionToken, trip.id, car);
+      await onUpdated?.();
+    } catch (error) {
+      toastError(courseVehicleErrorMessage(error, t, car));
     } finally {
       setBusy(false);
     }
@@ -349,7 +390,7 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
               {routeDisplay != null && (
                 <span className="kurs-route-badge" style={{ ...routeBadgeStyle(routeDisplay), marginRight: '6px' }}>T{routeDisplay}</span>
               )}
-              {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[trip.car] || trip.car}
+              {routeNamesForTrip(trip, routeMap)} · {VEHICLE_LABELS[selectedVehicle] || selectedVehicle || t('weeklyPlan.vehicleToConfirm')}
             </span>
           </div>
           <div className="live-course-context-col is-right">
@@ -360,6 +401,36 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
         <p className="live-planning-count">
           {t('course.planning.stopCount', { count: plannedClientNames.size })}
         </p>
+        {!readOnly && (
+          <div className="live-planning-vehicle">
+            <label className="live-field-label">
+              {t('weeklyPlan.vehicle')}
+              <select className="ap-input" value={selectedVehicle} disabled={busy} onChange={event => changePlannedVehicle(event.target.value)}>
+                <option value="" disabled>{t('weeklyPlan.vehicleToConfirm')}</option>
+                {VEHICLES.map(vehicle => {
+                  const occupied = vehiclesInUse.get(vehicle.key);
+                  return (
+                    <option key={vehicle.key} value={vehicle.key} disabled={Boolean(occupied)}>
+                      {vehicle.label}{occupied ? ` · ${t('course.start.onRouteWithDriver', {
+                        driver: occupied.driver_name || t('course.start.otherDriver'),
+                      })}` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            {(!selectedVehicle || occupiedVehicle) && (
+              <p className="live-planning-vehicle-status" role="status">
+                {occupiedVehicle
+                  ? t('course.start.carInUse', {
+                    car: VEHICLE_LABELS[selectedVehicle] || selectedVehicle,
+                    driver: occupiedVehicle.driver_name || t('course.start.otherDriver'),
+                  })
+                  : t('course.start.selectCar')}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {isDispatcherPlanned && (
@@ -581,7 +652,8 @@ export default function DriverCoursePlanning({ trip, stops = [], adminMode = fal
 
       {!readOnly && (
         <div className="live-planning-footer">
-          <button type="button" className="driver-primary-btn live-planning-start-btn" onClick={startDrive} disabled={busy || plannedClientNames.size === 0}>
+          <button type="button" className="driver-primary-btn live-planning-start-btn" onClick={startDrive}
+            disabled={busy || plannedClientNames.size === 0 || !selectedVehicle || Boolean(occupiedVehicle)}>
             {busy ? <LoaderCircle className="is-spinning" size={20} aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
             {t('course.planning.startDrive')}
           </button>

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Eye, EyeOff, Plus, Search, Settings2, Trash2, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { effectiveRouteServiceRules, isRuleScheduledOnDate } from '../lib/serviceSchedule';
-import { VEHICLES, VEHICLE_LABELS } from '../lib/vehicles';
+import { VEHICLES, VEHICLE_LABELS, weeklyVehicleErrorMessage } from '../lib/vehicles';
 import { getRouteColorByDisplay } from '../lib/visualSystem';
 import { toastError, toastSuccess } from '../lib/toast';
 import {
@@ -94,7 +94,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
   const trip = selection.trip;
   const currentDriverId = trip?.driver_id || '';
   const [driverId, setDriverId] = useState(currentDriverId);
-  const [car, setCar] = useState(trip?.car || '');
+  const [car, setCar] = useState(trip?.car?.trim().toLowerCase() || '');
   const [startTime, setStartTime] = useState(localTimeValue(trip?.planned_start) || '07:00');
 
   const selectableDrivers = useMemo(() => {
@@ -106,20 +106,21 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
     });
   }, [drivers, availableDriverIds, assignedDriverIds, currentDriverId]);
 
-  const changeDriver = nextDriverId => {
-    const reservation = vehicleReservations.get(car);
-    setDriverId(nextDriverId);
-    if (reservation && reservation.driverId !== nextDriverId) setCar('');
-  };
+  const plannedStart = plannedStartIso(selection.date, startTime);
+  const conflictFor = vehicle => vehicleReservations.get(vehicle)?.find(reservation => (
+    Boolean(startTime) && reservation.startTime === startTime && reservation.driverId !== driverId
+  ));
+  const selectedConflict = conflictFor(car);
+  const canSave = Boolean(driverId && (!car || plannedStart) && !selectedConflict);
 
   const submit = () => {
-    if (!driverId) return;
+    if (!canSave) return;
     onSave({
       routeId: selection.route.id,
       tripDate: selection.date,
       driverId,
       car,
-      plannedStart: plannedStartIso(selection.date, startTime),
+      plannedStart,
     });
   };
 
@@ -145,7 +146,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
           <div className="weekly-plan-form-grid">
             <label className="weekly-plan-field" htmlFor="weekly-plan-driver">
               <span>{t('weeklyPlan.driver')}</span>
-              <select id="weekly-plan-driver" value={driverId} onChange={event => changeDriver(event.target.value)}>
+              <select id="weekly-plan-driver" value={driverId} onChange={event => setDriverId(event.target.value)}>
                 <option value="">{t('weeklyPlan.chooseDriver')}</option>
                 {selectableDrivers.map(driver => (
                   <option value={driver.id} key={driver.id}>
@@ -163,7 +164,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
 
             <label className="weekly-plan-field" htmlFor="weekly-plan-start">
               <span>{t('weeklyPlan.startTime')}</span>
-              <input id="weekly-plan-start" type="time" value={startTime} onChange={event => setStartTime(event.target.value)} />
+              <input id="weekly-plan-start" type="time" required={Boolean(car)} value={startTime} onChange={event => setStartTime(event.target.value)} />
             </label>
           </div>
 
@@ -171,26 +172,34 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
             <span>{t('weeklyPlan.vehicle')}</span>
             <div className="weekly-plan-vehicle-options">
               {VEHICLES.map(vehicle => {
-                const reservation = vehicleReservations.get(vehicle.key);
-                const occupiedByOtherDriver = Boolean(reservation && reservation.driverId !== driverId);
+                const reservations = vehicleReservations.get(vehicle.key) || [];
+                const startConflict = conflictFor(vehicle.key);
                 return (
                   <button
                     key={vehicle.key}
                     type="button"
                     className={car === vehicle.key ? 'active' : ''}
                     onClick={() => setCar(vehicle.key)}
-                    disabled={occupiedByOtherDriver}
+                    disabled={Boolean(startConflict)}
                     aria-pressed={car === vehicle.key}
-                    aria-label={occupiedByOtherDriver
-                      ? `${vehicle.label}. ${t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName })}`
-                      : vehicle.label}
                   >
                     <span>{vehicle.label}</span>
-                    {occupiedByOtherDriver && <small>{t('weeklyPlan.vehicleOccupied', { driver: reservation.driverName })}</small>}
+                    {reservations.map(({ driverId: reservedDriverId, driverName, startTime: time }) => (
+                      <small key={`${reservedDriverId}|${time}`}>{t('weeklyPlan.vehicleAssignment', {
+                        driver: driverName || t('course.start.otherDriver'), time: time || t('weeklyPlan.vehicleStartUnknown'),
+                      })}</small>
+                    ))}
                   </button>
                 );
               })}
+              <button type="button" className={`weekly-plan-no-vehicle${car ? '' : ' active'}`}
+                aria-pressed={!car} onClick={() => setCar('')}>{t('weeklyPlan.vehicleToConfirm')}</button>
             </div>
+            {selectedConflict && (
+              <p className="weekly-plan-vehicle-conflict" role="status">
+                {t('weeklyPlan.vehicleStartConflict', { driver: selectedConflict.driverName || t('course.start.otherDriver') })}
+              </p>
+            )}
           </div>
 
           <div className="ap-btn-group weekly-plan-sheet-actions">
@@ -202,7 +211,7 @@ function AssignmentSheet({ selection, drivers, availableDriverIds, assignedDrive
             )}
             <div className="weekly-plan-primary-actions">
               <button type="button" className="ap-btn ap-btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-              <button type="button" className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !driverId}>{busy ? t('common.saving') : t('common.save')}</button>
+              <button type="button" className="ap-btn ap-btn-primary" onClick={submit} disabled={busy || !canSave}>{busy ? t('common.saving') : t('common.save')}</button>
             </div>
           </div>
         </div>
@@ -369,9 +378,18 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
         && trip.car
         && !parseRouteIds(trip.routes).includes(selection.route.id)
       ) {
-        result.set(trip.car, { driverId: trip.driver_id, driverName: trip.driver_name });
+        const car = trip.car.trim().toLowerCase();
+        const reservations = result.get(car) || [];
+        const startTime = localTimeValue(trip.planned_start);
+        if (!reservations.some(reservation => reservation.driverId === trip.driver_id && reservation.startTime === startTime)) {
+          reservations.push({ driverId: trip.driver_id, driverName: trip.driver_name, startTime });
+        }
+        result.set(car, reservations);
       }
     });
+    for (const reservations of result.values()) {
+      reservations.sort((a, b) => (a.startTime || '24:00').localeCompare(b.startTime || '24:00'));
+    }
     return result;
   }, [plan.trips, selection]);
   const assignedDriverIdsForSelection = useMemo(() => {
@@ -420,7 +438,8 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
       setSelection(null);
       toastSuccess(successMessage);
     } catch (error) {
-      toastError(error.message);
+      toastError(weeklyVehicleErrorMessage(error, t));
+      if (error.message === 'weekly_plan_vehicle_start_conflict') await load();
     } finally {
       setBusy(false);
     }
@@ -570,7 +589,7 @@ export default function WeeklyRoutePlanView({ showBackLink = true, onRouteSelect
                               </span>
                             ) : <strong className="weekly-plan-driver-time">{formatTime(trip.planned_start) || '—'}</strong>}
                             <span className="weekly-plan-card-meta">
-                              {trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.noVehicle')}
+                              {trip.car ? VEHICLE_LABELS[trip.car] || trip.car : t('weeklyPlan.vehicleToConfirm')}
                               {isAdminPlanView && formatTime(trip.planned_start) ? ` · ${formatTime(trip.planned_start)}` : ''}
                             </span>
                             {/* Status pokazujemy tylko, gdy coś mówi: wyjątek poza harmonogramem. */}

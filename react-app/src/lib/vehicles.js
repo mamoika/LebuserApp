@@ -16,3 +16,30 @@ export function vehicleEndColumn(carKey) {
 
 // Klucz w app_settings, pod którym trzymamy przypisania domyślnych aut kierowców
 export const DRIVER_CARS_KEY = 'driver_cars';
+
+export function activeTripsByVehicle(trips, currentTripId) {
+  const result = new Map();
+  for (const trip of trips) {
+    const car = trip.car?.trim().toLowerCase();
+    if (car && trip.id !== currentTripId && ['active', 'handover'].includes(trip.status)) {
+      result.set(car, trip);
+    }
+  }
+  return result;
+}
+
+export function courseVehicleErrorMessage(error, t, car) {
+  if (error.message === 'course_vehicle_in_use' || error.message.startsWith('To auto jest już na trasie')
+    || (error.code === '23505' && error.message.includes('driver_trips_running_vehicle_uidx'))) {
+    return t('course.start.carInUse', { car: VEHICLE_LABELS[car] || car, driver: error.details || t('course.start.otherDriver') });
+  }
+  if (error.message === 'course_vehicle_required') return t('course.start.selectCar');
+  if (error.message === 'course_vehicle_plan_changed') return t('course.planning.vehiclePlanChanged');
+  return error.message;
+}
+
+export function weeklyVehicleErrorMessage(error, t) {
+  return error.message === 'weekly_plan_vehicle_start_conflict'
+    ? t('weeklyPlan.vehicleStartConflict', { driver: error.details || t('course.start.otherDriver') })
+    : error.message;
+}

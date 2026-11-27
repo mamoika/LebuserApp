@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { callExistingTripRpc } from '../../../lib/courseRpc';
 import { routeNamesForTrip } from '../../../lib/tripUiHelpers';
 import { toastError, toastSuccess } from '../../../lib/toast';
-import { VEHICLES } from '../../../lib/vehicles';
+import { VEHICLES, weeklyVehicleErrorMessage } from '../../../lib/vehicles';
 import CourseSheet from '../CourseSheet';
 import { currentLocale } from '../../../lib/dateUtils';
 
@@ -62,7 +62,7 @@ export default function AssignTripSheet({ trip, sessionToken, routeMap = {}, rou
       await onAssigned?.(result?.trip || null);
       onClose();
     } catch (error) {
-      toastError(t('course.sheets.assign.error', { message: error.message }));
+      toastError(t('course.sheets.assign.error', { message: weeklyVehicleErrorMessage(error, t) }));
     } finally {
       setBusy(false);
     }
