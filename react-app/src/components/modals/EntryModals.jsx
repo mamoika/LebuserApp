@@ -1027,7 +1027,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
 
   useEffect(() => {
     if (isOpen && entry) {
-      setEditing(initiallyEditing);
+      setEditing(false);
       setClientName(entry.client_name || '');
       setType(entry.type || 'P');
       const trolleyState = arrivalTrolleyModeFromEntry(entry);
@@ -1046,7 +1046,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
     }
   }, [isOpen, entry, clients, initiallyEditing]);
 
-  if (!isOpen || !entry) return null;
+  if (!isOpen || !entry || (initiallyEditing && !canEdit)) return null;
 
   const sortedRoutes = [...(routes || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const knownClientNames = new Set((clients || []).map(c => c.name));
@@ -1067,8 +1067,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   const pickupArrivalDays = [...new Set(pickupEntries.map(e => daysFull[(e.arr_day || 1) - 1]).filter(Boolean))].join(', ');
   const pickupTypes = [...new Set(pickupEntries.map(item => item.type || 'P'))];
   const pickupTypeLabel = pickupTypes.map(item => laundryTypeLabel(item, t)).join(' + ');
-  const directEditMode = contextMode === 'arr' && initiallyEditing;
-  const showEditForm = canEdit && (editing || directEditMode);
+  const showEditForm = canEdit && (editing || initiallyEditing);
   const selectedClientDetails = (clients || []).find(c => c.name === entry.client_name);
   const canPrintLaundryReceipt = source === 'schedule' && (isViewer || isAdmin);
   const canSaveLaundryReceipt = source === 'schedule' && canEdit;
@@ -1210,7 +1209,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
   };
 
   const cancelEdit = () => {
-    if (directEditMode) onClose();
+    if (initiallyEditing) onClose();
     else setEditing(false);
   };
 

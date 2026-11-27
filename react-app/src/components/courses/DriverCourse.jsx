@@ -37,7 +37,7 @@ const PROBLEM_KEYS = ['partial', 'closed', 'extra', 'car', 'handoff'];
 
 export default function DriverCourse() {
   const { t } = useTranslation();
-  const { sessionToken, user } = useAuth();
+  const { sessionToken, user, canEditModule } = useAuth();
   const { clients, allRoutes, entries, refetch } = useAppData();
   const [data, setData] = useState({ trip: null, stops: [], employee: null });
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,6 @@ export default function DriverCourse() {
   const [addEntryFor, setAddEntryFor] = useState(null);
   const [finished, setFinished] = useState(null);
   const [printContext, setPrintContext] = useState({ dailyCosts: [], allTrips: [] });
-  const [allTrips, setAllTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [targetDriver, setTargetDriver] = useState('');
   const [nextCar, setNextCar] = useState('');
@@ -102,7 +101,6 @@ export default function DriverCourse() {
       }
 
       if (request !== courseRequest.current) return;
-      setAllTrips(trips);
       setData({
         trip,
         stops,
@@ -560,7 +558,6 @@ export default function DriverCourse() {
             key={viewStop.id}
             stop={viewStop}
             trip={trip}
-            allTrips={allTrips}
             user={user}
             sessionToken={sessionToken}
             entries={entries}
@@ -571,6 +568,7 @@ export default function DriverCourse() {
             onReload={reloadAll}
             onComplete={isLastStop ? completeCurrentStop : completeStop}
             canComplete={canCompleteCurrent}
+            canEditEntries={canEditModule('route')}
             stopViewStatus={viewStop.status}
             onPrevStop={goPrevStop}
             onNextStop={goNextStop}

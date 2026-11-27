@@ -6,7 +6,7 @@ import { laundryActionErrorMessage } from '../../lib/laundryRpc';
 import { logAction } from '../../lib/logger';
 import { formatPackInfoLabel } from '../../lib/courseLocale';
 import {
-  assignedTripForEntry, canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryAssignmentCaption, entryIdsForTasks, fmtTime, getPackInfo,
+  canManagePickupTasks, completedEntryIdsForTasks, dirtyEntriesForStop, entryIdsForTasks, fmtTime, getPackInfo,
   isTripDriver, splitCleanTasks, sumTaskWeight, tasksDeliveredByUser, trolleyNumbersFromEntry,
 } from '../../lib/courseTaskHelpers';
 import { formatKg, stopDisplayOrder, tripDateInfo } from '../../lib/tripUiHelpers';
@@ -62,7 +62,6 @@ function StopTaskCard({
 export default function CourseCurrentStop({
   stop,
   trip,
-  allTrips = [],
   user,
   sessionToken,
   entries,
@@ -73,6 +72,7 @@ export default function CourseCurrentStop({
   onReload,
   onComplete,
   canComplete,
+  canEditEntries,
   stopViewStatus = 'pending',
   onPrevStop,
   onNextStop,
@@ -94,7 +94,7 @@ export default function CourseCurrentStop({
   };
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [addEntryFor, setAddEntryFor] = useState(null);
-  const [viewEntry, setViewEntry] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [noteEdit, setNoteEdit] = useState(null);
 
   const clean = useMemo(() => splitCleanTasks(stop?.tasks || []), [stop]);
@@ -406,9 +406,11 @@ export default function CourseCurrentStop({
                           </div>
                         </div>
                         <div className="live-dirty-entry-actions">
-                          <button type="button" className="live-dirty-entry-action" onClick={() => setViewEntry(entry)}>
-                            <Pencil size={14} aria-hidden="true" /> {t('course.edit')}
-                          </button>
+                          {canEditEntries && (
+                            <button type="button" className="live-dirty-entry-action" onClick={() => setEditingEntry(entry)} disabled={busy}>
+                              <Pencil size={14} aria-hidden="true" /> {t('course.edit')}
+                            </button>
+                          )}
                           <button type="button" className="live-dirty-entry-action is-delete" onClick={() => deleteDirty(entry)} disabled={busy}>
                             <Trash2 size={14} aria-hidden="true" /> {t('course.currentStop.delete')}
                           </button>
@@ -475,21 +477,16 @@ export default function CourseCurrentStop({
           onAdded={async () => { setAddEntryFor(null); await onReload(); }}
         />
       )}
-      {viewEntry && (
+      {canEditEntries && editingEntry && (
         <ViewEditEntryModal
           isOpen
-          entry={viewEntry}
+          entry={editingEntry}
           routes={allRoutes}
           clients={clients}
-          onClose={() => setViewEntry(null)}
-          onUpdated={async () => { setViewEntry(null); await onReload(); }}
-          onDeleted={async () => { setViewEntry(null); await onReload(); }}
+          onClose={() => setEditingEntry(null)}
+          onUpdated={onReload}
           initiallyEditing
-          entryAssignmentLabel={assignedTripForEntry(viewEntry, { allTrips, trip })?.label}
-          entryAssignmentCaption={(() => {
-            const key = entryAssignmentCaption(assignedTripForEntry(viewEntry, { allTrips, trip }));
-            return key ? t(`course.assignment.${key}`) : t('course.assignment.willBring');
-          })()}
+          permissionModule="route"
         />
       )}
     </>

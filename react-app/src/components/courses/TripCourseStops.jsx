@@ -539,7 +539,7 @@ export default function TripCourseStops({
         />
       )}
 
-      {viewEntry && (
+      {isAdmin && viewEntry && (
         <ViewEditEntryModal
           isOpen
           entry={viewEntry}
@@ -548,12 +548,7 @@ export default function TripCourseStops({
           onClose={() => setViewEntry(null)}
           onUpdated={async () => { setViewEntry(null); await loadStops(); await onReload?.(); }}
           onDeleted={async () => { setViewEntry(null); await loadStops(); await onReload?.(); }}
-          initiallyEditing={isAdmin}
-          entryAssignmentLabel={assignedTripForEntry(viewEntry, { allTrips, trip, focusTrip: trip })?.label}
-          entryAssignmentCaption={(() => {
-            const key = entryAssignmentCaption(assignedTripForEntry(viewEntry, { allTrips, trip, focusTrip: trip }));
-            return key ? t(`course.assignment.${key}`) : t('course.assignment.willBring');
-          })()}
+          initiallyEditing
         />
       )}
     </div>
