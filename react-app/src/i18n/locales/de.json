@@ -737,7 +737,7 @@
         "recorded": "Im System: {{status}}",
         "noAssignment": "Keine aktive Zuordnung",
         "inTransit": "Auf dem Weg zum Kunden",
-        "lastSeen": "Zuletzt in der Wäscherei gesehen: {{date}}",
+        "lastSeen": "Inventur: {{date}}",
         "reviewAssignment": "Zuordnung korrigieren",
         "mismatch": "Bestätigt: {{status}}{{client}}. Bitte die aktive Zuordnung prüfen.",
         "verified": "{{trolley}} als anwesend erfasst",

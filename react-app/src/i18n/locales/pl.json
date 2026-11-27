@@ -743,7 +743,7 @@
         "recorded": "W systemie: {{status}}",
         "noAssignment": "Brak aktywnego przypisania",
         "inTransit": "W trasie do klienta",
-        "lastSeen": "Ostatnio widziany w pralni: {{date}}",
+        "lastSeen": "Inwentaryzacja: {{date}}",
         "reviewAssignment": "Korekta przypisania",
         "mismatch": "Potwierdzono: {{status}}{{client}}. Sprawdź aktywne przypisanie.",
         "verified": "Zapisano obecność {{trolley}}",
