@@ -55,26 +55,30 @@ test('uses the current wash status of active entries in the selected plan', () =
   const selectedDate = '2026-11-23';
   const entries = [
     { id: 'packed', weight: 40, washDate: selectedDate, laundry_status: 'packed' },
-    { id: 'washed', weight: 20, washDate: selectedDate, washed: true },
-    { id: 'pending', weight: 10, washDate: selectedDate, washed: false },
-    { id: 'deleted', weight: 70, washDate: selectedDate, washed: true, deleted_at: '2026-11-20T10:00:00+01:00' },
+    { id: 'washed', weight: 20, washDate: selectedDate, washed: true, laundry_status: 'washed' },
+    { id: 'pending', weight: 10, washDate: selectedDate, washed: false, laundry_status: 'pending' },
+    { id: 'deleted', weight: 70, washDate: selectedDate, laundry_status: 'packed', deleted_at: '2026-11-20T10:00:00+01:00' },
   ];
 
   const metrics = calculateLaundryDayMetrics(entries, selectedDate, entry => entry.washDate, () => null);
   assert.equal(metrics.plannedKg, 70);
   assert.equal(metrics.washedKg, 60);
+  assert.equal(metrics.packedKg, 40);
 });
 
-test('counts packing finished on the selected day separately from washing', () => {
+test('counts only ready entries from the selected wash plan, including early packing', () => {
   const entries = [
-    { id: 'packed', weight: 200, washDate: '2026-11-06', washed_at: '2026-11-06T09:00:00+01:00', laundry_packed_at: '2026-11-06T13:00:00+01:00' },
-    { id: 'ready', weight: 100, washDate: '2026-11-06', washed_at: '2026-11-06T09:00:00+01:00', laundry_ready_at: '2026-11-06T14:00:00+01:00' },
-    { id: 'washedOnly', weight: 50, washDate: '2026-11-06', washed_at: '2026-11-06T10:00:00+01:00' },
+    { id: 'packed-early', weight: 47, washDate: '2026-11-27', laundry_packed_at: '2026-11-23T14:01:00+01:00' },
+    { id: 'packed-today', weight: 574, washDate: '2026-11-27', laundry_ready_at: '2026-11-27T12:04:00+01:00' },
+    { id: 'other-plan', weight: 135, washDate: '2026-11-26', departureDate: '2026-11-27', laundry_packed_at: '2026-11-27T09:00:00+01:00' },
   ];
 
-  const metrics = calculateLaundryDayMetrics(entries, '2026-11-06', entry => entry.washDate, entry => entry.departureDate);
-  assert.equal(metrics.washedKg, 350);
-  assert.equal(metrics.packedKg, 300);
+  const metrics = calculateLaundryDayMetrics(entries.slice(0, 2), '2026-11-27', entry => entry.washDate, entry => entry.departureDate);
+  assert.deepEqual(metrics, { plannedKg: 621, washedKg: 621, packedKg: 621, departureKg: 0 });
+  assert.deepEqual(
+    calculateLaundryDayMetrics(entries, '2026-11-27', entry => entry.washDate, entry => entry.departureDate),
+    { ...metrics, departureKg: 135 },
+  );
 });
 
 test('does not count completed entries that are hidden from the laundry work list', () => {

@@ -516,15 +516,11 @@ export default function WashView() {
     activeTrolleys: activeTrolleyByNo.size,
   }), [activeTrolleyByNo.size, dailyServiceByClient, entries, scheduleByRoute, selectedDate]);
 
-  const packedKg = useMemo(
-    () => Number(laundryGroups.reduce((sum, group) => sum + group.packedKg, 0).toFixed(1)),
-    [laundryGroups],
-  );
   const washedProgress = metrics.plannedKg > 0
     ? Math.min(100, Math.round((metrics.washedKg / metrics.plannedKg) * 100))
     : 0;
   const packedProgress = metrics.plannedKg > 0
-    ? Math.min(100, Math.round((packedKg / metrics.plannedKg) * 100))
+    ? Math.min(100, Math.round((metrics.packedKg / metrics.plannedKg) * 100))
     : 0;
 
   const filterCounts = useMemo(() => (
@@ -1068,7 +1064,7 @@ export default function WashView() {
             <FlowMetric
               icon={PackageCheck}
               label={t('wash.flowOverview.packed')}
-              value={packedKg}
+              value={metrics.packedKg}
               tone="packed"
               progress={packedProgress}
               subtitle={t('wash.flowOverview.packedHint')}

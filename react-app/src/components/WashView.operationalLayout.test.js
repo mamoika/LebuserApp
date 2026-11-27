@@ -11,7 +11,7 @@ test('laundry overview presents the day as one operational flow', () => {
   assert.match(washView, /className="laundry-operations-overview"/);
   assert.match(washView, /wash\.flowOverview\.planned/);
   assert.match(washView, /wash\.flowOverview\.washed/);
-  assert.match(washView, /wash\.flowOverview\.packed/);
+  assert.match(washView, /wash\.flowOverview\.packed'\)\}\s+value=\{metrics\.packedKg\}/);
   assert.match(washView, /wash\.flowOverview\.departure/);
   assert.match(washView, /className="laundry-fleet-summary"/);
   assert.match(styles, /\.laundry-flow-metrics\s*{[^}]*grid-template-columns:\s*repeat\(4,/s);
