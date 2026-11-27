@@ -4999,25 +4999,27 @@ select.ap-input {
 .grafik-driver-card-button.has-alerts { color:#92400E; background:#FFFBEB; border-color:rgba(217,119,6,.22); }
 .grafik-driver-card-button.has-critical { color:#991B1B; background:#FFF7F7; border-color:rgba(220,38,38,.2); }
 .grafik-driver-card-button.has-critical strong { background:#DC2626; }
-.grafik-card-answer {
-  min-width:30px;
+.grafik-card-confirm {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
   min-height:28px;
   padding:3px 8px;
   border:1px solid rgba(0,0,0,.09);
-  border-radius:7px;
+  border-radius:8px;
   background:#F5F5F4;
   color:#57534E;
   font:inherit;
-  font-size:10px;
-  font-weight:800;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
   cursor:pointer;
-  transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
 }
-.grafik-card-answer:hover { background:#E7E5E4; }
-.grafik-card-answer:focus-visible { outline:2px solid rgba(0,122,255,.38); outline-offset:2px; }
-.grafik-card-answer.active { background:#E7E5E4; color:#292524; border-color:rgba(0,0,0,.14); }
-.grafik-card-answer.yes.active { background:#DCFCE7; color:#15803D; border-color:rgba(21,128,61,.25); }
-.grafik-card-answer:disabled { cursor:not-allowed; opacity:.4; }
+.grafik-card-confirm:hover:enabled { background:#E7E5E4; }
+.grafik-card-confirm:focus-visible { outline:2px solid rgba(0,122,255,.38); outline-offset:2px; }
+.grafik-card-confirm:disabled { cursor:not-allowed; opacity:.55; }
+.grafik-card-confirm.read { background:#DCFCE7; color:#15803D; border-color:rgba(21,128,61,.25); cursor:default; opacity:1; }
 .grafik-scroll-container::-webkit-scrollbar {
   height: 8px;
   width: 8px;
@@ -5197,7 +5199,7 @@ select.ap-input {
     font-size:16px !important;
   }
   .grafik-value-separator{display:none}
-  .grafik-driver-card-question{
+  .grafik-driver-card-control{
     width:100%;
     min-height:44px;
     justify-content:center;
@@ -5206,7 +5208,7 @@ select.ap-input {
     border-right:0 !important;
     border-top:1px solid rgba(0,0,0,.1);
   }
-  .grafik-card-answer{min-width:52px;min-height:44px;font-size:12px}
+  .grafik-card-confirm{min-height:44px;font-size:12px}
   .grafik-driver-card-cell-marker{top:3px;right:3px;width:15px;height:14px;border-radius:5px}
   .grafik-tip-card{
     padding:9px 11px !important;
