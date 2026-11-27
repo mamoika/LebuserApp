@@ -5203,6 +5203,7 @@ select.ap-input {
     width:100%;
     min-height:44px;
     justify-content:center;
+    flex-wrap:wrap;
     margin:0 !important;
     padding:7px 0 0 !important;
     border-right:0 !important;

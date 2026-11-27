@@ -131,6 +131,10 @@ export function markDriverCardDownloaded(sessionToken, employeeId, downloadedOn)
   });
 }
 
+export function revokeDriverCardDownload(sessionToken, eventId) {
+  return callAdminRpc(sessionToken, 'revoke_driver_card_download', { p_event_id: eventId });
+}
+
 export function archiveAdminUser(sessionToken, userId, archive = true) {
   return callAdminRpc(sessionToken, 'admin_archive_user', {
     p_user_id: userId,
