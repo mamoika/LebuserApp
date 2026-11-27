@@ -1087,6 +1087,7 @@
     "postponeWeek": "Przesuń odbiór o tydzień dalej",
     "weeksLater": "+{{count}} tyg. ({{date}})",
     "correctionClient": "Hotel / klient do korekty",
+    "clientNote": "Notatka klienta",
     "receipt": {
       "printBlocked": "Przeglądarka zablokowała okno wydruku",
       "title": "Kartka prania",

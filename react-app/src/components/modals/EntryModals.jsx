@@ -563,7 +563,7 @@ export function printSavedLaundryReceipt(row, printedBy) {
   printLaundryReceipt({ receipt: draft, printedBy });
 }
 
-function EntryFormSheet({ formId, title, onDismiss, dismissLabel, disabled, footer, children }) {
+function EntryFormSheet({ formId, title, subtitle, onDismiss, dismissLabel, disabled, footer, children }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef(null);
 
@@ -579,9 +579,13 @@ function EntryFormSheet({ formId, title, onDismiss, dismissLabel, disabled, foot
 
   return (
     <div className="ap-overlay add-entry-overlay">
-      <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}>
+      <div className="ap-sheet add-entry-sheet" role="dialog" aria-modal="true" aria-labelledby={`${formId}-title`}
+        aria-describedby={subtitle ? `${formId}-subtitle` : undefined}>
         <header className="add-entry-header">
-          <h2 id={`${formId}-title`}>{title}</h2>
+          <div className="add-entry-heading">
+            <h2 id={`${formId}-title`}>{title}</h2>
+            {subtitle && <p id={`${formId}-subtitle`}>{subtitle}</p>}
+          </div>
           <button ref={closeButtonRef} type="button" className="add-entry-close" onClick={onDismiss} disabled={disabled} aria-label={dismissLabel || t('common.close')}>
             <X size={19} aria-hidden="true" />
           </button>
@@ -1542,12 +1546,17 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         ))}
     </>
   );
+  const editRouteOptions = showEditForm && isAdmin && sortedRoutes.map((route, index) => (
+    <option key={route.id} value={route.id}>T{index + 1} - {route.name}</option>
+  ));
+  const isLaundryEditor = source === 'wash';
 
-  if (showEditForm && isDriver) {
+  if (showEditForm && (isDriver || isLaundryEditor)) {
     return (
       <EntryFormSheet
         formId={formId}
-        title={targetEntry.client_name}
+        title={isLaundryEditor ? clientName || targetEntry.client_name : targetEntry.client_name}
+        subtitle={isLaundryEditor ? t('entry.editEntry') : undefined}
         onDismiss={cancelEdit}
         dismissLabel={t('common.cancel')}
         disabled={loading}
@@ -1558,6 +1567,15 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
         )}
       >
         <div className="add-entry-card">
+          {canChangeClient && (
+            <div>
+              <label className="add-entry-label" htmlFor={`${formId}-client`}>{t('entry.correctionClient')}</label>
+              <select id={`${formId}-client`} className="ap-input" value={clientName} disabled={loading}
+                onChange={event => handleClientChange(event.target.value)}>
+                {editClientOptions}
+              </select>
+            </div>
+          )}
           <EntryLaundryFields
             formId={formId}
             client={clients.find(c => c.name === clientName)}
@@ -1583,10 +1601,34 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
           onPickupChange={setPickDay}
           pickWeek={pickWeek}
           onPickupWeekChange={setPickWeek}
+          onPostponeWeek={isLaundryEditor && isAdmin ? () => setPickWeek(week => Number(week) + 1) : undefined}
           urgent={urgent}
           onToggleUrgent={() => setUrgent(value => !value)}
           disabled={loading}
         />
+        {isLaundryEditor && !isDriver && (
+          <div className="add-entry-card">
+            {isAdmin && (
+              <div>
+                <label className="add-entry-label" htmlFor={`${formId}-route`}>{t('entry.logisticsRoute')}</label>
+                <select id={`${formId}-route`} className="ap-input" value={routeId} disabled={loading}
+                  onChange={event => setRouteId(Number(event.target.value))}>
+                  {editRouteOptions}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="add-entry-label" htmlFor={`${formId}-comment`}>{t('entry.clientNote')}</label>
+              <input id={`${formId}-comment`} type="text" className="ap-input" value={comment} disabled={loading}
+                onChange={event => setComment(event.target.value)} />
+            </div>
+          </div>
+        )}
+        {isLaundryEditor && isAdmin && allowDeleteInEditor && (
+          <button type="button" className="ap-btn ap-btn-danger add-entry-delete" onClick={handleDelete} disabled={loading}>
+            {confirmDelete ? t('entry.confirmDeleteShort') : t('entry.delete')}
+          </button>
+        )}
       </EntryFormSheet>
     );
   }
@@ -1685,9 +1727,7 @@ export function ViewEditEntryModal({ isOpen, onClose, entry, relatedEntries = []
               <div className="ap-field" style={{ marginBottom: '14px' }}>
                 <label className="ap-label" style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(60,60,67,0.5)', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '6px' }}>{t('entry.logisticsRoute')}</label>
                 <select className="ap-select ap-input" value={routeId} onChange={e => setRouteId(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px' }}>
-                  {sortedRoutes.map((r, index) => (
-                    <option key={r.id} value={r.id}>T{index + 1} - {r.name}</option>
-                  ))}
+                  {editRouteOptions}
                 </select>
               </div>
             )}

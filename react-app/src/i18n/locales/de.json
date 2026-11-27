@@ -1075,6 +1075,7 @@
     "postponeWeek": "Abholung um eine Woche verschieben",
     "weeksLater": "+{{count}} Wo. ({{date}})",
     "correctionClient": "Hotel / Kunde zur Korrektur",
+    "clientNote": "Kundennotiz",
     "receipt": {
       "printBlocked": "Der Browser hat das Druckfenster blockiert",
       "title": "Wäscheschein",

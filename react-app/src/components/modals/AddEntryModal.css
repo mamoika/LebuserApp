@@ -33,6 +33,10 @@
   padding-block: 10px;
 }
 
+.add-entry-heading {
+  min-width: 0;
+}
+
 .add-entry-header h2 {
   min-width: 0;
   margin: 0;
@@ -41,6 +45,13 @@
   line-height: 1.2;
   letter-spacing: -.025em;
   overflow-wrap: anywhere;
+}
+
+.add-entry-heading p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .add-entry-close,
@@ -358,6 +369,14 @@
 
 .add-entry-footer .ap-btn:hover:enabled {
   background: #005fcd;
+}
+
+.add-entry-delete {
+  align-self: flex-start;
+  min-height: 44px;
+  border: 1px solid var(--add-entry-border);
+  border-radius: 12px;
+  color: var(--add-entry-priority-color);
 }
 
 .add-entry-sheet :is(.add-entry-close, .add-entry-priority, .ap-btn):disabled {
