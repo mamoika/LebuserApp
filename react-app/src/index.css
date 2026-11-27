@@ -4999,10 +4999,20 @@ select.ap-input {
 .grafik-driver-card-button.has-alerts { color:#92400E; background:#FFFBEB; border-color:rgba(217,119,6,.22); }
 .grafik-driver-card-button.has-critical { color:#991B1B; background:#FFF7F7; border-color:rgba(220,38,38,.2); }
 .grafik-driver-card-button.has-critical strong { background:#DC2626; }
-.grafik-card-confirm {
-  display:inline-flex;
+.grafik-driver-card-control {
+  display:flex;
   align-items:center;
   gap:6px;
+  margin-right:5px;
+  padding-right:10px;
+  border-right:1px solid rgba(0,0,0,.1);
+  color:#44403C;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+}
+.grafik-card-answer {
+  min-width:36px;
   min-height:28px;
   padding:3px 8px;
   border:1px solid rgba(0,0,0,.09);
@@ -5016,10 +5026,11 @@ select.ap-input {
   cursor:pointer;
   transition:background .15s ease,color .15s ease,border-color .15s ease;
 }
-.grafik-card-confirm:hover:enabled { background:#E7E5E4; }
-.grafik-card-confirm:focus-visible { outline:2px solid rgba(0,122,255,.38); outline-offset:2px; }
-.grafik-card-confirm:disabled { cursor:not-allowed; opacity:.55; }
-.grafik-card-confirm.read { background:#DCFCE7; color:#15803D; border-color:rgba(21,128,61,.25); cursor:default; opacity:1; }
+.grafik-card-answer:hover:enabled { background:#E7E5E4; }
+.grafik-card-answer:focus-visible { outline:2px solid rgba(0,122,255,.38); outline-offset:2px; }
+.grafik-card-answer:disabled { cursor:not-allowed; opacity:.55; }
+.grafik-card-answer[aria-pressed="true"] { background:#E7E5E4; color:#292524; border-color:rgba(0,0,0,.14); }
+.grafik-card-answer.yes[aria-pressed="true"] { background:#DCFCE7; color:#15803D; border-color:rgba(21,128,61,.25); }
 .grafik-scroll-container::-webkit-scrollbar {
   height: 8px;
   width: 8px;
@@ -5204,12 +5215,12 @@ select.ap-input {
     min-height:44px;
     justify-content:center;
     flex-wrap:wrap;
-    margin:0 !important;
-    padding:7px 0 0 !important;
-    border-right:0 !important;
+    margin:0;
+    padding:7px 0 0;
+    border-right:0;
     border-top:1px solid rgba(0,0,0,.1);
   }
-  .grafik-card-confirm{min-height:44px;font-size:12px}
+  .grafik-card-answer{min-width:44px;min-height:44px;font-size:12px}
   .grafik-driver-card-cell-marker{top:3px;right:3px;width:15px;height:14px;border-radius:5px}
   .grafik-tip-card{
     padding:9px 11px !important;

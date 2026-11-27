@@ -7,7 +7,7 @@ import { getDriverCardReminders, getWorkScheduleMonth } from '../lib/readRpc';
 import { toastError, toastSuccess } from '../lib/toast';
 import { monthNames, dayNamesSunSat } from '../lib/dateUtils';
 import { exportRowsAsXlsx } from '../lib/excelExport';
-import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, CreditCard, Download, FileArchive, FileUp, History, Info, Printer, RotateCcw, X, XCircle } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, CreditCard, Download, FileArchive, FileUp, History, Info, Printer, X, XCircle } from 'lucide-react';
 import { approveWorkTime, markDriverCardDownloaded, rejectWorkTime, revokeDriverCardDownload } from '../lib/adminRpc';
 import { formatWorkDuration, minutesBetweenClocks, timeForInput } from '../lib/workTime';
 import { getEmployeeMonthNorm, parseHours, formatDiff } from '../lib/rosterHelpers';
@@ -246,6 +246,7 @@ function ValuePicker({ selectedValue, onSelect, onCancel, onConfirmDriverCard, o
   const [customValue, setCustomValue] = useState('');
   const PRESETS = ['8', 'I', 'W', 'UW', 'L4', 'NU', 'NN', 'END'];
   const inputRef = useRef(null);
+  const driverCardRead = Boolean(onRevokeDriverCard);
 
   useEffect(() => {
     setCustomValue(selectedValue || '');
@@ -269,27 +270,24 @@ function ValuePicker({ selectedValue, onSelect, onCancel, onConfirmDriverCard, o
       display: 'flex', alignItems: 'center', gap: '5px',
     }}>
       {(onConfirmDriverCard || onRevokeDriverCard) && (
-        <div className="grafik-driver-card-control" aria-busy={isSavingDriverCard} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginRight: '5px', paddingRight: '10px', borderRight: '1px solid rgba(0,0,0,.1)' }}>
-          {onRevokeDriverCard ? (
-            <>
-              <span className="grafik-card-confirm read" title={t('grafik.driverCard.readAlreadySaved')}>
-                <CheckCircle2 size={15} aria-hidden="true" /> {t('grafik.driverCard.readSaved')}
-              </span>
-              <button type="button" className="grafik-card-confirm" disabled={isSavingDriverCard} onClick={onRevokeDriverCard}>
-                <RotateCcw size={15} aria-hidden="true" /> {t('grafik.driverCard.revokeRead')}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="grafik-card-confirm"
-              disabled={!canConfirmDriverCard || isSavingDriverCard}
-              title={!canConfirmDriverCard ? t('grafik.driverCard.futureDisabled') : undefined}
-              onClick={onConfirmDriverCard}
-            >
-              <CreditCard size={15} aria-hidden="true" /> {t('grafik.driverCard.confirmRead')}
-            </button>
-          )}
+        <div className="grafik-driver-card-control" role="group" aria-labelledby="grafik-driver-card-question" aria-busy={isSavingDriverCard}>
+          <CreditCard size={15} color={driverCardRead ? '#15803D' : '#B45309'} aria-hidden="true" />
+          <span id="grafik-driver-card-question">{t('grafik.driverCard.readQuestion')}</span>
+          <button
+            type="button"
+            className="grafik-card-answer"
+            aria-pressed={!driverCardRead}
+            disabled={isSavingDriverCard}
+            onClick={onRevokeDriverCard}
+          >{t('common.no')}</button>
+          <button
+            type="button"
+            className="grafik-card-answer yes"
+            aria-pressed={driverCardRead}
+            disabled={isSavingDriverCard || (!driverCardRead && !canConfirmDriverCard)}
+            title={!driverCardRead && !canConfirmDriverCard ? t('grafik.driverCard.futureDisabled') : undefined}
+            onClick={onConfirmDriverCard}
+          >{t('common.yes')}</button>
         </div>
       )}
       {PRESETS.map((b, idx) => {
@@ -1123,9 +1121,6 @@ export default function GrafikView({ historyOpen = false, onHistoryClose = () =>
     if (!canEditWorkSchedule || !selectedDriverCardRead || isSavingDriverCard) return;
 
     const { id, name } = selectedDriverCardRead;
-    const date = selectedDate.toLocaleDateString(i18n.language);
-    if (!window.confirm(t('grafik.driverCard.revokeConfirm', { name, date }))) return;
-
     setIsSavingDriverCard(true);
     try {
       const { status, reminders } = await revokeDriverCardDownload(sessionToken, id);
