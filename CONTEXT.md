@@ -86,6 +86,9 @@ _Unikaj_: Historia wózka
 Chronologiczny, nieusuwalny dziennik zmian lokalizacji i stanu konkretnego wózka, obejmujący czyste pranie, odbiór brudnego, zwolnienie po praniu, pusty transfer oraz korekty.
 _Unikaj_: Bieżący status
 
+**Spis obecności wózków**:
+Liczenie wózków fizycznie odnalezionych w pralni w określonym czasie. Obserwacja obecności wskazuje miejsce i czas sprawdzenia, a wózek oznaczony jako „Nie znaleziono” był spodziewany w pralni i został tam bezskutecznie sprawdzony.
+
 **Tara wózka**:
 Masa pustego wózka odejmowana od pomiaru brutto przy przyjęciu brudnego prania. Wartość domyślna wynosi 35 kg, lecz należy do konkretnego wózka.
 

@@ -1,95 +1,47 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Archive, Check, ChevronRight, ClipboardCheck, History, ScanBarcode, ShieldAlert, Truck, WashingMachine } from 'lucide-react';
+import { Check, ChevronRight, ClipboardCheck, History, ScanBarcode, ShieldAlert } from 'lucide-react';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 import { currentLocale } from '../lib/dateUtils';
-import { startTrolleyInventory, verifyTrolleyInventory } from '../lib/laundryRpc';
+import { finishTrolleyInventory, recordTrolleyInventoryObservation, startTrolleyInventory } from '../lib/laundryRpc';
 import { formatTrolleyCode, parseTrolleyCode } from '../lib/trolleyCodes';
-import { trolleyFleetStatus, TROLLEY_INVENTORY_LABELS } from '../lib/trolleyOccupancy';
+import { trolleyInventoryFoundCount, trolleyInventoryRoundStatus } from '../lib/trolleyOccupancy';
 import './TrolleyInventoryView.css';
 
+const INVENTORY_KEY = 'wash.fleet.inventory';
 const FILTERS = {
+  present: { label: 'seen', Icon: Check },
   review: { label: 'review', Icon: ScanBarcode },
-  verified: { label: 'checked', Icon: Check },
-  conflict: { label: 'conflicts', Icon: ShieldAlert },
+  issues: { label: 'issues', Icon: ShieldAlert },
 };
 
-const STATUS_ICONS = {
-  free_at_laundry: Check,
-  at_client: Archive,
-  in_use: Truck,
-  dirty_at_laundry: WashingMachine,
-};
-
-const RECORDED_LABELS = {
-  free: 'inventory.noAssignment',
-  atClient: 'left',
-  inUse: 'inUse',
-  dirty: 'dirtyAtLaundry',
-};
-
-function recordedLabel(active, recorded, t) {
-  const label = active?.status === 'returning_to_laundry' ? 'returningToLaundry' : RECORDED_LABELS[recorded];
+function recordedLabel(active, t) {
+  let label = 'inventory.noAssignment';
+  if (active) {
+    if (active.status === 'returning_to_laundry') label = 'returningToLaundry';
+    else if (active.occupancy_source === 'arrival') label = 'dirtyAtLaundry';
+    else if (active.status === 'at_client') label = 'left';
+    else if (active.released_at || active.status === 'released') label = 'inventory.inTransit';
+    else label = 'inUse';
+  }
   return [t(`wash.fleet.${label}`), active?.client_name].filter(Boolean).join(' · ');
 }
 
 function inventoryErrorMessage(error, t) {
-  if (error?.message === 'trolley_inventory_changed') return t('wash.fleet.inventory.changed');
-  if (error?.message === 'trolley_inventory_invalid_client') return t('wash.fleet.inventory.invalidClient');
-  return t('wash.fleet.inventory.error');
-}
-
-function TrolleyCheckForm({ active, check, clients, onSave, disabled, busy, error }) {
-  const { t } = useTranslation();
-  const [status, setStatus] = useState(check?.status || '');
-  const [clientId, setClientId] = useState(() => clients.find(client => (
-    client.name === (check?.client_name ?? active?.client_name)
-  ))?.id || '');
-  const canSave = Boolean(status && (status !== 'at_client' || clientId));
-
-  return (
-    <form className="trolley-inventory-check" onSubmit={event => {
-      event.preventDefault();
-      if (canSave && !disabled) onSave(status, clientId);
-    }}>
-      <fieldset disabled={disabled}>
-        <legend>{t('wash.fleet.inventory.observed')}</legend>
-        <div className="trolley-inventory-choices">
-          {Object.entries(TROLLEY_INVENTORY_LABELS).map(([value, label]) => {
-            const Icon = STATUS_ICONS[value];
-            return (
-              <label key={value}>
-                <input type="radio" name="trolley-inventory-location" value={value} checked={status === value} onChange={() => setStatus(value)} />
-                <span><Icon size={17} aria-hidden="true" />{t(`wash.fleet.${label}`)}</span>
-              </label>
-            );
-          })}
-        </div>
-        {status === 'at_client' && (
-          <label className="trolley-inventory-client">
-            {t('wash.fleet.actions.clientLabel')}
-            <select value={clientId} onChange={event => setClientId(event.target.value)}>
-              <option value="">{t('wash.fleet.actions.clientPlaceholder')}</option>
-              {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
-            </select>
-          </label>
-        )}
-      </fieldset>
-      {error && <p className="trolley-inventory-error" role="alert">{error}</p>}
-      <button className="trolley-inventory-button is-primary" type="submit" disabled={disabled || !canSave}>
-        {t(busy ? 'wash.fleet.actions.saving' : 'wash.fleet.inventory.verify')}
-      </button>
-    </form>
-  );
+  switch (error?.message) {
+    case 'trolley_inventory_changed': return t(`${INVENTORY_KEY}.changed`);
+    case 'trolley_inventory_not_expected': return t(`${INVENTORY_KEY}.notExpected`);
+    case 'trolley_inventory_invalid_number': return t(`${INVENTORY_KEY}.numberNotFound`);
+    default: return t(`${INVENTORY_KEY}.error`);
+  }
 }
 
 export default function TrolleyInventoryView({
   inventory,
-  trolleyCount,
   activeTrolleyByNo,
   sessionToken,
-  clients,
   canEdit,
+  canCorrect,
   loading,
   loadError,
   historyOpen,
@@ -97,112 +49,107 @@ export default function TrolleyInventoryView({
   onOpenHistory,
 }) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState(null);
+  const [filter, setFilter] = useState('round');
   const [scan, setScan] = useState('');
   const [selectedNo, setSelectedNo] = useState(null);
-  const [startRequest, setStartRequest] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [startError, setStartError] = useState('');
-  const [lookupError, setLookupError] = useState('');
-  const [saveError, setSaveError] = useState('');
-  const [verifiedNo, setVerifiedNo] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState(null);
   const scanRef = useRef(null);
-  const selectedTitleRef = useRef(null);
-  const startButtonRef = useRef(null);
-  const startConfirmRef = useRef(null);
+  const pendingScansRef = useRef([]);
+  const actionRef = useRef(null);
 
-  const locale = currentLocale();
-  const counts = { review: 0, verified: 0, conflict: 0 };
-  const rows = inventory?.trolley_nos.map(no => {
+  const round = Array.isArray(inventory?.expected_trolley_nos) ? inventory : null;
+  const canRecord = Boolean(round && !round.completed_at && canEdit && !loadError);
+  const rows = round?.trolley_nos.map(no => {
     const active = activeTrolleyByNo.get(no);
-    const { status, recorded, check } = trolleyFleetStatus(no, active, inventory);
-    const group = status === 'review' || status === 'conflict' ? status : 'verified';
-    counts[group] += 1;
-    return { no, active, recorded, check, group, code: formatTrolleyCode(no) };
+    const status = trolleyInventoryRoundStatus(no, active, round);
+    return { no, active, status };
   }) ?? [];
-  const currentFilter = filter ?? (counts.review ? 'review' : counts.conflict ? 'conflict' : 'all');
-  const visibleRows = currentFilter === 'all' ? rows : rows.filter(row => row.group === currentFilter);
+  const matchesFilter = (row, key) => {
+    if (key === 'present') return row.status === 'present' || row.status === 'conflict';
+    if (key === 'issues') return row.status === 'missing' || row.status === 'conflict';
+    return row.status === key;
+  };
   const selected = rows.find(row => row.no === selectedNo);
-  const total = rows.length;
-  const checked = total - counts.review;
-  const writesDisabled = busy || Boolean(loadError);
-  const activeClients = clients.filter(client => client?.id && !client.archived_at)
-    .sort((a, b) => a.name.localeCompare(b.name, locale));
-  const startTime = inventory?.started_at && new Date(inventory.started_at).toLocaleString(locale, {
+  const foundCount = trolleyInventoryFoundCount(round);
+  const visibleRows = rows.filter(row => (
+    filter === 'all' || (filter === 'round' ? row.status !== 'outside' : matchesFilter(row, filter))
+  ));
+  const dateFormat = new Intl.DateTimeFormat(currentLocale(), {
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Warsaw',
   });
 
   const focusScan = () => requestAnimationFrame(() => scanRef.current?.focus());
-  const openTrolley = no => {
-    setSelectedNo(no);
-    setLookupError('');
-    setSaveError('');
-    setVerifiedNo(null);
-    setScan('');
-    requestAnimationFrame(() => selectedTitleRef.current?.focus());
+
+  const runRoundAction = async (action) => {
+    if (actionRef.current || loadError || !canEdit) return;
+    actionRef.current = 'round';
+    setBusy('round');
+    setError('');
+    try {
+      if (action === 'start') {
+        await startTrolleyInventory(sessionToken, inventory?.id);
+        setFilter('round');
+        setSelectedNo(null);
+        setFeedback(null);
+      } else {
+        await finishTrolleyInventory(sessionToken, round.id);
+      }
+      await onRefresh();
+      if (action === 'start') focusScan();
+    } catch (error) {
+      setError(inventoryErrorMessage(error, t));
+      if (error?.message === 'trolley_inventory_changed') await onRefresh();
+    } finally {
+      actionRef.current = null;
+      setBusy(null);
+    }
   };
 
-  const openScannedTrolley = (input, reportInvalid = true) => {
-    const no = parseTrolleyCode(input);
-    if (no && inventory?.trolley_nos.includes(no)) {
-      openTrolley(no);
-      return true;
+  const saveObservation = async (no, status) => {
+    if (!canRecord || actionRef.current === 'round') return;
+    pendingScansRef.current.push({ no, status, inventoryId: round.id });
+    setSelectedNo(no);
+    setScan('');
+    setError('');
+    if (actionRef.current) return;
+    actionRef.current = 'observation';
+    setBusy('observation');
+    try {
+      while (pendingScansRef.current.length) {
+        const next = pendingScansRef.current.shift();
+        try {
+          await recordTrolleyInventoryObservation(sessionToken, next.inventoryId, next.no, next.status);
+          setFeedback(next);
+        } catch (error) {
+          setError(inventoryErrorMessage(error, t));
+          if (error?.message === 'trolley_inventory_changed') pendingScansRef.current = [];
+        }
+        if (!pendingScansRef.current.length) await onRefresh();
+      }
+    } finally {
+      actionRef.current = null;
+      setBusy(null);
     }
-    if (reportInvalid) setLookupError(t('wash.fleet.inventory.numberNotFound'));
-    return false;
+  };
+
+  const readTrolleyNumber = input => {
+    const no = parseTrolleyCode(input);
+    if (no && round.trolley_nos.includes(no)) return no;
+    setError(t(`${INVENTORY_KEY}.numberNotFound`));
+    return null;
   };
 
   useBarcodeScanner({
-    enabled: Boolean(inventory && !busy && !historyOpen && !startRequest),
+    enabled: canRecord && busy !== 'round' && !historyOpen,
     onScan: (code, event) => {
-      if (openScannedTrolley(code, false)) event.preventDefault();
+      const no = readTrolleyNumber(code);
+      if (!no) return;
+      event.preventDefault();
+      void saveObservation(no, 'present');
     },
   });
-
-  const handleStart = async () => {
-    if (writesDisabled || !canEdit || !startRequest) return;
-    setBusy(true);
-    setStartError('');
-    try {
-      await startTrolleyInventory(sessionToken, startRequest.previousId);
-      await onRefresh();
-      setStartRequest(null);
-      setSelectedNo(null);
-      setVerifiedNo(null);
-      setFilter(null);
-      setLookupError('');
-      focusScan();
-    } catch (error) {
-      setStartError(inventoryErrorMessage(error, t));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSave = async (status, clientId) => {
-    if (writesDisabled || !canEdit || !selected) return;
-    setBusy(true);
-    setSaveError('');
-    try {
-      const result = await verifyTrolleyInventory(sessionToken, inventory.id, selected.no, status, clientId);
-      await onRefresh();
-      setVerifiedNo(selected.no);
-      setSelectedNo(null);
-      if (result.completed_at && currentFilter === 'review') setFilter(null);
-      focusScan();
-    } catch (error) {
-      if (error?.message === 'trolley_inventory_changed') {
-        await onRefresh();
-        setSelectedNo(null);
-        setLookupError(inventoryErrorMessage(error, t));
-        focusScan();
-      } else {
-        setSaveError(inventoryErrorMessage(error, t));
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <section className="trolley-inventory" aria-labelledby="trolley-inventory-title">
@@ -210,145 +157,131 @@ export default function TrolleyInventoryView({
         <div className="trolley-inventory-heading">
           <span className="trolley-inventory-icon"><ClipboardCheck size={22} aria-hidden="true" /></span>
           <div>
-            <h2 id="trolley-inventory-title">{t('wash.fleet.inventory.pageTitle')}</h2>
-            {inventory && <p>{t('wash.fleet.inventory.startedAt', { date: startTime })}</p>}
+            <h2 id="trolley-inventory-title">{t(`${INVENTORY_KEY}.pageTitle`)}</h2>
+            {round && <p>{t(`${INVENTORY_KEY}.${round.completed_at ? 'finishedAt' : 'startedAt'}`, {
+              date: dateFormat.format(new Date(round.completed_at || round.started_at)),
+            })}</p>}
           </div>
         </div>
-
-        {inventory && (
-          <div className="trolley-inventory-progress">
-            <strong role="status">{t(inventory.completed_at ? 'wash.fleet.inventory.complete' : 'wash.fleet.inventory.progress', { checked, total })}</strong>
-            <progress max={total} value={checked} aria-label={t('wash.fleet.inventory.progressLabel')} />
-          </div>
+        {round && <strong className="trolley-inventory-count" role="status">{t(`${INVENTORY_KEY}.foundCount`, { count: foundCount })}</strong>}
+        {canEdit && inventory !== undefined && !loadError && (
+          <button className="trolley-inventory-button is-primary" type="button" disabled={Boolean(busy)} onClick={() => {
+            void runRoundAction(canRecord ? 'finish' : 'start');
+          }}>{t(`${INVENTORY_KEY}.${canRecord ? 'finish' : round ? 'newCount' : 'start'}`)}</button>
         )}
-
-        {canEdit && inventory !== undefined && (!inventory || inventory.completed_at) && !startRequest && !loadError && (
-          <button ref={startButtonRef} type="button" className="trolley-inventory-button is-primary" onClick={() => {
-            setStartRequest({ previousId: inventory?.id });
-            requestAnimationFrame(() => startConfirmRef.current?.focus());
-          }}>
-            {t(inventory ? 'wash.fleet.inventory.newCount' : 'wash.fleet.inventory.start')}
-          </button>
-        )}
-
-        {startRequest && (
-          <div className="trolley-inventory-start">
-            <p>{t('wash.fleet.inventory.startDescription')}</p>
-            {startError && <p className="trolley-inventory-error" role="alert">{startError}</p>}
-            <div>
-              <button type="button" className="trolley-inventory-button" disabled={busy} onClick={() => {
-                setStartRequest(null);
-                setStartError('');
-                requestAnimationFrame(() => startButtonRef.current?.focus());
-              }}>{t('common.cancel')}</button>
-              <button ref={startConfirmRef} type="button" className="trolley-inventory-button is-primary" disabled={writesDisabled} onClick={handleStart}>
-                {t(busy ? 'wash.fleet.actions.saving' : 'wash.fleet.inventory.start')}
-              </button>
-            </div>
-          </div>
-        )}
-
         {loadError && (
           <div className="trolley-inventory-notice" role="alert">
-            <p>{t('wash.fleet.inventory.loadError')}</p>
+            <p>{t(`${INVENTORY_KEY}.loadError`)}</p>
             <button type="button" className="trolley-inventory-button" onClick={onRefresh}>{t('common.refresh')}</button>
           </div>
         )}
-        {!inventory && !loadError && !startRequest && (
+        {!round && !loadError && (
           <p className="trolley-inventory-notice" role="status">
-            {t(loading ? 'common.loading' : inventory === undefined ? 'wash.fleet.inventory.setupMissing'
-              : 'wash.fleet.inventory.notStarted', { count: trolleyCount })}
+            {t(loading ? 'common.loading' : `${INVENTORY_KEY}.${inventory === undefined ? 'setupMissing' : 'notStarted'}`)}
           </p>
         )}
+        {!round && error && <p className="trolley-inventory-error" role="alert">{error}</p>}
       </header>
 
-      {inventory && (
+      {round && (
         <div className="trolley-inventory-workspace">
           <div className="trolley-inventory-station">
             <form className="trolley-inventory-scanner" onSubmit={event => {
               event.preventDefault();
-              if (!busy) openScannedTrolley(scan);
+              const no = readTrolleyNumber(scan);
+              if (!no) return;
+              if (canRecord) void saveObservation(no, 'present');
+              else {
+                setSelectedNo(no);
+                setError('');
+                setScan('');
+              }
             }}>
-              <label htmlFor="inventory-scan">{t('wash.fleet.inventory.scan')}</label>
+              <label htmlFor="inventory-scan">{t(`${INVENTORY_KEY}.${canRecord ? 'scan' : 'lookup'}`)}</label>
               <div>
                 <ScanBarcode size={20} aria-hidden="true" />
-                <input id="inventory-scan" ref={scanRef} type="search" value={scan} autoComplete="off" enterKeyHint="search" onChange={event => {
-                  setScan(event.target.value);
-                  setLookupError('');
-                  setVerifiedNo(null);
-                }} />
-                <button type="submit" className="trolley-inventory-button" disabled={busy || !scan.trim()}>{t('wash.fleet.inventory.openTrolley')}</button>
+                <input id="inventory-scan" ref={scanRef} type="search" value={scan} autoComplete="off"
+                  onChange={event => setScan(event.target.value)} />
+                <button type="submit" className="trolley-inventory-button" disabled={!scan.trim() || busy === 'round'}>
+                  {t(`${INVENTORY_KEY}.${canRecord ? 'isHere' : 'openTrolley'}`)}
+                </button>
               </div>
-              {lookupError && <p className="trolley-inventory-error" role="alert">{lookupError}</p>}
+              <span role="status" className="trolley-inventory-ready" hidden={busy !== 'observation' && !feedback}>
+                {busy === 'observation' ? t('wash.fleet.actions.saving') : feedback && t(
+                  `${INVENTORY_KEY}.${feedback.status === 'missing' ? 'markedMissing' : 'verified'}`,
+                  { trolley: formatTrolleyCode(feedback.no) },
+                )}
+              </span>
+              {error && <p className="trolley-inventory-error" role="alert">{error}</p>}
             </form>
-            <div className="trolley-inventory-detail">
-              {selected ? (
-                <>
-                  <div className="trolley-inventory-detail-heading">
-                    <h3 ref={selectedTitleRef} tabIndex={-1}>{selected.code}</h3>
-                    <button className="trolley-inventory-history" type="button" onClick={() => onOpenHistory(selected.no)}>
-                      <History size={16} aria-hidden="true" />{t('wash.fleet.openHistory')}
-                    </button>
-                  </div>
-                  <p className="trolley-inventory-recorded">{t('wash.fleet.inventory.recorded', {
-                    status: recordedLabel(selected.active, selected.recorded, t),
-                  })}</p>
-                  {selected.check && (
-                    <p className="trolley-inventory-observed" data-group={selected.group}>
-                      {t(selected.group === 'conflict' ? 'wash.fleet.inventory.mismatch' : 'wash.fleet.inventory.lastObservation', {
-                        status: t(`wash.fleet.${TROLLEY_INVENTORY_LABELS[selected.check.status]}`),
-                        client: selected.check.client_name ? ` · ${selected.check.client_name}` : '',
-                      })}
-                    </p>
-                  )}
-                  {canEdit && (
-                    <TrolleyCheckForm key={`${inventory.id}-${selected.no}`} check={selected.check?.movement_since_check ? null : selected.check} active={selected.active}
-                      clients={activeClients} onSave={handleSave} disabled={writesDisabled} busy={busy} error={saveError} />
-                  )}
-                </>
-              ) : (
-                <p className="trolley-inventory-ready" role="status">
-                  {verifiedNo ? <><Check size={17} aria-hidden="true" />{t('wash.fleet.inventory.verified', { trolley: formatTrolleyCode(verifiedNo) })}</>
-                    : t('wash.fleet.inventory.chooseTrolley')}
+            {selected && (
+              <div className="trolley-inventory-detail">
+                <div className="trolley-inventory-detail-heading">
+                  <h3>{formatTrolleyCode(selected.no)}</h3>
+                  <button className="trolley-inventory-history" type="button" onClick={() => onOpenHistory(selected.no)}>
+                    <History size={16} aria-hidden="true" />
+                    {t(selected.status === 'conflict' && canCorrect ? `${INVENTORY_KEY}.reviewAssignment` : 'wash.fleet.openHistory')}
+                  </button>
+                </div>
+                <p className="trolley-inventory-recorded" data-group={selected.status}>
+                  {t(`${INVENTORY_KEY}.recorded`, { status: recordedLabel(selected.active, t) })}
                 </p>
-              )}
-            </div>
+                {round.last_seen_at[selected.no] && <p className="trolley-inventory-observed">
+                  {t(`${INVENTORY_KEY}.lastSeen`, { date: dateFormat.format(new Date(round.last_seen_at[selected.no])) })}
+                </p>}
+                {selected.status === 'missing' && <p className="trolley-inventory-observed">
+                  {t(`${INVENTORY_KEY}.missing`)} · {dateFormat.format(new Date(round.observations[selected.no].observed_at))}
+                </p>}
+                {canRecord && (
+                  <div className="trolley-inventory-actions">
+                    <button type="button" className="trolley-inventory-button is-primary"
+                      disabled={Boolean(busy) || (round.observations[selected.no]?.status === 'present' && !round.observations[selected.no].movement_since_check)}
+                      onClick={() => void saveObservation(selected.no, 'present')}>{t(`${INVENTORY_KEY}.isHere`)}</button>
+                    {round.expected_trolley_nos.includes(selected.no) && (
+                      <button type="button" className="trolley-inventory-button"
+                        disabled={Boolean(busy) || (selected.status === 'missing' && round.packing_holds.includes(selected.no))}
+                        onClick={() => void saveObservation(selected.no, 'missing')}>{t(`${INVENTORY_KEY}.missing`)}</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
           <section className="trolley-inventory-queue" aria-labelledby="inventory-queue-title">
             <header>
-              <h3 id="inventory-queue-title">{t('wash.fleet.inventory.queue')}</h3>
-              <button type="button" className="trolley-inventory-button" aria-pressed={currentFilter === 'all'} onClick={() => setFilter('all')}>
-                {t('wash.fleet.showAll')}
-              </button>
+              <h3 id="inventory-queue-title">{t(`${INVENTORY_KEY}.queue`)}</h3>
+              <button type="button" className="trolley-inventory-button" aria-pressed={filter === 'all'}
+                onClick={() => setFilter(filter === 'all' ? 'round' : 'all')}>{t('wash.fleet.showAll')}</button>
             </header>
             <div className="trolley-inventory-filters" role="group" aria-label={t('wash.fleet.filterLabel')}>
-              {Object.entries(FILTERS).map(([group, { Icon, label }]) => (
-                <button type="button" key={group} data-group={group} aria-pressed={currentFilter === group} onClick={() => setFilter(group)}>
+              {Object.entries(FILTERS).map(([key, { Icon, label }]) => (
+                <button type="button" key={key} aria-pressed={filter === key} onClick={() => setFilter(filter === key ? 'round' : key)}>
                   <Icon size={15} aria-hidden="true" />
-                  <strong>{counts[group]}</strong>
-                  <span>{t(`wash.fleet.inventory.${label}`)}</span>
+                  <strong>{rows.filter(row => matchesFilter(row, key)).length}</strong>
+                  <span>{t(`${INVENTORY_KEY}.${label}`)}</span>
                 </button>
               ))}
             </div>
             {visibleRows.length ? (
               <ul className="trolley-inventory-list">
-                {visibleRows.map(row => {
-                  const { Icon, label } = FILTERS[row.group];
-                  return (
-                    <li key={row.no}>
-                      <button type="button" aria-pressed={selectedNo === row.no} disabled={busy} onClick={() => openTrolley(row.no)}>
-                        <strong>{row.code}</strong>
-                        <span className="trolley-inventory-list-location">{recordedLabel(row.active, row.recorded, t)}</span>
-                        <span className="trolley-inventory-row-status" data-group={row.group}>
-                          <Icon size={14} aria-hidden="true" />{t(`wash.fleet.inventory.${row.group === 'conflict' ? 'conflict' : label}`)}
-                        </span>
-                        <ChevronRight className="trolley-inventory-row-arrow" size={16} aria-hidden="true" />
-                      </button>
-                    </li>
-                  );
-                })}
+                {visibleRows.map(row => (
+                  <li key={row.no}>
+                    <button type="button" aria-pressed={selectedNo === row.no} onClick={() => {
+                      setSelectedNo(row.no);
+                      setError('');
+                    }}>
+                      <strong>{formatTrolleyCode(row.no)}</strong>
+                      <span className="trolley-inventory-list-location">{recordedLabel(row.active, t)}</span>
+                      <span className="trolley-inventory-row-status" data-group={row.status}>{t(
+                        `${INVENTORY_KEY}.${row.status === 'present' ? 'seenRow' : row.status === 'review' ? 'unconfirmed' : row.status}`,
+                      )}</span>
+                      <ChevronRight className="trolley-inventory-row-arrow" size={16} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
               </ul>
-            ) : <p className="trolley-inventory-ready" role="status">{t('wash.fleet.inventory.noMatches')}</p>}
+            ) : <p className="trolley-inventory-ready">{t(`${INVENTORY_KEY}.noMatches`)}</p>}
           </section>
         </div>
       )}

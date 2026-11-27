@@ -153,6 +153,7 @@
 }
 
 .fleet-modal [data-status="review"],
+.fleet-modal [data-status="missing"],
 .fleet-modal [data-status="conflict"] {
   --fleet-status-color: #805200;
   --fleet-status-bg: #fff5d9;

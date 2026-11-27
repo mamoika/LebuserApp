@@ -40,7 +40,7 @@ import PackingModal from './modals/PackingModal';
 import { AddEntryModal, ViewEditEntryModal } from './modals/EntryModals';
 import { currentLocale, operationalYmd } from '../lib/dateUtils';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
-import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley } from '../lib/trolleyOccupancy';
+import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley, trolleyInventoryFoundCount } from '../lib/trolleyOccupancy';
 import { formatTrolleyCode } from '../lib/trolleyCodes';
 import { calculateLaundryDayMetrics, isLaundryWashed, isReadyForDriver, laundryBatchKey } from '../lib/laundryDayPlan';
 import { arrivalDateOf, departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
@@ -679,11 +679,11 @@ export default function WashView() {
       <div className="laundry-toolbar">
         <div className="laundry-title-group">
           <h1>{t('wash.kicker')}</h1>
-          {(canViewHistory || isAdmin || trolleyInventory || showingInventory) && (
+          {(canViewHistory || hasWashRole || trolleyInventory || showingInventory) && (
             <nav className="laundry-view-nav" aria-label={t('wash.viewSelector')}>
               <Link to="." aria-current={showingPlan ? 'page' : undefined}>{t('wash.title')}</Link>
               {canViewHistory && <Link to="?view=history" aria-current={showingHistory ? 'page' : undefined}>{t('wash.history.title')}</Link>}
-              {(isAdmin || trolleyInventory || showingInventory) && (
+              {(hasWashRole || trolleyInventory || showingInventory) && (
                 <Link to={INVENTORY_VIEW} aria-current={showingInventory ? 'page' : undefined}>{t('wash.fleet.inventory.title')}</Link>
               )}
             </nav>
@@ -759,7 +759,7 @@ export default function WashView() {
       sessionToken={sessionToken}
       trolleyCount={trolleyCount}
       inventory={trolleyInventory}
-      inventoryLink={isAdmin || trolleyInventory ? INVENTORY_VIEW : undefined}
+      inventoryLink={hasWashRole || trolleyInventory ? INVENTORY_VIEW : undefined}
       activeTrolleyByNo={activeTrolleyByNo}
       clients={clients}
       initialTrolley={historyTrolley}
@@ -793,11 +793,10 @@ export default function WashView() {
         <TrolleyInventoryView
           key={sessionToken}
           inventory={trolleyInventory}
-          trolleyCount={trolleyCount}
           activeTrolleyByNo={activeTrolleyByNo}
-          clients={clients}
           sessionToken={sessionToken}
-          canEdit={isAdmin}
+          canEdit={hasWashRole}
+          canCorrect={isAdmin}
           loading={workflowLoading}
           loadError={workflowError}
           historyOpen={trolleysModalOpen}
@@ -1091,8 +1090,8 @@ export default function WashView() {
             <span className="laundry-fleet-summary-icon"><Archive size={19} aria-hidden="true" /></span>
             <span className="laundry-fleet-summary-copy">
               <strong>{t('wash.flowOverview.fleetTitle')}</strong>
-              <span>{trolleyInventory && !trolleyInventory.completed_at
-                ? t('wash.fleet.inventory.progress', { checked: Object.keys(trolleyInventory.checks).length, total: trolleyInventory.trolley_nos.length })
+              <span>{Array.isArray(trolleyInventory?.expected_trolley_nos) && !trolleyInventory.completed_at
+                ? t('wash.fleet.inventory.foundCount', { count: trolleyInventoryFoundCount(trolleyInventory) })
                 : t('wash.flowOverview.fleetOccupied', { count: metrics.activeTrolleys, total: trolleyCount })}</span>
             </span>
             <strong className="laundry-fleet-summary-free tabular-nums">

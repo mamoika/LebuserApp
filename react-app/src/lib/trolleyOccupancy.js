@@ -67,6 +67,7 @@ export function buildTrolleyOccupancy(trolleys = [], arrivalReservations = []) {
 
 export function canUseFreeTrolley(trolleyNo, occupied, inventory) {
   if (occupied) return false;
+  if (inventory?.packing_holds) return !inventory.packing_holds.includes(trolleyNo);
   if (!inventory?.trolley_nos.includes(trolleyNo)) return true;
   const check = inventory.checks[trolleyNo];
   return Boolean(check && (check.movement_since_check || check.status === 'free_at_laundry'));
@@ -79,10 +80,36 @@ export const TROLLEY_INVENTORY_LABELS = {
   dirty_at_laundry: 'dirtyAtLaundry',
 };
 
+export function hasTrolleyPresenceConflict(occupied, observation) {
+  return observation?.status === 'present' && !observation.movement_since_check && Boolean(
+    occupied?.occupancy_conflict || occupied?.status === 'at_client'
+    || occupied?.status === 'returning_to_laundry' || occupied?.status === 'released' || occupied?.released_at
+  );
+}
+
+export function trolleyInventoryRoundStatus(trolleyNo, occupied, inventory) {
+  const observation = inventory.observations[trolleyNo];
+  if (hasTrolleyPresenceConflict(occupied, observation)) return 'conflict';
+  if (observation) return observation.status;
+  return inventory.expected_trolley_nos.includes(trolleyNo) ? 'review' : 'outside';
+}
+
+export function trolleyInventoryFoundCount(inventory) {
+  return Object.values(inventory?.observations || {}).filter(observation => observation.status === 'present').length;
+}
+
 export function trolleyFleetStatus(trolleyNo, occupied, inventory) {
   const recorded = !occupied ? 'free'
     : occupied.occupancy_source === 'arrival' ? 'dirty'
     : occupied.status === 'at_client' ? 'atClient' : 'inUse';
+
+  if (inventory?.packing_holds) {
+    const observation = inventory.observations[trolleyNo];
+    const status = hasTrolleyPresenceConflict(occupied, observation) ? 'conflict'
+      : !occupied && inventory.packing_holds.includes(trolleyNo) ? 'missing'
+      : recorded;
+    return { status, recorded, observation };
+  }
 
   if (!inventory?.trolley_nos.includes(trolleyNo)) return { status: recorded, recorded };
 

@@ -6,6 +6,8 @@ import {
   buildTrolleyOccupancy,
   canUseFreeTrolley,
   trolleyFleetStatus,
+  trolleyInventoryFoundCount,
+  trolleyInventoryRoundStatus,
 } from './trolleyOccupancy.js';
 
 test('dirty arrival reservations occupy physical trolleys in the laundry fleet', () => {
@@ -86,4 +88,38 @@ test('a movement after a check resumes normal tracking for that trolley', () => 
   assert.equal(canUseFreeTrolley('1', null, inventory), true);
   assert.equal(trolleyFleetStatus('2', arrival, inventory).status, 'dirty');
   assert.equal(canUseFreeTrolley('2', arrival, inventory), false);
+});
+
+test('presence inventory preserves unconfirmed free trolleys and explicitly blocks missing ones', () => {
+  const inventory = {
+    expected_trolley_nos: ['1', '2'],
+    observations: { '2': { status: 'missing' } },
+    packing_holds: ['2'],
+  };
+  assert.equal(trolleyInventoryRoundStatus('1', null, inventory), 'review');
+  assert.equal(trolleyInventoryRoundStatus('2', null, inventory), 'missing');
+  assert.equal(trolleyInventoryRoundStatus('3', null, inventory), 'outside');
+  assert.equal(canUseFreeTrolley('1', null, inventory), true);
+  assert.equal(canUseFreeTrolley('2', null, inventory), false);
+  assert.equal(trolleyFleetStatus('2', null, inventory).status, 'missing');
+  assert.equal(canUseFreeTrolley('2', null, { ...inventory, packing_holds: [] }), true);
+});
+
+test('presence counts occupied carts and flags a conflict only until a later movement', () => {
+  const packed = { status: 'packed' };
+  const atClient = { status: 'at_client' };
+  const inventory = {
+    expected_trolley_nos: ['1'],
+    observations: { '1': { status: 'present' }, '2': { status: 'present' } },
+    packing_holds: [],
+  };
+  assert.equal(trolleyInventoryRoundStatus('1', packed, inventory), 'present');
+  assert.equal(trolleyInventoryRoundStatus('2', atClient, inventory), 'conflict');
+  assert.equal(trolleyInventoryFoundCount(inventory), 2);
+  assert.equal(canUseFreeTrolley('1', packed, inventory), false);
+  assert.equal(canUseFreeTrolley('2', atClient, inventory), false);
+  inventory.observations['2'].movement_since_check = true;
+  assert.equal(trolleyInventoryRoundStatus('2', atClient, inventory), 'present');
+  assert.equal(trolleyFleetStatus('2', atClient, inventory).status, 'atClient');
+  assert.equal(trolleyInventoryFoundCount(inventory), 2);
 });

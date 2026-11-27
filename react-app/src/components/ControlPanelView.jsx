@@ -37,7 +37,7 @@ import { summarizeCostsMonth } from '../lib/costsMonthSummary';
 import { getDriverCardReminder } from '../lib/driverCardReminder';
 import { calculateLaundryDayMetrics } from '../lib/laundryDayPlan';
 import { departureDateOf, plannedWashDateOf } from '../lib/laundryWashDates';
-import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley } from '../lib/trolleyOccupancy';
+import { activePhysicalTrolleyCycles, buildTrolleyOccupancy, canUseFreeTrolley, trolleyInventoryFoundCount } from '../lib/trolleyOccupancy';
 import { effectiveServiceRules, isEveryWorkdayService } from '../lib/serviceSchedule';
 import { currentLocale, monthNames } from '../lib/dateUtils';
 import { calendarTodayYmd, formatWorkDuration } from '../lib/workTime';
@@ -536,11 +536,8 @@ export default function ControlPanelView() {
             detail={[
               t('controlPanel.today.trolleysDetail', { free: laundry.free, atClient: laundry.atClient, inLaundry: laundry.inLaundry }),
               laundry.reserved > 0 ? t('controlPanel.today.trolleysReserved', { count: laundry.reserved }) : null,
-              remote.trolleyInventory && !remote.trolleyInventory.completed_at
-                ? t('wash.fleet.inventory.progress', {
-                  checked: Object.keys(remote.trolleyInventory.checks).length,
-                  total: remote.trolleyInventory.trolley_nos.length,
-                }) : null,
+              Array.isArray(remote.trolleyInventory?.expected_trolley_nos) && !remote.trolleyInventory.completed_at
+                ? t('wash.fleet.inventory.foundCount', { count: trolleyInventoryFoundCount(remote.trolleyInventory) }) : null,
             ].filter(Boolean).join(' · ')}
             to="/wash"
           />

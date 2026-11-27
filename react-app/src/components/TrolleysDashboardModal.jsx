@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, History, MapPin, PackageOpen, Search, ShieldAlert, Truck, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory } from '../lib/laundryRpc';
+import { assignTrolleyToClient, forceReleaseTrolley, getTrolleyHistory, returnLaundryTrolley } from '../lib/laundryRpc';
 import { formatTrolleyCode, parseTrolleyCode } from '../lib/trolleyCodes';
-import { trolleyFleetStatus, TROLLEY_INVENTORY_LABELS } from '../lib/trolleyOccupancy';
+import { trolleyFleetStatus, trolleyInventoryFoundCount, TROLLEY_INVENTORY_LABELS } from '../lib/trolleyOccupancy';
 import { operationalYmd } from '../lib/dateUtils';
 import { lockPageScroll } from '../lib/modalScrollLock';
 import './TrolleysDashboardModal.css';
@@ -19,13 +19,14 @@ const FLEET_STATUSES = {
 const INVENTORY_STATUSES = {
   review: { Icon: ClipboardCheck, label: 'inventory.review' },
   conflict: { Icon: ShieldAlert, label: 'inventory.conflict' },
+  missing: { Icon: ShieldAlert, label: 'inventory.missing' },
 };
 
 const STATUS_DETAILS = { ...FLEET_STATUSES, ...INVENTORY_STATUSES };
 function fleetStatusDetails(status, active) {
-  return status === 'dirty' && active?.status === 'returning_to_laundry'
-    ? { Icon: Truck, label: 'returningToLaundry' }
-    : STATUS_DETAILS[status];
+  if (status === 'dirty' && active?.status === 'returning_to_laundry') return { Icon: Truck, label: 'returningToLaundry' };
+  if (status === 'inUse' && (active?.released_at || active?.status === 'released')) return { Icon: Truck, label: 'inventory.inTransit' };
+  return STATUS_DETAILS[status];
 }
 
 function normalizeSearch(value = '') {
@@ -147,7 +148,7 @@ export default function TrolleysDashboardModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeHistory, onClose, selectedTrolley]);
 
-  const counts = { free: 0, inUse: 0, dirty: 0, atClient: 0, review: 0, conflict: 0 };
+  const counts = { free: 0, inUse: 0, dirty: 0, atClient: 0, review: 0, conflict: 0, missing: 0 };
   const today = new Date();
   const fleet = Array.from({ length: trolleyCount }, (_, index) => {
     const trolleyNo = String(index + 1);
@@ -199,7 +200,10 @@ export default function TrolleysDashboardModal({
     .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
   const { status: selectedStatus, recorded: selectedRecorded, check: selectedCheck } = trolleyFleetStatus(selectedTrolley, selectedActive, inventory);
   const { Icon: SelectedStatusIcon, label: selectedStatusLabel } = fleetStatusDetails(selectedStatus, selectedActive);
-  const checkedCount = inventory ? Object.keys(inventory.checks).length : 0;
+  const lastSeen = inventory?.last_seen_at?.[selectedTrolley];
+  const canRecordReturn = selectedStatus === 'conflict' && Boolean(
+    selectedActive?.id && selectedActive.status === 'at_client' && !selectedActive.occupancy_conflict,
+  );
 
   const handleCorrection = async () => {
     if (!pendingAction || !selectedTrolley || actionBusy) return;
@@ -213,6 +217,12 @@ export default function TrolleysDashboardModal({
           return;
         }
         await assignTrolleyToClient(sessionToken, selectedTrolley, selectedClientId, actorName);
+      } else if (pendingAction === 'record_return') {
+        if (!canRecordReturn) {
+          setActionError(t('wash.fleet.actions.returnChanged'));
+          return;
+        }
+        await returnLaundryTrolley(sessionToken, selectedActive.id, actorName);
       } else {
         await forceReleaseTrolley(sessionToken, selectedTrolley, pendingAction, actorName);
       }
@@ -247,7 +257,9 @@ export default function TrolleysDashboardModal({
               <Link className="fleet-inventory-link" to={inventoryLink} onClick={onClose}>
                 <ClipboardCheck size={17} aria-hidden="true" />
                 <strong>{t('wash.fleet.inventory.title')}</strong>
-                {inventory && <small>{t('wash.fleet.inventory.progress', { checked: checkedCount, total: inventory.trolley_nos.length })}</small>}
+                {Array.isArray(inventory?.expected_trolley_nos) && <small>{t(
+                  'wash.fleet.inventory.foundCount', { count: trolleyInventoryFoundCount(inventory) },
+                )}</small>}
                 <ChevronRight size={16} aria-hidden="true" />
               </Link>
             )}
@@ -427,12 +439,13 @@ export default function TrolleysDashboardModal({
                   {(selectedActive?.client_name || (selectedStatus === 'atClient' && selectedCheck?.client_name)) && (
                     <small><MapPin size={12} aria-hidden="true" /> {selectedActive?.client_name || selectedCheck.client_name}</small>
                   )}
-                  {selectedStatus === 'conflict' && (
+                  {selectedStatus === 'conflict' && selectedCheck && (
                     <small>{t('wash.fleet.inventory.mismatch', {
                       status: t(`wash.fleet.${TROLLEY_INVENTORY_LABELS[selectedCheck.status]}`),
                       client: selectedCheck.client_name ? ` · ${selectedCheck.client_name}` : '',
                     })}</small>
                   )}
+                  {lastSeen && <small>{t('wash.fleet.inventory.lastSeen', { date: formatDate(lastSeen) })}</small>}
                 </div>
               </div>
 
@@ -498,6 +511,12 @@ export default function TrolleysDashboardModal({
                     <div className="fleet-history-action-buttons">
                       {selectedActive ? (
                         <>
+                          {canRecordReturn && (
+                            <button type="button" className="fleet-history-action is-client" onClick={() => setPendingAction('record_return')}>
+                              <MapPin size={16} aria-hidden="true" />
+                              <span><strong>{t('wash.fleet.actions.recordReturn')}</strong></span>
+                            </button>
+                          )}
                           <button type="button" className="fleet-history-action is-loose" onClick={() => setPendingAction('make_loose')}>
                             <PackageOpen size={16} aria-hidden="true" />
                             <span><strong>{t('wash.fleet.actions.makeLoose')}</strong><small>{t('wash.fleet.actions.makeLooseHint')}</small></span>
@@ -530,7 +549,7 @@ export default function TrolleysDashboardModal({
                       {actionError && <div className="ap-error">{actionError}</div>}
                       <div>
                         <button type="button" className="btn-secondary" onClick={() => { setPendingAction(null); setSelectedClientId(''); setActionError(''); }} disabled={actionBusy}>{t('common.cancel')}</button>
-                        <button type="button" className={pendingAction === 'assign_client' ? 'btn-primary' : 'btn-danger'} onClick={handleCorrection} disabled={actionBusy || (pendingAction === 'assign_client' && !selectedClientId)}>{actionBusy ? t('wash.fleet.actions.saving') : t(pendingAction === 'assign_client' ? 'wash.fleet.actions.assignConfirm' : 'wash.fleet.actions.confirm')}</button>
+                        <button type="button" className={['assign_client', 'record_return'].includes(pendingAction) ? 'btn-primary' : 'btn-danger'} onClick={handleCorrection} disabled={actionBusy || (pendingAction === 'assign_client' && !selectedClientId)}>{actionBusy ? t('wash.fleet.actions.saving') : t(pendingAction === 'assign_client' ? 'wash.fleet.actions.assignConfirm' : 'wash.fleet.actions.confirm')}</button>
                       </div>
                     </div>
                   )}

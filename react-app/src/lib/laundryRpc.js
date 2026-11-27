@@ -44,13 +44,19 @@ export function startTrolleyInventory(sessionToken, previousInventoryId) {
   });
 }
 
-export function verifyTrolleyInventory(sessionToken, inventoryId, trolleyNo, status, clientId) {
-  return callLaundryRpc('admin_verify_trolley_inventory', {
+export function recordTrolleyInventoryObservation(sessionToken, inventoryId, trolleyNo, status) {
+  return callLaundryRpc('record_trolley_inventory_observation', {
     p_session_token: sessionToken,
     p_inventory_id: inventoryId,
     p_trolley_no: trolleyNo,
     p_status: status,
-    p_client_id: clientId || null,
+  });
+}
+
+export function finishTrolleyInventory(sessionToken, inventoryId) {
+  return callLaundryRpc('finish_trolley_inventory', {
+    p_session_token: sessionToken,
+    p_inventory_id: inventoryId,
   });
 }
 
